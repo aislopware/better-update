@@ -1,11 +1,13 @@
 import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { boundProjectIdsField, credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   "AndroidUploadKeystore",
 )({
+  ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
   /** User-supplied label from `credentials upload --name`; null for keystores uploaded before names were stored or generated via keytool. */
@@ -15,6 +17,8 @@ export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   sha1Fingerprint: Schema.NullOr(Schema.String),
   sha256Fingerprint: Schema.NullOr(Schema.String),
   keystoreType: Schema.NullOr(Schema.Literal("JKS", "PKCS12")),
+  /** Protected-credential flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}
@@ -25,6 +29,7 @@ export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
  * fingerprints below — the server stores only metadata + the envelope.
  */
 export const UploadAndroidUploadKeystoreBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   name: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),

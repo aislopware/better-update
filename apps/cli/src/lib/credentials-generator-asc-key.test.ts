@@ -100,7 +100,9 @@ const buildApi = (vault: TestVault) =>
   }) as unknown as ApiClient;
 
 const recordedWrites: { path: string; content: string }[] = [];
+// `readFileString` fails so the auto-bind lookup (spec §1a) resolves to "not linked".
 const fsStubLayer = Layer.succeed(FileSystem.FileSystem, {
+  readFileString: () => Effect.fail(new Error("no filesystem in tests")),
   writeFileString: (path: string, content: string) =>
     Effect.sync(() => {
       recordedWrites.push({ path, content });

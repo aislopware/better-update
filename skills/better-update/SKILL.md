@@ -99,8 +99,6 @@ better-update
 ├── metadata                  media (list/sync) · screenshots (upload/clear) · previews (upload) — store media (CI-safe)
 ├── app-review                list · view · rejections · reply — Apple App Review / Resolution Center (Apple ID login, NOT CI-safe)
 ├── devices                   Register Apple device UDIDs for ad-hoc/development provisioning
-├── groups / policies         IAM: member groups + policy documents (default-deny; managed:admin
-│                             is the only preset — everything else is a custom policy)
 └── webhooks                  update.published / build.completed subscriptions
 ```
 
@@ -213,17 +211,17 @@ bundle-id create --app-clip`, and `apple sandbox …` (IAP testers) all hit Appl
 
 The depth lives in `references/`. Pull the one you need; don't load them all.
 
-| Read this                              | When you're…                                                                                                                                                                               |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `references/getting-started.md`        | installing, logging in, pointing at a self-hosted server, linking a project, or using `whoami`/`doctor`/`open`                                                                             |
-| `references/publishing.md`             | publishing updates, every `update publish` flag, runtime-version policies, promote/republish/edit, the audit log                                                                           |
-| `references/channels-and-branches.md`  | new-branch-vs-channel, repointing channels, `view`/`insights`, the cut→vet→promote pattern, channel rollouts                                                                               |
-| `references/rollouts-and-rollbacks.md` | staging a % rollout, the three "revert" verbs, whole-branch rollback, the symptom→action decision table                                                                                    |
-| `references/native-builds.md`          | running `build` (+`configure`), managing `builds` (download/run/resign), `fingerprint`, store `submit`                                                                                     |
-| `references/credentials.md`            | the signing + E2E credential vault: certs/profiles/keystores/APNs, `identity`/`access`/`device`, `unlock`/`lock`; `account`/`env-vault` for browser env-vault access + its troubleshooting |
-| `references/environments.md`           | env vars (`set`/`get`/`push`/`pull`/`export`, visibility), `history`/`rollback`, the org `environments` command                                                                            |
-| `references/access-control.md`         | IAM (managed admin + custom policies + groups), protected environments, Apple device registration, webhooks                                                                                |
-| `references/cli.md`                    | you need the exhaustive command/flag table for ANY command (every group), or exit codes for CI branching                                                                                   |
+| Read this                              | When you're…                                                                                                                                                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `references/getting-started.md`        | installing, logging in, pointing at a self-hosted server, linking a project, or using `whoami`/`doctor`/`open`                                                                                                                                             |
+| `references/publishing.md`             | publishing updates, every `update publish` flag, runtime-version policies, promote/republish/edit, the audit log                                                                                                                                           |
+| `references/channels-and-branches.md`  | new-branch-vs-channel, repointing channels, `view`/`insights`, the cut→vet→promote pattern, channel rollouts                                                                                                                                               |
+| `references/rollouts-and-rollbacks.md` | staging a % rollout, the three "revert" verbs, whole-branch rollback, the symptom→action decision table                                                                                                                                                    |
+| `references/native-builds.md`          | running `build` (+`configure`), managing `builds` (download/run/resign), `fingerprint`, store `submit`                                                                                                                                                     |
+| `references/credentials.md`            | the signing + E2E credential vault: certs/profiles/keystores/APNs, `identity`/`access`/`device`, `unlock`/`lock`, project-scoped `robot` accounts, credential→project `bindings`; `account`/`env-vault` for browser env-vault access + its troubleshooting |
+| `references/environments.md`           | env vars (`set`/`get`/`push`/`pull`/`export`, visibility), `history`/`rollback`, the org `environments` command                                                                                                                                            |
+| `references/access-control.md`         | roles (org owner/admin/member + project maintainer/developer/reporter), project-scoped robots, credential→project bindings, protected environments & credentials, Apple device registration, webhooks                                                      |
+| `references/cli.md`                    | you need the exhaustive command/flag table for ANY command (every group), or exit codes for CI branching                                                                                                                                                   |
 
 When a command's exact flags or exit-code semantics matter (especially in CI scripts), confirm
 against `references/cli.md` — it mirrors `apps/cli/src/commands` and is the source of truth.

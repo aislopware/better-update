@@ -21,7 +21,7 @@ Many booleans are citty-negatable — a `foo` flag with default on is disabled w
 - [env](#env) · [environments](#environments)
 - [fingerprint](#fingerprint) · [analytics](#analytics) · [audit-logs](#audit-logs)
 - [apple](#apple) · [submit](#submit) · [testflight](#testflight) · [app-store](#app-store)
-- [devices](#devices) · [groups](#groups) · [policies](#policies) · [webhooks](#webhooks)
+- [devices](#devices) · [webhooks](#webhooks)
 - [Exit codes](#exit-codes)
 
 ## Top-level command tree
@@ -54,8 +54,6 @@ better-update
 ├── app-store                      version (list/create/set/localize) · submit · status ·
 │                                  release · rollout (start/status/pause/resume/complete)
 ├── devices                        add · list · view · sync · rename · enable · disable · delete
-├── groups                         list · create · update · delete · members · policies · attach · detach
-├── policies                       list · create · update · delete (IAM policy documents)
 └── webhooks                       list · create · view · update · delete
 ```
 
@@ -340,12 +338,22 @@ ciphertext. These manage who can decrypt and the local cached-key session.
 
 ```bash
 better-update credentials identity <create|init|register|show> [--label]   # default `show`; device identity only
-better-update credentials robot <create|list|rotate|revoke|grant-env|policies|attach|detach> …   # default `list`; org-owned CI identity
-#   robot create [--name] [--no-grant] — mint a robot (bearer + vault identity), grant it (incl. env-vault post-cutover), print BETTER_UPDATE_ROBOT once
-#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only (needs robotAccount:update; boundary-checked); pass --identity to get a full bundle back
-#   robot revoke <id> [--yes] — bearer stops authenticating, policy attachments dropped; excludes + rotates the credentials and env vaults it held access to
+better-update credentials robot <create|list|rotate|revoke|grant-env> …    # default `list`; org-owned, PROJECT-scoped CI identity
+#   robot create [--name] [--no-grant] [--project <projectId>] [--role maintainer|developer|reporter]
+#     — mint a robot (bearer + vault identity), grant it (incl. env-vault post-cutover), print BETTER_UPDATE_ROBOT once.
+#       One robot = ONE project + ONE role, fixed at creation (no grant/revoke-access subcommands).
+#       --project defaults to the linked project from the local context; --role defaults to developer.
+#       Requires Maintainer+ on that project (org admin/owner implicitly).
+#   robot list — shows each robot's project + role; pre-v2 rows show "legacy — recreate" (they no longer authenticate; revoke them)
+#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity to get a full bundle back
+#   robot revoke <id> [--yes] — bearer stops authenticating; excludes + rotates the credentials and env vaults it held access to
 #   robot grant-env <id> — enroll an EXISTING robot into the env vault so it decrypts env vars in CI (post-cutover; idempotent; `create` already covers new robots)
-#   robot policies <id> · robot attach <id> --policy-id <policy> · robot detach <id> --policy-id <policy> — IAM grants (default-deny)
+better-update credentials bindings <list|plan|add|remove> …                # default `list`; credential→project bindings (org admin)
+#   bindings list [--project <id>] — org credentials bound to the project
+#   bindings plan [--apply] — bindings existing project configs rely on (bound/missing); --apply binds every missing one (idempotent)
+#   bindings add <resourceType> <resourceId> [--project <id>] — bind (idempotent); appleTeam covers all child credentials + devices
+#   bindings remove <resourceType> <resourceId> [--project <id>] — unbind
+#     resourceType: appleTeam | ascApiKey | googleServiceAccountKey | androidUploadKeystore; --project defaults to the linked project
 better-update credentials passphrase [change]                              # change this device's passphrase; re-seals identity + enrolled account key; default `change`
 better-update credentials device <list|link> [<device>] [--yes]            # default `list`; link self-links a new device
 better-update credentials access <list|grant|rotate|revoke|recover|recovery> …   # default `list`
@@ -832,42 +840,15 @@ better-update devices delete <id> [--yes]
 `--apple-team-id` is the internal team UUID (not the Apple Team Identifier). `devices sync` requires
 `--apple-team-id` or `--asc-api-key-id`.
 
-## groups
+## Access control
 
-Member groups for IAM. Policies attached to a group are inherited by its members.
-
-```bash
-better-update groups list
-better-update groups create --name <name> [--description <text>]
-better-update groups update <id> [--name <name>] [--description <text>]
-better-update groups delete <id> [--yes]
-better-update groups members list <id>
-better-update groups members add <id> --member-id <memberId>
-better-update groups members remove <id> --member-id <memberId>
-better-update groups policies <id>                       # list policies attached to the group
-better-update groups attach <id> --policy-id <policyId>  # accepts a real id or a managed preset (e.g. managed:admin)
-better-update groups detach <id> --policy-id <policyId>
-```
-
-## policies
-
-IAM policy documents (default-deny; members/robot accounts get permissions only via attached policies).
-
-```bash
-better-update policies list
-better-update policies create --name <name> --document <json> [--description <text>]
-better-update policies update <id> [--name <name>] [--description <text>] [--document <json>]
-better-update policies delete <id> [--yes]
-```
-
-`--document` is a JSON policy: `{"statements":[{"effect":"allow"|"deny","actions":[…],"resources":[…]}]}`
-(shape-validated client-side). `managed:admin` is the ONLY managed (read-only) policy — all
-fine-grained access is granted via custom policies. Resource selectors on the OTA axis carry the
-environment segment: `project/{id}/env/{env}/channel/{id}/…` — writes into a PROTECTED environment
-additionally require `environment:update` on `project/{id}/env/{env}`. Apple credentials are scoped
-by Apple team: `appleCredential:*` on `appleTeam/{APPLE_TEAM_ID}` grants full CRUD + download for
-every credential type of that team (`appleCredential:read` = per-team viewer; team-less ASC keys
-live under `appleTeam/none`; see `references/access-control.md`).
+There are no `groups`/`policies` commands: access control is GitLab-style RBAC — fixed org roles
+(owner/admin/member) plus per-project roles (maintainer/developer/reporter). Human roles are managed
+in the web dashboard; robots are project-scoped (`credentials robot create --project/--role` above —
+one robot = one project + one role, fixed at creation). Org credentials must be **bound** to a
+project to be usable there (`credentials bindings` above; credential creation from project context
+auto-binds). See `references/access-control.md` for the model (including protected environments,
+protected credentials, and the build-time "must be bound" rule).
 
 ## webhooks
 

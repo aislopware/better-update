@@ -7,6 +7,7 @@ import {
   appleTeamsQueryOptions,
   ascApiKeysQueryOptions,
   googleServiceAccountKeysQueryOptions,
+  meQueryOptions,
 } from "@better-update/api-client/react";
 import { Frame } from "@better-update/ui/components/ui/frame";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -15,7 +16,7 @@ import { Suspense, useMemo } from "react";
 
 import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
-import { assertCapability } from "../../../lib/access";
+import { assertCapability, isOrgAdmin } from "../../../lib/access";
 import {
   AppleTeamsEmptyState,
   AppleTeamsTable,
@@ -23,8 +24,6 @@ import {
   AscApiKeysTable,
   DistributionCertificatesEmptyState,
   DistributionCertificatesTable,
-  GoogleServiceAccountKeysEmptyState,
-  GoogleServiceAccountKeysTable,
   PassTypeCertificatesEmptyState,
   PassTypeCertificatesTable,
   PayCertificatesEmptyState,
@@ -34,6 +33,10 @@ import {
   PushKeysEmptyState,
   PushKeysTable,
 } from "./-credentials-tables";
+import {
+  GoogleServiceAccountKeysEmptyState,
+  GoogleServiceAccountKeysTable,
+} from "./-credentials-tables-google";
 import { indexAppleTeamsById } from "./-credentials-utils";
 
 const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
@@ -144,6 +147,9 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(ascApiKeysQueryOptions(orgId));
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
   const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
+  // Binding management is org-admin work (GITLAB-RBAC-SPEC §1a) — same gate
+  // as the protection toggles. Team-scoped keys inherit their team's bindings.
+  const { data: me } = useSuspenseQuery(meQueryOptions());
 
   return (
     <section className="flex flex-col gap-3">
@@ -152,7 +158,12 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
         <AscApiKeysEmptyState />
       ) : (
         <Frame>
-          <AscApiKeysTable items={data.items} teamsById={teamsById} />
+          <AscApiKeysTable
+            items={data.items}
+            teamsById={teamsById}
+            orgId={orgId}
+            canManageBindings={isOrgAdmin(me.orgRole)}
+          />
         </Frame>
       )}
     </section>
@@ -161,18 +172,25 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
 
 const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
+  // Protection toggles are admin/owner-only (GITLAB-RBAC-SPEC §3b) — everyone
+  // else sees the read-only protected state.
+  const { data: me } = useSuspenseQuery(meQueryOptions());
 
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
         title="Apple Teams"
-        description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys."
+        description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict every credential in the team to Maintainers."
       />
       {teams.items.length === 0 ? (
         <AppleTeamsEmptyState />
       ) : (
         <Frame>
-          <AppleTeamsTable items={teams.items} />
+          <AppleTeamsTable
+            items={teams.items}
+            orgId={orgId}
+            canManageProtection={isOrgAdmin(me.orgRole)}
+          />
         </Frame>
       )}
     </section>
@@ -181,18 +199,23 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
 
 const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(googleServiceAccountKeysQueryOptions(orgId));
+  const { data: me } = useSuspenseQuery(meQueryOptions());
 
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
         title="Google Service Account Keys"
-        description=".json keys for FCM v1 push notifications."
+        description=".json keys for FCM v1 push notifications. Protected keys are restricted to Maintainers."
       />
       {data.items.length === 0 ? (
         <GoogleServiceAccountKeysEmptyState />
       ) : (
         <Frame>
-          <GoogleServiceAccountKeysTable items={data.items} />
+          <GoogleServiceAccountKeysTable
+            items={data.items}
+            orgId={orgId}
+            canManageProtection={isOrgAdmin(me.orgRole)}
+          />
         </Frame>
       )}
     </section>

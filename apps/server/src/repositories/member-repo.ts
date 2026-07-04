@@ -47,6 +47,13 @@ export interface MemberRepository {
     readonly organizationId: string;
   }) => Effect.Effect<boolean>;
 
+  /** Set a member's org role (admin ⇄ member; owners are guarded by the handler). */
+  readonly updateRole: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly role: "admin" | "member";
+  }) => Effect.Effect<void>;
+
   /** Every member of an org (id + role + userId) — feeds the access-summaries endpoint. */
   readonly listByOrg: (params: {
     readonly organizationId: string;
@@ -132,6 +139,19 @@ export const MemberRepoLive = Layer.succeed(MemberRepo, {
           .executeTakeFirst(),
       );
       return Number(result.numDeletedRows) > 0;
+    }),
+
+  updateRole: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("member")
+          .set({ role: params.role })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   listByOrg: (params) =>

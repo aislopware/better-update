@@ -48,6 +48,38 @@ keystores and ASC API keys (separate from the key alias / internal identifier), 
 `--name` to tell apart credentials that share an internal id — e.g. white-label Android keystores that
 all reuse the key alias `jmango`.
 
+**Auto-bind on create**: when an upload/generate runs inside a linked project, the CLI passes the
+linked `projectId` and the new credential (or its Apple team) is **bound to that project** in the
+same request (see "Credential→project bindings" below). A project Maintainer can therefore add CI
+credentials without an org admin. A plain member creating a brand-NEW team/credential outside any
+project context gets a 403; uploading under an existing already-bound team needs nothing extra.
+
+### Credential→project bindings
+
+Org credentials are usable in a project only when **bound** to it — unbound credentials are
+org-admin-only, and `build` / `build-credentials resolve` hard-fails (for admins too) when the
+resolved Apple team or upload keystore is not bound to the target project. Admins manage bindings
+with:
+
+```bash
+better-update credentials bindings list [--project <id>]
+better-update credentials bindings plan [--apply]
+better-update credentials bindings add appleTeam <team-uuid> [--project <id>]
+better-update credentials bindings remove androidUploadKeystore <keystore-id> [--project <id>]
+```
+
+Resource types: `appleTeam` (cascades to every child credential and the team's registered devices),
+`ascApiKey` (team-less keys only), `googleServiceAccountKey`, `androidUploadKeystore`. `--project`
+defaults to the linked project. Full access model: `references/access-control.md`.
+
+**Bulk re-bind with `plan`**: `bindings plan` derives, from the org's existing iOS bundle
+configurations and Android build-credential groups, which bindings those configs rely on, and shows
+each as `✓ bound` / `✗ missing` with a `N missing of M` summary. `--apply` then binds every missing
+item (idempotent — safe to re-run). Typical use: right after upgrading to the binding model every
+credential starts unbound (admin-only), so an org admin runs
+`better-update credentials bindings plan --apply` once instead of hand-copying UUIDs into
+`bindings add`. Org admin only.
+
 ## Generate (create in-place instead of uploading)
 
 All Apple ASC calls run **from your machine** (the server hands out the decrypted `.p8` only for the
@@ -149,15 +181,21 @@ better-update credentials identity create [--label]      # make + register this 
 better-update credentials identity register [--label]    # re-register an existing identity
 better-update credentials passphrase change              # change this device's passphrase; re-seals device identity + (if enrolled) account key
 
-# Org-owned CI identity (bearer auth + vault identity in one) — see below
-better-update credentials robot create [--name] [--no-grant]   # mint + grant (credentials + env vault), prints BETTER_UPDATE_ROBOT once
-better-update credentials robot list                           # this org's robot accounts
+# Org-owned, PROJECT-scoped CI identity (bearer auth + vault identity in one) — see below
+better-update credentials robot create [--name] [--no-grant] \
+  [--project <projectId>] [--role maintainer|developer|reporter]  # mint + grant (credentials + env vault), prints BETTER_UPDATE_ROBOT once
+better-update credentials robot list                           # this org's robots (project + role; legacy rows flagged)
 better-update credentials robot rotate <id> [--identity <key>] # re-mint the bearer only
 better-update credentials robot revoke <id> [--yes]            # bearer stops auth; excludes + rotates the vault(s) it held access to
 better-update credentials robot grant-env <id>                 # enroll an existing robot into the env vault (post-cutover; idempotent)
-better-update credentials robot policies <id>                   # list policies attached to a robot
-better-update credentials robot attach <id> --policy-id <p>     # attach a policy (real or managed:*) — default-deny until granted
-better-update credentials robot detach <id> --policy-id <p>     # remove a policy attachment
+
+# Credential→project bindings (org admin) — where org credentials may be used
+better-update credentials bindings list [--project <id>]
+better-update credentials bindings plan [--apply]        # bindings existing configs rely on; --apply binds the missing ones
+better-update credentials bindings add <resourceType> <resourceId> [--project <id>]
+better-update credentials bindings remove <resourceType> <resourceId> [--project <id>]
+#   resourceType: appleTeam | ascApiKey | googleServiceAccountKey | androidUploadKeystore
+#   --project defaults to the linked project from the local context
 
 # Your devices
 better-update credentials device list                    # your device keys (active marked)
@@ -199,11 +237,12 @@ unlocked) and reuse it across every ephemeral VM/container — do **not** run `i
 runner:
 
 ```bash
-# On your dev machine (admin/owner, vault unlockable):
-better-update credentials robot create --name gitlab-ci
+# On your dev machine (a Maintainer of the project, vault unlockable), inside the linked project:
+better-update credentials robot create --name gitlab-ci --role developer
 #   → generates an age keypair + a bearer secret, registers the keypair as a `machine`
 #     recipient, grants it vault access, and prints the bundled credential ONCE.
 #   Copy that value into the BETTER_UPDATE_ROBOT CI variable (masked + protected).
+#   --project <projectId> overrides the linked-project default; --role defaults to developer.
 #   Pass --no-grant to register without granting (grant later with `access grant <fingerprint>`).
 ```
 
@@ -222,28 +261,25 @@ it from an env-recipient admin device:
 better-update credentials robot grant-env <id>   # idempotent — re-running reports "already a recipient"
 ```
 
-A freshly minted robot has **zero** API permissions (default-deny, spec §8) — vault access and IAM
-permissions are separate grants. Attach a policy next so it can actually call the management API
-(build/publish/submit/etc. all need this — vault access alone is not enough):
+**One robot = one project + one project role**, both fixed at creation (GitLab
+project-access-token shape; see `references/access-control.md`). There is no `robot grant` /
+`robot revoke-access` — a robot's authorization never changes after mint; to change project or
+role, mint a new robot and revoke the old one. The robot authenticates as an org _member_ holding
+exactly that one project membership: nothing org-level (members, webhooks, org env-var writes,
+project creation), though org-global env-var READS work with developer+. A typical CI robot is a
+`developer` (or `maintainer`, if it must publish into protected environments) on the project it
+ships.
 
-```bash
-better-update credentials robot attach <id> --policy-id managed:admin   # or a custom scoped policy
-better-update credentials robot policies <id>                          # list what's attached
-better-update credentials robot detach <id> --policy-id managed:admin  # revoke it
-```
-
-Revoke a robot with `credentials robot revoke <id>` — its bearer stops authenticating immediately,
-its policy attachments are dropped with it, and if it held credentials-vault and/or env-vault
-access, each is excluded and that vault rotated too (the revoking device must itself be able to
-unlock the vault(s) being rotated; a mid-way failure is safe to re-run). Rotate its bearer alone
-with `credentials robot rotate <id>` (its vault identity
-is left untouched); pass `--identity <its current age private key>` to get a fresh full
-`BETTER_UPDATE_ROBOT` bundle back.
-
-Rotation is an identity handover — whoever runs it walks away with the robot's new bearer — so it is
-gated separately: it needs `robotAccount:update` (not `create`), and a non-owner can only rotate a
-robot whose attached policies grant nothing beyond what the caller itself holds (the same
-no-privilege-escalation boundary `attach` enforces).
+Revoke a robot with `credentials robot revoke <id>` — its bearer stops authenticating immediately
+and, if it held credentials-vault and/or env-vault access, each is excluded and that vault rotated
+too (the revoking device must itself be able to unlock the vault(s) being rotated; a mid-way
+failure is safe to re-run). Rotate its bearer alone with `credentials robot rotate <id>` (its
+vault identity is left untouched); pass `--identity <its current age private key>` to get a fresh
+full `BETTER_UPDATE_ROBOT` bundle back.
+Robot management (create/rotate/revoke) takes Maintainer+ on the robot's project (org admin/owner
+implicitly). `robot list` shows every robot with its project + role; pre-v2 org-scoped robots show
+"legacy — recreate" — they no longer authenticate and should be revoked (their vault access is
+cleaned up through the normal revoke flow).
 
 **Migrating from `BETTER_UPDATE_IDENTITY` + `BETTER_UPDATE_TOKEN`:** the old dual-secret setup
 (a standalone `identity create-ci` machine key paired with a dashboard API key) is gone — the API

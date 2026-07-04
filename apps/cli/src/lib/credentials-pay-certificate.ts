@@ -8,6 +8,7 @@ import {
 } from "../application/credential-cipher";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
+import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
 import type { UploadCredentialInput } from "./credentials-manager";
@@ -62,7 +63,7 @@ export const uploadIosPayCertificate = (
       secret: { p12Base64: toBase64(bytes), p12Password: input.password },
     });
     const created = yield* api.applePayCertificates.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata },
+      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,

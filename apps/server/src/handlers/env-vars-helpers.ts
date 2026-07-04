@@ -4,8 +4,7 @@ import { Effect } from "effect";
 import { assertEnvVaultWriteAllowed } from "../application/assert-vault-version";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertAccess } from "../auth/policy";
-import { isAllowed, resolvePath } from "../auth/policy-match";
+import { assertAccess, matrixAllows } from "../auth/policy";
 import { BadRequest, Forbidden } from "../errors";
 import { toDbNull } from "../lib/nullable";
 import { EnvVarRepo } from "../repositories/env-vars";
@@ -70,28 +69,23 @@ export const assertEnvVarScopedPermission = (
   });
 
 /**
- * Resolve the actor's per (project × environment) env-var READ access ONCE into an
- * in-memory predicate (deny-wins, default-deny) evaluated against the actor's
- * effective policy statements. Owner/superadmin bypass → always true. The
- * predicate keys on the SAME `envVar` path the create/get/etc. asserts use, so
- * `scope=all` list rows (project rows by projectId, global rows by the sentinel)
- * filter uniformly.
+ * Resolve the actor's per (project × environment) env-var READ access ONCE into
+ * an in-memory predicate evaluated against the role matrix. Owner/superadmin
+ * bypass → always true. The predicate keys on the SAME `envVar` target the
+ * create/get/etc. asserts use, so `scope=all` list rows (project rows by
+ * projectId, global rows by the sentinel) filter uniformly.
  */
 export const resolveEnvReadPredicate = () =>
   Effect.gen(function* () {
     const ctx = yield* CurrentActor;
     const bypass = ctx.isSuperadmin || ctx.isOwner;
-    return (projectId: string | null, environment: EnvVarEnvironment): boolean => {
-      if (bypass) {
-        return true;
-      }
-      const path = resolvePath({
+    return (projectId: string | null, environment: EnvVarEnvironment): boolean =>
+      bypass ||
+      matrixAllows(ctx, "envVar", "read", {
         kind: "envVar",
         projectId: projectId ?? ENV_VAR_GLOBAL_SENTINEL,
         environment,
       });
-      return isAllowed(ctx.effectiveStatements, "envVar:read", path);
-    };
   });
 
 /**

@@ -36,6 +36,14 @@ export interface AndroidUploadKeystoreRepository {
     readonly id: string;
   }) => Effect.Effect<AndroidUploadKeystoreModel, NotFound>;
 
+  /** Toggle the protected-credential flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
+
   readonly delete: (params: {
     readonly id: string;
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
@@ -60,6 +68,7 @@ const COLUMNS = [
   "sha1_fingerprint",
   "sha256_fingerprint",
   "keystore_type",
+  "is_protected",
   "created_at",
   "updated_at",
 ] as const;
@@ -76,6 +85,7 @@ const toModel = (row: Selectable<AndroidUploadKeystores>): AndroidUploadKeystore
   sha1Fingerprint: row.sha1_fingerprint,
   sha256Fingerprint: row.sha256_fingerprint,
   keystoreType: row.keystore_type,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -136,6 +146,19 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
         return yield* new NotFound({ message: "Android keystore not found" });
       }
       return toModel(row);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("android_upload_keystores")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

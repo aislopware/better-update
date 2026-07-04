@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertAndroidCredentialRefs } from "../application/validate-credential-refs";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
@@ -47,6 +48,9 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
               kind: "project",
               projectId: parent.projectId,
             });
+            // Referenced credentials must exist in this org (fail-fast; the
+            // resolve endpoint re-checks at build time).
+            yield* assertAndroidCredentialRefs(payload);
             const repo = yield* AndroidBuildCredentialsRepo;
 
             const id = crypto.randomUUID();
@@ -92,6 +96,7 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
               kind: "project",
               projectId: parent.projectId,
             });
+            yield* assertAndroidCredentialRefs(payload);
 
             const now = new Date().toISOString();
             if (payload.isDefault === true) {

@@ -1,6 +1,9 @@
 # ADR: Unified Authorization — IAM is the single in-org gate; better-auth is authentication
 
-Status: **Accepted & implemented** (branch `feat/iam-unify-authz`).
+Status: **Accepted & implemented** (branch `feat/iam-unify-authz`); the
+single-gate DECISION still holds, but the model behind the gate is now
+GitLab-style RBAC — see `GITLAB-RBAC-SPEC.md` (2026-07-03). References to the
+Policy+Group engine below are historical.
 Supersedes the two-plane split where org-structural ops were gated by better-auth's
 org-role AC while resources were gated by the IAM Policy+Group model.
 

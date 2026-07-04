@@ -23,12 +23,10 @@ import {
   SatelliteIcon,
   SettingsIcon,
   ShieldCheckIcon,
-  ShieldIcon,
   ShieldUserIcon,
   SmartphoneIcon,
   UploadCloudIcon,
   UsersIcon,
-  UsersRoundIcon,
 } from "lucide-react";
 
 import type { MeResult } from "@better-update/api-client/react";
@@ -39,7 +37,6 @@ import type { LucideIcon } from "lucide-react";
 // IAM-gated regardless.
 type MeCapability = keyof Pick<
   MeResult,
-  | "canViewPolicies"
   | "canViewAuditLog"
   | "canViewCredentials"
   | "canViewDevices"
@@ -53,8 +50,6 @@ interface OrgNavItem {
   to:
     | "/projects"
     | "/members"
-    | "/policies"
-    | "/groups"
     | "/audit-log"
     | "/credentials"
     | "/apple-devices"
@@ -87,6 +82,7 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/credentials"
     | "/projects/$projectSlug/submissions"
     | "/projects/$projectSlug/settings"
+    | "/projects/$projectSlug/members"
     | "/projects/$projectSlug/environment-variables";
   label: string;
   icon: LucideIcon;
@@ -108,15 +104,6 @@ const ORG_NAV: OrgNavSection[] = [
     items: [
       { to: "/members", label: "Members", icon: UsersIcon },
       { to: "/audit-log", label: "Audit log", icon: ScrollTextIcon, capability: "canViewAuditLog" },
-    ],
-  },
-  // Demoted (SPEC §9d): the raw policy/group builder is the ADVANCED escape
-  // hatch — the Members page Access sheet is the primary surface.
-  {
-    label: "Access Control",
-    items: [
-      { to: "/policies", label: "Policies", icon: ShieldIcon, capability: "canViewPolicies" },
-      { to: "/groups", label: "Groups", icon: UsersRoundIcon, capability: "canViewPolicies" },
     ],
   },
   {
@@ -209,6 +196,7 @@ const PROJECT_NAV: ProjectNavSection[] = [
     label: "Project settings",
     items: [
       { to: "/projects/$projectSlug/settings", label: "General", icon: SettingsIcon },
+      { to: "/projects/$projectSlug/members", label: "Members", icon: UsersIcon },
       {
         to: "/projects/$projectSlug/credentials",
         label: "Credentials",

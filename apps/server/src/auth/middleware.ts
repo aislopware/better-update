@@ -7,25 +7,18 @@ import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
 import { CryptoServiceLive } from "../cloudflare/crypto-service";
 import { Forbidden, Unauthorized } from "../errors";
-import { GroupRepo, GroupRepoLive } from "../repositories/group-repo";
-import { PolicyAttachmentRepoLive } from "../repositories/policy-attachment-repo";
-import { PolicyRepoLive } from "../repositories/policy-repo";
+import { ProjectMemberRepo, ProjectMemberRepoLive } from "../repositories/project-members";
 import { RobotAccountRepo, RobotAccountRepoLive } from "../repositories/robot-accounts";
 import { ROBOT_BEARER_PREFIX } from "./constants";
 import { roleIsOwner } from "./owner";
-import { MEMBER_BASELINE_STATEMENTS } from "./permissions";
-import { statementsForPrincipals } from "./statements";
 import { roleIsSuperadmin } from "./superadmin";
 
-import type { PrincipalRef } from "../repositories/policy-attachment-repo";
+import type { OrgRole, ProjectRole } from "../models";
 import type { AuthContextShape } from "./context";
 
-const REPO_LAYERS = Layer.mergeAll(PolicyAttachmentRepoLive, GroupRepoLive, PolicyRepoLive);
 // RobotAccountRepoLive needs CryptoService to construct itself, which merging
 // alone doesn't wire up — Layer.provide feeds CryptoServiceLive's output in.
-const ROBOT_LAYERS = Layer.mergeAll(REPO_LAYERS, RobotAccountRepoLive).pipe(
-  Layer.provide(CryptoServiceLive),
-);
+const ROBOT_LAYERS = RobotAccountRepoLive.pipe(Layer.provide(CryptoServiceLive));
 
 // ── Plugin API facade (types not inferred from betterAuth config) ──
 
@@ -128,38 +121,36 @@ export const toStandardHeaders = (headers: Readonly<Record<string, string | unde
     return result;
   }, new Headers());
 
-// Resolve a member's effective policy statements ONCE per request, caching the
-// flat list into the auth context. Direct (member) attachments + group
-// attachments; managed preset ids resolve from code (zero query), real ids in one
-// batched read. Owners bypass entirely, so this is never called for them.
-//
-// No role baseline is derived from `member.role`: admin and the project roles
-// are granted EXCLUSIVELY via explicit `managed:*` attachments; the free-form
-// role string only feeds the `isOwner` root signal. Every MEMBER session does
-// get the constant org-metadata baseline (`MEMBER_BASELINE_STATEMENTS` —
-// ROLES-CAPABILITIES-SPEC §2a); robots get no baseline (no attachments = no
-// access).
-//
-// Exported (with the policy repos as unresolved requirements) so the resolution
-// algorithm can be unit-tested against stubbed repos; the live layers are
-// provided at the single call site in `resolveSession`.
-export const resolveEffectiveStatements = (params: {
+// The org ladder position (GITLAB-RBAC-SPEC §1) from the raw better-auth
+// `member.role` string. Only these three values mean anything; any legacy
+// spelling degrades to plain "member" (fail closed).
+export const toOrgRole = (role: string | null | undefined): OrgRole => {
+  if (typeof role === "string" && roleIsOwner(role)) {
+    return "owner";
+  }
+  return role === "admin" ? "admin" : "member";
+};
+
+// Resolve the member's project_member rows ONCE per request. Owner/admin
+// skip the query entirely — they are implicit maintainers everywhere
+// (role-matrix.ts), so their rows (if any) are irrelevant. Robots never go
+// through here: their single project role rides the robot_account row.
+export const resolveProjectRoles = (params: {
   readonly organizationId: string;
+  readonly orgRole: OrgRole;
   readonly memberId: string;
-}) =>
-  Effect.gen(function* () {
-    const groupRepo = yield* GroupRepo;
-    const groupIds = yield* groupRepo.findGroupIdsForMember({ memberId: params.memberId });
-    const principals: readonly PrincipalRef[] = [
-      { type: "member", id: params.memberId },
-      ...groupIds.map((id) => ({ type: "group", id }) as const),
-    ];
-    const granted = yield* statementsForPrincipals({
-      organizationId: params.organizationId,
-      principals,
-    });
-    return [...MEMBER_BASELINE_STATEMENTS, ...granted];
-  });
+}): Effect.Effect<Readonly<Record<string, ProjectRole>>, never, ProjectMemberRepo> =>
+  params.orgRole === "member"
+    ? ProjectMemberRepo.pipe(
+        Effect.flatMap((repo) =>
+          repo.rolesForPrincipal({
+            organizationId: params.organizationId,
+            principalType: "member",
+            principalId: params.memberId,
+          }),
+        ),
+      )
+    : Effect.succeed({});
 
 // ── Shared session resolver ───────────────────────────────────────
 
@@ -209,24 +200,21 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       });
     }
 
-    // Owner = org root (unconditional allow); skip statement resolution entirely.
-    // Otherwise resolve effective policy statements HERE, once per request, and
-    // cache them into the context.
-    const isOwner = roleIsOwner(member.role);
-    const effectiveStatements = isOwner
-      ? []
-      : yield* resolveEffectiveStatements({
-          organizationId: orgId,
-          memberId: member.id,
-        }).pipe(Effect.provide(REPO_LAYERS));
+    const orgRole = toOrgRole(member.role);
+    const projectRoles = yield* resolveProjectRoles({
+      organizationId: orgId,
+      orgRole,
+      memberId: member.id,
+    }).pipe(Effect.provide(ProjectMemberRepoLive));
 
     return {
       userId: session.user.id,
       organizationId: orgId,
       memberId: member.id,
       role: member.role,
-      isOwner,
-      effectiveStatements,
+      orgRole,
+      isOwner: orgRole === "owner",
+      projectRoles,
       source: "session",
       transport,
       sessionId,
@@ -261,22 +249,19 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
       return yield* new Unauthorized({ message: "Invalid robot bearer secret" });
     }
 
-    // Robot-account permissions come from `policy_attachment` rows on the
-    // robot principal — resolved exactly like a member's (managed + real
-    // docs). There is NO implicit admin baseline: a robot with no attachments
-    // has no permissions (spec §8 default-deny).
-    const effectiveStatements = yield* statementsForPrincipals({
-      organizationId: verified.organizationId,
-      principals: [{ type: "robot", id: verified.id }],
-    });
-
+    // A robot is PROJECT-scoped (GITLAB-RBAC-SPEC §1b, v2): its whole grant
+    // is the single (projectId → role) entry carried on the robot row.
+    // Org-level: plain member — a robot can do exactly what a human with
+    // that one membership row could, plus nothing org-administrative.
+    // verifyBearer already rejected legacy NULL-project rows.
     return {
       userId: null,
       organizationId: verified.organizationId,
       memberId: null,
       role: null,
+      orgRole: "member",
       isOwner: false,
-      effectiveStatements,
+      projectRoles: { [verified.projectId]: verified.role },
       source: "robot",
       transport: "bearer",
       sessionId: null,

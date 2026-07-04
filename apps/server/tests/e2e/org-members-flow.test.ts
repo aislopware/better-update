@@ -123,16 +123,14 @@ describe("Organization members cross-flow", () => {
     memberBId = bob.id;
   });
 
-  // ── Section 5: Membership collapse — role stays "member" ───────
+  // ── Section 5: Org role — invited members start as "member" ────
   //
-  // Under the unified IAM model member.role is `owner | member` only; there is no
-  // "promote to admin". Admin/developer/viewer capabilities come EXCLUSIVELY from
-  // policy attachments (managed:admin / managed:developer / managed:viewer or
-  // custom), not from a role. Our clients no longer call
-  // organization/update-member-role; Bob simply stays "member" while gaining
-  // access via attachments (exercised end-to-end in policy-authz-flow.test.ts).
+  // Under GITLAB-RBAC member.role is `owner | admin | member`; invited members
+  // land as plain members (or admin when the OWNER invites with role=admin).
+  // Role changes flow through the IAM PATCH /api/members/:id route, never
+  // better-auth's update-member-role.
 
-  it("user B remains a plain member (no role-change path; admin is a policy attachment)", async () => {
+  it("user B starts as a plain member", async () => {
     const res = await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
       cookie: cookiesA,
     });

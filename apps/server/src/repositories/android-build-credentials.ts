@@ -12,6 +12,11 @@ import type { AndroidBuildCredentials } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { AndroidBuildCredentialsModel } from "../models";
 
+/** Group joined to its app identifier's project — binding-plan input (§3c). */
+export interface AndroidBuildCredentialsWithProject extends AndroidBuildCredentialsModel {
+  readonly projectId: string;
+}
+
 export interface AndroidBuildCredentialsRepository {
   readonly insert: (params: {
     readonly id: string;
@@ -30,6 +35,11 @@ export interface AndroidBuildCredentialsRepository {
   readonly listByAppIdentifier: (params: {
     readonly androidApplicationIdentifierId: string;
   }) => Effect.Effect<readonly AndroidBuildCredentialsModel[]>;
+
+  /** Every group in the org with its project id — binding-plan input. */
+  readonly listByOrgWithProject: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly AndroidBuildCredentialsWithProject[]>;
 
   readonly findById: (params: {
     readonly id: string;
@@ -148,6 +158,38 @@ export const AndroidBuildCredentialsRepoLive = Layer.succeed(AndroidBuildCredent
           .execute(),
       );
       return rows.map(toModel);
+    }),
+
+  listByOrgWithProject: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("android_build_credentials as abc")
+          .innerJoin(
+            "android_application_identifiers as aai",
+            "aai.id",
+            "abc.android_application_identifier_id",
+          )
+          .select([
+            "abc.id",
+            "abc.organization_id",
+            "abc.android_application_identifier_id",
+            "abc.android_upload_keystore_id",
+            "abc.google_service_account_key_for_submissions_id",
+            "abc.google_service_account_key_for_fcm_v1_id",
+            "abc.name",
+            "abc.is_default",
+            "abc.created_at",
+            "abc.updated_at",
+            "aai.project_id",
+          ])
+          .where("abc.organization_id", "=", params.organizationId)
+          .orderBy("aai.project_id", "asc")
+          .orderBy("abc.name", "asc")
+          .execute(),
+      );
+      return rows.map((row) => Object.assign(toModel(row), { projectId: row.project_id }));
     }),
 
   findById: (params) =>

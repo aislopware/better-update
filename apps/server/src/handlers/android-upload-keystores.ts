@@ -4,10 +4,16 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
+import { assertBindableProject, autoBindCredential } from "../application/auto-bind-credential";
 import { logAudit } from "../audit/logger";
+import {
+  assertAndroidOrgCredentialAccess,
+  assertAndroidOrgCredentialCreate,
+  filterAndroidOrgCredentialRead,
+} from "../auth/android-credential-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccessAny, assertOrgAdmin } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest } from "../errors";
 import { toApiAndroidUploadKeystore } from "../http/to-api";
@@ -19,12 +25,50 @@ import {
 import { toDbNull } from "../lib/nullable";
 import { withR2Compensation } from "../lib/r2-helpers";
 import { AndroidUploadKeystoreRepo } from "../repositories/android-upload-keystores";
+import { ProjectCredentialBindingRepo } from "../repositories/project-credential-bindings";
 
 const decodeBase64 = (value: string) =>
   Effect.try({
     try: () => fromBase64(value),
     catch: () => new BadRequest({ message: "Keystore must be valid base64" }),
   });
+
+// Toggle the protected-credential flag (GITLAB-RBAC-SPEC §3b) — org admin
+// only, idempotent, audit-logged.
+const setProtectionEffect = (id: string, isProtected: boolean) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const repo = yield* AndroidUploadKeystoreRepo;
+      const existing = yield* repo.findById({ id });
+      yield* assertOrgOwnership(existing.organizationId);
+      yield* assertOrgAdmin;
+      const ctx = yield* CurrentActor;
+      yield* repo.setProtection({
+        id,
+        organizationId: ctx.organizationId,
+        isProtected,
+        now: new Date().toISOString(),
+      });
+      yield* logAudit({
+        action: isProtected
+          ? "android.upload-keystore.protect"
+          : "android.upload-keystore.unprotect",
+        resourceType: "androidCredential",
+        resourceId: id,
+        metadata: { keyAlias: existing.keyAlias },
+      });
+      const bound = yield* ProjectCredentialBindingRepo.pipe(
+        Effect.flatMap((bindings) =>
+          bindings.boundProjectIds({
+            organizationId: ctx.organizationId,
+            resourceType: "androidUploadKeystore",
+            resourceId: id,
+          }),
+        ),
+      );
+      return toApiAndroidUploadKeystore({ ...existing, isProtected }, bound);
+    }),
+  );
 
 export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -34,18 +78,37 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
       .handle("list", () =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "read");
+            yield* assertAccessAny("androidCredential", "read");
             const ctx = yield* CurrentActor;
             const repo = yield* AndroidUploadKeystoreRepo;
             const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-            return { items: items.map(toApiAndroidUploadKeystore) };
+            // Binding gate (spec §1a) + protected ladder (spec §3b), per row.
+            const visible = yield* filterAndroidOrgCredentialRead(
+              items,
+              "androidUploadKeystore",
+              (item) => ({ id: item.id, isProtected: item.isProtected }),
+            );
+            const bindings = yield* ProjectCredentialBindingRepo.pipe(
+              Effect.flatMap((repo_) =>
+                repo_.boundProjectIdsByResource({
+                  organizationId: ctx.organizationId,
+                  resourceType: "androidUploadKeystore",
+                }),
+              ),
+            );
+            return {
+              items: visible.map((item) =>
+                toApiAndroidUploadKeystore(item, bindings[item.id] ?? []),
+              ),
+            };
           }),
         ),
       )
       .handle("upload", ({ payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "create");
+            yield* assertAndroidOrgCredentialCreate({ projectId: payload.projectId });
+            yield* assertBindableProject(payload.projectId);
             const ctx = yield* CurrentActor;
             const artifacts = yield* CredentialArtifacts;
             const repo = yield* AndroidUploadKeystoreRepo;
@@ -85,6 +148,12 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
               }),
             );
 
+            yield* autoBindCredential({
+              resourceType: "androidUploadKeystore",
+              resourceId: payload.id,
+              projectId: payload.projectId,
+            });
+
             yield* logAudit({
               action: "android.upload-keystore.upload",
               resourceType: "androidCredential",
@@ -92,36 +161,55 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
               metadata: { keyAlias: payload.keyAlias },
             });
 
-            return toApiAndroidUploadKeystore({
-              id: payload.id,
-              organizationId: ctx.organizationId,
-              name,
-              keyAlias: payload.keyAlias,
-              r2Key,
-              wrappedDek: payload.wrappedDek,
-              vaultVersion: payload.vaultVersion,
-              md5Fingerprint,
-              sha1Fingerprint,
-              sha256Fingerprint,
-              keystoreType,
-              createdAt: now,
-              updatedAt: now,
-            });
+            return toApiAndroidUploadKeystore(
+              {
+                id: payload.id,
+                organizationId: ctx.organizationId,
+                name,
+                keyAlias: payload.keyAlias,
+                r2Key,
+                wrappedDek: payload.wrappedDek,
+                vaultVersion: payload.vaultVersion,
+                md5Fingerprint,
+                sha1Fingerprint,
+                sha256Fingerprint,
+                keystoreType,
+                isProtected: false,
+                createdAt: now,
+                updatedAt: now,
+              },
+              payload.projectId === undefined ? [] : [payload.projectId],
+            );
           }),
         ),
       )
       .handle("delete", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "delete");
             const artifacts = yield* CredentialArtifacts;
             const repo = yield* AndroidUploadKeystoreRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAndroidOrgCredentialAccess({
+              action: "delete",
+              resourceType: "androidUploadKeystore",
+              resourceId: existing.id,
+              isProtected: existing.isProtected,
+            });
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
               yield* artifacts.delete(r2Key);
             }
+            // Binding rows die with the credential.
+            yield* ProjectCredentialBindingRepo.pipe(
+              Effect.flatMap((bindings) =>
+                bindings.removeAllForResource({
+                  organizationId: existing.organizationId,
+                  resourceType: "androidUploadKeystore",
+                  resourceId: existing.id,
+                }),
+              ),
+            );
             yield* logAudit({
               action: "android.upload-keystore.delete",
               resourceType: "androidCredential",
@@ -132,15 +220,22 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
+      .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
+      .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false))
       .handle("download", ({ path }) =>
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "download");
             const repo = yield* AndroidUploadKeystoreRepo;
             const artifacts = yield* CredentialArtifacts;
 
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAndroidOrgCredentialAccess({
+              action: "download",
+              resourceType: "androidUploadKeystore",
+              resourceId: existing.id,
+              isProtected: existing.isProtected,
+            });
 
             const blob = yield* artifacts.get(existing.r2Key, "Keystore");
 

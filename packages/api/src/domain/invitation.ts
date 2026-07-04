@@ -10,8 +10,7 @@ import { DateTimeString, Id } from "./common";
 export class Invitation extends Schema.Class<Invitation>("Invitation")({
   id: Id,
   email: Schema.String,
-  // Stored verbatim; defaults to "member" in the unified IAM model (admin /
-  // developer / viewer come from policy attachments, not the invite role). The
+  // Stored verbatim; "member" or "admin" under the GitLab-RBAC model. The
   // underlying column is nullable, so legacy rows may surface a null role.
   role: Schema.NullOr(Schema.String),
   status: Schema.String,
@@ -24,14 +23,19 @@ export class Invitation extends Schema.Class<Invitation>("Invitation")({
 // never be accepted) instead of persisting junk pending rows.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
-// Roles invitable via the IAM endpoint: member-ONLY in the unified IAM model.
-// "admin" is no longer invitable — admin-ness (and developer/viewer) is conferred
-// EXCLUSIVELY by policy attachments after the member joins, not by the invite
-// role. "owner" is likewise excluded: it is the undeniable root bypass
-// (member.role === "owner"), set only at org creation and never grantable by
-// invite — otherwise a holder of `invitation:create` (without being owner) could
-// escalate an accomplice to org root.
-const InvitableRole = Schema.Literal("member");
+// Org roles invitable via the IAM endpoint (GITLAB-RBAC-SPEC §2): "member" by
+// default; "admin" requires the inviter to be an owner (handler guard —
+// granting admin is owner-only). "owner" is never invitable: it is the
+// undeniable root, set at org creation only.
+const InvitableOrgRole = Schema.Literal("member", "admin");
+
+export const ProjectRoleLiteral = Schema.Literal("maintainer", "developer", "reporter");
+
+/** A project grant carried by an invitation, materialized as a `project_member` row on accept. */
+export const InvitationProjectGrant = Schema.Struct({
+  projectId: Id,
+  role: ProjectRoleLiteral,
+});
 
 export const CreateInvitationBody = Schema.Struct({
   email: Schema.String.pipe(
@@ -39,16 +43,15 @@ export const CreateInvitationBody = Schema.Struct({
     Schema.maxLength(320),
     Schema.pattern(EMAIL_PATTERN),
   ),
-  // Optional; defaults to "member" when omitted (the unified-model baseline).
-  role: Schema.optional(InvitableRole),
+  // Optional; defaults to "member" when omitted.
+  role: Schema.optional(InvitableOrgRole),
   /**
-   * Access grants applied when the invitation is accepted
-   * (ROLES-CAPABILITIES-SPEC §8d). Policy ids in the attachment grammar:
-   * `managed:{maintainer|developer|viewer}@{projectId|*}`, `managed:cap-*`,
-   * `managed:admin`, or a real policy id. Validated + permission-boundary
-   * checked against the INVITER at create time.
+   * Project memberships granted when the invitation is accepted
+   * (GITLAB-RBAC-SPEC §4c). Validated against the INVITER at create time: an
+   * org admin/owner may grant any role on any project; a project maintainer
+   * may grant roles up to maintainer on THEIR projects only.
    */
-  grants: Schema.optional(Schema.Array(Schema.String.pipe(Schema.maxLength(256)))),
+  projects: Schema.optional(Schema.Array(InvitationProjectGrant).pipe(Schema.maxItems(100))),
 });
 
 export const InvitationList = Schema.Struct({ items: Schema.Array(Invitation) });

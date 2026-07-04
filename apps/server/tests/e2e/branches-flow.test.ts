@@ -191,25 +191,24 @@ describe("Branches API flow", () => {
     expect(response.status).toBe(409);
   });
 
-  // ── Section 5: API key auth ────────────────────────────────────
+  // ── Section 5: Robot bearer auth ───────────────────────────────
 
-  it("creates an API key", async () => {
+  it("creates a project robot account", async () => {
     const response = await post(
-      "/api/auth/api-key/create",
-      { name: "branch-test-key", organizationId },
+      "/api/robot-accounts",
+      {
+        name: "branch-test-robot",
+        projectId,
+        role: "developer",
+        publicKey: "age1e2efixturebranchtestrobot",
+        fingerprint: "SHA256:e2e-fixture-branch-test-robot",
+      },
       { cookie: cookies },
     );
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.key).toMatch(/^bu_/);
-    apiKeyValue = body.key;
-
-    const attach = await post(
-      `/api/api-keys/${body.id}/policies`,
-      { policyId: "managed:admin" },
-      { cookie: cookies },
-    );
-    expect(attach.status).toBe(201);
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    apiKeyValue = body.bearerSecret;
   });
 
   it("lists branches via API key", async () => {

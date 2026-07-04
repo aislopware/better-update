@@ -21,13 +21,13 @@ import { BranchesGroup } from "./groups/branches";
 import { BuildCredentialsGroup } from "./groups/build-credentials";
 import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
+import { CredentialBindingsGroup } from "./groups/credential-bindings";
 import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
 import { EnvVaultGroup } from "./groups/env-vault";
 import { EnvironmentsGroup } from "./groups/environments";
 import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
-import { GroupsGroup } from "./groups/groups";
 import { InvitationsGroup } from "./groups/invitations";
 import { IosAppMetadataGroup } from "./groups/ios-app-metadata";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
@@ -35,8 +35,7 @@ import { MeGroup } from "./groups/me";
 import { MembersGroup } from "./groups/members";
 import { OrgVaultGroup } from "./groups/org-vault";
 import { OrganizationGroup } from "./groups/organization";
-import { PoliciesGroup } from "./groups/policies";
-import { PolicyAttachmentsGroup } from "./groups/policy-attachments";
+import { ProjectMembersGroup } from "./groups/project-members";
 import { ProjectsGroup } from "./groups/projects";
 import { RobotAccountsGroup } from "./groups/robot-accounts";
 import { RuntimesGroup } from "./groups/runtimes";
@@ -83,12 +82,11 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(WebVaultGroup)
   .add(MeGroup)
   .add(WebhooksGroup)
-  .add(PoliciesGroup)
-  .add(GroupsGroup)
-  .add(PolicyAttachmentsGroup)
   .add(RobotAccountsGroup)
   .add(InvitationsGroup)
   .add(MembersGroup)
+  .add(ProjectMembersGroup)
+  .add(CredentialBindingsGroup)
   .add(OrganizationGroup)
   .add(AdminGroup)
   .middleware(Authentication)

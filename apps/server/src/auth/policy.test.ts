@@ -5,9 +5,8 @@ import { NotFound } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
 import { ProtectedEnvironmentRepo } from "../repositories/protected-environments";
 import { AuthContext } from "./context";
-import { assertAccess, assertAccessAny } from "./policy";
+import { assertAccess, assertAccessAny, assertSuperadmin, matrixAllows } from "./policy";
 
-import type { PolicyStatement } from "../authz-models";
 import type { ProjectRepository } from "../repositories/projects";
 import type { ProtectedEnvironmentRepository } from "../repositories/protected-environments";
 import type { AuthContextShape } from "./context";
@@ -17,8 +16,9 @@ const baseActor: AuthContextShape = {
   organizationId: "org-1",
   memberId: "m1",
   role: "member",
+  orgRole: "member",
   isOwner: false,
-  effectiveStatements: [],
+  projectRoles: {},
   source: "session",
   transport: "cookie",
   sessionId: "sess-test",
@@ -30,17 +30,6 @@ const baseActor: AuthContextShape = {
 const provide = (overrides: Partial<AuthContextShape>) =>
   Effect.provideService(AuthContext, { ...baseActor, ...overrides });
 
-const allow = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "allow",
-  actions,
-  resources,
-});
-const deny = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "deny",
-  actions,
-  resources,
-});
-
 const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   Effect.gen(function* () {
     const exit = yield* effect.pipe(Effect.exit);
@@ -48,10 +37,10 @@ const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   });
 
 describe(assertAccess, () => {
-  it.effect("owner bypasses (allow-all, even with no statements)", () =>
+  it.effect("owner bypasses (allow-all)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("billing", "delete").pipe(provide({ isOwner: true })),
+        assertAccess("billing", "delete").pipe(provide({ isOwner: true, orgRole: "owner" })),
       );
       expect(forbidden).toBe(false);
     }),
@@ -66,135 +55,123 @@ describe(assertAccess, () => {
     }),
   );
 
-  it.effect("default-deny when no statement matches", () =>
+  it.effect("default-deny: a plain member with no rows cannot write a project", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("channel", "create", { kind: "project", projectId: "A" }).pipe(provide({})),
+        assertAccess("channel", "create", {
+          kind: "channel",
+          projectId: "projA",
+          environment: "feature-x",
+          channelId: "ch1",
+        }).pipe(provide({})),
       );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("allow via a project-scoped statement", () =>
+  it.effect("developer on the target project can publish; reporter cannot", () =>
+    Effect.gen(function* () {
+      const target = {
+        kind: "update",
+        projectId: "projA",
+        environment: "feature-x",
+        channelId: "ch1",
+      } as const;
+      const asDeveloper = yield* isForbidden(
+        assertAccess("update", "create", target).pipe(
+          provide({ projectRoles: { projA: "developer" } }),
+        ),
+      );
+      const asReporter = yield* isForbidden(
+        assertAccess("update", "create", target).pipe(
+          provide({ projectRoles: { projA: "reporter" } }),
+        ),
+      );
+      expect(asDeveloper).toBe(false);
+      expect(asReporter).toBe(true);
+    }),
+  );
+
+  it.effect("a role on project A grants nothing on project B", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("channel", "create", { kind: "project", projectId: "A" }).pipe(
-          provide({ effectiveStatements: [allow(["channel:*"], ["project/A"])] }),
+        assertAccess("project", "read", { kind: "project", projectId: "projB" }).pipe(
+          provide({ projectRoles: { projA: "maintainer" } }),
+        ),
+      );
+      expect(forbidden).toBe(true);
+    }),
+  );
+
+  it.effect("org admin is an implicit maintainer on every project", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("project", "update", { kind: "project", projectId: "projB" }).pipe(
+          provide({ orgRole: "admin" }),
         ),
       );
       expect(forbidden).toBe(false);
     }),
   );
 
-  it.effect("scoped statement does not grant a different project", () =>
+  it.effect("project:delete falls back to the org rule even with a project target", () =>
+    Effect.gen(function* () {
+      const asMaintainer = yield* isForbidden(
+        assertAccess("project", "delete", { kind: "project", projectId: "projA" }).pipe(
+          provide({ projectRoles: { projA: "maintainer" } }),
+        ),
+      );
+      const asAdmin = yield* isForbidden(
+        assertAccess("project", "delete", { kind: "project", projectId: "projA" }).pipe(
+          provide({ orgRole: "admin" }),
+        ),
+      );
+      expect(asMaintainer).toBe(true);
+      expect(asAdmin).toBe(false);
+    }),
+  );
+
+  it.effect("org-global env vars: developer-anywhere reads, only admin writes", () =>
+    Effect.gen(function* () {
+      const globalVar = { kind: "envVar", projectId: "global", environment: "production" } as const;
+      const developer = { projectRoles: { projA: "developer" } } as const;
+      const readAsDeveloper = yield* isForbidden(
+        assertAccess("envVar", "read", globalVar).pipe(provide(developer)),
+      );
+      const writeAsDeveloper = yield* isForbidden(
+        assertAccess("envVar", "update", globalVar).pipe(provide(developer)),
+      );
+      const writeAsAdmin = yield* isForbidden(
+        assertAccess("envVar", "update", globalVar).pipe(provide({ orgRole: "admin" })),
+      );
+      expect(readAsDeveloper).toBe(false);
+      expect(writeAsDeveloper).toBe(true);
+      expect(writeAsAdmin).toBe(false);
+    }),
+  );
+
+  it.effect("credential/device tokens are NOT decided by the generic gate (v2 §1a)", () =>
+    Effect.gen(function* () {
+      // Their gate needs the binding set and lives in the credential access
+      // helpers — the org-target matrix path denies even an org admin, so a
+      // handler that forgot to switch to the helpers fails closed.
+      const asDeveloper = yield* isForbidden(
+        assertAccess("device", "create").pipe(provide({ projectRoles: { projA: "developer" } })),
+      );
+      const asAdmin = yield* isForbidden(
+        assertAccess("device", "create").pipe(provide({ orgRole: "admin" })),
+      );
+      expect(asDeveloper).toBe(true);
+      expect(asAdmin).toBe(true);
+    }),
+  );
+
+  it.effect("owner-tier org rules stay above admin (billing)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("channel", "create", { kind: "project", projectId: "B" }).pipe(
-          provide({ effectiveStatements: [allow(["channel:*"], ["project/A"])] }),
-        ),
+        assertAccess("billing", "read").pipe(provide({ orgRole: "admin" })),
       );
       expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("deny wins over allow (non-owner)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "preview",
-          channelId: "X",
-        }).pipe(
-          provide({
-            effectiveStatements: [
-              allow(["update:*"], ["*"]),
-              deny(["update:create"], ["project/A"]),
-            ],
-          }),
-        ),
-      );
-      expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("owner is NOT subject to deny", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "preview",
-          channelId: "X",
-        }).pipe(provide({ isOwner: true, effectiveStatements: [deny(["update:create"], ["*"])] })),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
-});
-
-describe(assertAccessAny, () => {
-  it.effect("owner / superadmin bypass", () =>
-    Effect.gen(function* () {
-      expect(
-        yield* isForbidden(assertAccessAny("update", "create").pipe(provide({ isOwner: true }))),
-      ).toBe(false);
-      expect(
-        yield* isForbidden(
-          assertAccessAny("update", "create").pipe(provide({ isSuperadmin: true })),
-        ),
-      ).toBe(false);
-    }),
-  );
-
-  it.effect("passes when update:create is held on ANY scope (narrow publisher)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccessAny("update", "create").pipe(
-          provide({ effectiveStatements: [allow(["update:create"], ["project/A/channel/X"])] }),
-        ),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
-
-  it.effect("denies a principal that holds no update:create anywhere (viewer)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccessAny("update", "create").pipe(
-          provide({ effectiveStatements: [allow(["update:read"], ["*"])] }),
-        ),
-      );
-      expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("net-zero allow+deny on the same scope does NOT pass (deny-wins)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccessAny("update", "create").pipe(
-          provide({
-            effectiveStatements: [allow(["update:create"], ["*"]), deny(["update:create"], ["*"])],
-          }),
-        ),
-      );
-      expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("a partial deny still leaves an allowed scope (passes)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccessAny("update", "create").pipe(
-          provide({
-            effectiveStatements: [
-              allow(["update:create"], ["project/A"]),
-              deny(["update:create"], ["project/A/env/production"]),
-            ],
-          }),
-        ),
-      );
-      expect(forbidden).toBe(false);
     }),
   );
 });
@@ -237,84 +214,43 @@ describe("archived read-only guard", () => {
   it.effect("blocks a project-scoped write when archived — even for an owner", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("channel", "create", { kind: "project", projectId: "A" }).pipe(
-          provideArchived(ARCHIVED_AT, { isOwner: true }),
-        ),
-      );
-      expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("blocks a deep channel-axis write (publish) when archived", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "preview",
-          channelId: "X",
-        }).pipe(provideArchived(ARCHIVED_AT, { isOwner: true })),
-      );
-      expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("allows the same write when the project is active", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("channel", "create", { kind: "project", projectId: "A" }).pipe(
-          provideArchived(null, { isOwner: true }),
-        ),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
-
-  it.effect("does NOT block reads on an archived project", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("project", "read", { kind: "project", projectId: "A" }).pipe(
-          provideArchived(ARCHIVED_AT, { isOwner: true }),
-        ),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
-
-  it.effect("does NOT block deleting the archived project itself", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("project", "delete", { kind: "project", projectId: "A" }).pipe(
-          provideArchived(ARCHIVED_AT, { isOwner: true }),
-        ),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
-
-  it.effect("blocks deleting a sub-resource (channel) on an archived project", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("channel", "delete", {
+        assertAccess("channel", "create", {
           kind: "channel",
-          projectId: "A",
-          environment: "preview",
-          channelId: "X",
-        }).pipe(provideArchived(ARCHIVED_AT, { isOwner: true })),
+          projectId: "projA",
+          environment: "development",
+          channelId: "ch1",
+        }).pipe(provideArchived(ARCHIVED_AT, { isOwner: true, orgRole: "owner" })),
       );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("allowArchived bypasses the guard (the unarchive path)", () =>
+  it.effect("reads and the project's own delete stay allowed while archived", () =>
+    Effect.gen(function* () {
+      const read = yield* isForbidden(
+        assertAccess("project", "read", { kind: "project", projectId: "projA" }).pipe(
+          provideArchived(ARCHIVED_AT, { projectRoles: { projA: "reporter" } }),
+        ),
+      );
+      const remove = yield* isForbidden(
+        assertAccess("project", "delete", { kind: "project", projectId: "projA" }).pipe(
+          provideArchived(ARCHIVED_AT, { orgRole: "admin" }),
+        ),
+      );
+      expect(read).toBe(false);
+      expect(remove).toBe(false);
+    }),
+  );
+
+  it.effect("allowArchived opts the archive endpoints out of the guard", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
         assertAccess(
           "project",
           "update",
-          { kind: "project", projectId: "A" },
+          { kind: "project", projectId: "projA" },
           { allowArchived: true },
-        ).pipe(provideArchived(ARCHIVED_AT, { isOwner: true })),
+        ).pipe(provideArchived(ARCHIVED_AT, { projectRoles: { projA: "maintainer" } })),
       );
       expect(forbidden).toBe(false);
     }),
@@ -339,116 +275,137 @@ const provideProtected =
       Effect.provideService(ProtectedEnvironmentRepo, protectedEnvRepo(names)),
     );
 
-// Developer-shaped grant: env-scoped writes, no environment:update.
-const developerish: PolicyStatement[] = [
-  allow(["update:read", "channel:read"], ["project/A"]),
-  allow(["update:create", "envVar:create"], ["project/A/env/*"]),
-];
-// Maintainer-shaped grant: project-rooted writes incl. environment:update.
-const maintainerish: PolicyStatement[] = [
-  allow(["update:create", "envVar:create", "environment:update"], ["project/A"]),
-];
+describe("protected-environment guard (GITLAB-RBAC-SPEC §3a)", () => {
+  const productionUpdate = {
+    kind: "update",
+    projectId: "projA",
+    environment: "production",
+    channelId: "ch1",
+  } as const;
 
-describe("protected-environment guard", () => {
-  it.effect("allows a developer write into a non-protected environment", () =>
+  it.effect("a developer cannot write into a protected environment", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "preview",
-          channelId: "X",
-        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
-
-  it.effect("blocks a developer write into a protected environment", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "production",
-          channelId: "X",
-        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+        assertAccess("update", "create", productionUpdate).pipe(
+          provideProtected(["production"], { projectRoles: { projA: "developer" } }),
+        ),
       );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("blocks a developer env-var write into a protected environment", () =>
+  it.effect("a maintainer (and an org admin) can", () =>
+    Effect.gen(function* () {
+      const asMaintainer = yield* isForbidden(
+        assertAccess("update", "create", productionUpdate).pipe(
+          provideProtected(["production"], { projectRoles: { projA: "maintainer" } }),
+        ),
+      );
+      const asAdmin = yield* isForbidden(
+        assertAccess("update", "create", productionUpdate).pipe(
+          provideProtected(["production"], { orgRole: "admin" }),
+        ),
+      );
+      expect(asMaintainer).toBe(false);
+      expect(asAdmin).toBe(false);
+    }),
+  );
+
+  it.effect("non-protected environments keep the base developer allow", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("envVar", "create", {
-          kind: "envVar",
-          projectId: "A",
-          environment: "production",
-          key: "API_URL",
-        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+        assertAccess("update", "create", productionUpdate).pipe(
+          provideProtected(["staging"], { projectRoles: { projA: "developer" } }),
+        ),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("reads into a protected environment stay open to reporters", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "read", productionUpdate).pipe(
+          provideProtected(["production"], { projectRoles: { projA: "reporter" } }),
+        ),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+});
+
+describe(assertAccessAny, () => {
+  it.effect("passes when the anywhere-rank meets the token's rule", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccessAny("appleCredential", "read").pipe(
+          provide({ projectRoles: { projA: "developer" } }),
+        ),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("falls back to org rules (invitation:create for an admin)", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccessAny("invitation", "create").pipe(provide({ orgRole: "admin" })),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("denies a principal with no qualifying rank (default-deny)", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccessAny("appleCredential", "read").pipe(provide({})),
       );
       expect(forbidden).toBe(true);
     }),
   );
+});
 
-  it.effect("maintainer (environment:update at the project root) writes protected envs", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "production",
-          channelId: "X",
-        }).pipe(provideProtected(["production"], { effectiveStatements: maintainerish })),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
+describe(matrixAllows, () => {
+  it("apple-team targets are default-deny here — the binding helpers decide (v2 §1a)", () => {
+    expect(
+      matrixAllows(
+        { orgRole: "member", projectRoles: { projA: "developer" } },
+        "appleCredential",
+        "read",
+        {
+          kind: "appleCredential",
+          appleTeamId: "JMANGO1234",
+        },
+      ),
+    ).toBe(false);
+    expect(
+      matrixAllows({ orgRole: "admin", projectRoles: {} }, "appleCredential", "read", {
+        kind: "appleCredential",
+        appleTeamId: "JMANGO1234",
+      }),
+    ).toBe(false);
+  });
 
-  it.effect("a targeted environment:update grant unlocks exactly that environment", () =>
-    Effect.gen(function* () {
-      const statements = [
-        ...developerish,
-        allow(["environment:update"], ["project/*/env/production"]),
-      ];
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "production",
-          channelId: "X",
-        }).pipe(provideProtected(["production"], { effectiveStatements: statements })),
-      );
-      expect(forbidden).toBe(false);
-    }),
-  );
+  it("unknown tokens are denied everywhere below owner", () => {
+    expect(
+      matrixAllows({ orgRole: "admin", projectRoles: {} }, "organization", "delete", {
+        kind: "org",
+      }),
+    ).toBe(false);
+  });
+});
 
-  it.effect("reads are never blocked by protection", () =>
+describe("superadmin gate", () => {
+  it.effect("requires the platform flag, not org role", () =>
     Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "read", {
-          kind: "update",
-          projectId: "A",
-          environment: "production",
-          channelId: "X",
-        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+      const asOwner = yield* isForbidden(
+        assertSuperadmin.pipe(provide({ isOwner: true, orgRole: "owner" })),
       );
-      expect(forbidden).toBe(false);
-    }),
-  );
-
-  it.effect("owner bypasses the guard", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("update", "create", {
-          kind: "update",
-          projectId: "A",
-          environment: "production",
-          channelId: "X",
-        }).pipe(provideProtected(["production"], { isOwner: true })),
+      const asSuperadmin = yield* isForbidden(
+        assertSuperadmin.pipe(provide({ isSuperadmin: true })),
       );
-      expect(forbidden).toBe(false);
+      expect(asOwner).toBe(true);
+      expect(asSuperadmin).toBe(false);
     }),
   );
 });

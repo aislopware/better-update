@@ -1,11 +1,14 @@
 import { Context } from "effect";
 
-// Built-in role names stay nominal for the static map; custom roles are arbitrary
-// lowercased strings. The widened alias keeps member.role assignable to any string
-// while preserving literal autocompletion for the built-in names. `Record<never,
-// never>` is the `ban-types`-clean equivalent of the `string & {}` idiom.
-export type BuiltinRole = "owner" | "admin" | "developer" | "viewer";
-export type Role = BuiltinRole | (string & Record<never, never>);
+// GitLab-style RBAC scalars (docs/specs/authz/GITLAB-RBAC-SPEC.md §1). Two
+// fixed ladders — no custom roles, no policy documents. `member.role` stays a
+// free string in better-auth's table; the app reads exactly these three org
+// values (anything else degrades to "member").
+export type OrgRole = "owner" | "admin" | "member";
+export type ProjectRole = "maintainer" | "developer" | "reporter";
+
+// Legacy alias: better-auth APIs surface `member.role` as an arbitrary string.
+export type Role = OrgRole | (string & Record<never, never>);
 
 export type Resource =
   | "organization"
@@ -19,6 +22,7 @@ export type Resource =
   | "rollout"
   | "billing"
   | "robotAccount"
+  | "credentialBinding"
   | "build"
   | "appleCredential"
   | "androidCredential"
@@ -29,36 +33,36 @@ export type Resource =
   | "webhook"
   | "iosAppMetadata"
   | "submission"
-  | "vaultAccess"
-  // manage IAM policies + groups (org-level)
-  | "policy"
-  | "group";
+  | "vaultAccess";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
-
-export type PolicyEffect = "allow" | "deny";
-
-/** A single permission statement inside a policy document (IAM model). */
-export interface PolicyStatement {
-  readonly effect: PolicyEffect;
-  readonly actions: readonly string[];
-  readonly resources: readonly string[];
-}
 
 export interface AuthContextShape {
   readonly userId: string | null;
   readonly organizationId: string;
   /**
    * The active-org membership row id (`member.id`), or `null` for robot-account
-   * principals. Resolved once in `auth/middleware.ts`; policy attachments key
-   * off it (members) or the robot account id (machine principals).
+   * principals. Project-member rows key off it (members) or the robot account
+   * id (machine principals).
    */
   readonly memberId: string | null;
+  /** Raw better-auth `member.role` string (owner transfer/UI display only). */
   readonly role: Role | null;
-  /** `member.role === "owner"` — org root: unconditional allow, undeniable. */
+  /**
+   * The org ladder position (spec §1): owner = root bypass, admin = org
+   * management + implicit maintainer everywhere, member = only what
+   * `projectRoles` grants. Robots are always "member" — their single grant
+   * is the (projectId → role) entry from the robot row (spec §1b, v2).
+   */
+  readonly orgRole: OrgRole;
+  /** `orgRole === "owner"` — org root: unconditional allow, undeniable. */
   readonly isOwner: boolean;
-  /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
-  readonly effectiveStatements: readonly PolicyStatement[];
+  /**
+   * The principal's `project_member` rows (projectId → role), resolved once
+   * per request. Empty for owner/admin — they are implicit maintainers on
+   * every project (evaluated in `role-matrix.ts`, never materialized).
+   */
+  readonly projectRoles: Readonly<Record<string, ProjectRole>>;
   readonly source: "session" | "robot";
   /**
    * Transport that carried the credential: `"bearer"` for the CLI/CI
@@ -77,8 +81,8 @@ export interface AuthContextShape {
   readonly actorEmail: string;
   /**
    * Global (cross-org) superadmin flag, derived from the Better Auth `admin`
-   * plugin's user `role`. Distinct from `role` above, which is the per-org
-   * membership role. Gates the platform admin surface (`/api/admin/*`).
+   * plugin's user `role`. Distinct from the per-org role above. Gates the
+   * platform admin surface (`/api/admin/*`).
    */
   readonly isSuperadmin: boolean;
   /**

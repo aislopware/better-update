@@ -463,6 +463,10 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     // suite exercise the credential vault, which derives the recipient from the
     // identity half via `deriveRecipient` — a malformed key would crash those
     // rather than cleanly 403.
+    // Robots are project-scoped under GitLab-style RBAC v2 (GITLAB-RBAC-SPEC
+    // §1b): one robot = one project + one project role, both fixed at creation.
+    // Maintainer on the suite's project is the highest rank a robot can hold —
+    // enough for every project-scoped CLI flow this suite exercises.
     const robotIdentity = await generateIdentity();
     const createRobotResponse = await post(
       "/api/robot-accounts",
@@ -470,6 +474,8 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
         name: `${testId}-robot`,
         publicKey: robotIdentity.publicKey,
         fingerprint: robotIdentity.fingerprint,
+        projectId: state.projectId,
+        role: "maintainer",
       },
       { cookie: state.cookies },
     );
@@ -480,21 +486,6 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
       bearer: createRobotBody.bearerSecret,
       identity: robotIdentity.privateKey,
     });
-
-    // Grant the robot admin permissions. Under the IAM policy-group model
-    // (default-deny — no role baseline, no admin fallback; see
-    // docs/specs/authz/POLICY-GROUPS-SPEC.md §8), a freshly created robot holds
-    // ZERO permissions, so every project-scoped CLI command would 403. Attach
-    // the managed admin preset to the robot principal as the owner (owners
-    // bypass the privilege-boundary check), mirroring a real operator granting
-    // their CLI robot admin access. The `:id` is the robot_account row id, which
-    // is the `principal_id` the authz layer resolves attachments against.
-    const attachRobotPolicyResponse = await post(
-      `/api/robot-accounts/${createRobotBody.id}/policies`,
-      { policyId: "managed:admin" },
-      { cookie: state.cookies },
-    );
-    expect(attachRobotPolicyResponse.status).toBe(201);
 
     const createBranchResponse = await post(
       "/api/branches",

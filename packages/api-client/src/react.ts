@@ -66,6 +66,9 @@ export {
   iosAppMetadataQueryOptions,
   iosBundleConfigurationsQueryKey,
   iosBundleConfigurationsQueryOptions,
+  setAndroidUploadKeystoreProtection,
+  setAppleTeamProtection,
+  setGoogleServiceAccountKeyProtection,
   updateAndroidBuildCredentials,
   updateIosAppMetadata,
   updateIosBundleConfiguration,
@@ -79,6 +82,13 @@ export {
   uploadAscApiKey,
   uploadGoogleServiceAccountKey,
 } from "./react/credentials";
+export {
+  bindCredentialToProject,
+  credentialBindingsQueryKey,
+  credentialBindingsQueryOptions,
+  unbindCredentialFromProject,
+} from "./react/credential-bindings";
+export type { CredentialBindingItem } from "./react/credential-bindings";
 export {
   encryptionKeysQueryKey,
   encryptionKeysQueryOptions,
@@ -130,19 +140,6 @@ export {
   setEnvironmentProtection,
 } from "./react/environments";
 export {
-  addGroupMember,
-  createGroup,
-  deleteGroup,
-  groupMembersQueryKey,
-  groupMembersQueryOptions,
-  groupQueryKey,
-  groupQueryOptions,
-  groupsQueryKey,
-  groupsQueryOptions,
-  removeGroupMember,
-  updateGroup,
-} from "./react/groups";
-export {
   cancelInvitation,
   createInvitation,
   invitationsQueryKey,
@@ -151,14 +148,20 @@ export {
 export { robotAccountsQueryKey, robotAccountsQueryOptions } from "./react/robot-accounts";
 export type { RobotAccountItem } from "./react/robot-accounts";
 export type { InvitationItem } from "./react/invitations";
+export { meQueryKey, meQueryOptions, removeMember, updateMemberRole } from "./react/members";
 export {
-  memberAccessSummariesQueryKey,
-  memberAccessSummariesQueryOptions,
-  meQueryKey,
-  meQueryOptions,
-  removeMember,
-} from "./react/members";
-export type { MemberAccessSummaryItem, MeResult } from "./react/members";
+  addProjectMember,
+  projectMembersQueryKey,
+  projectMembersQueryOptions,
+  removeProjectMember,
+  updateProjectMemberRole,
+} from "./react/project-members";
+export type {
+  ProjectMemberItem,
+  ProjectMemberPrincipalTypeValue,
+  ProjectMemberRoleValue,
+} from "./react/project-members";
+export type { MeResult } from "./react/members";
 export {
   isOrganizationLogoContentType,
   removeOrganizationLogo,
@@ -166,29 +169,6 @@ export {
   uploadOrganizationLogo,
 } from "./react/organization";
 export type { OrganizationLogoContentTypeValue } from "./react/organization";
-export {
-  createPolicy,
-  deletePolicy,
-  policiesQueryKey,
-  policiesQueryOptions,
-  policyQueryKey,
-  policyQueryOptions,
-  updatePolicy,
-} from "./react/policies";
-export {
-  attachPolicyToGroup,
-  attachPolicyToMember,
-  attachPolicyToRobot,
-  detachPolicyFromGroup,
-  detachPolicyFromMember,
-  detachPolicyFromRobot,
-  groupPoliciesQueryKey,
-  groupPoliciesQueryOptions,
-  memberPoliciesQueryKey,
-  memberPoliciesQueryOptions,
-  robotPoliciesQueryKey,
-  robotPoliciesQueryOptions,
-} from "./react/policy-attachments";
 export {
   adoptionQueryKey,
   adoptionQueryOptions,
@@ -285,17 +265,9 @@ export type {
   EncryptionKeyKindValue,
   EnvironmentItem,
   GoogleServiceAccountKeyItem,
-  GroupItem,
-  GroupMemberItem,
   IosAppMetadataItem,
   IosBundleConfigurationItem,
   PlatformValue,
-  PolicyAttachmentItem,
-  PolicyDocumentValue,
-  PolicyEffectValue,
-  PolicyItem,
-  PolicyStatementValue,
-  PrincipalTypeValue,
   ProjectDetail,
   ProjectItem,
   SubmissionItem,

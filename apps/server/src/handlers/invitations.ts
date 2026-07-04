@@ -6,7 +6,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertAccess } from "../auth/policy";
-import { isWithinBoundary } from "../auth/policy-boundary";
+import { effectiveProjectRole, projectRoleAtLeast } from "../auth/role-matrix";
 import { cloudflareEnv } from "../cloudflare/context";
 import { EmailService } from "../domain/email-service";
 import { Forbidden, NotFound } from "../errors";
@@ -14,17 +14,16 @@ import { toApiForbiddenEffect, toApiReadEffect } from "../http/to-api-effect";
 import { renderInviteEmail } from "../lib/email-templates";
 import { structuredLog } from "../middleware/logging";
 import { AuthMetaRepo } from "../repositories/auth-meta";
-import { InvitationGrantRepo } from "../repositories/invitation-grants";
+import { InvitationProjectGrantRepo } from "../repositories/invitation-project-grants";
 import { InvitationRepo } from "../repositories/invitations";
-import { resolveAttachablePolicy } from "./policy-attachments";
+import { ProjectRepo } from "../repositories/projects";
 
+import type { InvitationProjectGrantModel } from "../repositories/invitation-project-grants";
 import type { InvitationModel } from "../repositories/invitations";
 
 // Mirrors auth.ts: invite emails come from this verbatim sender.
 const INVITE_SENDER_FROM = "noreply@jmango360.dev";
 
-// In the unified IAM model invited members are plain "member"; admin/developer/
-// viewer come from policy attachments, not the invite role.
 const DEFAULT_ROLE = "member";
 
 const toApiInvitation = (model: InvitationModel): Invitation =>
@@ -35,6 +34,38 @@ const toApiInvitation = (model: InvitationModel): Invitation =>
     status: model.status,
     expiresAt: model.expiresAt,
     createdAt: model.createdAt,
+  });
+
+// Validate the project grants an invitation carries (GITLAB-RBAC-SPEC §4c)
+// BEFORE writing anything: every project must belong to the acting org
+// (cross-org grants are NotFound), and the inviter must hold Maintainer on
+// each granted project (org admin/owner hold it implicitly) — an inviter
+// cannot hand out access they do not administer.
+const validateProjectGrants = (grants: readonly InvitationProjectGrantModel[]) =>
+  Effect.gen(function* () {
+    const ctx = yield* CurrentActor;
+    const projectRepo = yield* ProjectRepo;
+    yield* Effect.all(
+      grants.map((grant) =>
+        Effect.gen(function* () {
+          const project = yield* projectRepo.findById({ id: grant.projectId }).pipe(
+            Effect.filterOrFail(
+              (found) => found.organizationId === ctx.organizationId,
+              () => new NotFound({ message: `Project not found: ${grant.projectId}` }),
+            ),
+          );
+          if (
+            !ctx.isOwner &&
+            !ctx.isSuperadmin &&
+            !projectRoleAtLeast(effectiveProjectRole(ctx, project.id), "maintainer")
+          ) {
+            return yield* new Forbidden({
+              message: `Cannot grant access to a project you do not maintain: ${project.name}`,
+            });
+          }
+        }),
+      ),
+    );
   });
 
 // Build + send the invite email, reusing auth.ts's template + EmailService.
@@ -103,34 +134,33 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
           const ctx = yield* CurrentActor;
           // The `invitation.inviter_id` column FK-references `user(id)` and
           // better-auth's accept flow creates the member from this row, so the
-          // inviter must be a real user. API-key principals have no `userId`.
+          // inviter must be a real user. Robot principals have no `userId`.
           if (ctx.userId === null) {
             return yield* new Forbidden({
-              message: "An API key cannot create invitations; sign in as a member",
+              message: "A robot account cannot create invitations; sign in as a member",
             });
           }
           const role = payload.role ?? DEFAULT_ROLE;
 
-          // Resolve + boundary-check the carried grants BEFORE writing anything
-          // (SPEC §8d): an inviter cannot smuggle grants they could not attach
-          // directly. Bare managed ids normalize to their explicit form.
-          const requestedGrants = [...new Set(payload.grants)];
-          const resolvedGrants = yield* Effect.all(
-            requestedGrants.map((policyId) =>
-              resolveAttachablePolicy({ policyId, organizationId: ctx.organizationId }),
-            ),
-          );
-          if (!ctx.isOwner && !ctx.isSuperadmin) {
-            const escalating = resolvedGrants.find(
-              (grant) => !isWithinBoundary(ctx.effectiveStatements, grant.document),
-            );
-            if (escalating !== undefined) {
-              return yield* new Forbidden({
-                message: `Cannot grant more than you currently hold: ${escalating.policyId}`,
-              });
-            }
+          // Inviting an ADMIN mints an org administrator on accept — an
+          // owner-only decision, same guard as the member role change.
+          if (role === "admin" && !ctx.isOwner && !ctx.isSuperadmin) {
+            return yield* new Forbidden({
+              message: "Only an owner can invite an admin",
+            });
           }
-          const grantIds = [...new Set(resolvedGrants.map((grant) => grant.policyId))];
+
+          // De-dup by project id (last spelling wins), then validate against
+          // the inviter BEFORE writing anything.
+          const grants = [
+            ...new Map(
+              (payload.projects ?? []).map((grant) => [
+                grant.projectId,
+                { projectId: grant.projectId, role: grant.role },
+              ]),
+            ).values(),
+          ];
+          yield* validateProjectGrants(grants);
 
           const metaRepo = yield* AuthMetaRepo;
           const repo = yield* InvitationRepo;
@@ -142,19 +172,19 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
             inviterUserId: ctx.userId,
           });
 
-          if (grantIds.length > 0) {
-            const grantRepo = yield* InvitationGrantRepo;
+          if (grants.length > 0) {
+            const grantRepo = yield* InvitationProjectGrantRepo;
             yield* grantRepo.setForInvitation({
               invitationId: created.id,
               organizationId: ctx.organizationId,
-              policyIds: grantIds,
+              grants,
               createdAt: new Date().toISOString(),
             });
             yield* logAudit({
               action: "invitation.grants_set",
               resourceType: "invitation",
               resourceId: created.id,
-              metadata: { email: created.email, policyIds: grantIds },
+              metadata: { email: created.email, projects: grants },
             });
           }
 
@@ -193,7 +223,7 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
           }
           // Grants die with their invitation (the better-auth cancel/reject
           // hooks cover the plugin routes; this covers the IAM endpoint).
-          const grantRepo = yield* InvitationGrantRepo;
+          const grantRepo = yield* InvitationProjectGrantRepo;
           yield* grantRepo.deleteForInvitation({ invitationId: path.id });
           yield* logAudit({
             action: "invitation.cancel",

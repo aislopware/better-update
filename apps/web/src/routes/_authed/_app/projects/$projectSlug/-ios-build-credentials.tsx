@@ -45,7 +45,7 @@ const CertRow = ({
         <CopyableMono value={cert.serialNumber} label="Serial" />
       </TableCell>
       <TableCell>
-        <TeamCell team={team} />
+        <TeamCell team={team} showProtected />
       </TableCell>
       <TableCell>
         <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
@@ -104,7 +104,7 @@ const ProfileRow = ({
         {profile.profileName ?? profile.developerPortalIdentifier ?? "Unnamed profile"}
       </TableCell>
       <TableCell>
-        <TeamCell team={team} />
+        <TeamCell team={team} showProtected />
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">

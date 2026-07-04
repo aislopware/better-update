@@ -1,16 +1,22 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
+import {
+  Select,
+  SelectGroup,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@better-update/ui/components/ui/select";
 import { cn } from "@better-update/ui/lib/utils";
 import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 
-import type { MemberAccessSummaryItem } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
 import { RelativeTime } from "../../../lib/relative-time";
-import { AccessChips } from "./-access-chips";
 import { MemberRowActions } from "./-member-row-actions";
 import { buildRows } from "./-members-row";
 
@@ -18,13 +24,15 @@ import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members
 
 export type { InvitationInput, MemberInput, MemberStatus };
 
-// Membership role is `owner | member`. Admin/developer/viewer powers come from
-// policy attachments (managed via the per-member dialog), not the role string —
-// so the table only ever distinguishes the owner from everyone else.
-const ROLE_RANK: Record<string, number> = { owner: 0, member: 1 };
+// Org role ladder (GITLAB-RBAC-SPEC §1): owner | admin | member.
+const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
 const STATUS_RANK: Record<MemberStatus, number> = { active: 0, pending: 1 };
 
 const isOwnerRole = (role: string): boolean => role === "owner";
+
+export type EditableOrgRole = "admin" | "member";
+const ORG_ROLE_LABELS: Record<EditableOrgRole, string> = { admin: "Admin", member: "Member" };
+const ORG_ROLE_VALUES = ["admin", "member"] as const;
 
 const MemberAvatarCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
@@ -79,36 +87,81 @@ const JoinedCell = ({ row }: { row: Row }) => {
 };
 
 interface BuildColumnsParams {
-  orgId: string;
   currentUserId: string;
   canRemoveMembers: boolean;
-  canManagePolicies: boolean;
-  accessSummaries: ReadonlyMap<string, MemberAccessSummaryItem> | undefined;
+  canEditOrgRoles: boolean;
   pendingMemberId: string | undefined;
   pendingInvitationId: string | undefined;
+  pendingRoleMemberId: string | undefined;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
+  onRoleChange: (memberId: string, role: EditableOrgRole) => void;
 }
 
-// The Access column falls back to the owner/member role badge when the viewer
-// cannot read access summaries (no policy:read) or a row has no summary
-// (pending invitations).
-const AccessCell = ({
+const RoleBadge = ({ role }: { role: string }) => {
+  if (isOwnerRole(role)) {
+    return <Badge variant="default">Owner</Badge>;
+  }
+  if (role === "admin") {
+    return <Badge variant="secondary">Admin</Badge>;
+  }
+  return <Badge variant="outline">Member</Badge>;
+};
+
+const RoleSelect = ({
   row,
-  summaries,
+  isPending,
+  onRoleChange,
 }: {
   row: Row;
-  summaries: ReadonlyMap<string, MemberAccessSummaryItem> | undefined;
+  isPending: boolean;
+  onRoleChange: (memberId: string, role: EditableOrgRole) => void;
+}) => (
+  <Select
+    items={ORG_ROLE_LABELS}
+    value={row.role === "admin" ? "admin" : "member"}
+    disabled={isPending}
+    onValueChange={(next) => {
+      if ((next === "admin" || next === "member") && next !== row.role) {
+        onRoleChange(row.id, next);
+      }
+    }}
+  >
+    <SelectTrigger className="w-32" aria-label={`Change role for ${row.name}`}>
+      <SelectValue />
+    </SelectTrigger>
+    <SelectPopup>
+      <SelectGroup>
+        {ORG_ROLE_VALUES.map((value) => (
+          <SelectItem key={value} value={value}>
+            {ORG_ROLE_LABELS[value]}
+          </SelectItem>
+        ))}
+      </SelectGroup>
+    </SelectPopup>
+  </Select>
+);
+
+// Org-role cell: owners always render a static badge (owner transfer is a
+// better-auth flow, not this table); non-owner rows become a select only when
+// the viewer holds member:update AND is the owner (admin grant/revoke is
+// owner-only server-side). Pending invitations show their invited role.
+const RoleCell = ({
+  row,
+  canEditOrgRoles,
+  isPending,
+  onRoleChange,
+}: {
+  row: Row;
+  canEditOrgRoles: boolean;
+  isPending: boolean;
+  onRoleChange: (memberId: string, role: EditableOrgRole) => void;
 }) => {
-  const summary = row.kind === "member" ? summaries?.get(row.id) : undefined;
-  if (summary) {
-    return <AccessChips summary={summary} />;
+  const editable = canEditOrgRoles && row.kind === "member" && !isOwnerRole(row.role);
+  if (!editable) {
+    return <RoleBadge role={row.role} />;
   }
-  return isOwnerRole(row.role) ? (
-    <Badge variant="default">Owner</Badge>
-  ) : (
-    <Badge variant="outline">Member</Badge>
-  );
+  return <RoleSelect row={row} isPending={isPending} onRoleChange={onRoleChange} />;
 };
 
 const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
@@ -121,9 +174,19 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
   },
   {
     id: "role",
-    accessorFn: (row) => ROLE_RANK[row.role] ?? 1,
-    header: "Access",
-    cell: ({ row }) => <AccessCell row={row.original} summaries={params.accessSummaries} />,
+    accessorFn: (row) => ROLE_RANK[row.role] ?? 2,
+    header: "Role",
+    cell: ({ row }) => {
+      const { canEditOrgRoles, pendingRoleMemberId, onRoleChange: handleRoleChange } = params;
+      return (
+        <RoleCell
+          row={row.original}
+          canEditOrgRoles={canEditOrgRoles}
+          isPending={pendingRoleMemberId === row.original.id}
+          onRoleChange={handleRoleChange}
+        />
+      );
+    },
     enableSorting: true,
   },
   {
@@ -146,10 +209,8 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
     header: "",
     cell: ({ row }) => {
       const {
-        orgId,
         currentUserId,
         canRemoveMembers,
-        canManagePolicies,
         pendingMemberId,
         pendingInvitationId,
         onRemove: handleRemove,
@@ -161,11 +222,9 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
           : pendingInvitationId === row.original.id;
       return (
         <MemberRowActions
-          orgId={orgId}
           row={row.original}
           currentUserId={currentUserId}
           canRemoveMembers={canRemoveMembers}
-          canManagePolicies={canManagePolicies}
           isPending={isPending}
           onRemove={handleRemove}
           onCancelInvitation={handleCancelInvitation}
@@ -178,60 +237,60 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
 ];
 
 export const MembersTableView = ({
-  orgId,
   members,
   invitations,
   currentUserId,
   canRemoveMembers,
-  canManagePolicies,
-  accessSummaries,
+  canEditOrgRoles = false,
   pendingMemberId,
   pendingInvitationId,
+  pendingRoleMemberId,
   countLabel,
   sorting,
   onSortingChange,
   onRemove,
   onCancelInvitation,
+  onRoleChange,
 }: {
-  orgId: string;
   members: readonly MemberInput[];
   invitations: readonly InvitationInput[];
   currentUserId: string;
   canRemoveMembers: boolean;
-  canManagePolicies: boolean;
-  accessSummaries?: ReadonlyMap<string, MemberAccessSummaryItem> | undefined;
+  canEditOrgRoles?: boolean;
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
+  pendingRoleMemberId?: string | undefined;
   countLabel?: string;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
+  onRoleChange: (memberId: string, role: EditableOrgRole) => void;
 }) => {
   const tableData = useMemo(() => buildRows(members, invitations), [members, invitations]);
   const columns = useMemo(
     () =>
       buildColumns({
-        orgId,
         currentUserId,
         canRemoveMembers,
-        canManagePolicies,
-        accessSummaries,
+        canEditOrgRoles,
         pendingMemberId,
         pendingInvitationId,
+        pendingRoleMemberId,
         onRemove,
         onCancelInvitation,
+        onRoleChange,
       }),
     [
-      orgId,
       currentUserId,
       canRemoveMembers,
-      canManagePolicies,
-      accessSummaries,
+      canEditOrgRoles,
       pendingMemberId,
       pendingInvitationId,
+      pendingRoleMemberId,
       onRemove,
       onCancelInvitation,
+      onRoleChange,
     ],
   );
 

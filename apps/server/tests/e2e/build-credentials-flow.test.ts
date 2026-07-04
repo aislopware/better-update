@@ -84,6 +84,9 @@ describe("Build credentials resolve flow", () => {
         appleTeamName: "BC Team",
         validFrom: "2026-01-01T00:00:00Z",
         validUntil: "2028-01-01T00:00:00Z",
+        // v2 binding rule (spec §1a): resolve only serves credentials BOUND
+        // to the project — auto-bind the team at upload.
+        projectId,
       },
       { cookie: cookies },
     );
@@ -231,6 +234,7 @@ describe("Build credentials resolve flow", () => {
         appleTeamName: "Other Team",
         validFrom: "2026-01-01T00:00:00Z",
         validUntil: "2028-01-01T00:00:00Z",
+        projectId,
       },
       { cookie: cookies },
     );
@@ -287,6 +291,7 @@ describe("Build credentials resolve flow", () => {
       {
         ...keystoreEnv,
         keyAlias: "release-alias",
+        projectId,
       },
       { cookie: cookies },
     );

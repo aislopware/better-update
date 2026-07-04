@@ -12,6 +12,7 @@ import {
   toUploadEnvelope,
 } from "../application/credential-cipher";
 import { AppleIdGenerateFailedError, messageOf, wrap } from "./credentials-generator-apple";
+import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -99,6 +100,7 @@ export const generateAndUploadApnsKeyViaAppleId = (
           ...toUploadEnvelope(envelope),
           ...metadata,
           ...compact({ appleTeamName: toOptional(input.appleTeamName) }),
+          ...(yield* autoBindProjectId),
         },
       });
     });

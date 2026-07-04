@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields } from "./apple-team";
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 /**
@@ -24,6 +25,7 @@ export class ApplePayCertificate extends Schema.Class<ApplePayCertificate>("Appl
 
 /** Client-encrypted upload: the `.p12` bytes + password are sealed into `ciphertext`. */
 export const UploadApplePayCertificateBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   merchantIdentifier: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),

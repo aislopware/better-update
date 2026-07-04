@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertBindableProject, autoBindCredential } from "../application/auto-bind-credential";
 import { logAudit } from "../audit/logger";
 import {
   assertAppleCredentialAccess,
@@ -54,11 +55,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
               distributionType: urlParams.distributionType,
               appleTeamId: urlParams.appleTeamId,
             });
-            const visible = yield* filterByAppleTeamRead(
-              items,
-              (item) => item.appleTeamId,
-              (item) => item.id,
-            );
+            const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId);
             return { items: visible.map(toApiAppleProvisioningProfile) };
           }),
         ),
@@ -73,13 +70,23 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
 
             const bytes = yield* decodeBase64(payload.profileBase64);
             const parsed = yield* parseProvisioningProfile(bytes).pipe(Effect.mapError(mapInvalid));
-            yield* assertAppleCredentialCreate(parsed.appleTeamId);
+            yield* assertAppleCredentialCreate({
+              appleTeamIdentifier: parsed.appleTeamId,
+              projectId: payload.projectId,
+            });
+            yield* assertBindableProject(payload.projectId);
 
             const team = yield* teams.upsertByAppleTeamId({
               organizationId: ctx.organizationId,
               appleTeamId: parsed.appleTeamId,
               appleTeamType: "COMPANY_ORGANIZATION",
               name: parsed.teamName,
+            });
+
+            yield* autoBindCredential({
+              resourceType: "appleTeam",
+              resourceId: team.id,
+              projectId: payload.projectId,
             });
 
             const id = crypto.randomUUID();
@@ -133,7 +140,6 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAppleCredentialAccess({
               action: "delete",
-              credentialId: path.id,
               appleTeamRowId: existing.appleTeamId,
             });
             const { r2Key } = yield* repo.delete({ id: path.id });
@@ -163,7 +169,6 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAppleCredentialAccess({
               action: "download",
-              credentialId: path.id,
               appleTeamRowId: existing.appleTeamId,
             });
 

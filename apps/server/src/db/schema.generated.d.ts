@@ -64,6 +64,7 @@ export interface AndroidBuildCredentials {
 export interface AndroidUploadKeystores {
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   key_alias: string;
   keystore_type: string | null;
   md5_fingerprint: string | null;
@@ -171,6 +172,7 @@ export interface AppleTeams {
   apple_team_type: string;
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   name: string | null;
   organization_id: string;
   updated_at: Generated<string>;
@@ -349,27 +351,13 @@ export interface GoogleServiceAccountKeys {
   created_at: Generated<string>;
   google_project_id: string;
   id: string | null;
+  is_protected: Generated<number>;
   organization_id: string;
   private_key_id: string;
   r2_key: string;
   updated_at: Generated<string>;
   vault_version: number;
   wrapped_dek: string;
-}
-
-export interface IamGroup {
-  created_at: Generated<string>;
-  description: string | null;
-  id: string;
-  name: string;
-  organization_id: string;
-  updated_at: string | null;
-}
-
-export interface IamGroupMembership {
-  created_at: Generated<string>;
-  group_id: string;
-  member_id: string;
 }
 
 export interface Invitation {
@@ -383,11 +371,12 @@ export interface Invitation {
   status: string;
 }
 
-export interface InvitationGrant {
+export interface InvitationProjectGrant {
   created_at: Generated<string>;
   invitation_id: string;
   organization_id: string;
-  policy_id: string;
+  project_id: string;
+  role: string;
 }
 
 export interface IosAppMetadata {
@@ -490,23 +479,24 @@ export interface PasskeyStepUp {
   verified_at: string;
 }
 
-export interface Policy {
+export interface ProjectCredentialBinding {
   created_at: Generated<string>;
-  description: string | null;
-  document: string;
   id: string;
-  name: string;
   organization_id: string;
-  updated_at: string | null;
+  project_id: string;
+  resource_id: string;
+  resource_type: string;
 }
 
-export interface PolicyAttachment {
+export interface ProjectMember {
   created_at: Generated<string>;
   id: string;
   organization_id: string;
-  policy_id: string;
   principal_id: string;
   principal_type: string;
+  project_id: string;
+  role: string;
+  updated_at: string | null;
 }
 
 export interface ProjectProtocolMetadata {
@@ -549,6 +539,8 @@ export interface RobotAccount {
   id: string;
   name: string;
   organization_id: string;
+  project_id: string | null;
+  project_role: string | null;
   revoked_at: string | null;
   user_encryption_key_id: string | null;
 }
@@ -689,10 +681,8 @@ export interface DB {
   env_vars: EnvVars;
   environments: Environments;
   google_service_account_keys: GoogleServiceAccountKeys;
-  iam_group: IamGroup;
-  iam_group_membership: IamGroupMembership;
   invitation: Invitation;
-  invitation_grant: InvitationGrant;
+  invitation_project_grant: InvitationProjectGrant;
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
@@ -702,8 +692,8 @@ export interface DB {
   organization: Organization;
   passkey: Passkey;
   passkey_step_up: PasskeyStepUp;
-  policy: Policy;
-  policy_attachment: PolicyAttachment;
+  project_credential_binding: ProjectCredentialBinding;
+  project_member: ProjectMember;
   project_protocol_metadata: ProjectProtocolMetadata;
   projects: Projects;
   projects_fts: ProjectsFts;

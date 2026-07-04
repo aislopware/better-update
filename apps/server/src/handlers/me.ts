@@ -3,41 +3,35 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { CurrentActor } from "../auth/current-actor";
-import { actionMatches, isAllowed, resolvePath } from "../auth/policy-match";
+import { meetsAnywhereRequirement, meetsOrgRequirement, ORG_RULES } from "../auth/role-matrix";
 import { AuthMetaRepo } from "../repositories/auth-meta";
 
-import type { CurrentActor as CurrentActorModel } from "../models";
-
-const ORG_PATH = resolvePath({ kind: "org" });
+import type { Action, CurrentActor as CurrentActorModel, Resource } from "../models";
 
 /**
- * Whether the actor holds `token` on `org` — owner/superadmin are unconditional
- * roots (same bypass order as `assertAccess`), otherwise it mirrors the EXACT
- * token the corresponding member-management endpoint gates on, so a UI affordance
- * keyed off this never shows an action the server would 403.
+ * Whether the actor holds an org-scoped token — owner/superadmin are
+ * unconditional roots (same bypass order as `assertAccess`), otherwise it
+ * mirrors the EXACT org rule the corresponding endpoint gates on, so a UI
+ * affordance keyed off this never shows an action the server would 403.
  */
-export const actorHolds = (ctx: CurrentActorModel, token: string): boolean =>
-  ctx.isSuperadmin || ctx.isOwner || isAllowed(ctx.effectiveStatements, token, ORG_PATH);
+export const actorHolds = (ctx: CurrentActorModel, resource: Resource, action: Action): boolean => {
+  if (ctx.isSuperadmin || ctx.isOwner) {
+    return true;
+  }
+  const requirement = ORG_RULES[`${resource}:${action}`];
+  return requirement !== undefined && meetsOrgRequirement(ctx.orgRole, requirement);
+};
 
-// Org-wide env vars live under `project/global/...`, not `org` — gate the
-// sidebar entry off `envVar:read` there (matched by `*`, `project/*`, and
-// `project/global...` selectors alike).
-const holdsOrgEnvVarRead = (ctx: CurrentActorModel): boolean =>
-  ctx.isSuperadmin ||
-  ctx.isOwner ||
-  isAllowed(ctx.effectiveStatements, "envVar:read", "project/global");
+// Org-shared build inputs (credentials/devices/org env vars): show the
+// surface to anyone holding developer anywhere — a coarse chrome gate only;
+// the endpoints enforce the per-row binding + protected ladders (spec §1a).
+const holdsAnywhereDeveloper = (ctx: CurrentActorModel): boolean =>
+  ctx.isSuperadmin || ctx.isOwner || meetsAnywhereRequirement(ctx, "developer");
 
-// Apple credentials are scoped by APPLE TEAM, not the org path — show the
-// credentials surface when the actor can read them ANYWHERE (mirrors
-// `assertAccessAny`, which gates the list endpoints; those then filter to the
-// actor's teams).
-const holdsAppleCredentialReadAnywhere = (ctx: CurrentActorModel): boolean =>
-  ctx.isSuperadmin ||
-  ctx.isOwner ||
-  ctx.effectiveStatements.some(
-    (statement) =>
-      statement.effect === "allow" && actionMatches(statement.actions, "appleCredential:read"),
-  );
+// Robots are project-scoped (spec §1b, v2): the robots surface is for
+// admin-tier actors and anyone maintaining at least one project.
+const holdsAnywhereMaintainer = (ctx: CurrentActorModel): boolean =>
+  ctx.isSuperadmin || ctx.isOwner || meetsAnywhereRequirement(ctx, "maintainer");
 
 export const MeGroupLive = HttpApiBuilder.group(ManagementApi, "me", (handlers) =>
   handlers.handle("get", () =>
@@ -58,19 +52,20 @@ export const MeGroupLive = HttpApiBuilder.group(ManagementApi, "me", (handlers) 
           : null,
         source: ctx.source,
         actorEmail: ctx.actorEmail,
-        // Sidebar/chrome capability contract (ROLES-CAPABILITIES-SPEC §5b).
-        // Hiding is UX only — `assertAccess` still guards every endpoint.
-        canInviteMembers: actorHolds(ctx, "invitation:create"),
-        canRemoveMembers: actorHolds(ctx, "member:delete"),
-        canManagePolicies: actorHolds(ctx, "policy:update"),
-        canViewPolicies: actorHolds(ctx, "policy:read"),
-        canViewAuditLog: actorHolds(ctx, "auditLog:read"),
-        canViewCredentials: holdsAppleCredentialReadAnywhere(ctx),
-        canViewDevices: actorHolds(ctx, "device:read"),
-        canViewVaultAccess: actorHolds(ctx, "vaultAccess:read"),
-        canViewRobots: actorHolds(ctx, "robotAccount:read"),
-        canManageOrgEnvVars: holdsOrgEnvVarRead(ctx),
-        canManageOrgSettings: actorHolds(ctx, "organization:update"),
+        orgRole: ctx.orgRole,
+        projectRoles: ctx.projectRoles,
+        // Sidebar/chrome capability contract. Hiding is UX only —
+        // `assertAccess` still guards every endpoint.
+        canInviteMembers: actorHolds(ctx, "invitation", "create"),
+        canRemoveMembers: actorHolds(ctx, "member", "delete"),
+        canManageMembers: actorHolds(ctx, "member", "update"),
+        canViewAuditLog: actorHolds(ctx, "auditLog", "read"),
+        canViewCredentials: holdsAnywhereDeveloper(ctx),
+        canViewDevices: holdsAnywhereDeveloper(ctx),
+        canViewVaultAccess: actorHolds(ctx, "vaultAccess", "read"),
+        canViewRobots: holdsAnywhereMaintainer(ctx),
+        canManageOrgEnvVars: holdsAnywhereDeveloper(ctx),
+        canManageOrgSettings: actorHolds(ctx, "organization", "update"),
       };
     }),
   ),

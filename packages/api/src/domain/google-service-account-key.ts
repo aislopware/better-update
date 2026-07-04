@@ -1,17 +1,21 @@
 import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { boundProjectIdsField, credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export class GoogleServiceAccountKey extends Schema.Class<GoogleServiceAccountKey>(
   "GoogleServiceAccountKey",
 )({
+  ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
   clientEmail: Schema.String,
   privateKeyId: Schema.String,
   googleProjectId: Schema.String,
   clientId: Schema.NullOr(Schema.String),
+  /** Protected-credential flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}
@@ -22,6 +26,7 @@ export class GoogleServiceAccountKey extends Schema.Class<GoogleServiceAccountKe
  * no longer read the blob, so the identifying fields travel as plaintext.
  */
 export const UploadGoogleServiceAccountKeyBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   clientEmail: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(320)),

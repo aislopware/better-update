@@ -69,9 +69,11 @@ Headless / remote machine:
 better-update login --api-key      # then paste a session token manually
 ```
 
-Or skip the file entirely with a robot account (mint one with `credentials robot create`, then grant
-it a policy with `credentials robot attach <id> --policy-id managed:admin` — a fresh robot has zero
-permissions by default; see `references/credentials.md`), which takes priority over the file:
+Or skip the file entirely with a robot account (mint one from inside the linked project with
+`credentials robot create` — robots are project-scoped: one robot = one project + one role, both
+fixed at creation via `--project <projectId>` / `--role <maintainer|developer|reporter>`, defaulting
+to the linked project + `developer`; see `references/credentials.md`), which takes priority over
+the file:
 
 ```bash
 BETTER_UPDATE_ROBOT=… better-update update list

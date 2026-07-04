@@ -6,24 +6,22 @@ import { AuthContext } from "../auth/context";
 import { assertAccess } from "../auth/policy";
 
 import type { AuthContextShape } from "../auth/context";
-import type { PolicyStatement } from "../authz-models";
 
 // The invitations handlers gate list/create/cancel with
-// `assertAccess("invitation", <action>)` at the default (org) target. This pins
-// THAT contract: organization invitation create / list / cancel now flow through
-// the IAM policy model, NOT better-auth's org-role `hasPermission({invitation})`
-// check. An org member can invite/cancel WITHOUT being the better-auth owner —
-// purely by holding an `invitation:*` allow via a policy attachment; a member
-// with no such allow is denied (default-deny). We exercise the gate directly with
-// a synthetic principal, mirroring `handlers/robot-accounts.test.ts` / `auth/policy.test.ts`.
+// `assertAccess("invitation", <action>)` at the default (org) target. Under
+// GitLab-RBAC these are ORG-ADMIN rules (spec §2): owner/superadmin bypass,
+// admins invite/cancel/list, plain members are denied. The owner-only
+// admin-invite guard and the project-grant validation live in the handler
+// (covered by integration/e2e).
 
 const baseActor: AuthContextShape = {
   userId: "u1",
   organizationId: "org-1",
   memberId: "m1",
   role: "member",
+  orgRole: "member",
   isOwner: false,
-  effectiveStatements: [],
+  projectRoles: {},
   source: "session",
   transport: "cookie",
   sessionId: "sess-test",
@@ -35,18 +33,6 @@ const baseActor: AuthContextShape = {
 const provide = (overrides: Partial<AuthContextShape>) =>
   Effect.provideService(AuthContext, { ...baseActor, ...overrides });
 
-const allow = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "allow",
-  actions,
-  resources,
-});
-
-const deny = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "deny",
-  actions,
-  resources,
-});
-
 const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   Effect.gen(function* () {
     const exit = yield* effect.pipe(Effect.exit);
@@ -54,13 +40,13 @@ const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   });
 
 describe("invitations authz gate — assertAccess('invitation', …)", () => {
-  it.effect("the better-auth org owner bypasses (can create + cancel with no statements)", () =>
+  it.effect("the org owner bypasses (create + cancel)", () =>
     Effect.gen(function* () {
       const cannotCreate = yield* isForbidden(
-        assertAccess("invitation", "create").pipe(provide({ isOwner: true })),
+        assertAccess("invitation", "create").pipe(provide({ isOwner: true, orgRole: "owner" })),
       );
       const cannotCancel = yield* isForbidden(
-        assertAccess("invitation", "cancel").pipe(provide({ isOwner: true })),
+        assertAccess("invitation", "cancel").pipe(provide({ isOwner: true, orgRole: "owner" })),
       );
       expect(cannotCreate).toBe(false);
       expect(cannotCancel).toBe(false);
@@ -76,131 +62,64 @@ describe("invitations authz gate — assertAccess('invitation', …)", () => {
     }),
   );
 
-  it.effect(
-    "a member with org-wide invitation:create / invitation:cancel allows can do both — NOT just the owner",
-    () =>
-      Effect.gen(function* () {
-        const cannotCreate = yield* isForbidden(
-          assertAccess("invitation", "create").pipe(
-            provide({ effectiveStatements: [allow(["invitation:create"], ["*"])] }),
-          ),
-        );
-        const cannotCancel = yield* isForbidden(
-          assertAccess("invitation", "cancel").pipe(
-            provide({ effectiveStatements: [allow(["invitation:cancel"], ["*"])] }),
-          ),
-        );
-        expect(cannotCreate).toBe(false);
-        expect(cannotCancel).toBe(false);
-      }),
-  );
-
-  it.effect(
-    "an 'org'-scoped invitation:* allow grants create, cancel AND read (org target path)",
-    () =>
-      Effect.gen(function* () {
-        const wildcard = { effectiveStatements: [allow(["invitation:*"], ["org"])] };
-        const cannotCreate = yield* isForbidden(
-          assertAccess("invitation", "create").pipe(provide(wildcard)),
-        );
-        const cannotCancel = yield* isForbidden(
-          assertAccess("invitation", "cancel").pipe(provide(wildcard)),
-        );
-        const cannotRead = yield* isForbidden(
-          assertAccess("invitation", "read").pipe(provide(wildcard)),
-        );
-        expect(cannotCreate).toBe(false);
-        expect(cannotCancel).toBe(false);
-        expect(cannotRead).toBe(false);
-      }),
-  );
-
-  it.effect("a member with NO invitation statement is denied for every action (default-deny)", () =>
+  it.effect("an org admin can create, cancel, and list invitations", () =>
     Effect.gen(function* () {
-      const cannotCreate = yield* isForbidden(
-        assertAccess("invitation", "create").pipe(provide({})),
-      );
-      const cannotCancel = yield* isForbidden(
-        assertAccess("invitation", "cancel").pipe(provide({})),
-      );
-      const cannotList = yield* isForbidden(assertAccess("invitation", "read").pipe(provide({})));
-      expect(cannotCreate).toBe(true);
-      expect(cannotCancel).toBe(true);
-      expect(cannotList).toBe(true);
+      for (const action of ["create", "cancel", "read"] as const) {
+        const forbidden = yield* isForbidden(
+          assertAccess("invitation", action).pipe(provide({ orgRole: "admin" })),
+        );
+        expect(forbidden).toBe(false);
+      }
     }),
   );
 
-  it.effect("an invitation:read allow does NOT grant create or cancel (actions are scoped)", () =>
+  it.effect("a plain member is denied every invitation action (default-deny)", () =>
     Effect.gen(function* () {
-      const readOnly = { effectiveStatements: [allow(["invitation:read"], ["*"])] };
-      const canRead = yield* isForbidden(
-        assertAccess("invitation", "read").pipe(provide(readOnly)),
-      );
-      const cannotCreate = yield* isForbidden(
-        assertAccess("invitation", "create").pipe(provide(readOnly)),
-      );
-      const cannotCancel = yield* isForbidden(
-        assertAccess("invitation", "cancel").pipe(provide(readOnly)),
-      );
-      // read-only principal CAN list but cannot create or cancel.
-      expect(canRead).toBe(false);
-      expect(cannotCreate).toBe(true);
-      expect(cannotCancel).toBe(true);
+      for (const action of ["create", "cancel", "read"] as const) {
+        const forbidden = yield* isForbidden(assertAccess("invitation", action).pipe(provide({})));
+        expect(forbidden).toBe(true);
+      }
     }),
   );
 
-  it.effect("a deny on invitation:cancel wins over an allow (deny-wins)", () =>
+  it.effect("project maintainership does NOT confer org-level inviting", () =>
     Effect.gen(function* () {
-      const cannotCancel = yield* isForbidden(
-        assertAccess("invitation", "cancel").pipe(
-          provide({
-            effectiveStatements: [
-              allow(["invitation:*"], ["*"]),
-              deny(["invitation:cancel"], ["*"]),
-            ],
-          }),
-        ),
-      );
-      // The allow still lets create through; only cancel is denied.
-      const cannotCreate = yield* isForbidden(
+      const forbidden = yield* isForbidden(
         assertAccess("invitation", "create").pipe(
-          provide({
-            effectiveStatements: [
-              allow(["invitation:*"], ["*"]),
-              deny(["invitation:cancel"], ["*"]),
-            ],
-          }),
+          provide({ projectRoles: { projA: "maintainer" } }),
         ),
       );
-      expect(cannotCancel).toBe(true);
-      expect(cannotCreate).toBe(false);
+      expect(forbidden).toBe(true);
     }),
   );
 });
 
-// The create payload is the API trust boundary. In the unified IAM model invites
-// are member-ONLY: `role` is a member literal (NEVER "admin" / "owner") — admin
-// access comes from policy attachments post-accept, and "owner" is the undeniable
-// root bypass that is never grantable by invite. `email` must look like an address.
-describe("CreateInvitationBody schema (role allow-list + email shape)", () => {
+describe("CreateInvitationBody payload", () => {
   const decode = Schema.decodeUnknownEither(CreateInvitationBody);
 
-  it("rejects role 'owner' (anti-escalation) and any non-member role", () => {
-    expect(Either.isLeft(decode({ email: "a@b.com", role: "owner" }))).toBe(true);
-    expect(Either.isLeft(decode({ email: "a@b.com", role: "superadmin" }))).toBe(true);
+  it("accepts an email-only payload (role defaults server-side)", () => {
+    expect(Either.isRight(decode({ email: "new@example.com" }))).toBe(true);
   });
 
-  it("rejects role 'admin' (admin-ness now comes from policy attachments, not invite)", () => {
-    expect(Either.isLeft(decode({ email: "a@b.com", role: "admin" }))).toBe(true);
+  it("accepts member/admin roles and project grants", () => {
+    const result = decode({
+      email: "new@example.com",
+      role: "admin",
+      projects: [{ projectId: "p1", role: "developer" }],
+    });
+    expect(Either.isRight(result)).toBe(true);
   });
 
-  it("rejects a malformed email", () => {
+  it("rejects owner as an invitable role and unknown project roles", () => {
+    expect(Either.isLeft(decode({ email: "new@example.com", role: "owner" }))).toBe(true);
+    expect(
+      Either.isLeft(
+        decode({ email: "new@example.com", projects: [{ projectId: "p1", role: "admin" }] }),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects malformed emails", () => {
     expect(Either.isLeft(decode({ email: "not-an-email" }))).toBe(true);
-    expect(Either.isLeft(decode({ email: "" }))).toBe(true);
-  });
-
-  it("accepts member / omitted role with a valid email", () => {
-    expect(Either.isRight(decode({ email: "a@b.com" }))).toBe(true);
-    expect(Either.isRight(decode({ email: "a@b.com", role: "member" }))).toBe(true);
   });
 });

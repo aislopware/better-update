@@ -12,6 +12,7 @@ import {
   toUploadEnvelope,
 } from "../application/credential-cipher";
 import { extractKeystoreFingerprints, generateAndroidKeystore } from "./android-keystore";
+import { autoBindProjectId } from "./project-link";
 import { acquireBuildTempDir } from "./temp-dir";
 
 import type { ApiClient } from "../services/api-client";
@@ -83,7 +84,7 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
         },
       });
       const created = yield* api.androidUploadKeystores.upload({
-        payload: { ...toUploadEnvelope(envelope), ...metadata },
+        payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
       });
       return { id: created.id, keyAlias: created.keyAlias };
     }),

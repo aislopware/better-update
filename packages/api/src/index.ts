@@ -11,8 +11,8 @@ export { NotFound } from "./auth/ownership";
 export type {
   Action,
   AuthContextShape,
-  BuiltinRole,
-  PolicyStatement as PolicyStatementShape,
+  OrgRole,
+  ProjectRole,
   Resource,
   Role,
 } from "./auth/context";
@@ -332,28 +332,31 @@ export {
   RobotAccountList,
   RotatedRobotAccountBearer,
 } from "./domain/robot-account";
-export { CreateInvitationBody, Invitation, InvitationList } from "./domain/invitation";
 export {
-  CreatePolicyBody,
-  Policy,
-  PolicyDocument,
-  PolicyEffect,
-  PolicyStatement,
-  UpdatePolicyBody,
-} from "./domain/policy";
+  CreateInvitationBody,
+  Invitation,
+  InvitationList,
+  InvitationProjectGrant,
+} from "./domain/invitation";
 export {
-  AddGroupMemberBody,
-  CreateGroupBody,
-  Group,
-  GroupMember,
-  UpdateGroupBody,
-} from "./domain/group";
-export { AttachPolicyBody, PolicyAttachment, PrincipalType } from "./domain/policy-attachment";
+  boundProjectIdsField,
+  CredentialBinding,
+  CredentialBindingList,
+  CredentialBindingPlan,
+  CredentialBindingPlanItem,
+  CredentialBindingType,
+  credentialCreateBindingField,
+} from "./domain/credential-binding";
+export type { CredentialBindingTypeValue } from "./domain/credential-binding";
 export {
-  isCanonicalSelector,
-  isValidActionTokenShape,
-  isValidSelector,
-} from "./domain/policy-selector";
+  ProjectMember,
+  ProjectMemberList,
+  ProjectMemberPrincipalType,
+  ProjectMemberRole,
+  RemoveProjectMemberParams,
+  UpdateProjectMemberBody,
+  UpsertProjectMemberBody,
+} from "./domain/project-member";
 
 // Groups
 export { AdminGroup } from "./groups/admin";
@@ -394,12 +397,11 @@ export { MeGroup } from "./groups/me";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";
 export { WebhooksGroup } from "./groups/webhooks";
-export { PoliciesGroup } from "./groups/policies";
-export { GroupsGroup } from "./groups/groups";
-export { PolicyAttachmentsGroup } from "./groups/policy-attachments";
 export { RobotAccountsGroup } from "./groups/robot-accounts";
 export { InvitationsGroup } from "./groups/invitations";
 export { MembersGroup } from "./groups/members";
+export { ProjectMembersGroup } from "./groups/project-members";
+export { CredentialBindingsGroup } from "./groups/credential-bindings";
 export { OrganizationGroup } from "./groups/organization";
 export {
   Organization,
@@ -410,7 +412,6 @@ export {
 } from "./domain/organization";
 
 export { Me, MeOrganization, MeUser } from "./domain/me";
-export { MemberAccessSummary, MemberAccessSummaryList } from "./domain/member-access";
 export {
   CreateWebhookBody,
   DeleteWebhookResult,

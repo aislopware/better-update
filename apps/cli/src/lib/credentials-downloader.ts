@@ -348,7 +348,7 @@ const maybeAutoProvision = (
 ): Effect.Effect<
   readonly AutoProvisionedEntry[],
   MissingCredentialsError | PlatformError,
-  CliRuntime | IdentityStore | InteractiveMode
+  FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode
 > =>
   Effect.gen(function* () {
     if (params.missing.length === 0) {

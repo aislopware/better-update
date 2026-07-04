@@ -233,21 +233,20 @@ describe("Channels API flow", () => {
 
   it("creates an API key", async () => {
     const response = await post(
-      "/api/auth/api-key/create",
-      { name: "channel-test-key", organizationId },
+      "/api/robot-accounts",
+      {
+        name: "channel-test-robot",
+        projectId,
+        role: "maintainer",
+        publicKey: "age1e2efixturechanneltestrobot",
+        fingerprint: "SHA256:e2e-fixture-channel-test-robot",
+      },
       { cookie: cookies },
     );
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.key).toMatch(/^bu_/);
-    apiKeyValue = body.key;
-
-    const attach = await post(
-      `/api/api-keys/${body.id}/policies`,
-      { policyId: "managed:admin" },
-      { cookie: cookies },
-    );
-    expect(attach.status).toBe(201);
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    apiKeyValue = body.bearerSecret;
   });
 
   it("lists channels via API key", async () => {

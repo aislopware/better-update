@@ -23,6 +23,16 @@ const insertOrg = (id: string) =>
     .bind(id, `Org ${id}`, `${id}-slug`, "2026-01-01T00:00:00Z")
     .run();
 
+// Robots are project-scoped (GITLAB-RBAC-SPEC §1b, v2): every robot row
+// carries its project + role, so each org gets a fixture project.
+const insertProject = (id: string, organizationId: string) =>
+  env.DB.prepare(
+    `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at")
+     VALUES (?, ?, ?, ?, '2026-01-01T00:00:00Z')`,
+  )
+    .bind(id, organizationId, `Project ${id}`, `${id}-slug`)
+    .run();
+
 // `create` mints the machine-kind vault recipient itself (one atomic batch with
 // the robot row), so each call just needs a unique keypair fixture.
 const createRobot = (organizationId: string, name: string) =>
@@ -32,6 +42,8 @@ const createRobot = (organizationId: string, name: string) =>
       return yield* repo.create({
         organizationId,
         name,
+        projectId: `proj-${organizationId}`,
+        role: "developer",
         publicKey: `age1fixture-${organizationId}-${name}`,
         fingerprint: `SHA256:fixture-${organizationId}-${name}`,
       });
@@ -41,6 +53,8 @@ const createRobot = (organizationId: string, name: string) =>
 beforeAll(async () => {
   await insertOrg("org-robot-1");
   await insertOrg("org-robot-2");
+  await insertProject("proj-org-robot-1", "org-robot-1");
+  await insertProject("proj-org-robot-2", "org-robot-2");
 });
 
 // ── Tests ─────────────────────────────────────────────────────────
@@ -64,6 +78,8 @@ describe("RobotAccountRepo — create → verifyBearer (the linchpin)", () => {
       id: created.model.id,
       organizationId: "org-robot-1",
       name: "ci-deploy",
+      projectId: "proj-org-robot-1",
+      role: "developer",
     });
   });
 
@@ -255,35 +271,32 @@ describe("RobotAccountRepo — list / rotateBearer / revoke (org-scoped)", () =>
     expect(again).toBe(false);
   });
 
-  it("revoke atomically drops the robot's policy attachments (no dangling grants)", async () => {
-    const created = await createRobot("org-robot-2", "with-grants");
+  it("a legacy NULL-project row (pre-v2 migration posture) never verifies", async () => {
+    // Simulate a 0092-migrated legacy robot: bearer present, no project.
+    const created = await createRobot("org-robot-2", "legacy-row");
     await env.DB.prepare(
-      `INSERT INTO "policy_attachment"
-         ("id", "organization_id", "policy_id", "principal_type", "principal_id", "created_at")
-       VALUES (?, ?, ?, 'robot', ?, ?)`,
-    )
-      .bind(
-        "att-robot-revoke-1",
-        "org-robot-2",
-        "managed:admin",
-        created.model.id,
-        "2026-01-01T00:00:00Z",
-      )
-      .run();
-
-    const deleted = await run(
-      Effect.gen(function* () {
-        const repo = yield* RobotAccountRepo;
-        return yield* repo.revoke({ id: created.model.id, organizationId: "org-robot-2" });
-      }),
-    );
-    expect(deleted).toBe(true);
-
-    const remaining = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM "policy_attachment" WHERE "principal_type" = 'robot' AND "principal_id" = ?`,
+      `UPDATE "robot_account" SET "project_id" = NULL, "project_role" = NULL WHERE "id" = ?`,
     )
       .bind(created.model.id)
-      .first<{ n: number }>();
-    expect(remaining?.n).toBe(0);
+      .run();
+
+    const verified = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.verifyBearer({ plaintext: created.bearerSecret });
+      }),
+    );
+    expect(verified).toBeNull();
+
+    // Still listed (so it can be revoked) with the null project surfaced.
+    const listed = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.list({ organizationId: "org-robot-2" });
+      }),
+    );
+    const legacy = listed.find((model) => model.id === created.model.id);
+    expect(legacy?.projectId).toBeNull();
+    expect(legacy?.role).toBeNull();
   });
 });

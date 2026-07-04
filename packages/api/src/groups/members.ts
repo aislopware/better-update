@@ -1,20 +1,30 @@
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
+import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { DeletedResult, idParam } from "../domain/common";
 import { Conflict } from "../domain/errors";
-import { MemberAccessSummaryList } from "../domain/member-access";
+
+const UpdateMemberRoleBody = Schema.Struct({
+  role: Schema.Literal("admin", "member"),
+});
+
+const UpdatedMemberRole = Schema.Struct({
+  id: Schema.String,
+  role: Schema.Literal("admin", "member"),
+});
 
 export class MembersGroup extends HttpApiGroup.make("members")
   .add(
-    HttpApiEndpoint.get("accessSummaries", "/api/members/access-summaries")
-      .addSuccess(MemberAccessSummaryList)
+    HttpApiEndpoint.patch("updateRole")`/api/members/${idParam}`
+      .setPayload(UpdateMemberRoleBody)
+      .addSuccess(UpdatedMemberRole)
       .annotateContext(
         OpenApi.annotations({
-          title: "Member access summaries",
+          title: "Change member org role",
           description:
-            "Server-computed access summary per member (org role, project roles, capabilities, custom-policy count) — direct attachments plus group-conferred grants. Feeds the Members table's Access column.",
+            "Set a member's org role (GITLAB-RBAC-SPEC §2): admin ⇄ member. Requires member:update; granting OR revoking admin is owner-only. Owners cannot be changed here (owner is the org root, set at creation).",
         }),
       ),
   )
@@ -25,7 +35,7 @@ export class MembersGroup extends HttpApiGroup.make("members")
         OpenApi.annotations({
           title: "Remove member",
           description:
-            "Remove a member from the active organization by member id (org-scoped; no cross-organization removes). Rejects removing the last owner (409). Membership role is `owner | member`; admin/developer/viewer access comes from policy attachments, not the role",
+            "Remove a member from the active organization by member id (org-scoped; no cross-organization removes). Rejects removing the last owner (409). Also drops the member's project_member rows.",
         }),
       ),
   )
@@ -35,6 +45,6 @@ export class MembersGroup extends HttpApiGroup.make("members")
   .annotateContext(
     OpenApi.annotations({
       title: "Members",
-      description: "IAM-gated organization member removal",
+      description: "IAM-gated organization member management (org role + removal)",
     }),
   ) {}

@@ -33,6 +33,11 @@ export interface IosBundleConfigurationRepository {
     readonly projectId: string;
   }) => Effect.Effect<readonly IosBundleConfigurationModel[]>;
 
+  /** Every config in the org — feeds the credential-binding plan (§3c). */
+  readonly listByOrg: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly IosBundleConfigurationModel[]>;
+
   readonly findByProjectAndBundle: (params: {
     readonly projectId: string;
     readonly bundleIdentifier: string;
@@ -137,6 +142,21 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
           .where("project_id", "=", params.projectId)
           .orderBy("bundle_identifier", "asc")
           .orderBy("distribution_type", "asc")
+          .execute(),
+      );
+      return rows.map(toModel);
+    }),
+
+  listByOrg: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("ios_bundle_configurations")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("project_id", "asc")
+          .orderBy("bundle_identifier", "asc")
           .execute(),
       );
       return rows.map(toModel);

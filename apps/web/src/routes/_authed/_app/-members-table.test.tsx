@@ -17,10 +17,9 @@ const ownerMember = makeMember({
   user: { id: "user-owner", name: "Alice Owner", email: "alice@example.com", image: null },
 });
 
-// Post-collapse, every non-owner member is role "member"; admin/developer/viewer
-// powers come from policy attachments, not the role string. `user-capable` is a
-// role-"member" principal who holds member-management policies (capability flows
-// in via the per-action `canRemoveMembers`/`canManagePolicies` flags, NOT a role).
+// Post-collapse, every non-owner member is role "member". `user-capable` is a
+// role-"member" principal who holds member-management capability (capability
+// flows in via the per-action `canRemoveMembers` flag, NOT a role).
 const capableMember = makeMember({
   id: "member-capable",
   userId: "user-capable",
@@ -37,30 +36,36 @@ const regularMember = makeMember({
 
 const allMembers = [ownerMember, capableMember, regularMember];
 
+const adminMember = makeMember({
+  id: "member-admin",
+  userId: "user-admin",
+  role: "admin",
+  user: { id: "user-admin", name: "Dave Admin", email: "dave@example.com", image: null },
+});
+
 describe(MembersTableView, () => {
   const onRemove = vi.fn<(memberId: string) => void>();
   const onCancelInvitation = vi.fn<(invitationId: string) => Promise<void>>(async () => {});
+  const onRoleChange = vi.fn<(memberId: string, role: "admin" | "member") => void>();
 
   it("renders member rows with name, email, role badge, and status", () => {
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={allMembers}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-owner"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 
     expect(screen.getByText("Alice Owner")).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
-    // The role column collapses to an Owner / Member badge — admin/developer/viewer
-    // are no longer member roles (they are policy attachments).
+    // The role column collapses to an Owner / Member badge.
     expect(screen.getByText("Owner")).toBeInTheDocument();
 
     expect(screen.getByText("Bob Capable")).toBeInTheDocument();
@@ -82,16 +87,15 @@ describe(MembersTableView, () => {
   it("capable actor sees action buttons for non-owner members", () => {
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={allMembers}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-owner"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 
@@ -102,16 +106,15 @@ describe(MembersTableView, () => {
   it("never renders actions for the owner row", () => {
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={[ownerMember]}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-owner"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 
@@ -121,76 +124,62 @@ describe(MembersTableView, () => {
   it("an actor with no member-management capability sees NO action dropdowns", () => {
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={allMembers}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-regular"
         canRemoveMembers={false}
-        canManagePolicies={false}
       />,
     );
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("a capable non-owner sees Manage policies, never role-change items, never self-remove", async () => {
-    const user = userEvent.setup();
+  it("a capable non-owner never sees actions on their own row (no self-remove)", () => {
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={allMembers}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-capable"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 
-    // The capable actor manages non-owner members (capable + regular) but never the
-    // owner row (owner is undeniable root; policies are inert on it).
+    // The capable actor can act on the OTHER non-owner member only: never the
+    // owner row (owner is undeniable root) and never their own row (no
+    // self-remove) — so exactly one action menu renders.
     const actionButtons = screen.getAllByRole("button", { name: "Member actions" });
-    expect(actionButtons).toHaveLength(2);
-
-    // First menu is the actor's own row (sorted owner→members; owner has no menu):
-    // it exposes Manage policies but NOT Remove (cannot remove self), and never any
-    // role-change item (those are gone post-collapse).
-    await user.click(actionButtons[0]!);
-    await expect(
-      screen.findByRole("menuitem", { name: /manage access/i }),
-    ).resolves.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /remove member/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /set as admin/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /set as member/i })).not.toBeInTheDocument();
+    expect(actionButtons).toHaveLength(1);
   });
 
   it("a capable non-owner can Remove a different non-owner member", async () => {
     const user = userEvent.setup();
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={allMembers}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-capable"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 
-    // Second menu is the OTHER non-owner member (Carol) — Remove is available there.
+    // The only menu is the OTHER non-owner member (Carol) — Remove is available there.
     const actionButtons = screen.getAllByRole("button", { name: "Member actions" });
-    await user.click(actionButtons[1]!);
+    await user.click(actionButtons[0]!);
     await user.click(await screen.findByRole("menuitem", { name: /remove member/i }));
 
     expect(onRemove).toHaveBeenCalledWith("member-regular");
@@ -205,16 +194,15 @@ describe(MembersTableView, () => {
 
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={[]}
         invitations={[invitation]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-owner"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 
@@ -223,22 +211,88 @@ describe(MembersTableView, () => {
     expect(screen.getByText(/^Expires/)).toBeInTheDocument();
   });
 
+  it("without canEditOrgRoles every row shows a static role badge, no selects", () => {
+    renderWithQuery(
+      <MembersTableView
+        members={[ownerMember, adminMember, regularMember]}
+        invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRemove={onRemove}
+        onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
+        currentUserId="user-regular"
+        canRemoveMembers={false}
+        canEditOrgRoles={false}
+      />,
+    );
+
+    expect(screen.getByText("Owner")).toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/change role for/i)).not.toBeInTheDocument();
+  });
+
+  it("with canEditOrgRoles non-owner rows render a role select; the owner row stays a badge", () => {
+    renderWithQuery(
+      <MembersTableView
+        members={[ownerMember, adminMember, regularMember]}
+        invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRemove={onRemove}
+        onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
+        currentUserId="user-owner"
+        canRemoveMembers
+        canEditOrgRoles
+      />,
+    );
+
+    expect(screen.getByLabelText("Change role for Dave Admin")).toBeInTheDocument();
+    expect(screen.getByLabelText("Change role for Carol Member")).toBeInTheDocument();
+    // Owner rows are never editable here (owner transfer is a separate flow).
+    expect(screen.queryByLabelText("Change role for Alice Owner")).not.toBeInTheDocument();
+    expect(screen.getByText("Owner")).toBeInTheDocument();
+  });
+
+  it("selecting a new role calls onRoleChange with the member id", async () => {
+    const user = userEvent.setup();
+    renderWithQuery(
+      <MembersTableView
+        members={[ownerMember, regularMember]}
+        invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRemove={onRemove}
+        onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
+        currentUserId="user-owner"
+        canRemoveMembers
+        canEditOrgRoles
+      />,
+    );
+
+    await user.click(screen.getByLabelText("Change role for Carol Member"));
+    await user.click(await screen.findByRole("option", { name: "Admin" }));
+
+    expect(onRoleChange).toHaveBeenCalledWith("member-regular", "admin");
+  });
+
   it("cancel invitation menu item calls onCancelInvitation with invitation id", async () => {
     const user = userEvent.setup();
     const invitation = makeInvitation({ id: "inv-42" });
 
     renderWithQuery(
       <MembersTableView
-        orgId="org-1"
         members={[]}
         invitations={[invitation]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
         currentUserId="user-owner"
         canRemoveMembers
-        canManagePolicies
       />,
     );
 

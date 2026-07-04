@@ -1,6 +1,10 @@
 # Two-Axis Roles + Capabilities — Authorization UX Spec
 
-Status: PARTIALLY SUPERSEDED (2026-07-02, same day as implementation). The
+Status: FULLY SUPERSEDED (2026-07-03) by `GITLAB-RBAC-SPEC.md` — the whole
+policy/statement substrate was removed (migrations 0086–0090); the
+protected-environment guard and the `/api/me` capability contract survive
+there in role-based form. Kept for history only. Earlier status:
+PARTIALLY SUPERSEDED (2026-07-02, same day as implementation). The
 project-role vocabulary (`managed:{maintainer|developer|viewer}@{scope}`) and
 the capabilities (`managed:cap-*`) were REMOVED by user decision — the ONLY
 managed policy is `managed:admin`; all finer-grained access is granted via

@@ -5,26 +5,21 @@ import { AuthContext } from "../auth/context";
 import { assertAccess } from "../auth/policy";
 
 import type { AuthContextShape } from "../auth/context";
-import type { PolicyStatement } from "../authz-models";
 
 // The members handler gates removal with `assertAccess("member", "delete")` at
-// the default (org) target. This pins THAT contract: in the unified IAM model
-// member removal flows through the policy model, NOT a role string. An org member
-// can remove members WITHOUT being the better-auth owner — purely by holding a
-// `member:delete` allow via a policy attachment (e.g. managed:admin); a member
-// with no such allow is denied (default-deny). The last-owner guard is exercised
-// against the repo separately; here we exercise the gate directly with a synthetic
-// principal, mirroring `handlers/robot-accounts.test.ts` / `handlers/invitations.test.ts`.
+// the default (org) target. This pins THAT contract under GitLab-RBAC:
+// member removal is an ORG-ADMIN rule (spec §2) — org admins and owners can
+// remove; plain members (whatever their project roles) cannot. The last-owner
+// and owner-removal guards are exercised in the handler/e2e suites.
 
 const baseActor: AuthContextShape = {
   userId: "u1",
   organizationId: "org-1",
   memberId: "m1",
-  // A non-"owner" role string. The gate ignores role entirely (owner.ts pins the
-  // exact-equality bypass); the only role that grants anything is "owner".
   role: "member",
+  orgRole: "member",
   isOwner: false,
-  effectiveStatements: [],
+  projectRoles: {},
   source: "session",
   transport: "cookie",
   sessionId: "sess-test",
@@ -36,18 +31,6 @@ const baseActor: AuthContextShape = {
 const provide = (overrides: Partial<AuthContextShape>) =>
   Effect.provideService(AuthContext, { ...baseActor, ...overrides });
 
-const allow = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "allow",
-  actions,
-  resources,
-});
-
-const deny = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "deny",
-  actions,
-  resources,
-});
-
 const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   Effect.gen(function* () {
     const exit = yield* effect.pipe(Effect.exit);
@@ -55,10 +38,10 @@ const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   });
 
 describe("members authz gate — assertAccess('member', 'delete')", () => {
-  it.effect("the better-auth org owner bypasses (can remove with no statements)", () =>
+  it.effect("the org owner bypasses", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("member", "delete").pipe(provide({ isOwner: true })),
+        assertAccess("member", "delete").pipe(provide({ isOwner: true, orgRole: "owner" })),
       );
       expect(forbidden).toBe(false);
     }),
@@ -73,58 +56,35 @@ describe("members authz gate — assertAccess('member', 'delete')", () => {
     }),
   );
 
-  it.effect(
-    "a role-'member' principal holding member:delete via attachment can remove — NOT just the owner",
-    () =>
-      Effect.gen(function* () {
-        const forbidden = yield* isForbidden(
-          assertAccess("member", "delete").pipe(
-            provide({ effectiveStatements: [allow(["member:delete"], ["*"])] }),
-          ),
-        );
-        expect(forbidden).toBe(false);
-      }),
-  );
-
-  it.effect("an 'org'-scoped member:* allow also grants delete (managed:admin shape)", () =>
+  it.effect("an org admin can remove members", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("member", "delete").pipe(
-          provide({ effectiveStatements: [allow(["member:*"], ["org"])] }),
-        ),
+        assertAccess("member", "delete").pipe(provide({ orgRole: "admin" })),
       );
       expect(forbidden).toBe(false);
     }),
   );
 
-  it.effect("a member with NO member statement is denied (default-deny)", () =>
+  it.effect("a plain member is denied (default-deny)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(assertAccess("member", "delete").pipe(provide({})));
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("a member:read allow does NOT grant delete (action is scoped)", () =>
+  it.effect("project maintainership does NOT confer org member management", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("member", "delete").pipe(
-          provide({ effectiveStatements: [allow(["member:read"], ["*"])] }),
-        ),
+        assertAccess("member", "delete").pipe(provide({ projectRoles: { projA: "maintainer" } })),
       );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("a deny on member:delete wins over an allow (deny-wins)", () =>
+  it.effect("member:read stays org-visible for every member", () =>
     Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("member", "delete").pipe(
-          provide({
-            effectiveStatements: [allow(["member:*"], ["*"]), deny(["member:delete"], ["*"])],
-          }),
-        ),
-      );
-      expect(forbidden).toBe(true);
+      const forbidden = yield* isForbidden(assertAccess("member", "read").pipe(provide({})));
+      expect(forbidden).toBe(false);
     }),
   );
 });

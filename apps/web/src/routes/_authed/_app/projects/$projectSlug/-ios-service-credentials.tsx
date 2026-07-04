@@ -50,7 +50,7 @@ const PushKeyTableCard = ({
               <CopyableMono value={pushKey.keyId} label="Key ID" />
             </TableCell>
             <TableCell>
-              <TeamCell team={team} />
+              <TeamCell team={team} showProtected />
             </TableCell>
             <TableCell className="text-muted-foreground">
               {formatShortDateTime(pushKey.createdAt)}
@@ -94,7 +94,7 @@ const AscKeyTableCard = ({
               <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
             </TableCell>
             <TableCell>
-              <TeamCell team={team} />
+              <TeamCell team={team} showProtected />
             </TableCell>
             <TableCell>
               <RolesCell roles={ascKey.roles} />

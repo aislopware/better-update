@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields, tenCharPortalId } from "./apple-team";
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const ApplePushKeyId = tenCharPortalId("Push Key ID");
@@ -17,6 +18,7 @@ export class ApplePushKey extends Schema.Class<ApplePushKey>("ApplePushKey")({
 
 /** Client-encrypted upload: the `.p8` PEM is sealed into `ciphertext`. */
 export const UploadApplePushKeyBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   keyId: ApplePushKeyId,

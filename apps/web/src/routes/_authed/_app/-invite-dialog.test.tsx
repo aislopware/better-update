@@ -5,14 +5,47 @@ import { z } from "zod/v4";
 
 import { mockFetch } from "../../../../tests/helpers/mock-fetch";
 import { getFieldError } from "../../../lib/form-utils";
-import { RemoveDialog } from "./-invite-dialog";
+import { RemoveDialog, buildInvitationPayload } from "./-invite-dialog";
+
+import type { ProjectGrantDraft } from "./-invite-dialog";
 
 /**
  * Tests for the invite dialog components.
- * InviteDialog now invites via the IAM-gated api-client helper `createInvitation`
- * (POST /api/invitations), not the better-auth organization plugin route.
- * RemoveDialog is a pure props confirmation dialog.
+ * InviteDialog invites via the IAM-gated api-client helper `createInvitation`
+ * (POST /api/invitations) and may carry an org role plus project grants
+ * (GITLAB-RBAC-SPEC §4c). RemoveDialog is a pure props confirmation dialog.
  */
+
+// ── buildInvitationPayload (pure) ─────────────────────────────────
+
+describe(buildInvitationPayload, () => {
+  it("omits `projects` when no grant rows exist", () => {
+    expect(buildInvitationPayload("a@b.co", "member", [])).toStrictEqual({
+      email: "a@b.co",
+      role: "member",
+    });
+  });
+
+  it("drops draft rows where no project was picked", () => {
+    const grants: ProjectGrantDraft[] = [
+      { key: 1, projectId: null, role: "developer" },
+      { key: 2, projectId: "proj-1", role: "maintainer" },
+    ];
+    expect(buildInvitationPayload("a@b.co", "admin", grants)).toStrictEqual({
+      email: "a@b.co",
+      role: "admin",
+      projects: [{ projectId: "proj-1", role: "maintainer" }],
+    });
+  });
+
+  it("omits `projects` entirely when every row is incomplete", () => {
+    const grants: ProjectGrantDraft[] = [{ key: 1, projectId: null, role: "reporter" }];
+    expect(buildInvitationPayload("a@b.co", "member", grants)).toStrictEqual({
+      email: "a@b.co",
+      role: "member",
+    });
+  });
+});
 
 // ── RemoveDialog (pure props) ─────────────────────────────────────
 
@@ -175,8 +208,9 @@ describe("invite form", () => {
     });
   });
 
-  // Invites are member-ONLY in the unified IAM model: the dialog sends `{ email }`
-  // with no role (admin-ness comes from policy attachments post-accept).
+  // Standalone form harness: exercises the email-validation + submit wiring
+  // (the real dialog additionally sends `role` and optional `projects`,
+  // covered by the buildInvitationPayload tests above).
   it("submitting with valid email calls invite endpoint with email only", async () => {
     const user = userEvent.setup();
 

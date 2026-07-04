@@ -36,12 +36,14 @@ import {
   EnvironmentRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
-  InvitationGrantRepoLive,
+  InvitationProjectGrantRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
   OrgEnvVaultRepoLive,
   OrgVaultRepoLive,
   PasskeyStepUpRepoLive,
+  ProjectCredentialBindingRepoLive,
+  ProjectMemberRepoLive,
   ProjectRepoLive,
   ProtectedEnvironmentRepoLive,
   RuntimeRepoLive,
@@ -50,12 +52,9 @@ import {
   UserEncryptionKeyRepoLive,
   WebhookRepoLive,
 } from "./repositories";
-import { GroupRepoLive } from "./repositories/group-repo";
 import { InvitationRepoLive } from "./repositories/invitations";
 import { MemberRepoLive } from "./repositories/member-repo";
 import { OrganizationRepoLive } from "./repositories/organizations";
-import { PolicyAttachmentRepoLive } from "./repositories/policy-attachment-repo";
-import { PolicyRepoLive } from "./repositories/policy-repo";
 import { RobotAccountRepoLive } from "./repositories/robot-accounts";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
@@ -94,12 +93,13 @@ import type {
   EnvironmentRepo,
   EnvVarRepo,
   GoogleServiceAccountKeyRepo,
-  InvitationGrantRepo,
+  InvitationProjectGrantRepo,
   IosAppMetadataRepo,
   IosBundleConfigurationRepo,
   OrgEnvVaultRepo,
   OrgVaultRepo,
   PasskeyStepUpRepo,
+  ProjectMemberRepo,
   ProjectRepo,
   ProtectedEnvironmentRepo,
   RuntimeRepo,
@@ -108,12 +108,9 @@ import type {
   UserEncryptionKeyRepo,
   WebhookRepo,
 } from "./repositories";
-import type { GroupRepo } from "./repositories/group-repo";
 import type { InvitationRepo } from "./repositories/invitations";
 import type { MemberRepo } from "./repositories/member-repo";
 import type { OrganizationRepo } from "./repositories/organizations";
-import type { PolicyAttachmentRepo } from "./repositories/policy-attachment-repo";
-import type { PolicyRepo } from "./repositories/policy-repo";
 import type { RobotAccountRepo } from "./repositories/robot-accounts";
 
 export type ServerInfrastructure =
@@ -150,16 +147,14 @@ export type ServerInfrastructure =
   | EnvironmentRepo
   | EnvVarRepo
   | GoogleServiceAccountKeyRepo
-  | GroupRepo
-  | InvitationGrantRepo
+  | InvitationProjectGrantRepo
   | InvitationRepo
   | IosAppMetadataRepo
   | IosBundleConfigurationRepo
   | ManifestCacheStorage
   | MemberRepo
   | OrganizationRepo
-  | PolicyAttachmentRepo
-  | PolicyRepo
+  | ProjectMemberRepo
   | OrgEnvVaultRepo
   | OrgVaultRepo
   | PasskeyStepUpRepo
@@ -201,18 +196,17 @@ export const RepositoryLayer = Layer.mergeAll(
   EnvironmentRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
-  GroupRepoLive,
-  InvitationGrantRepoLive,
+  InvitationProjectGrantRepoLive,
   InvitationRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
   MemberRepoLive,
   OrganizationRepoLive,
-  PolicyAttachmentRepoLive,
-  PolicyRepoLive,
   OrgEnvVaultRepoLive,
   OrgVaultRepoLive,
   PasskeyStepUpRepoLive,
+  ProjectCredentialBindingRepoLive,
+  ProjectMemberRepoLive,
   ProjectRepoLive,
   ProtectedEnvironmentRepoLive,
   RobotAccountRepoLive,

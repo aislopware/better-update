@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { DateTimeString, Id } from "./common";
+import { boundProjectIdsField } from "./credential-binding";
 
 export const AppleTeamType = Schema.Literal("IN_HOUSE", "COMPANY_ORGANIZATION", "INDIVIDUAL");
 export type AppleTeamTypeValue = typeof AppleTeamType.Type;
@@ -22,11 +23,17 @@ export const appleTeamMetadataFields = {
 } as const;
 
 export class AppleTeam extends Schema.Class<AppleTeam>("AppleTeam")({
+  ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
   appleTeamId: Schema.String,
   appleTeamType: AppleTeamType,
   name: Schema.NullOr(Schema.String),
+  /**
+   * Protected-team flag (GITLAB-RBAC-SPEC §3b): every credential under the
+   * team requires Maintainer+ when set. Cascades — children have no own flag.
+   */
+  protected: Schema.Boolean,
   distributionCertificateCount: Schema.Number,
   pushKeyCount: Schema.Number,
   ascApiKeyCount: Schema.Number,

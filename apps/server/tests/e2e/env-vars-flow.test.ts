@@ -1,8 +1,26 @@
+import { env } from "cloudflare:test";
+
 import { MAX_VARS_PER_PROJECT } from "../../src/handlers/env-vars-helpers";
 import { credentialEnvelope } from "../helpers/credential-envelope";
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { del, get, parseCookies, patch, post } = setupE2EWorker(".wrangler/state/e2e-env-vars");
+
+// Env-value writes from a cookie session require a WebAuthn step-up
+// (assert-web-env-step-up). e2e cannot drive a real passkey ceremony, so mark
+// every live session as stepped-up directly in D1 — the equivalent of having
+// just verified.
+const seedStepUp = async (cookie: string) => {
+  const sessionRes = await get("/api/auth/get-session", { cookie });
+  expect(sessionRes.status).toBe(200);
+  const session = await sessionRes.json();
+  await env.DB.prepare(
+    `INSERT OR REPLACE INTO "passkey_step_up" ("session_id", "user_id", "verified_at")
+     VALUES (?, ?, ?)`,
+  )
+    .bind(session.session.id, session.user.id, new Date().toISOString())
+    .run();
+};
 
 // Values are end-to-end encrypted: the server stores opaque sealed envelopes and
 // never sees plaintext. These e2e tests use placeholder envelopes (random base64)
@@ -15,7 +33,6 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     cookies: "",
     organizationId: "",
     projectId: "",
-    robotBearer: "",
     globalVarId: "",
     sensitiveVarId: "",
     overrideVarId: "",
@@ -52,6 +69,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     );
     expect(response.status).toBe(200);
     state.cookies = parseCookies(response) || state.cookies;
+    await seedStepUp(state.cookies);
   });
 
   it("creates a project", async () => {
@@ -63,29 +81,6 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     state.projectId = body.id;
-  });
-
-  it("creates a robot account for export auth", async () => {
-    const response = await post(
-      "/api/robot-accounts",
-      {
-        name: "env-export-robot",
-        publicKey: `age1${crypto.randomUUID()}${crypto.randomUUID()}`,
-        fingerprint: `SHA256:${crypto.randomUUID()}`,
-      },
-      { cookie: state.cookies },
-    );
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.bearerSecret).toMatch(/^bu_robot_/);
-    state.robotBearer = body.bearerSecret;
-
-    const attach = await post(
-      `/api/robot-accounts/${body.id}/policies`,
-      { policyId: "managed:admin" },
-      { cookie: state.cookies },
-    );
-    expect(attach.status).toBe(201);
   });
 
   it("creates a global env var (no plaintext value in the response)", async () => {
@@ -572,37 +567,6 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(403);
-  });
-
-  it("exports sealed envelopes (project overrides global) with API key auth", async () => {
-    const response = await get(
-      `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
-      { authorization: `Bearer ${state.robotBearer}` },
-    );
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.environment).toBe("production");
-    const byKey = new Map(body.items.map((item: { key: string }) => [item.key, item] as const));
-
-    const apiUrl = byKey.get("EXPO_PUBLIC_API_URL") as
-      | {
-          id: string;
-          ciphertext: string;
-          wrappedDek: string;
-          vaultVersion: number;
-          value?: unknown;
-        }
-      | undefined;
-    expect(apiUrl).toBeDefined();
-    expect(apiUrl?.ciphertext).toBeTruthy();
-    expect(apiUrl?.wrappedDek).toBeTruthy();
-    expect(apiUrl?.vaultVersion).toBe(1);
-    // No plaintext value — the CLI decrypts the envelope locally.
-    expect(apiUrl?.value).toBeUndefined();
-
-    // APP_TOKEN (production) + EXPO_PUBLIC_WEB_URL (production) from the import.
-    expect(byKey.has("APP_TOKEN")).toBe(true);
-    expect(byKey.has("EXPO_PUBLIC_WEB_URL")).toBe(true);
   });
 
   it("exports with a CLI session token (bearer transport)", async () => {

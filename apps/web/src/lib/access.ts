@@ -24,12 +24,16 @@ export const isSuperadminUser = (user: AccessUser): boolean =>
 export const isApprovedUser = (user: AccessUser): boolean =>
   user.approved === true || isSuperadminUser(user);
 
-// Capability route guard (ROLES-CAPABILITIES-SPEC §9e): capability-gated org
-// pages redirect to /projects when the actor lacks the corresponding /api/me
+// Org-management rank check (GITLAB-RBAC-SPEC §1): owner and admin share the
+// org-management surface (protection toggles, project-member management, …).
+export const isOrgAdmin = (orgRole: MeResult["orgRole"]): boolean =>
+  orgRole === "owner" || orgRole === "admin";
+
+// Capability route guard (GITLAB-RBAC-SPEC §4c): capability-gated org pages
+// redirect to /projects when the actor lacks the corresponding /api/me
 // capability. UX only — every endpoint stays IAM-gated server-side.
 export type MeCapability = keyof Pick<
   MeResult,
-  | "canViewPolicies"
   | "canViewAuditLog"
   | "canViewCredentials"
   | "canViewDevices"

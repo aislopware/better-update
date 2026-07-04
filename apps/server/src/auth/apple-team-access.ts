@@ -1,112 +1,355 @@
 // Apple-team-scoped authorization helpers for the credential handlers
-// (authz-models.ts "APPLE-TEAM axis"). Credential rows store the INTERNAL
-// `apple_teams.id`, while policy paths use the 10-char Apple Team identifier —
-// these helpers own that translation so handlers never build paths by hand.
+// (authz-models.ts "APPLE-TEAM axis", GITLAB-RBAC-SPEC §1a/§3b). Credential
+// rows store the INTERNAL `apple_teams.id`; these helpers resolve the team
+// row and enforce the v2 binding gate: the required rank (base
+// CREDENTIAL_RULES rank, raised to maintainer when the team is protected)
+// must be held on SOME project the TEAM is bound to — an unbound team is
+// admin-only. The team's protected flag AND its bindings CASCADE — child
+// credentials have neither of their own. Team-less credentials (issuer-only
+// ASC keys) are ALWAYS protected and bind individually (`ascApiKey` rows).
 
 import { Effect } from "effect";
 
-import { APPLE_TEAMLESS_SEGMENT } from "../authz-models";
+import { Forbidden } from "../errors";
 import { AppleTeamRepo } from "../repositories/apple-teams";
+import { ProjectCredentialBindingRepo } from "../repositories/project-credential-bindings";
+import { bindingHint } from "./binding-hint";
 import { CurrentActor } from "./current-actor";
-import { assertAccess } from "./policy";
-import { isAllowed, resolvePath } from "./policy-match";
+import {
+  boundCredentialAllowed,
+  CREDENTIAL_RULES,
+  credentialRequiredRank,
+  effectiveProjectRole,
+  projectRoleAtLeast,
+} from "./role-matrix";
 
-import type { Action, CurrentActor as CurrentActorModel } from "../models";
+import type { Action, CurrentActor as CurrentActorModel, ProjectRole } from "../models";
 
-const credentialCollectionPath = (appleTeamId: string | null): string =>
-  resolvePath({ kind: "appleCredential", appleTeamId: appleTeamId ?? APPLE_TEAMLESS_SEGMENT });
+// Base rank for an apple-credential action (spec §2, org table). Unlisted
+// actions fail closed at maintainer.
+const baseRank = (action: Action): ProjectRole =>
+  CREDENTIAL_RULES[`appleCredential:${action}`] ?? "maintainer";
 
-/**
- * Whether the actor can read credentials under an Apple team (10-char
- * identifier, `null` = team-less). Evaluated at the credential COLLECTION path
- * `appleTeam/{T}/credential`, so both `appleTeam/{T}` and
- * `appleTeam/{T}/credential` selectors qualify. Backs list filtering — the
- * per-object gates stay on `assertAccess`. Caveat (same as the project axis): a
- * selector scoped to one specific credential id does not surface its team in
- * lists.
- */
-export const canReadAppleTeamCredentials = (
+const holdsCredentialRank = (
   ctx: CurrentActorModel,
-  appleTeamId: string | null,
+  action: Action,
+  isProtected: boolean,
+  boundProjectIds: readonly string[],
 ): boolean =>
   ctx.isSuperadmin ||
   ctx.isOwner ||
-  isAllowed(ctx.effectiveStatements, "appleCredential:read", credentialCollectionPath(appleTeamId));
+  boundCredentialAllowed(
+    ctx,
+    boundProjectIds,
+    credentialRequiredRank(baseRank(action), isProtected),
+  );
+
+// `binding` names the row an admin would bind (team, or the team-less ASC
+// key itself); omitted when the caller has no concrete resource in hand.
+const credentialDenied = (
+  action: Action,
+  isProtected: boolean,
+  binding?: { readonly resourceType: "appleTeam" | "ascApiKey"; readonly resourceId: string },
+) => {
+  const requirement = isProtected
+    ? "this credential is protected (requires the Maintainer role on a project it is bound to)"
+    : "requires access via a project this credential is bound to";
+  const hint =
+    binding === undefined ? "" : `; ${bindingHint(binding.resourceType, binding.resourceId)}`;
+  return new Forbidden({
+    message: `Insufficient permission: appleCredential:${action} — ${requirement}${hint}`,
+  });
+};
+
+// The row an admin would bind to lift the denial: the team, or (team-less)
+// the ASC key itself. Undefined when neither is known.
+const bindingRefOf = (params: {
+  readonly appleTeamRowId: string | null;
+  readonly ascApiKeyId?: string | undefined;
+}):
+  | { readonly resourceType: "appleTeam" | "ascApiKey"; readonly resourceId: string }
+  | undefined => {
+  if (params.appleTeamRowId !== null) {
+    return { resourceType: "appleTeam", resourceId: params.appleTeamRowId };
+  }
+  if (params.ascApiKeyId !== undefined) {
+    return { resourceType: "ascApiKey", resourceId: params.ascApiKeyId };
+  }
+  return undefined;
+};
+
+const bindingRepoBoundIds = (params: {
+  readonly organizationId: string;
+  readonly resourceType: "appleTeam" | "ascApiKey";
+  readonly resourceId: string;
+}) => ProjectCredentialBindingRepo.pipe(Effect.flatMap((repo) => repo.boundProjectIds(params)));
+
+// Binding set of a credential row: its team's (cascade) or, for team-less
+// ASC keys, its own. Team-less rows without a key id resolve to [] (unbound
+// = admin-only).
+const resolveBoundProjectIds = (params: {
+  readonly organizationId: string;
+  readonly appleTeamRowId: string | null;
+  readonly ascApiKeyId: string | undefined;
+}) => {
+  if (params.appleTeamRowId !== null) {
+    return bindingRepoBoundIds({
+      organizationId: params.organizationId,
+      resourceType: "appleTeam",
+      resourceId: params.appleTeamRowId,
+    });
+  }
+  if (params.ascApiKeyId === undefined) {
+    return Effect.succeed<readonly string[]>([]);
+  }
+  return bindingRepoBoundIds({
+    organizationId: params.organizationId,
+    resourceType: "ascApiKey",
+    resourceId: params.ascApiKeyId,
+  });
+};
 
 /**
- * Filter credential rows down to the ones the actor can read.
- * `teamRowIdOf` returns the row's INTERNAL `apple_teams.id` (or `null` for
- * team-less credentials); `credentialIdOf` returns the row's own id. The org's
- * teams are loaded once to translate to the 10-char identifiers policies are
- * written against, then each row is evaluated at its FULL object path
- * `appleTeam/{T}/credential/{id}` — so a team-wide allow covers it by prefix, an
- * item-level allow surfaces it, and an item-level deny hides it (deny-wins),
- * staying symmetric with the by-id gate. A dangling team reference hides the row
- * (fail closed) rather than treating it as team-less.
+ * Whether the actor can read credentials under an Apple team, given the
+ * team's protected flag and its bound project ids. `team === null` = the
+ * team-less bucket (always protected; pass the ASC key's OWN binding set).
+ * Pure — backs list filtering; per-object gates stay on
+ * {@link assertAppleCredentialAccess}.
+ */
+export const canReadAppleTeamCredentials = (
+  ctx: CurrentActorModel,
+  team: { readonly isProtected: boolean } | null,
+  boundProjectIds: readonly string[],
+): boolean =>
+  holdsCredentialRank(ctx, "read", team === null ? true : team.isProtected, boundProjectIds);
+
+/**
+ * Filter credential rows down to the ones the actor can read under the v2
+ * binding gate. `teamRowIdOf` returns the row's INTERNAL `apple_teams.id`
+ * (or `null` for team-less credentials). Teams + bindings are loaded once
+ * per call; each row is evaluated against its team's protected flag and
+ * bound projects. A dangling team reference hides the row (fail closed).
+ * Team-less rows are admin-only UNLESS `teamlessBindingIdOf` supplies their
+ * own `ascApiKey` binding id (only the ASC key handler does).
  */
 export const filterByAppleTeamRead = <T>(
   items: readonly T[],
   teamRowIdOf: (item: T) => string | null,
-  credentialIdOf: (item: T) => string,
+  opts?: { readonly teamlessBindingIdOf?: (item: T) => string },
 ) =>
   Effect.gen(function* () {
     const ctx = yield* CurrentActor;
-    if (ctx.isSuperadmin || ctx.isOwner) {
+    if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
       return items;
     }
     const teams = yield* (yield* AppleTeamRepo).listByOrg({
       organizationId: ctx.organizationId,
     });
-    const appleIdByRowId = new Map(teams.map((team) => [team.id, team.appleTeamId]));
+    const bindings = yield* ProjectCredentialBindingRepo;
+    const teamBindings = yield* bindings.boundProjectIdsByResource({
+      organizationId: ctx.organizationId,
+      resourceType: "appleTeam",
+    });
+    const teamlessBindingIdOf = opts?.teamlessBindingIdOf;
+    const ascKeyBindings =
+      teamlessBindingIdOf === undefined
+        ? {}
+        : yield* bindings.boundProjectIdsByResource({
+            organizationId: ctx.organizationId,
+            resourceType: "ascApiKey",
+          });
+    const protectedByRowId = new Map(teams.map((team) => [team.id, team.isProtected]));
     return items.filter((item) => {
       const rowId = teamRowIdOf(item);
-      const appleTeamId = rowId === null ? APPLE_TEAMLESS_SEGMENT : appleIdByRowId.get(rowId);
-      if (appleTeamId === undefined) {
+      if (rowId === null) {
+        // Team-less bucket: always protected, bound per ASC key row.
+        const bound =
+          teamlessBindingIdOf === undefined
+            ? []
+            : (ascKeyBindings[teamlessBindingIdOf(item)] ?? []);
+        return holdsCredentialRank(ctx, "read", true, bound);
+      }
+      const isProtected = protectedByRowId.get(rowId);
+      if (isProtected === undefined) {
         return false;
       }
-      return isAllowed(
-        ctx.effectiveStatements,
-        "appleCredential:read",
-        resolvePath({ kind: "appleCredential", appleTeamId, credentialId: credentialIdOf(item) }),
-      );
+      return holdsCredentialRank(ctx, "read", isProtected, teamBindings[rowId] ?? []);
     });
   });
 
 /**
  * Per-object gate for an EXISTING credential: resolve the row's internal team
- * reference to the 10-char identifier, then `assertAccess` at
- * `appleTeam/{T}/credential/{id}`. Owner/superadmin skip the team lookup — the
- * gate would bypass anyway and Apple-team targets never hit the archived or
- * protected-environment guards.
+ * reference, its bindings, and enforce the (protected-aware) bound-rank
+ * ladder. Owner/superadmin/org-admin skip the lookups — the gate would
+ * bypass anyway. For TEAM-LESS ASC keys pass `ascApiKeyId` so their own
+ * binding set applies; other team-less rows are admin-only.
  */
 export const assertAppleCredentialAccess = (params: {
   readonly action: Action;
-  readonly credentialId: string;
+  readonly appleTeamRowId: string | null;
+  readonly ascApiKeyId?: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    const ctx = yield* CurrentActor;
+    if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
+      return;
+    }
+    const isProtected =
+      params.appleTeamRowId === null
+        ? true
+        : (yield* (yield* AppleTeamRepo).findById({ id: params.appleTeamRowId })).isProtected;
+    const bound = yield* resolveBoundProjectIds({
+      organizationId: ctx.organizationId,
+      appleTeamRowId: params.appleTeamRowId,
+      ascApiKeyId: params.ascApiKeyId,
+    });
+    if (!holdsCredentialRank(ctx, params.action, isProtected, bound)) {
+      return yield* credentialDenied(params.action, isProtected, bindingRefOf(params));
+    }
+  });
+
+/**
+ * Devices ride their team's binding (spec §1a): required rank = the
+ * `device:*` base (developer), raised to maintainer when the team is
+ * protected, held on some project the team is bound to. Team-less devices
+ * are org-admin-only (nothing to bind).
+ */
+export const assertDeviceAccess = (params: {
+  readonly action: Action;
   readonly appleTeamRowId: string | null;
 }) =>
   Effect.gen(function* () {
     const ctx = yield* CurrentActor;
-    if (ctx.isSuperadmin || ctx.isOwner) {
+    if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
       return;
     }
-    const appleTeamId =
-      params.appleTeamRowId === null
-        ? APPLE_TEAMLESS_SEGMENT
-        : (yield* (yield* AppleTeamRepo).findById({ id: params.appleTeamRowId })).appleTeamId;
-    yield* assertAccess("appleCredential", params.action, {
-      kind: "appleCredential",
-      appleTeamId,
-      credentialId: params.credentialId,
+    if (params.appleTeamRowId === null) {
+      return yield* new Forbidden({
+        message: `Insufficient permission: device:${params.action} — devices without an Apple team are org-admin-only`,
+      });
+    }
+    const deviceDenied = new Forbidden({
+      message: `Insufficient permission: device:${params.action} — requires access via a project the device's Apple team is bound to; ${bindingHint("appleTeam", params.appleTeamRowId)}`,
     });
+    const team = yield* (yield* AppleTeamRepo).findById({ id: params.appleTeamRowId });
+    const bound = yield* bindingRepoBoundIds({
+      organizationId: ctx.organizationId,
+      resourceType: "appleTeam",
+      resourceId: params.appleTeamRowId,
+    });
+    const required = credentialRequiredRank(
+      CREDENTIAL_RULES[`device:${params.action}`] ?? "maintainer",
+      team.isProtected,
+    );
+    if (!boundCredentialAllowed(ctx, bound, required)) {
+      return yield* deviceDenied;
+    }
   });
 
 /**
- * Gate for creating a credential under an Apple team (10-char identifier from
- * the upload payload; absent = team-less). Runs BEFORE the team row is
- * upserted, so unauthorized uploads cannot create team rows as a side effect.
+ * Team row ids whose credentials/devices the actor may READ — `"all"` for
+ * admin-tier actors, otherwise the concrete (possibly empty) id list. Backs
+ * server-side list scoping (devices).
  */
-export const assertAppleCredentialCreate = (appleTeamIdentifier: string | null | undefined) =>
-  assertAccess("appleCredential", "create", {
-    kind: "appleCredential",
-    appleTeamId: appleTeamIdentifier ?? APPLE_TEAMLESS_SEGMENT,
+export const readableAppleTeamRowIds = Effect.gen(function* () {
+  const ctx = yield* CurrentActor;
+  if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
+    return "all" as const;
+  }
+  const teams = yield* (yield* AppleTeamRepo).listByOrg({
+    organizationId: ctx.organizationId,
+  });
+  const teamBindings = yield* ProjectCredentialBindingRepo.pipe(
+    Effect.flatMap((repo) =>
+      repo.boundProjectIdsByResource({
+        organizationId: ctx.organizationId,
+        resourceType: "appleTeam",
+      }),
+    ),
+  );
+  return teams
+    .filter((team) =>
+      boundCredentialAllowed(
+        ctx,
+        teamBindings[team.id] ?? [],
+        credentialRequiredRank(CREDENTIAL_RULES["device:read"] ?? "maintainer", team.isProtected),
+      ),
+    )
+    .map((team) => team.id);
+});
+
+/**
+ * Gate for creating a credential under an Apple team (10-char identifier
+ * from the upload payload; absent = team-less, always protected). Runs
+ * BEFORE the team row is upserted, so unauthorized uploads cannot create
+ * team rows as a side effect. v2 semantics (spec §1a):
+ *
+ * - Existing team: the base create rank on some project the team is BOUND
+ *   to (protected team ⇒ maintainer). A `projectId` outside the binding set
+ *   is refused for non-admins — binding a pre-existing team to a new
+ *   project is org-admin work.
+ * - New team / team-less key: requires `projectId` + Maintainer there (the
+ *   auto-bind path) — non-admins cannot create unbound credentials.
+ *
+ * Admin/owner/superadmin always pass. The handler binds AFTER the insert
+ * whenever `projectId` was provided (idempotent for already-bound teams).
+ */
+export const assertAppleCredentialCreate = (params: {
+  readonly appleTeamIdentifier: string | null | undefined;
+  readonly projectId?: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    const ctx = yield* CurrentActor;
+    if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
+      return;
+    }
+
+    const requireMaintainerAutoBind = Effect.gen(function* () {
+      if (
+        params.projectId === undefined ||
+        !projectRoleAtLeast(effectiveProjectRole(ctx, params.projectId), "maintainer")
+      ) {
+        return yield* new Forbidden({
+          message:
+            "Creating a new credential requires the Maintainer role on the target project (pass projectId) or org admin",
+        });
+      }
+    });
+
+    const identifier = params.appleTeamIdentifier;
+    if (typeof identifier !== "string") {
+      // Team-less ASC key: always protected, bound to the project it is
+      // created for.
+      return yield* requireMaintainerAutoBind;
+    }
+
+    const team = yield* Effect.gen(function* () {
+      const repo = yield* AppleTeamRepo;
+      return yield* repo.findByAppleTeamId({
+        organizationId: ctx.organizationId,
+        appleTeamId: identifier,
+      });
+    }).pipe(Effect.catchTag("NotFound", () => Effect.succeed(null)));
+
+    if (team === null) {
+      // Unknown team = about to be created by this upload ⇒ auto-bind path.
+      return yield* requireMaintainerAutoBind;
+    }
+
+    const bound = yield* bindingRepoBoundIds({
+      organizationId: ctx.organizationId,
+      resourceType: "appleTeam",
+      resourceId: team.id,
+    });
+    if (params.projectId !== undefined && !bound.includes(params.projectId)) {
+      return yield* new Forbidden({
+        message: `This Apple team is not bound to project ${params.projectId} — ${bindingHint("appleTeam", team.id, params.projectId)}`,
+      });
+    }
+    if (!holdsCredentialRank(ctx, "create", team.isProtected, bound)) {
+      return yield* credentialDenied("create", team.isProtected, {
+        resourceType: "appleTeam",
+        resourceId: team.id,
+      });
+    }
   });

@@ -2,9 +2,8 @@ import { isOtaInstallableDistribution } from "@better-update/api";
 import { Effect } from "effect";
 
 import { createAuth } from "../auth";
-import { getUserAuthState, resolveEffectiveStatements } from "../auth/middleware";
-import { roleIsOwner } from "../auth/owner";
-import { isAllowed, resolvePath } from "../auth/policy-match";
+import { getUserAuthState, resolveProjectRoles, toOrgRole } from "../auth/middleware";
+import { matrixAllows } from "../auth/policy";
 import { BuildRuntime } from "../cloudflare/build-runtime";
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { verifyInstallToken } from "../domain/install-token";
@@ -34,9 +33,9 @@ const findArtifactAccessInfoByIdAndOrg = (buildId: string, organizationId: strin
 // path is device-facing and already scoped by the token). This raw route runs
 // outside the Effect HttpApi middleware, so it re-derives the same decision the
 // middleware caches into CurrentActor: owner/superadmin bypass, otherwise the
-// caller's effective statements must allow `build:read` at the build's object
-// path. Without this, any org member could download any build's artifact by id,
-// defeating per-project custom-policy scoping.
+// caller's effective project role must satisfy `build:read` (reporter) on the
+// build's project. Without this, any org member could download any build's
+// artifact by id, defeating project-membership scoping.
 const isBuildReadAuthorized = (params: {
   readonly userId: string;
   readonly organizationId: string;
@@ -46,22 +45,24 @@ const isBuildReadAuthorized = (params: {
   readonly buildId: string;
 }) =>
   Effect.gen(function* () {
-    if (roleIsOwner(params.role)) {
+    const orgRole = toOrgRole(params.role);
+    if (orgRole === "owner") {
       return true;
     }
     const authState = yield* getUserAuthState(params.userId);
     if (authState.isSuperadmin) {
       return true;
     }
-    const statements = yield* resolveEffectiveStatements({
+    const projectRoles = yield* resolveProjectRoles({
       organizationId: params.organizationId,
+      orgRole,
       memberId: params.memberId,
     });
-    return isAllowed(
-      statements,
-      "build:read",
-      resolvePath({ kind: "build", projectId: params.projectId, buildId: params.buildId }),
-    );
+    return matrixAllows({ orgRole, projectRoles }, "build", "read", {
+      kind: "build",
+      projectId: params.projectId,
+      buildId: params.buildId,
+    });
   });
 
 const findArtifactR2KeyById = (buildId: string) =>

@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { credentialCreateBindingField } from "./credential-binding";
 
 export const DistributionType = Schema.Literal("APP_STORE", "AD_HOC", "ENTERPRISE", "DEVELOPMENT");
 export type DistributionTypeValue = typeof DistributionType.Type;
@@ -28,6 +29,7 @@ export class AppleProvisioningProfile extends Schema.Class<AppleProvisioningProf
 }) {}
 
 export const UploadAppleProvisioningProfileBody = Schema.Struct({
+  ...credentialCreateBindingField,
   profileBase64: Schema.String.pipe(Schema.minLength(1)),
   appleDistributionCertificateId: Schema.optional(Id),
   deviceRosterHash: Schema.optional(Schema.String),

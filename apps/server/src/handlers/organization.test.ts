@@ -5,21 +5,20 @@ import { AuthContext } from "../auth/context";
 import { assertAccess } from "../auth/policy";
 
 import type { AuthContextShape } from "../auth/context";
-import type { PolicyStatement } from "../authz-models";
 
 // The organization-update handler gates on `assertAccess("organization","update")`
-// at the org target — so renaming/re-slugging the active org now flows through the
-// IAM gate, NOT better-auth's org-role AC. Owner/superadmin bypass; a non-owner
-// needs an explicit organization:update allow via a policy attachment (the role
-// string grants nothing). Org CREATE + DELETE stay on better-auth (see auth.ts).
+// at the org target. Under GitLab-RBAC this is an ORG-ADMIN rule (spec §2,
+// owner decision 2026-07-03): owner/superadmin bypass, admins may update,
+// plain members may only read. Org CREATE + DELETE stay on better-auth.
 
 const baseActor: AuthContextShape = {
   userId: "u1",
   organizationId: "org-1",
   memberId: "m1",
   role: "member",
+  orgRole: "member",
   isOwner: false,
-  effectiveStatements: [],
+  projectRoles: {},
   source: "session",
   transport: "cookie",
   sessionId: "sess-test",
@@ -31,12 +30,6 @@ const baseActor: AuthContextShape = {
 const provide = (overrides: Partial<AuthContextShape>) =>
   Effect.provideService(AuthContext, { ...baseActor, ...overrides });
 
-const allow = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "allow",
-  actions,
-  resources,
-});
-
 const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   Effect.gen(function* () {
     const exit = yield* effect.pipe(Effect.exit);
@@ -44,10 +37,12 @@ const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   });
 
 describe("organization update authz gate — assertAccess('organization','update')", () => {
-  it.effect("the org owner bypasses (can update with no statements)", () =>
+  it.effect("the org owner bypasses", () =>
     Effect.gen(function* () {
       expect(
-        yield* isForbidden(assertAccess("organization", "update").pipe(provide({ isOwner: true }))),
+        yield* isForbidden(
+          assertAccess("organization", "update").pipe(provide({ isOwner: true, orgRole: "owner" })),
+        ),
       ).toBe(false);
     }),
   );
@@ -62,18 +57,17 @@ describe("organization update authz gate — assertAccess('organization','update
     }),
   );
 
-  it.effect("a non-owner with organization:update on org can update — NOT just the owner", () =>
+  it.effect("an org admin can update org settings", () =>
     Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("organization", "update").pipe(
-          provide({ effectiveStatements: [allow(["organization:update"], ["org"])] }),
+      expect(
+        yield* isForbidden(
+          assertAccess("organization", "update").pipe(provide({ orgRole: "admin" })),
         ),
-      );
-      expect(forbidden).toBe(false);
+      ).toBe(false);
     }),
   );
 
-  it.effect("a member with NO organization grant is denied (default-deny)", () =>
+  it.effect("a plain member is denied (default-deny)", () =>
     Effect.gen(function* () {
       expect(yield* isForbidden(assertAccess("organization", "update").pipe(provide({})))).toBe(
         true,
@@ -81,14 +75,11 @@ describe("organization update authz gate — assertAccess('organization','update
     }),
   );
 
-  it.effect("an organization:read allow does NOT grant update (the admin-preset shape)", () =>
+  it.effect("organization:read stays open to every member", () =>
     Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("organization", "update").pipe(
-          provide({ effectiveStatements: [allow(["organization:read"], ["org"])] }),
-        ),
+      expect(yield* isForbidden(assertAccess("organization", "read").pipe(provide({})))).toBe(
+        false,
       );
-      expect(forbidden).toBe(true);
     }),
   );
 });

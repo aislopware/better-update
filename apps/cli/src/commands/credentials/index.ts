@@ -4,6 +4,7 @@ import { runCredentialsManager } from "../../application/credentials-manager";
 import { runEffect } from "../../lib/citty-effect";
 import { accessCommand } from "./access";
 import { accountCommand } from "./account";
+import { bindingsCommand } from "./bindings";
 import { bundleIdCommand } from "./bundle-id";
 import { capabilityCommand } from "./capability";
 import { certificateCommand } from "./certificate";
@@ -46,6 +47,7 @@ export const credentialsCommand = defineCommand({
     manager: managerCommand,
     identity: identityCommand,
     robot: robotCommand,
+    bindings: bindingsCommand,
     access: accessCommand,
     account: accountCommand,
     "env-vault": envVaultCommand,

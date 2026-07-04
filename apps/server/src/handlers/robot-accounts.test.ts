@@ -5,22 +5,21 @@ import { AuthContext } from "../auth/context";
 import { assertAccess } from "../auth/policy";
 
 import type { AuthContextShape } from "../auth/context";
-import type { PolicyStatement } from "../authz-models";
 
-// The robot-accounts handlers gate every action with
-// `assertAccess("robotAccount", <action>)` at the default (org) target. This
-// pins THAT contract: an org member can mint/list/rotate/revoke robot accounts
-// WITHOUT being the better-auth org owner — purely by holding a `robotAccount:*`
-// allow via a policy attachment. We exercise the gate directly with a synthetic
-// principal (the handlers' only authz dependency), mirroring `auth/policy.test.ts`.
+// Robots are PROJECT-scoped (GITLAB-RBAC-SPEC §1b, v2): the handlers gate
+// every action with `assertAccess("robotAccount", <action>, {kind:"project"})`
+// on the robot's project — Maintainer+ there (or org admin/owner via the
+// implicit-maintainer rule). Legacy NULL-project rows fall back to
+// assertOrgAdmin inside the handler.
 
 const baseActor: AuthContextShape = {
   userId: "u1",
   organizationId: "org-1",
   memberId: "m1",
   role: "member",
+  orgRole: "member",
   isOwner: false,
-  effectiveStatements: [],
+  projectRoles: {},
   source: "session",
   transport: "cookie",
   sessionId: "sess-test",
@@ -32,93 +31,78 @@ const baseActor: AuthContextShape = {
 const provide = (overrides: Partial<AuthContextShape>) =>
   Effect.provideService(AuthContext, { ...baseActor, ...overrides });
 
-const allow = (actions: string[], resources: string[]): PolicyStatement => ({
-  effect: "allow",
-  actions,
-  resources,
-});
-
 const isForbidden = (effect: Effect.Effect<void, unknown>) =>
   Effect.gen(function* () {
     const exit = yield* effect.pipe(Effect.exit);
     return Exit.isFailure(exit);
   });
 
-describe("robot-accounts authz gate — assertAccess('robotAccount', …)", () => {
-  it.effect("the better-auth org owner bypasses (can mint even with no statements)", () =>
+const PROJECT = { kind: "project", projectId: "projA" } as const;
+
+describe("robot-accounts authz gate — assertAccess('robotAccount', …, project)", () => {
+  it.effect("the org owner bypasses", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("robotAccount", "create").pipe(provide({ isOwner: true })),
+        assertAccess("robotAccount", "create", PROJECT).pipe(
+          provide({ isOwner: true, orgRole: "owner" }),
+        ),
       );
       expect(forbidden).toBe(false);
     }),
   );
 
-  it.effect(
-    "a member with an org-wide robotAccount:create allow ('*') can mint — NOT just the owner",
-    () =>
-      Effect.gen(function* () {
+  it.effect("an org admin is an implicit maintainer on every project", () =>
+    Effect.gen(function* () {
+      for (const action of ["create", "read", "update", "delete"] as const) {
         const forbidden = yield* isForbidden(
-          assertAccess("robotAccount", "create").pipe(
-            provide({ effectiveStatements: [allow(["robotAccount:create"], ["*"])] }),
+          assertAccess("robotAccount", action, PROJECT).pipe(provide({ orgRole: "admin" })),
+        );
+        expect(forbidden).toBe(false);
+      }
+    }),
+  );
+
+  it.effect("the project's Maintainer manages its robots (GitLab token shape)", () =>
+    Effect.gen(function* () {
+      for (const action of ["create", "read", "update", "delete"] as const) {
+        const forbidden = yield* isForbidden(
+          assertAccess("robotAccount", action, PROJECT).pipe(
+            provide({ projectRoles: { projA: "maintainer" } }),
           ),
         );
         expect(forbidden).toBe(false);
-      }),
-  );
-
-  it.effect("an 'org'-scoped robotAccount:* allow also grants mint (org target path)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("robotAccount", "create").pipe(
-          provide({ effectiveStatements: [allow(["robotAccount:*"], ["org"])] }),
-        ),
-      );
-      expect(forbidden).toBe(false);
+      }
     }),
   );
 
-  it.effect("a member with NO robotAccount statement is denied (default-deny)", () =>
+  it.effect("a developer on the project is denied (below maintainer)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("robotAccount", "create").pipe(provide({})),
-      );
-      expect(forbidden).toBe(true);
-    }),
-  );
-
-  it.effect("a robotAccount:read allow does NOT grant create (action is scoped)", () =>
-    Effect.gen(function* () {
-      const forbidden = yield* isForbidden(
-        assertAccess("robotAccount", "create").pipe(
-          provide({ effectiveStatements: [allow(["robotAccount:read"], ["*"])] }),
+        assertAccess("robotAccount", "create", PROJECT).pipe(
+          provide({ projectRoles: { projA: "developer" } }),
         ),
       );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("read + delete are independently gated under the robotAccount resource", () =>
+  it.effect("maintainership on a DIFFERENT project confers nothing", () =>
     Effect.gen(function* () {
-      const canRead = yield* isForbidden(
-        assertAccess("robotAccount", "read").pipe(
-          provide({ effectiveStatements: [allow(["robotAccount:read"], ["*"])] }),
+      const forbidden = yield* isForbidden(
+        assertAccess("robotAccount", "create", PROJECT).pipe(
+          provide({ projectRoles: { projB: "maintainer" } }),
         ),
       );
-      const canDelete = yield* isForbidden(
-        assertAccess("robotAccount", "delete").pipe(
-          provide({ effectiveStatements: [allow(["robotAccount:delete"], ["*"])] }),
-        ),
+      expect(forbidden).toBe(true);
+    }),
+  );
+
+  it.effect("the org-target form is default-deny (no org-level robots anymore)", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("robotAccount", "create").pipe(provide({ orgRole: "admin" })),
       );
-      // read-only principal cannot delete
-      const readOnlyCanDelete = yield* isForbidden(
-        assertAccess("robotAccount", "delete").pipe(
-          provide({ effectiveStatements: [allow(["robotAccount:read"], ["*"])] }),
-        ),
-      );
-      expect(canRead).toBe(false);
-      expect(canDelete).toBe(false);
-      expect(readOnlyCanDelete).toBe(true);
+      expect(forbidden).toBe(true);
     }),
   );
 });

@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields, tenCharPortalId } from "./apple-team";
 import { DateTimeString, DeletedResult, Id, Name120 } from "./common";
+import { boundProjectIdsField, credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const AscApiKeyId = tenCharPortalId("ASC API Key ID");
@@ -13,6 +14,7 @@ export const IssuerId = Schema.String.pipe(
 );
 
 export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
+  ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
   appleTeamId: Schema.NullOr(Id),
@@ -26,6 +28,7 @@ export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
 
 /** Client-encrypted upload: the `.p8` PEM is sealed into `ciphertext`. */
 export const UploadAscApiKeyBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   name: Name120,

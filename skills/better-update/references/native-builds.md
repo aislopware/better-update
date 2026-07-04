@@ -23,6 +23,9 @@ What it does:
 
 1. Stages the project into a temp dir and installs deps there (frozen to the lockfile).
 2. Downloads the platform credentials from the server (so they don't live on every dev machine).
+   The resolved Apple team / upload keystore must be **bound to the project** (for everyone, org
+   admins included) — the error tells you to bind first; see `references/access-control.md` and
+   `credentials bindings` in `references/credentials.md`.
 3. Resolves a **build strategy** from the detected project type (see below) — for Expo that means
    `expo prebuild --platform <ios|android>` (which installs CocoaPods itself on iOS); for other types
    it skips prebuild and uses the native sources / your custom command as-is.

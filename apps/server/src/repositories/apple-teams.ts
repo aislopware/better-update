@@ -43,6 +43,14 @@ export interface AppleTeamRepository {
     readonly organizationId: string;
   }) => Effect.Effect<readonly AppleTeamModel[]>;
 
+  /** Toggle the protected-team flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
+
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
@@ -66,6 +74,7 @@ const selectAppleTeamWithCounts = (db: Kysely<DB>) =>
       "t.apple_team_id",
       "t.apple_team_type",
       "t.name",
+      "t.is_protected",
       "t.created_at",
       "t.updated_at",
       (eb) =>
@@ -110,6 +119,7 @@ const toModel = (row: Selectable<AppleTeams>): AppleTeamModel => ({
   appleTeamId: row.apple_team_id,
   appleTeamType: row.apple_team_type,
   name: row.name,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -220,6 +230,20 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
       );
 
       return rows.map(toModel);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("apple_teams")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

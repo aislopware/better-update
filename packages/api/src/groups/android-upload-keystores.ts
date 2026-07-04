@@ -54,6 +54,27 @@ export class AndroidUploadKeystoresGroup extends HttpApiGroup.make("androidUploa
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/android/upload-keystores/${idParam}/protection`
+      .addSuccess(AndroidUploadKeystore)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the credential protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/android/upload-keystores/${idParam}/protection`
+      .addSuccess(AndroidUploadKeystore)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the credential's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

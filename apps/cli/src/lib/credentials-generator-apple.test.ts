@@ -171,22 +171,23 @@ const buildApi = (vault: TestVault) =>
     },
   }) as unknown as ApiClient;
 
-// FileSystem stub: the APNs generator references FileSystem in its rescue path
-// (so it is part of the requirement set even on the happy path). Record writes so
-// the upload-failure test can assert the .p8 was rescued to disk.
+// FileSystem stub: the APNs generator references FileSystem in its rescue path,
+// and every credential upload now resolves the linked project id best-effort
+// (auto-bind, spec §1a) — the failing read makes that resolve to "not linked".
+// Record writes so the upload-failure test can assert the .p8 was rescued to disk.
 const recordedWrites: { path: string; content: string }[] = [];
 const fsStubLayer = Layer.succeed(FileSystem.FileSystem, {
+  readFileString: () => Effect.fail(new Error("no filesystem in tests")),
   writeFileString: (path: string, content: string) =>
     Effect.sync(() => {
       recordedWrites.push({ path, content });
     }),
 } as unknown as FileSystem.FileSystem);
 
-const apnsLayer = (privateKey: string) => Layer.mergeAll(vaultLayer(privateKey), fsStubLayer);
-
 /** CliRuntime surfacing the env identity so the vault unlocks without a passphrase. */
 const vaultLayer = (privateKey: string) =>
   Layer.mergeAll(
+    fsStubLayer,
     makeInteractiveModeLayer(false),
     Layer.succeed(CliRuntime, {
       argv: [],
@@ -254,7 +255,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       expect(profileArgs.certificates).toStrictEqual(["cert-asc-1"]);
       expect(profileArgs.devices).toStrictEqual([]);
       expect(profileArgs.profileType).toBe("IOS_APP_STORE");
-    }),
+    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
   );
 
   it.effect("AD_HOC: enrolls devices and includes them in profile request", () =>
@@ -285,7 +286,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       ];
       expect(profileArgs.profileType).toBe("IOS_APP_ADHOC");
       expect(profileArgs.devices).toStrictEqual(["dev1", "dev2"]);
-    }),
+    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
   );
 
   it.effect("fails when Apple has no matching certificate for the local serial number", () =>
@@ -306,7 +307,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       );
 
       expect(exit._tag).toBe("Failure");
-    }),
+    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
   );
 });
 
@@ -463,7 +464,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
         appleTeamIdentifier: "TEAM1234",
         appleTeamName: "Acme Inc.",
         name: "my key",
-      }).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+      }).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(result.id).toBe("push-local-1");
       expect(result.keyId).toBe("APNSKEY123");
@@ -504,7 +505,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(failureTag(exit)).toBe("ApnsKeyLimitError");
     }),
@@ -529,7 +530,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(failureTag(exit)).toBe("ApnsKeyLimitError");
     }),
@@ -555,7 +556,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(recordedWrites).toHaveLength(0);
@@ -583,7 +584,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(recordedWrites).toHaveLength(1);

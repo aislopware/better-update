@@ -41,6 +41,12 @@ export interface DeviceRepository {
     readonly offset: number;
     readonly deviceClass?: DeviceClass | undefined;
     readonly appleTeamId?: string | undefined;
+    /**
+     * Binding scope (GITLAB-RBAC-SPEC §1a): restrict to devices of these
+     * Apple team rows (team-less devices excluded). `undefined` = no scope
+     * (admin tier). An empty list matches nothing.
+     */
+    readonly appleTeamIdIn?: readonly string[] | undefined;
     readonly query?: string | undefined;
   }) => Effect.Effect<{ readonly items: readonly DeviceModel[]; readonly total: number }>;
 
@@ -133,6 +139,21 @@ const searchExpression = (
   ]);
 };
 
+// Binding scope (GITLAB-RBAC-SPEC §1a): `undefined` = admin tier (no scope);
+// an empty list matches nothing (a member with zero readable teams).
+const teamScopeExpression = (
+  eb: ExpressionBuilder<DB, "devices">,
+  appleTeamIdIn: readonly string[] | undefined,
+): Expression<SqlBool> | null => {
+  if (appleTeamIdIn === undefined) {
+    return null;
+  }
+  if (appleTeamIdIn.length === 0) {
+    return sql<SqlBool>`0`;
+  }
+  return eb("devices.apple_team_id", "in", [...appleTeamIdIn]);
+};
+
 // Combine the always-present org scope with the optional class / team / search
 // predicates. SECURITY: only the search *value* is user-controlled; it is
 // parameterized by `sql`/the query builder, never concatenated.
@@ -141,6 +162,7 @@ const deviceFilter =
     readonly organizationId: string;
     readonly deviceClass: DeviceClass | undefined;
     readonly appleTeamId: string | undefined;
+    readonly appleTeamIdIn: readonly string[] | undefined;
     readonly query: string | undefined;
   }) =>
   (eb: ExpressionBuilder<DB, "devices">): Expression<SqlBool> => {
@@ -152,6 +174,7 @@ const deviceFilter =
       filters.appleTeamId === undefined
         ? null
         : eb("devices.apple_team_id", "=", filters.appleTeamId),
+      teamScopeExpression(eb, filters.appleTeamIdIn),
       searchExpression(eb, filters.query),
     ].filter((condition): condition is Expression<SqlBool> => condition !== null);
     return eb.and(conditions);
@@ -213,6 +236,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
         organizationId: params.organizationId,
         deviceClass: params.deviceClass,
         appleTeamId: params.appleTeamId,
+        appleTeamIdIn: params.appleTeamIdIn,
         query: params.query,
       });
 
@@ -254,6 +278,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
               organizationId: params.organizationId,
               deviceClass: undefined,
               appleTeamId: params.appleTeamId,
+              appleTeamIdIn: undefined,
               query: undefined,
             }),
           )

@@ -309,3 +309,19 @@ export const updateAndroidBuildCredentials = async (
 
 export const deleteAndroidBuildCredentials = async (id: string) =>
   runApi((api) => api.androidBuildCredentials.delete({ path: { id } }));
+
+// Protection toggles (GITLAB-RBAC-SPEC §3b) — org admin only, idempotent.
+export const setAppleTeamProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.appleTeams.protect({ path: { id } }))
+    : runApi((api) => api.appleTeams.unprotect({ path: { id } }));
+
+export const setGoogleServiceAccountKeyProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.googleServiceAccountKeys.protect({ path: { id } }))
+    : runApi((api) => api.googleServiceAccountKeys.unprotect({ path: { id } }));
+
+export const setAndroidUploadKeystoreProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.androidUploadKeystores.protect({ path: { id } }))
+    : runApi((api) => api.androidUploadKeystores.unprotect({ path: { id } }));

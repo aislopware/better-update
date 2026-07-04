@@ -73,7 +73,6 @@ describe("Updates & Assets API flow", () => {
   let rollbackUpdateId: string;
   let signedUpdateId: string;
   let apiKeyValue: string;
-  let apiKeyId: string;
 
   const firstAssetContent = "console.log('hello')";
   const secondAssetContent = "console.log('world')";
@@ -890,26 +889,22 @@ describe("Updates & Assets API flow", () => {
 
   // ── Section 8: API key auth ────────────────────────────────────
 
-  it("creates an API key", async () => {
+  it("creates a project robot account", async () => {
     const response = await post(
-      "/api/auth/api-key/create",
-      { name: "updates-test-key", organizationId },
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.key).toMatch(/^bu_/);
-    apiKeyValue = body.key;
-    apiKeyId = body.id;
-  });
-
-  it("attaches the managed admin policy to the API key", async () => {
-    const response = await post(
-      `/api/api-keys/${apiKeyId}/policies`,
-      { policyId: "managed:admin" },
+      "/api/robot-accounts",
+      {
+        name: "updates-test-robot",
+        projectId,
+        role: "maintainer",
+        publicKey: "age1e2efixtureupdatestestrobot",
+        fingerprint: "SHA256:e2e-fixture-updates-test-robot",
+      },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    apiKeyValue = body.bearerSecret;
   });
 
   it("lists updates via API key", async () => {

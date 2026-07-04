@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields } from "./apple-team";
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export class AppleDistributionCertificate extends Schema.Class<AppleDistributionCertificate>(
@@ -24,6 +25,7 @@ export class AppleDistributionCertificate extends Schema.Class<AppleDistribution
  * the server stores the envelope and metadata and never sees the plaintext.
  */
 export const UploadAppleDistributionCertificateBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),

@@ -40,16 +40,12 @@ export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 export type {
   Action,
   AuditLogSource,
-  BuiltinRole,
+  CredentialBindingType,
   CurrentActor,
-  GroupModel,
   ObjectRef,
-  PolicyAttachmentModel,
-  PolicyDocument,
-  PolicyEffect,
-  PolicyModel,
-  PolicyStatement,
-  PrincipalType,
+  OrgRole,
+  ProjectPrincipalType,
+  ProjectRole,
   Resource,
   Role,
 } from "./authz-models";
@@ -173,6 +169,8 @@ export interface AppleTeamModel {
   readonly appleTeamId: string;
   readonly appleTeamType: AppleTeamType;
   readonly name: string | null;
+  /** Protected-team flag (GITLAB-RBAC-SPEC §3b) — cascades to every child credential. */
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -295,6 +293,8 @@ export interface GoogleServiceAccountKeyModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  /** Protected-credential flag (GITLAB-RBAC-SPEC §3b) — per-row, no parent. */
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -337,6 +337,8 @@ export interface AndroidUploadKeystoreModel {
   readonly sha1Fingerprint: string | null;
   readonly sha256Fingerprint: string | null;
   readonly keystoreType: "JKS" | "PKCS12" | null;
+  /** Protected-credential flag (GITLAB-RBAC-SPEC §3b) — per-row, no parent. */
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

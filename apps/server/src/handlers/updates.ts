@@ -25,11 +25,7 @@ import {
   resolveRepublishSource,
 } from "./update-republish";
 import { clampPatchBaseLimit, parseUpdateSort } from "./updates-helpers";
-import {
-  assertAssetsExist,
-  filterUpdatesByEnvRead,
-  resolvePatchBaseBranchId,
-} from "./updates-read-scope";
+import { assertAssetsExist, resolvePatchBaseBranchId } from "./updates-read-scope";
 
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
   toApiWriteEffect(
@@ -216,7 +212,6 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          const ctx = yield* CurrentActor;
 
           const repo = yield* UpdateRepo;
           const { page, limit, offset } = parsePagination(urlParams);
@@ -234,19 +229,10 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             offset,
           });
 
-          // Per-update read filter (deny-wins): each update's environment is its
-          // branch NAME, so an environment-scoped grant sees its own updates
-          // instead of a blanket 403. Owner/superadmin (and project-wide
-          // `update:read`) see everything.
-          if (ctx.isSuperadmin || ctx.isOwner) {
-            return { items: items.map(toApiUpdate), total, page, limit };
-          }
-          const visible = yield* filterUpdatesByEnvRead({
-            projectId: urlParams.projectId,
-            statements: ctx.effectiveStatements,
-            updates: items,
-          });
-          return { items: visible.map(toApiUpdate), total: visible.length, page, limit };
+          // Roles are project-wide (GITLAB-RBAC-SPEC §1): the update:read gate
+          // above already admitted the caller to the whole project — no
+          // per-branch filtering.
+          return { items: items.map(toApiUpdate), total, page, limit };
         }),
       ),
     )

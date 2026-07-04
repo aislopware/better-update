@@ -5,14 +5,14 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { assertPermission } from "../auth/permissions";
-import { assertAccess } from "../auth/policy";
-import { isWithinBoundary } from "../auth/policy-boundary";
-import { statementsForPrincipals } from "../auth/statements";
-import { Forbidden, NotFound } from "../errors";
+import { assertAccess, assertOrgAdmin } from "../auth/policy";
+import { effectiveProjectRole, projectRoleAtLeast } from "../auth/role-matrix";
+import { NotFound } from "../errors";
 import { toApiCrudEffect, toApiReadEffect } from "../http/to-api-effect";
+import { ProjectRepo } from "../repositories/projects";
 import { RobotAccountRepo } from "../repositories/robot-accounts";
 
+import type { CurrentActor as CurrentActorModel } from "../models";
 import type { RobotAccountModel } from "../repositories/robot-accounts";
 
 const toRobotAccount = (model: RobotAccountModel): RobotAccount =>
@@ -23,8 +23,22 @@ const toRobotAccount = (model: RobotAccountModel): RobotAccount =>
     bearerStart: model.bearerStart,
     hasBearer: model.hasBearer,
     userEncryptionKeyId: model.userEncryptionKeyId,
+    projectId: model.projectId,
+    role: model.role,
     createdAt: model.createdAt,
   });
+
+// A robot is project-scoped (GITLAB-RBAC-SPEC §1b, v2): managing it requires
+// Maintainer+ on ITS project. Legacy pre-v2 rows (projectId null) fall back
+// to the org-admin gate — they exist only to be revoked.
+const assertRobotManageable = (target: RobotAccountModel) =>
+  target.projectId === null
+    ? assertOrgAdmin
+    : assertAccess("robotAccount", "update", { kind: "project", projectId: target.projectId });
+
+const canSeeRobot = (ctx: CurrentActorModel, robot: RobotAccountModel): boolean =>
+  robot.projectId !== null &&
+  projectRoleAtLeast(effectiveProjectRole(ctx, robot.projectId), "maintainer");
 
 export const RobotAccountsGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -34,25 +48,39 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
       .handle("list", () =>
         toApiReadEffect(
           Effect.gen(function* () {
-            yield* assertAccess("robotAccount", "read");
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
             const accounts = yield* repo.list({ organizationId: ctx.organizationId });
-            return { items: accounts.map(toRobotAccount) };
+            // Admin tier sees every robot (incl. legacy unassigned rows);
+            // otherwise the list scopes to projects the actor maintains —
+            // the same rank that could rotate/revoke them.
+            if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
+              return { items: accounts.map(toRobotAccount) };
+            }
+            const visible = accounts.filter((robot) => canSeeRobot(ctx, robot));
+            return { items: visible.map(toRobotAccount) };
           }),
         ),
       )
       .handle("create", ({ payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            // The row+bearer and the vault-recipient registration are two
-            // distinct privileges (mirroring the deleted apikey feature +
-            // the vaultAccess:create gate the register endpoint enforced) — a
-            // robot always gets both, so both are required up front rather than
-            // silently degrading to a bearer-less account.
-            yield* assertAccess("robotAccount", "create");
-            yield* assertPermission("vaultAccess", "create");
+            // Maintainer of the target project mints the robot (GitLab
+            // project-access-token shape, spec §1b v2). The machine-kind key
+            // row registered alongside is only a RECIPIENT IDENTITY — it can
+            // decrypt nothing until a vault member (org admin) wraps the
+            // vault key to it, so no vaultAccess gate is needed here.
+            yield* assertAccess("robotAccount", "create", {
+              kind: "project",
+              projectId: payload.projectId,
+            });
             const ctx = yield* CurrentActor;
+
+            // Cross-org project ids surface as NotFound (enumeration-safe).
+            const project = yield* (yield* ProjectRepo).findById({ id: payload.projectId });
+            if (project.organizationId !== ctx.organizationId) {
+              return yield* new NotFound({ message: "Project not found" });
+            }
 
             // The repo mints the machine-kind vault recipient and the robot row
             // in one atomic D1 batch — no orphaned recipient on partial failure.
@@ -60,6 +88,8 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
             const created = yield* repo.create({
               organizationId: ctx.organizationId,
               name: payload.name,
+              projectId: payload.projectId,
+              role: payload.role,
               publicKey: payload.publicKey,
               fingerprint: payload.fingerprint,
             });
@@ -68,7 +98,12 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               action: "robotAccount.create",
               resourceType: "robotAccount",
               resourceId: created.model.id,
-              metadata: { name: payload.name, fingerprint: payload.fingerprint },
+              metadata: {
+                name: payload.name,
+                fingerprint: payload.fingerprint,
+                projectId: payload.projectId,
+                role: payload.role,
+              },
             });
 
             return new CreatedRobotAccount({
@@ -78,6 +113,8 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               bearerStart: created.model.bearerStart,
               hasBearer: created.model.hasBearer,
               userEncryptionKeyId: created.model.userEncryptionKeyId,
+              projectId: payload.projectId,
+              role: payload.role,
               createdAt: created.model.createdAt,
               bearerSecret: created.bearerSecret,
             });
@@ -87,25 +124,18 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
       .handle("rotate", ({ path }) =>
         toApiReadEffect(
           Effect.gen(function* () {
-            yield* assertAccess("robotAccount", "update");
             const ctx = yield* CurrentActor;
-            // Permission boundary (no privilege escalation): rotating hands out
-            // the target robot's NEW bearer — an identity takeover. A non-owner
-            // may only rotate a robot whose attached grants are all within what
-            // the caller itself holds; otherwise `robotAccount:update` alone
-            // would be a ladder to any stronger robot's permissions.
-            if (!ctx.isOwner && !ctx.isSuperadmin) {
-              const granted = yield* statementsForPrincipals({
-                organizationId: ctx.organizationId,
-                principals: [{ type: "robot", id: path.id }],
-              });
-              if (!isWithinBoundary(ctx.effectiveStatements, { statements: granted })) {
-                return yield* new Forbidden({
-                  message: "Cannot rotate a robot that holds more than you currently hold",
-                });
-              }
-            }
             const repo = yield* RobotAccountRepo;
+            const target = yield* repo.findById({
+              id: path.id,
+              organizationId: ctx.organizationId,
+            });
+            // Rotating hands out the robot's NEW bearer — an identity
+            // takeover — so it takes the same rank that could mint it:
+            // Maintainer on its project (admin for legacy rows). A robot can
+            // never escalate this way: the rotated identity holds at most
+            // maintainer on the same single project.
+            yield* assertRobotManageable(target);
             const rotated = yield* repo.rotateBearer({
               id: path.id,
               organizationId: ctx.organizationId,
@@ -122,9 +152,13 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
       .handle("revoke", ({ path }) =>
         toApiReadEffect(
           Effect.gen(function* () {
-            yield* assertAccess("robotAccount", "delete");
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
+            const target = yield* repo.findById({
+              id: path.id,
+              organizationId: ctx.organizationId,
+            });
+            yield* assertRobotManageable(target);
             const deleted = yield* repo.revoke({ id: path.id, organizationId: ctx.organizationId });
             if (!deleted) {
               return yield* new NotFound({ message: "Robot account not found" });

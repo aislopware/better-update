@@ -1,15 +1,11 @@
 // Effect helpers extracted from handlers/updates.ts to keep it under the
-// max-lines budget. Read-scoping: an update's environment is its BRANCH name, so
-// reads gate at `project/{id}/env/{branchName}` and lists filter per-branch
-// (deny-wins). Plus the create-time asset-existence check.
+// max-lines budget: patch-base branch resolution + the create-time
+// asset-existence check.
 
 import { Effect } from "effect";
 
-import { isAllowed, resolvePath } from "../auth/policy-match";
 import { BadRequest, Conflict, NotFound } from "../errors";
-import { AssetRepo, BranchRepo, ChannelRepo } from "../repositories";
-
-import type { PolicyStatement } from "../authz-models";
+import { AssetRepo, ChannelRepo } from "../repositories";
 
 // Resolve the branch a patch-base lookup targets: an explicit branchId, or the
 // branch currently served by the named channel.
@@ -31,36 +27,6 @@ export const resolvePatchBaseBranchId = (params: {
       name: params.channel,
     });
     return channel.branchId;
-  });
-
-// Keep only the updates whose branch environment the caller may read (deny-wins).
-// Loads the project's branches once to map branchId → environment name.
-export const filterUpdatesByEnvRead = <T extends { readonly branchId: string }>(params: {
-  readonly projectId: string;
-  readonly statements: readonly PolicyStatement[];
-  readonly updates: readonly T[];
-}) =>
-  Effect.gen(function* () {
-    const branchRepo = yield* BranchRepo;
-    const { items: branches } = yield* branchRepo.findByProject({
-      projectId: params.projectId,
-      sort: "createdAt",
-      order: "desc",
-      limit: 1000,
-      offset: 0,
-    });
-    const nameByBranchId = new Map(branches.map((branch) => [branch.id, branch.name]));
-    return params.updates.filter((update) => {
-      const environment = nameByBranchId.get(update.branchId);
-      return (
-        environment !== undefined &&
-        isAllowed(
-          params.statements,
-          "update:read",
-          resolvePath({ kind: "environment", projectId: params.projectId, environment }),
-        )
-      );
-    });
   });
 
 // Reject a create whose referenced assets are missing or not yet uploaded.

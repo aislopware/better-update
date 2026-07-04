@@ -54,6 +54,27 @@ export class GoogleServiceAccountKeysGroup extends HttpApiGroup.make("googleServ
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/google/service-account-keys/${idParam}/protection`
+      .addSuccess(GoogleServiceAccountKey)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the credential protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/google/service-account-keys/${idParam}/protection`
+      .addSuccess(GoogleServiceAccountKey)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the credential's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

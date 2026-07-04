@@ -14,13 +14,9 @@ import { currentRecipients, rotateVaultTo } from "../../application/vault-rotati
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
 import { formatCause } from "../../lib/format-error";
-import {
-  printHuman,
-  printHumanKeyValue,
-  printHumanList,
-  printHumanTable,
-  printKeyValue,
-} from "../../lib/output";
+import { printHuman, printHumanList, printKeyValue } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
+import { parseProjectRole } from "../../lib/project-roles";
 import { serializeRobotEnv } from "../../lib/robot-env";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
@@ -82,11 +78,39 @@ const revokeRobotEnvAccess = (api: ApiClient, keyId: string) =>
     return true;
   });
 
+/** `--project` flag when given, else the linked project from the local context. */
+const resolveProjectId = (flag: string | undefined) => {
+  const value = flag?.trim();
+  if (value !== undefined && value.length > 0) {
+    return Effect.succeed(value);
+  }
+  return readProjectId.pipe(
+    Effect.mapError(
+      () =>
+        new IdentityError({
+          message:
+            "A robot lives on exactly one project — pass --project <projectId> or run this inside a linked project.",
+        }),
+    ),
+  );
+};
+
+/**
+ * Best-effort id→name map from the first page of the org's projects. A robot
+ * listing must never fail because of a cosmetic lookup, so errors (and names
+ * beyond the first 100 projects) simply fall back to the raw project id.
+ */
+const projectNamesById = (api: ApiClient) =>
+  api.projects.list({ urlParams: { page: 1, limit: 100, sort: "lastActivityAt" } }).pipe(
+    Effect.map((result) => new Map(result.items.map((project) => [project.id, project.name]))),
+    Effect.orElseSucceed(() => new Map<string, string>()),
+  );
+
 const createCommand = defineCommand({
   meta: {
     name: "create",
     description:
-      "Mint an org-owned robot account (bearer secret + vault identity) and print its BETTER_UPDATE_ROBOT credential once",
+      "Mint a project-scoped robot account (bearer secret + vault identity) and print its BETTER_UPDATE_ROBOT credential once",
   },
   args: {
     name: {
@@ -100,13 +124,26 @@ const createCommand = defineCommand({
       negativeDescription:
         "Register the robot's vault identity without granting it (grant later with `credentials access grant`)",
     },
+    project: {
+      type: "string",
+      description:
+        "Project this robot belongs to (defaults to the linked project from the local context)",
+    },
+    role: {
+      type: "string",
+      default: "developer",
+      description:
+        'Project role fixed at creation: "maintainer", "developer" (default), or "reporter"',
+    },
   },
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
         const name = yield* resolveName(args.name);
-        const robot = yield* createRobotAccount(api, name);
+        const projectId = yield* resolveProjectId(args.project);
+        const role = yield* parseProjectRole(args.role);
+        const robot = yield* createRobotAccount(api, name, { projectId, role });
 
         // Show the bundled credential BEFORE attempting the grant: it is the one
         // output that must never be lost (the bearer + private key are never
@@ -118,6 +155,8 @@ const createCommand = defineCommand({
         yield* printKeyValue([
           ["Name", robot.account.name],
           ["Id", robot.account.id],
+          ["Project", robot.account.projectId],
+          ["Role", robot.account.role],
         ]);
         yield* printHuman("");
         yield* printHuman(
@@ -198,6 +237,8 @@ const createCommand = defineCommand({
         return {
           id: robot.account.id,
           name: robot.account.name,
+          projectId: robot.account.projectId,
+          role: robot.account.role,
           granted,
           envGranted,
           // Shown once: JSON consumers must capture this now (mirrors human output).
@@ -215,13 +256,20 @@ const listCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const { items } = yield* api["robot-accounts"].list();
+        const projectNames = yield* projectNamesById(api);
         // "Vault identity" (not "access"): a registered identity may not have
         // been GRANTED the vault yet — actual membership is `credentials access list`.
         yield* printHumanList(
-          ["Id", "Name", "Bearer", "Vault identity", "Created"],
+          ["Id", "Name", "Project", "Role", "Bearer", "Vault identity", "Created"],
           items.map((robot) => [
             robot.id,
             robot.name,
+            // A NULL project marks a pre-v2 org-scoped robot: it can no longer
+            // authenticate (the server requires a project) and exists to be revoked.
+            robot.projectId === null
+              ? "legacy — recreate"
+              : (projectNames.get(robot.projectId) ?? robot.projectId),
+            robot.role ?? "—",
             robot.bearerStart === null ? "— not minted —" : `${robot.bearerStart}···`,
             robot.userEncryptionKeyId === null ? "no" : "yes",
             robot.createdAt,
@@ -398,91 +446,11 @@ const grantEnvCommand = defineCommand({
     ),
 });
 
-const listPoliciesCommand = defineCommand({
-  meta: { name: "policies", description: "List policies attached to a robot account" },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const result = yield* api["policy-attachments"].listForRobot({ path: { id: args.id } });
-        yield* printHumanTable(
-          ["Attachment ID", "Policy ID", "Created"],
-          result.items.map((attachment) => [
-            attachment.id,
-            attachment.policyId,
-            attachment.createdAt,
-          ]),
-        );
-        return result;
-      }),
-      { json: "value" },
-    ),
-});
-
-const attachPolicyCommand = defineCommand({
-  meta: {
-    name: "attach",
-    description: "Attach a policy (real or managed:*) to a robot account",
-  },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-    "policy-id": {
-      type: "string",
-      required: true,
-      description: "Policy ID to attach (real id or managed preset like managed:admin)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const attachment = yield* api["policy-attachments"].attachToRobot({
-          path: { id: args.id },
-          payload: { policyId: args["policy-id"] },
-        });
-        yield* printHumanKeyValue([
-          ["Attachment ID", attachment.id],
-          ["Robot ID", attachment.principalId],
-          ["Policy ID", attachment.policyId],
-          ["Created", attachment.createdAt],
-        ]);
-        return attachment;
-      }),
-      { json: "value" },
-    ),
-});
-
-const detachPolicyCommand = defineCommand({
-  meta: { name: "detach", description: "Remove a policy attachment from a robot account" },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-    "policy-id": {
-      type: "string",
-      required: true,
-      description: "Policy ID to detach (real id or managed preset like managed:admin)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        yield* api["policy-attachments"].detachFromRobot({
-          path: { id: args.id, policyId: encodeURIComponent(args["policy-id"]) },
-        });
-        yield* printHuman(`Detached policy ${args["policy-id"]} from robot account ${args.id}.`);
-        return { robotId: args.id, policyId: args["policy-id"], detached: true };
-      }),
-      { json: "value" },
-    ),
-});
-
 export const robotCommand = defineCommand({
   meta: {
     name: "robot",
-    description: "Manage org-owned robot accounts (CI bearer auth + vault identity in one)",
+    description:
+      "Manage project-scoped robot accounts (CI bearer auth + vault identity in one; one robot = one project + one role)",
   },
   subCommands: {
     create: createCommand,
@@ -490,9 +458,6 @@ export const robotCommand = defineCommand({
     rotate: rotateCommand,
     revoke: revokeCommand,
     "grant-env": grantEnvCommand,
-    policies: listPoliciesCommand,
-    attach: attachPolicyCommand,
-    detach: detachPolicyCommand,
   },
   default: "list",
 });

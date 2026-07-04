@@ -262,13 +262,18 @@ export const toApiAuditLog = (log: AuditLogModel) =>
     createdAt: log.createdAt,
   });
 
-export const toApiAppleTeamWithCounts = (team: AppleTeamWithCounts): AppleTeam =>
+export const toApiAppleTeamWithCounts = (
+  team: AppleTeamWithCounts,
+  boundProjectIds: readonly string[],
+): AppleTeam =>
   new AppleTeam({
+    boundProjectIds,
     id: team.id,
     organizationId: team.organizationId,
     appleTeamId: team.appleTeamId,
     appleTeamType: team.appleTeamType,
     name: team.name,
+    protected: team.isProtected,
     distributionCertificateCount: team.distributionCertificateCount,
     pushKeyCount: team.pushKeyCount,
     ascApiKeyCount: team.ascApiKeyCount,
@@ -352,8 +357,12 @@ const parseRoles = (roles: string): readonly string[] => {
   return parsed.filter((value): value is string => typeof value === "string");
 };
 
-export const toApiAscApiKey = (model: AscApiKeyModel): AscApiKey =>
+export const toApiAscApiKey = (
+  model: AscApiKeyModel,
+  boundProjectIds: readonly string[],
+): AscApiKey =>
   new AscApiKey({
+    boundProjectIds,
     id: model.id,
     organizationId: model.organizationId,
     appleTeamId: model.appleTeamId,
@@ -384,14 +393,17 @@ export const toApiAppleProvisioningProfile = (
 
 export const toApiGoogleServiceAccountKey = (
   model: GoogleServiceAccountKeyModel,
+  boundProjectIds: readonly string[],
 ): GoogleServiceAccountKey =>
   new GoogleServiceAccountKey({
+    boundProjectIds,
     id: model.id,
     organizationId: model.organizationId,
     clientEmail: model.clientEmail,
     privateKeyId: model.privateKeyId,
     googleProjectId: model.googleProjectId,
     clientId: model.clientId,
+    protected: model.isProtected,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });
@@ -430,8 +442,10 @@ export const toApiAndroidApplicationIdentifier = (
 
 export const toApiAndroidUploadKeystore = (
   model: AndroidUploadKeystoreModel,
+  boundProjectIds: readonly string[],
 ): AndroidUploadKeystore =>
   new AndroidUploadKeystore({
+    boundProjectIds,
     id: model.id,
     organizationId: model.organizationId,
     name: model.name,
@@ -440,6 +454,7 @@ export const toApiAndroidUploadKeystore = (
     sha1Fingerprint: model.sha1Fingerprint,
     sha256Fingerprint: model.sha256Fingerprint,
     keystoreType: model.keystoreType,
+    protected: model.isProtected,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });

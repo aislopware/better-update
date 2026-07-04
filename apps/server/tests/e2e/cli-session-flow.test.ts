@@ -79,9 +79,24 @@ describe("CLI session auth (bearer + one-time-token)", () => {
   });
 
   it("still rejects a device key when the bearer token is a robot account (no user)", async () => {
+    // Robots are project-scoped (spec §1b, v2) — mint a fixture project first.
+    const projectRes = await post(
+      "/api/projects",
+      { name: "CLI Session Fixture", slug: "cli-session-fixture" },
+      { cookie: cookies },
+    );
+    expect(projectRes.status).toBe(201);
+    const fixtureProjectId = (await projectRes.json()).id as string;
+
     const created = await post(
       "/api/robot-accounts",
-      { name: "ci-runner", publicKey: `age1${rand()}${rand()}`, fingerprint: `SHA256:${rand()}` },
+      {
+        name: "ci-runner",
+        projectId: fixtureProjectId,
+        role: "developer",
+        publicKey: `age1${rand()}${rand()}`,
+        fingerprint: `SHA256:${rand()}`,
+      },
       { cookie: cookies },
     );
     expect(created.status).toBe(201);

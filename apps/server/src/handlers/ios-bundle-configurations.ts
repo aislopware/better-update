@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertIosCredentialRefs } from "../application/validate-credential-refs";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
@@ -41,6 +42,10 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
             });
             const ctx = yield* CurrentActor;
             const repo = yield* IosBundleConfigurationRepo;
+
+            // Referenced credentials must exist in this org (fail-fast; the
+            // resolve endpoint re-checks at build time).
+            yield* assertIosCredentialRefs(payload);
 
             const id = crypto.randomUUID();
             const now = new Date().toISOString();
@@ -90,6 +95,7 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
               kind: "project",
               projectId: existing.projectId,
             });
+            yield* assertIosCredentialRefs(payload);
 
             const now = new Date().toISOString();
             yield* repo.update({

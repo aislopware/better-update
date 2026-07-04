@@ -17,7 +17,6 @@ import {
 } from "@better-update/ui/components/ui/table";
 import {
   BellRingIcon,
-  CloudIcon,
   CreditCardIcon,
   KeyRoundIcon,
   ShieldCheckIcon,
@@ -33,14 +32,15 @@ import type {
   ApplePushKeyItem,
   AppleTeamItem,
   AscApiKeyItem,
-  GoogleServiceAccountKeyItem,
 } from "@better-update/api-client/react";
 
 import { CopyableMono } from "../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatShortDate } from "../../../lib/format-date";
 import { RelativeTime } from "../../../lib/relative-time";
+import { BoundProjectsCell, InheritedProjectsCell } from "./-credential-bindings";
 import { RolesCell, TeamCell } from "./-credential-cells";
+import { AppleTeamProtectionSwitch } from "./-credential-protection";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
 export const DistributionCertificatesEmptyState = () => (
@@ -87,7 +87,7 @@ export const DistributionCertificatesTable = ({
               <CopyableMono value={cert.serialNumber} label="Serial" />
             </TableCell>
             <TableCell>
-              <TeamCell team={teamsById.get(cert.appleTeamId)} />
+              <TeamCell team={teamsById.get(cert.appleTeamId)} showProtected />
             </TableCell>
             <TableCell>
               <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
@@ -145,7 +145,7 @@ export const PushKeysTable = ({
             <CopyableMono value={key.keyId} label="Key ID" />
           </TableCell>
           <TableCell>
-            <TeamCell team={teamsById.get(key.appleTeamId)} />
+            <TeamCell team={teamsById.get(key.appleTeamId)} showProtected />
           </TableCell>
           <TableCell className="text-muted-foreground">
             <RelativeTime value={key.createdAt} />
@@ -320,9 +320,13 @@ export const AscApiKeysEmptyState = () => (
 export const AscApiKeysTable = ({
   items,
   teamsById,
+  orgId,
+  canManageBindings,
 }: {
   items: readonly AscApiKeyItem[];
   teamsById: ReadonlyMap<string, AppleTeamItem>;
+  orgId: string;
+  canManageBindings: boolean;
 }) => (
   <Table variant="card">
     <TableHeader>
@@ -332,6 +336,7 @@ export const AscApiKeysTable = ({
         <TableHead>Issuer ID</TableHead>
         <TableHead>Team</TableHead>
         <TableHead>Roles</TableHead>
+        <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
@@ -348,10 +353,25 @@ export const AscApiKeysTable = ({
           <TableCell>
             <TeamCell
               team={key.appleTeamId === null ? undefined : teamsById.get(key.appleTeamId)}
+              showProtected
             />
           </TableCell>
           <TableCell>
             <RolesCell roles={key.roles} />
+          </TableCell>
+          <TableCell>
+            {key.appleTeamId === null ? (
+              <BoundProjectsCell
+                orgId={orgId}
+                resourceType="ascApiKey"
+                resourceId={key.id}
+                resourceLabel={key.name}
+                boundProjectIds={key.boundProjectIds}
+                canManage={canManageBindings}
+              />
+            ) : (
+              <InheritedProjectsCell orgId={orgId} boundProjectIds={key.boundProjectIds} />
+            )}
           </TableCell>
           <TableCell className="text-muted-foreground">
             <RelativeTime value={key.createdAt} />
@@ -378,12 +398,22 @@ export const AppleTeamsEmptyState = () => (
   </Card>
 );
 
-export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) => (
+export const AppleTeamsTable = ({
+  items,
+  orgId,
+  canManageProtection,
+}: {
+  items: readonly AppleTeamItem[];
+  orgId: string;
+  canManageProtection: boolean;
+}) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Team</TableHead>
         <TableHead>Type</TableHead>
+        <TableHead>Protected</TableHead>
+        <TableHead>Projects</TableHead>
         <TableHead className="text-right">Certs</TableHead>
         <TableHead className="text-right">Push</TableHead>
         <TableHead className="text-right">ASC</TableHead>
@@ -398,67 +428,24 @@ export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) 
           <TableCell className="text-muted-foreground">
             {formatAppleTeamType(team.appleTeamType)}
           </TableCell>
+          <TableCell>
+            <AppleTeamProtectionSwitch orgId={orgId} team={team} canManage={canManageProtection} />
+          </TableCell>
+          <TableCell>
+            <BoundProjectsCell
+              orgId={orgId}
+              resourceType="appleTeam"
+              resourceId={team.id}
+              resourceLabel={formatAppleTeamLabel(team)}
+              boundProjectIds={team.boundProjectIds}
+              canManage={canManageProtection}
+            />
+          </TableCell>
           <TableCell className="text-right">{team.distributionCertificateCount}</TableCell>
           <TableCell className="text-right">{team.pushKeyCount}</TableCell>
           <TableCell className="text-right">{team.ascApiKeyCount}</TableCell>
           <TableCell className="text-right">{team.provisioningProfileCount}</TableCell>
           <TableCell className="text-right">{team.deviceCount}</TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
-
-export const GoogleServiceAccountKeysEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CloudIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Google service account keys</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a service account .json key for FCM v1 push notifications.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
-);
-
-export const GoogleServiceAccountKeysTable = ({
-  items,
-}: {
-  items: readonly GoogleServiceAccountKeyItem[];
-}) => (
-  <Table variant="card">
-    <TableHeader>
-      <TableRow>
-        <TableHead>Project ID</TableHead>
-        <TableHead>Private Key ID</TableHead>
-        <TableHead>Client</TableHead>
-        <TableHead>Uploaded</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((key) => (
-        <TableRow key={key.id}>
-          <TableCell>
-            <CopyableMono value={key.googleProjectId} label="Project ID" />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={key.privateKeyId} label="Private key ID" />
-          </TableCell>
-          <TableCell>
-            <div className="flex flex-col gap-0.5">
-              <CopyableMono value={key.clientEmail} label="Client email" />
-              {key.clientId === null ? null : (
-                <span className="text-muted-foreground text-xs">ID: {key.clientId}</span>
-              )}
-            </div>
-          </TableCell>
-          <TableCell className="text-muted-foreground">
-            <RelativeTime value={key.createdAt} />
-          </TableCell>
         </TableRow>
       ))}
     </TableBody>

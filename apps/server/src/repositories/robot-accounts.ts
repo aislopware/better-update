@@ -8,13 +8,17 @@ import { CryptoService } from "../domain/crypto-service";
 import { NotFound } from "../errors";
 
 import type { RobotAccount } from "../db/schema";
+import type { ProjectRole } from "../models";
 
 // -- Port -------------------------------------------------------------------
 
-// An org-owned robot account: the single CI identity that both authenticates
-// HTTP calls (bearer half) and, once linked, decrypts the credential vault (the
-// `userEncryptionKeyId` half — a `user_encryption_keys` row of kind 'machine').
-// The hashed bearer secret is never read out of the repository.
+// A PROJECT-scoped robot account (GITLAB-RBAC-SPEC §1b, v2): the single CI
+// identity that both authenticates HTTP calls (bearer half) and, once linked,
+// decrypts the credential vault (the `userEncryptionKeyId` half — a
+// `user_encryption_keys` row of kind 'machine'). One robot = one project +
+// one project role; legacy pre-v2 rows carry NULL project/role, stay listed
+// (revocable) but never authenticate. The hashed bearer secret is never read
+// out of the repository.
 export interface RobotAccountModel {
   readonly id: string;
   readonly organizationId: string;
@@ -22,12 +26,17 @@ export interface RobotAccountModel {
   readonly bearerStart: string | null;
   readonly hasBearer: boolean;
   readonly userEncryptionKeyId: string | null;
+  /** NULL = legacy pre-v2 robot (cannot authenticate; recreate per-project). */
+  readonly projectId: string | null;
+  readonly role: ProjectRole | null;
   readonly createdAt: string;
 }
 
 export interface CreateRobotAccountInput {
   readonly organizationId: string;
   readonly name: string;
+  readonly projectId: string;
+  readonly role: ProjectRole;
   /** The robot's age public key, registered as a `machine`-kind vault recipient. */
   readonly publicKey: string;
   readonly fingerprint: string;
@@ -72,7 +81,7 @@ export interface RobotAccountRepository {
 
   /**
    * Delete a robot account, scoped to its org, atomically dropping every
-   * `policy_attachment` row on the robot principal with it (no dangling
+   * `project_member` row on the robot principal with it (no dangling
    * grants). The bearer stops authenticating immediately. Any linked vault
    * identity's `user_encryption_keys` row is untouched; vault access for it is
    * revoked the same way any other recipient is (`credentials access revoke`),
@@ -83,11 +92,17 @@ export interface RobotAccountRepository {
     readonly organizationId: string;
   }) => Effect.Effect<boolean>;
 
-  /** Bearer verification for auth middleware — SHA-256 hash lookup, org-scoped result. */
+  /**
+   * Bearer verification for auth middleware — SHA-256 hash lookup. Only
+   * PROJECT-scoped rows authenticate: legacy NULL-project robots resolve to
+   * `null` (401) by design (spec §1b migration posture).
+   */
   readonly verifyBearer: (params: { readonly plaintext: string }) => Effect.Effect<{
     readonly id: string;
     readonly organizationId: string;
     readonly name: string;
+    readonly projectId: string;
+    readonly role: ProjectRole;
   } | null>;
 }
 
@@ -139,6 +154,8 @@ const PUBLIC_COLUMNS = [
   "bearer_key_hash",
   "bearer_start",
   "user_encryption_key_id",
+  "project_id",
+  "project_role",
   "created_at",
 ] as const;
 
@@ -151,6 +168,8 @@ const toModel = (row: RobotAccountRow): RobotAccountModel => ({
   bearerStart: row.bearer_start,
   hasBearer: row.bearer_key_hash !== null,
   userEncryptionKeyId: row.user_encryption_key_id,
+  projectId: row.project_id,
+  role: row.project_role,
   createdAt: row.created_at,
 });
 
@@ -198,6 +217,8 @@ export const RobotAccountRepoLive = Layer.effect(
               bearer_key_hash: bearer.hash,
               bearer_start: bearer.start,
               user_encryption_key_id: userEncryptionKeyId,
+              project_id: params.projectId,
+              project_role: params.role,
               created_at: now,
               revoked_at: null,
             }),
@@ -212,6 +233,8 @@ export const RobotAccountRepoLive = Layer.effect(
               bearerStart: bearer.start,
               hasBearer: true,
               userEncryptionKeyId,
+              projectId: params.projectId,
+              role: params.role,
               createdAt: now,
             },
           };
@@ -273,23 +296,16 @@ export const RobotAccountRepoLive = Layer.effect(
       revoke: (params) =>
         Effect.gen(function* () {
           const db = yield* kyselyDb;
-          // Atomic: the robot row and its policy attachments go together, so a
-          // revoked robot never leaves dangling grants behind. RETURNING on the
-          // robot delete carries the "did it exist in this org" signal out of
-          // the batch (d1Batch surfaces rows, not counts).
-          const [, deletedRows] = yield* d1Batch([
-            db
-              .deleteFrom("policy_attachment")
-              .where("organization_id", "=", params.organizationId)
-              .where("principal_type", "=", "robot")
-              .where("principal_id", "=", params.id),
+          // v2 robots hold no project_member rows (rank lives on the robot
+          // row itself) — a plain delete suffices.
+          const result = yield* Effect.promise(async () =>
             db
               .deleteFrom("robot_account")
               .where("id", "=", params.id)
               .where("organization_id", "=", params.organizationId)
-              .returning("id"),
-          ]);
-          return deletedRows.length > 0;
+              .executeTakeFirst(),
+          );
+          return Number(result.numDeletedRows) > 0;
         }),
 
       verifyBearer: (params) =>
@@ -299,14 +315,25 @@ export const RobotAccountRepoLive = Layer.effect(
           const row = yield* Effect.promise(async () =>
             db
               .selectFrom("robot_account")
-              .select(["id", "organization_id", "name"])
+              .select(["id", "organization_id", "name", "project_id", "project_role"])
               .where("bearer_key_hash", "=", hash)
               .where("revoked_at", "is", null)
               .executeTakeFirst(),
           );
-          return row === undefined
-            ? null
-            : { id: row.id, organizationId: row.organization_id, name: row.name };
+          if (row === undefined) {
+            return null;
+          }
+          // Legacy pre-v2 rows (NULL project) never authenticate (spec §1b).
+          if (row.project_id === null || row.project_role === null) {
+            return null;
+          }
+          return {
+            id: row.id,
+            organizationId: row.organization_id,
+            name: row.name,
+            projectId: row.project_id,
+            role: row.project_role,
+          };
         }),
     } satisfies RobotAccountRepository;
   }),

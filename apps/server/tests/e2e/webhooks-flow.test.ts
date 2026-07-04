@@ -10,7 +10,6 @@ describe("Webhooks API flow", () => {
   let projectId: string;
   let webhookId: string;
   let projectScopedId: string;
-  let keyHookId: string;
   let apiKeyValue: string;
 
   // ── Section 1: Auth bootstrap ──────────────────────────────────
@@ -220,55 +219,47 @@ describe("Webhooks API flow", () => {
     expect(response.status).toBe(404);
   });
 
-  // ── Section 5: API key auth ────────────────────────────────────
+  // ── Section 5: Robot bearer auth ───────────────────────────────
 
-  it("creates an API key", async () => {
+  it("creates a project robot account", async () => {
     const response = await post(
-      "/api/auth/api-key/create",
-      { name: "webhook-test-key", organizationId },
+      "/api/robot-accounts",
+      {
+        name: "webhook-test-robot",
+        projectId,
+        role: "maintainer",
+        publicKey: "age1e2efixturewebhooktestrobot",
+        fingerprint: "SHA256:e2e-fixture-webhook-test-robot",
+      },
       { cookie: cookies },
     );
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.key).toMatch(/^bu_/);
-    apiKeyValue = body.key;
-
-    const attach = await post(
-      `/api/api-keys/${body.id}/policies`,
-      { policyId: "managed:admin" },
-      { cookie: cookies },
-    );
-    expect(attach.status).toBe(201);
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    apiKeyValue = body.bearerSecret;
   });
 
-  it("webhook created via API key (Bearer) - 201", async () => {
+  // Webhooks are ORG administration (spec §2): a robot is a project-scoped
+  // token (§1b, v2) and must be locked out of them — even at maintainer.
+  it("robot bearer cannot create a webhook - 403", async () => {
     const response = await post(
       "/api/webhooks",
       { name: "Key hook", url: "https://example.com/key", events: ["update.published"] },
       { authorization: `Bearer ${apiKeyValue}` },
     );
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.organizationId).toBe(organizationId);
-    expect(body.secret).toEqual(expect.any(String));
-    keyHookId = body.id;
+    expect(response.status).toBe(403);
   });
 
-  it("lists webhooks via API key - 200", async () => {
+  it("robot bearer cannot list webhooks - 403", async () => {
     const response = await get("/api/webhooks", { authorization: `Bearer ${apiKeyValue}` });
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(Array.isArray(body.items)).toBe(true);
-    expect(body.items.some((w: { name: string }) => w.name === "Key hook")).toBe(true);
+    expect(response.status).toBe(403);
   });
 
-  it("deletes a webhook via API key - 200 { deleted: 1 }", async () => {
-    const response = await del(`/api/webhooks/${keyHookId}`, {
+  it("robot bearer cannot delete a webhook - 403", async () => {
+    const response = await del(`/api/webhooks/${webhookId}`, {
       authorization: `Bearer ${apiKeyValue}`,
     });
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.deleted).toBe(1);
+    expect(response.status).toBe(403);
   });
 
   // ── Section 6: Deletion behavior ───────────────────────────────

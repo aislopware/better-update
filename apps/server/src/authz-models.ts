@@ -1,86 +1,35 @@
-// Authorization model types — IAM Policy + Group model. Kept out of ./models to
-// stay under the max-lines budget, mirroring ./env-var-models and
-// ./submission-models. The shared permission scalars below are re-exported from
-// ./models for existing consumers.
+// Authorization model types — GitLab-style RBAC (docs/specs/authz/
+// GITLAB-RBAC-SPEC.md). Kept out of ./models to stay under the max-lines
+// budget, mirroring ./env-var-models and ./submission-models. The shared
+// permission scalars below are re-exported from ./models for existing
+// consumers.
 //
-// Design: docs/specs/authz/POLICY-GROUPS-SPEC.md. Access is granted by POLICIES
-// (named JSON documents of allow/deny statements) attached — directly or via
-// GROUPS — to a principal (member / group / robot account), evaluated against
-// an object-scoped, path-glob selector with deny-wins, default-deny resolution.
+// Access is granted by two fixed ladders — an org role (owner | admin |
+// member) plus per-project membership rows (maintainer | developer |
+// reporter) — evaluated against the static matrix in auth/role-matrix.ts.
+// There are no policy documents, no groups, no path globs.
 
-// Built-in preset names back the managed (code-defined) policies; `member.role`
-// is still an arbitrary string but the app only distinguishes "owner" (root
-// bypass) from everything else. `Record<never, never>` is the `ban-types`-clean
-// `string & {}` (keeps built-in autocompletion while accepting any string).
-export type BuiltinRole = "owner" | "admin" | "developer" | "viewer";
-export type Role = BuiltinRole | (string & Record<never, never>);
+import type { Action, OrgRole, ProjectRole, Resource, Role } from "@better-update/api";
 
-export type Resource =
-  | "organization"
-  | "member"
-  | "invitation"
-  // manage IAM policies + groups (org-level)
-  | "policy"
-  | "group"
-  | "project"
-  | "channel"
-  | "branch"
-  | "environment"
-  | "update"
-  | "rollout"
-  | "billing"
-  | "robotAccount"
-  | "build"
-  | "appleCredential"
-  | "androidCredential"
-  | "iosBundleConfiguration"
-  | "envVar"
-  | "auditLog"
-  | "device"
-  | "webhook"
-  | "iosAppMetadata"
-  | "submission"
-  | "vaultAccess";
+export type { Action, OrgRole, ProjectRole, Resource, Role };
 
-export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
+/**
+ * Principals that can hold a project membership row. Robots are NOT project
+ * members — a robot's single project role lives on its `robot_account` row
+ * (spec §1b) — so only org members qualify.
+ */
+export type ProjectPrincipalType = "member";
 
-// -- Policy documents -------------------------------------------------------
-
-export type PolicyEffect = "allow" | "deny";
-
-/** A single permission statement inside a policy document. */
-export interface PolicyStatement {
-  readonly effect: PolicyEffect;
-  /** Action tokens: "resource:action" | "resource:*" | "*". */
-  readonly actions: readonly string[];
-  /** Path-glob selectors: "*", "project/A", "project/*\/env/production", … */
-  readonly resources: readonly string[];
-}
-
-export interface PolicyDocument {
-  readonly statements: readonly PolicyStatement[];
-}
-
-export interface PolicyModel {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly document: PolicyDocument;
-  readonly createdAt: string;
-  readonly updatedAt: string | null;
-}
-
-export interface GroupModel {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly createdAt: string;
-  readonly updatedAt: string | null;
-}
-
-export type PrincipalType = "member" | "group" | "robot";
+/**
+ * Resource kinds a `project_credential_binding` row can point at (spec §1a/
+ * §3c). `appleTeam` cascades to every child credential and the team's devices;
+ * `ascApiKey` is used ONLY for team-less keys; the android kinds are per-row.
+ */
+export type CredentialBindingType =
+  | "appleTeam"
+  | "ascApiKey"
+  | "googleServiceAccountKey"
+  | "androidUploadKeystore";
 
 export type AuditLogSource = "session" | "robot";
 
@@ -90,11 +39,14 @@ export interface CurrentActor {
   readonly organizationId: string;
   // Active-org `member.id`, or `null` for robot principals (no membership row).
   readonly memberId: string | null;
+  /** Raw better-auth `member.role` string; authz reads `orgRole` instead. */
   readonly role: Role | null;
-  /** `member.role === "owner"` — org root: unconditional allow, undeniable. */
+  /** Org ladder position (spec §1); robots carry `robot_account.org_role`. */
+  readonly orgRole: OrgRole;
+  /** `orgRole === "owner"` — org root: unconditional allow, undeniable. */
   readonly isOwner: boolean;
-  /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
-  readonly effectiveStatements: readonly PolicyStatement[];
+  /** `project_member` rows (projectId → role), resolved once per request. */
+  readonly projectRoles: Readonly<Record<string, ProjectRole>>;
   readonly source: AuditLogSource;
   readonly transport: "bearer" | "cookie";
   readonly sessionId: string | null;
@@ -104,47 +56,22 @@ export interface CurrentActor {
   readonly robotId: string | null;
 }
 
-export interface PolicyAttachmentModel {
-  readonly id: string;
-  readonly organizationId: string;
-  /** A real `policy.id` OR a virtual managed preset id ("managed:admin"). */
-  readonly policyId: string;
-  readonly principalType: PrincipalType;
-  readonly principalId: string;
-  readonly createdAt: string;
-}
-
 // -- Object references ------------------------------------------------------
 
 /**
  * Structured target for `assertAccess`, resolved to a canonical path string by
- * `resolvePath` (auth/policy-match.ts). Parent ids are supplied by the call site.
+ * `resolvePath` (auth/policy.ts) for error messages/audit. Parent ids are
+ * supplied by the call site. What matters to the matrix is the `projectId`
+ * (project ladder) and, for kinds that carry an `environment`, the
+ * protected-environment guard (the channel/branch NAME — arbitrary:
+ * "production", "preview", "feature-x").
  *
- * Two subtrees hang under a project's `env/{environment}` segment (SPEC §2):
- *   - the CHANNEL axis (OTA): channel → update / rollout. `environment` is the
- *     channel/branch NAME (arbitrary — "production", "preview", "feature-x");
- *     it feeds both the path and the protected-environment guard in
- *     `assertAccess` (auth/policy.ts).
- *   - the ENV-VAR axis: env (an org environment name) → envVar. `projectId` is
- *     "global" for org-wide vars.
- * Plus per-project build / submission leaves. The "credential" leaf is RESERVED
- * for future per-project credential scoping: credential handlers currently gate at
- * org scope via `assertPermission`, so this variant is defined + unit-tested but is
- * not yet an enforcement target (a `project/.../credential/...` selector has no
- * effect until those handlers adopt it).
- *
- * A separate APPLE-TEAM axis scopes Apple credentials (`appleCredential:*`) by
- * the 10-char Apple Team identifier — the value users see on the Apple portal,
- * so policies written against it stay meaningful ("jmango360-apple-admin"):
- * paths are `appleTeam/{APPLE_TEAM_ID}/credential[/{id}]`, and a selector
- * `appleTeam/{APPLE_TEAM_ID}` covers the whole team by prefix. Every credential
- * type under the team (distribution certs, push keys/certs, pass-type/pay
- * certs, provisioning profiles, ASC API keys) shares ONE leaf: the action
- * namespace is already uniform (`appleCredential:*`), splitting by type would
- * defeat the "one grant covers the team" design. Credentials with NO linked
- * team (ASC keys can be issuer-only) live under the
- * {@link APPLE_TEAMLESS_SEGMENT} sentinel — reachable via team-wide selectors
- * (`*`, `appleTeam/*`) but never via a specific team's selector.
+ * A separate APPLE-TEAM axis scopes Apple credentials by the 10-char Apple
+ * Team identifier (`appleTeam/{T}/credential[/{id}]`). Every credential type
+ * under the team (distribution certs, push keys/certs, pass-type/pay certs,
+ * provisioning profiles, ASC API keys) shares ONE leaf; the team's
+ * `is_protected` flag AND its project bindings cascade to all of them (spec
+ * §1a/§3b). Team-less credentials are always protected and bind per-row.
  */
 export type ObjectRef =
   | { readonly kind: "org" }
@@ -185,9 +112,5 @@ export type ObjectRef =
       readonly rolloutId?: string;
     };
 
-/**
- * Path segment standing in for "no Apple team" on the appleTeam axis. Lowercase
- * 4 chars — can never collide with a real Apple Team identifier (10 uppercase
- * alphanumerics).
- */
-export const APPLE_TEAMLESS_SEGMENT = "none";
+/** Sentinel `projectId` for ORG-GLOBAL env vars (write = org admin, spec §2). */
+export const GLOBAL_ENV_VAR_PROJECT_ID = "global";

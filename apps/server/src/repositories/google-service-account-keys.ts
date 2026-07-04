@@ -34,6 +34,14 @@ export interface GoogleServiceAccountKeyRepository {
     readonly id: string;
   }) => Effect.Effect<GoogleServiceAccountKeyModel, NotFound>;
 
+  /** Toggle the protected-credential flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
+
   readonly delete: (params: {
     readonly id: string;
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
@@ -56,6 +64,7 @@ const toModel = (row: Selectable<GoogleServiceAccountKeys>): GoogleServiceAccoun
   r2Key: row.r2_key,
   wrappedDek: row.wrapped_dek,
   vaultVersion: row.vault_version,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -114,6 +123,19 @@ export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccoun
         return yield* new NotFound({ message: "Service account key not found" });
       }
       return toModel(row);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("google_service_account_keys")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

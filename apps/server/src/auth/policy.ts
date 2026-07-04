@@ -1,12 +1,23 @@
 import { Effect, Option } from "effect";
 
+import { GLOBAL_ENV_VAR_PROJECT_ID } from "../authz-models";
 import { Forbidden } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
 import { ProtectedEnvironmentRepo } from "../repositories/protected-environments";
 import { CurrentActor } from "./current-actor";
-import { actionMatches, isAllowed, resolvePath, selectorMatches } from "./policy-match";
+import {
+  CREDENTIAL_RULES,
+  effectiveProjectRole,
+  meetsAnywhereRequirement,
+  meetsOrgRequirement,
+  ORG_RULES,
+  orgGlobalEnvVarRequirement,
+  PROJECT_RULES,
+  projectRoleAtLeast,
+} from "./role-matrix";
 
 import type { Action, CurrentActor as CurrentActorModel, ObjectRef, Resource } from "../models";
+import type { RoleContext } from "./role-matrix";
 
 const ORG_TARGET: ObjectRef = { kind: "org" };
 
@@ -19,6 +30,65 @@ export interface AssertAccessOptions {
    */
   readonly allowArchived?: boolean;
 }
+
+/**
+ * Resolve an {@link ObjectRef} to its canonical path string — used for error
+ * messages and audit context only (the matrix keys off `projectId` /
+ * `environment` directly). Total.
+ */
+export const resolvePath = (ref: ObjectRef): string => {
+  switch (ref.kind) {
+    case "org": {
+      return "org";
+    }
+    case "appleCredential": {
+      const base = `appleTeam/${ref.appleTeamId}/credential`;
+      return ref.credentialId === undefined ? base : `${base}/${ref.credentialId}`;
+    }
+    case "project": {
+      return `project/${ref.projectId}`;
+    }
+    case "build": {
+      return ref.buildId === undefined
+        ? `project/${ref.projectId}/build`
+        : `project/${ref.projectId}/build/${ref.buildId}`;
+    }
+    case "credential": {
+      return ref.credentialId === undefined
+        ? `project/${ref.projectId}/credential`
+        : `project/${ref.projectId}/credential/${ref.credentialId}`;
+    }
+    case "submission": {
+      return ref.submissionId === undefined
+        ? `project/${ref.projectId}/submission`
+        : `project/${ref.projectId}/submission/${ref.submissionId}`;
+    }
+    case "environment": {
+      return `project/${ref.projectId}/env/${ref.environment}`;
+    }
+    case "envVar": {
+      return ref.key === undefined
+        ? `project/${ref.projectId}/env/${ref.environment}/envVar`
+        : `project/${ref.projectId}/env/${ref.environment}/envVar/${ref.key}`;
+    }
+    case "channel": {
+      return `project/${ref.projectId}/env/${ref.environment}/channel/${ref.channelId}`;
+    }
+    case "update": {
+      const base = `project/${ref.projectId}/env/${ref.environment}/channel/${ref.channelId}`;
+      return ref.updateId === undefined ? `${base}/update` : `${base}/update/${ref.updateId}`;
+    }
+    case "rollout": {
+      const base = `project/${ref.projectId}/env/${ref.environment}/channel/${ref.channelId}`;
+      return ref.rolloutId === undefined ? `${base}/rollout` : `${base}/rollout/${ref.rolloutId}`;
+    }
+    default: {
+      // Exhaustiveness: a newly added kind without a case above fails to
+      // type-check instead of silently falling through to the org path.
+      return ref satisfies never;
+    }
+  }
+};
 
 // Project id of a target, when it has one. Org- and Apple-team-scoped targets
 // are not project writes, so the archived guard skips them.
@@ -73,14 +143,11 @@ const assertProjectWritable = (
     }
   });
 
-// -- Protected-environment guard (ROLES-CAPABILITIES-SPEC §2d) ---------------
+// -- Protected-environment guard (GITLAB-RBAC-SPEC §3a) -----------------------
 // GitLab-protected-branches analogue: a WRITE into a protected environment
-// additionally requires `environment:update` on `project/{id}/env/{E}`.
-// Compiled project roles differ exactly there — maintainer holds the token at
-// its project root, developer does not — and a custom policy can grant a
-// targeted override (e.g. `environment:update` on `project/*/env/production`).
-// Allow-conjunction (never a deny statement), so grants keep composing:
-// `developer@*` + `maintainer@A` still writes A's production.
+// additionally requires MAINTAINER on the target's project. Allow-conjunction
+// (checked after the base matrix allow), so a developer keeps every
+// non-protected write while production stays maintainer-only.
 
 const isWriteAction = (action: Action): boolean => action !== "read" && action !== "download";
 
@@ -116,20 +183,66 @@ const assertProtectedEnvironmentWritable = (
     if (!protectedSet.has(envTarget.environment)) {
       return;
     }
-    const guardPath = `project/${envTarget.projectId}/env/${envTarget.environment}`;
-    if (!isAllowed(ctx.effectiveStatements, "environment:update", guardPath)) {
+    if (!projectRoleAtLeast(effectiveProjectRole(ctx, envTarget.projectId), "maintainer")) {
       return yield* new Forbidden({
-        message: `Environment "${envTarget.environment}" is protected — writing requires environment:update on it (Maintainer role or an explicit grant)`,
+        message: `Environment "${envTarget.environment}" is protected — writing requires the Maintainer role on this project`,
       });
     }
   });
 
+// -- Matrix evaluation ---------------------------------------------------------
+
+const denied = (token: string, path: string) =>
+  new Forbidden({ message: `Insufficient permission: ${token} on ${path}` });
+
 /**
- * The single authorization gate. Evaluates `resource:action` on `target` against
- * the principal's effective policy statements with DENY-WINS, DEFAULT-DENY
- * resolution. Bypass order: platform superadmin, then org owner (root,
- * undeniable). `target` defaults to the org level. See
- * docs/specs/authz/POLICY-GROUPS-SPEC.md §7.
+ * Pure matrix decision (no owner/superadmin bypass — the caller applies it):
+ * org-scoped tokens use the org ladder; project-scoped tokens use the
+ * effective project role; org-GLOBAL env vars get their special ladder
+ * (spec §2). Credential/device tokens are NOT decided here — their gate needs
+ * the binding set (spec §1a, v2) and lives in the credential access helpers.
+ * Tokens absent from every table are denied.
+ */
+export const matrixAllows = (
+  ctx: RoleContext,
+  resource: Resource,
+  action: Action,
+  target: ObjectRef,
+): boolean => {
+  const token = `${resource}:${action}` as const;
+  const projectId = projectIdOf(target);
+
+  if (projectId === null) {
+    const orgRequirement = ORG_RULES[token];
+    return orgRequirement !== undefined && meetsOrgRequirement(ctx.orgRole, orgRequirement);
+  }
+
+  // Org-GLOBAL env vars: reads at developer-anywhere, writes are org admin.
+  if (target.kind === "envVar" && projectId === GLOBAL_ENV_VAR_PROJECT_ID) {
+    const requirement = orgGlobalEnvVarRequirement(action);
+    return requirement === "anywhere-read"
+      ? meetsAnywhereRequirement(ctx, "developer")
+      : meetsOrgRequirement(ctx.orgRole, requirement);
+  }
+
+  const minRole = PROJECT_RULES[token];
+  if (minRole !== undefined) {
+    return projectRoleAtLeast(effectiveProjectRole(ctx, projectId), minRole);
+  }
+  // Org-rule fallback for tokens like `project:delete` whose call sites carry
+  // a project target.
+  const orgRequirement = ORG_RULES[token];
+  return orgRequirement !== undefined && meetsOrgRequirement(ctx.orgRole, orgRequirement);
+};
+
+/**
+ * The single authorization gate (GITLAB-RBAC-SPEC §4b). Evaluates
+ * `resource:action` on `target` against the static role matrix: org-scoped
+ * tokens use the org ladder (or the anywhere-rank for org-shared build
+ * inputs), project-scoped tokens use the principal's effective role on the
+ * target's project. Bypass order: platform superadmin, then org owner (root,
+ * undeniable). `target` defaults to the org level. Tokens absent from the
+ * matrix are denied for everyone below owner (default-deny).
  *
  * Project-scoped WRITES additionally pass through the archived read-only guard
  * (before any role bypass) — an archived project rejects mutations with 403 until
@@ -137,7 +250,7 @@ const assertProtectedEnvironmentWritable = (
  *
  * Writes whose target carries an `environment` additionally pass the
  * protected-environment guard (after the base allow): a protected environment
- * requires `environment:update` on `project/{id}/env/{E}`.
+ * requires Maintainer on the project (spec §3a).
  */
 export const assertAccess = (
   resource: Resource,
@@ -152,23 +265,21 @@ export const assertAccess = (
     if (ctx.isSuperadmin || ctx.isOwner) {
       return;
     }
-    const token = `${resource}:${action}`;
-    const path = resolvePath(objectTarget);
-    if (!isAllowed(ctx.effectiveStatements, token, path)) {
-      return yield* new Forbidden({ message: `Insufficient permission: ${token} on ${path}` });
+    if (!matrixAllows(ctx, resource, action, objectTarget)) {
+      return yield* denied(`${resource}:${action}`, resolvePath(objectTarget));
     }
     yield* assertProtectedEnvironmentWritable(ctx, action, objectTarget);
   });
 
 /**
- * Capability gate for object-scoped actions whose concrete target is not yet
- * known (e.g. content-addressed asset finalize, which has no project context).
- * Passes if the principal holds an `allow` for `resource:action` on ANY scope
- * that is not fully overridden by a matching `deny` — a coarse "can do this
- * somewhere" check, NOT a per-object grant. Deny-aware so it upholds the
- * deny-wins invariant every other gate enforces: a net-zero `allow *` + `deny *`
- * does NOT pass. Use sparingly, only where a precise {@link assertAccess} target
- * genuinely cannot be resolved.
+ * Capability gate for actions whose concrete target is not yet known (e.g.
+ * content-addressed asset finalize, credential list endpoints). Passes if the
+ * principal could perform `resource:action` SOMEWHERE — i.e. their
+ * anywhere-rank meets the token's credential/project rule — a coarse "can do
+ * this somewhere" PRE-gate, NOT a per-object grant: credential rows are
+ * additionally filtered/gated by their project bindings (spec §1a, v2). Use
+ * sparingly, only where a precise {@link assertAccess} target genuinely
+ * cannot be resolved.
  */
 export const assertAccessAny = (resource: Resource, action: Action) =>
   Effect.gen(function* () {
@@ -176,30 +287,30 @@ export const assertAccessAny = (resource: Resource, action: Action) =>
     if (ctx.isSuperadmin || ctx.isOwner) {
       return;
     }
-    const token = `${resource}:${action}`;
-    const allowSelectors = ctx.effectiveStatements
-      .filter(
-        (statement) => statement.effect === "allow" && actionMatches(statement.actions, token),
-      )
-      .flatMap((statement) => statement.resources);
-    const denyStatements = ctx.effectiveStatements.filter(
-      (statement) => statement.effect === "deny" && actionMatches(statement.actions, token),
-    );
-    // Holds if some allow selector survives every matching deny — i.e. no deny
-    // selector covers that whole allow scope, so at least one path stays allowed.
-    const holds = allowSelectors.some(
-      (allowSelector) =>
-        !denyStatements.some((deny) =>
-          deny.resources.some((denySelector) => selectorMatches(denySelector, allowSelector)),
-        ),
-    );
-    if (!holds) {
-      return yield* new Forbidden({ message: `Insufficient permission: ${token}` });
+    const token = `${resource}:${action}` as const;
+    const minRole = CREDENTIAL_RULES[token] ?? PROJECT_RULES[token];
+    if (minRole !== undefined && meetsAnywhereRequirement(ctx, minRole)) {
+      return;
     }
+    const orgRequirement = ORG_RULES[token];
+    if (orgRequirement !== undefined && meetsOrgRequirement(ctx.orgRole, orgRequirement)) {
+      return;
+    }
+    return yield* new Forbidden({ message: `Insufficient permission: ${token}` });
   });
 
+// Gate for org administration without a dedicated matrix token (the
+// protected-resource toggles): owner/superadmin bypass, org admin passes.
+export const assertOrgAdmin = Effect.gen(function* () {
+  const ctx = yield* CurrentActor;
+  if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
+    return;
+  }
+  return yield* new Forbidden({ message: "Org admin access required" });
+});
+
 // Gate for the platform admin surface: requires the global (cross-org)
-// superadmin flag, not a per-org membership role or policy.
+// superadmin flag, not a per-org membership role.
 export const assertSuperadmin = Effect.gen(function* () {
   const ctx = yield* CurrentActor;
   if (!ctx.isSuperadmin) {

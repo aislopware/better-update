@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Effect, Option } from "effect";
 
 import type { FileSystem } from "@effect/platform";
@@ -59,6 +60,22 @@ export const readProjectId: Effect.Effect<
 
   return yield* new ProjectNotLinkedError({ message: PROJECT_NOT_LINKED_MESSAGE });
 });
+
+/**
+ * Spreadable `{ projectId }` fragment for credential CREATE payloads: the
+ * linked project id when the CLI runs inside a linked project (so the server
+ * auto-binds the new credential — or its Apple team — to that project,
+ * GITLAB-RBAC-SPEC §1a), empty otherwise. Never fails and never prompts, so
+ * it changes no command's flag surface.
+ */
+export const autoBindProjectId: Effect.Effect<
+  { readonly projectId?: string },
+  never,
+  CliRuntime | FileSystem.FileSystem
+> = readProjectId.pipe(
+  Effect.orElseSucceed(() => undefined),
+  Effect.map((projectId) => compact({ projectId })),
+);
 
 /**
  * Read the Expo config without failing: `Option.some(config)` when an Expo

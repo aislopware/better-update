@@ -3,10 +3,8 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
-import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
-import { isAllowed, resolvePath } from "../auth/policy-match";
 import { Conflict } from "../errors";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
@@ -76,7 +74,6 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          const ctx = yield* CurrentActor;
           const repo = yield* BranchRepo;
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseBranchSort(urlParams.sort);
@@ -90,28 +87,14 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             offset,
           });
 
-          // Per-branch read filter (deny-wins): a branch's NAME is its environment
-          // segment, so an environment-scoped grant sees its own branches instead
-          // of a blanket 403. Owner/superadmin (and project-wide `branch:read`)
-          // see everything.
-          const bypass = ctx.isSuperadmin || ctx.isOwner;
-          const visible = bypass
-            ? items
-            : items.filter((branch) =>
-                isAllowed(
-                  ctx.effectiveStatements,
-                  "branch:read",
-                  resolvePath({
-                    kind: "environment",
-                    projectId: urlParams.projectId,
-                    environment: branch.name,
-                  }),
-                ),
-              );
+          // Roles are project-wide (GITLAB-RBAC-SPEC §1): the branch:read gate
+          // above already admitted the caller to the whole project, so every
+          // branch is visible — no per-environment filtering.
+          const visible = items;
 
           return {
             items: visible.map(toApiBranch),
-            total: bypass ? total : visible.length,
+            total,
             page,
             limit,
           };

@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields } from "./apple-team";
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 /**
@@ -30,6 +31,7 @@ export class ApplePushCertificate extends Schema.Class<ApplePushCertificate>(
  * the server stores the envelope and metadata and never sees the plaintext.
  */
 export const UploadApplePushCertificateBody = Schema.Struct({
+  ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
   bundleIdentifier: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),

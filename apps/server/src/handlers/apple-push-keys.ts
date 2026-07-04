@@ -4,6 +4,7 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
+import { assertBindableProject, autoBindCredential } from "../application/auto-bind-credential";
 import { logAudit } from "../audit/logger";
 import {
   assertAppleCredentialAccess,
@@ -12,7 +13,7 @@ import {
 } from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertAccess, assertAccessAny } from "../auth/policy";
+import { assertAccessAny } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest } from "../errors";
 import { toApiApplePushKey } from "../http/to-api";
@@ -44,11 +45,7 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
             const ctx = yield* CurrentActor;
             const repo = yield* ApplePushKeyRepo;
             const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-            const visible = yield* filterByAppleTeamRead(
-              items,
-              (item) => item.appleTeamId,
-              (item) => item.id,
-            );
+            const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId);
             return { items: visible.map(toApiApplePushKey) };
           }),
         ),
@@ -56,7 +53,11 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
       .handle("upload", ({ payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertAppleCredentialCreate(payload.appleTeamIdentifier);
+            yield* assertAppleCredentialCreate({
+              appleTeamIdentifier: payload.appleTeamIdentifier,
+              projectId: payload.projectId,
+            });
+            yield* assertBindableProject(payload.projectId);
             const ctx = yield* CurrentActor;
             const artifacts = yield* CredentialArtifacts;
             const teams = yield* AppleTeamRepo;
@@ -74,6 +75,12 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
               appleTeamId: payload.appleTeamIdentifier,
               appleTeamType: payload.appleTeamType ?? "COMPANY_ORGANIZATION",
               name: toDbNull(payload.appleTeamName),
+            });
+
+            yield* autoBindCredential({
+              resourceType: "appleTeam",
+              resourceId: team.id,
+              projectId: payload.projectId,
             });
 
             const r2Key = `apple-push-keys/${ctx.organizationId}/${crypto.randomUUID()}.p8.enc`;
@@ -125,7 +132,6 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAppleCredentialAccess({
               action: "delete",
-              credentialId: path.id,
               appleTeamRowId: existing.appleTeamId,
             });
             const { r2Key } = yield* repo.delete({ id: path.id });
@@ -152,10 +158,9 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
             const team = yield* teams.findById({ id: existing.appleTeamId });
-            yield* assertAccess("appleCredential", "download", {
-              kind: "appleCredential",
-              appleTeamId: team.appleTeamId,
-              credentialId: existing.id,
+            yield* assertAppleCredentialAccess({
+              action: "download",
+              appleTeamRowId: existing.appleTeamId,
             });
 
             const blob = yield* artifacts.get(existing.r2Key, "Push key");

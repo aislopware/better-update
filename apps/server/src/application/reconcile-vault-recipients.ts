@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 
-import { resolveEffectiveStatements } from "../auth/middleware";
+import { toOrgRole } from "../auth/middleware";
 import { roleIsOwner } from "../auth/owner";
-import { isAllowed } from "../auth/policy-match";
+import { meetsOrgRequirement } from "../auth/role-matrix";
 import { roleIsSuperadmin } from "../auth/superadmin";
 import { AccountKeyRepo } from "../repositories/account-keys";
 import { MemberRepo } from "../repositories/member-repo";
@@ -53,9 +53,9 @@ const envRecipientUserIds = (params: {
   });
 
 // Mirror the request-time gate (auth/policy.ts assertAccess): owner + superadmin
-// bypass; otherwise effective statements must allow `vaultAccess:read`. Resolved
-// off-request from the persisted policies/groups, so it reflects the live state
-// after the IAM mutation that triggered the reconcile.
+// bypass; otherwise `vaultAccess:read` is an org-admin rule (GITLAB-RBAC-SPEC
+// §2). Resolved off-request from the persisted member row, so it reflects the
+// live state after the IAM mutation that triggered the reconcile.
 const userStillHasVaultAccess = (params: {
   readonly organizationId: string;
   readonly userId: string;
@@ -70,11 +70,7 @@ const userStillHasVaultAccess = (params: {
     if (roleIsOwner(auth.memberRole) || roleIsSuperadmin(auth.userRole)) {
       return true;
     }
-    const statements = yield* resolveEffectiveStatements({
-      organizationId: params.organizationId,
-      memberId: auth.memberId,
-    });
-    return isAllowed(statements, "vaultAccess:read", "org");
+    return meetsOrgRequirement(toOrgRole(auth.memberRole), "admin");
   });
 
 /**

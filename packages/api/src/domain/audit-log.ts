@@ -22,6 +22,7 @@ export const AuditLogResourceType = Schema.Literal(
   "group",
   "policyAttachment",
   "robotAccount",
+  "credentialBinding",
   "invitation",
   "member",
   "organization",

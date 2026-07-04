@@ -12,7 +12,7 @@ export { invitationsQueryKey, invitationsQueryOptions } from "@better-update/api
 export type { InvitationItem } from "@better-update/api-client/react";
 
 // The current actor + active org, including the per-action capabilities the
-// Members page gates on (canInviteMembers / canRemoveMembers / canManagePolicies).
+// Members page gates on (canInviteMembers / canRemoveMembers).
 // Computed server-side so the UI never diverges from the authorization gate.
 // Re-exported here so route imports keep their path.
 export { meQueryKey, meQueryOptions } from "@better-update/api-client/react";

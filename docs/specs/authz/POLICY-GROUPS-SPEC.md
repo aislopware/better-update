@@ -1,8 +1,10 @@
 # IAM Policy + Group Authorization — Authoritative Implementation Spec
 
-Status: AUTHORITATIVE. Supersedes the role/grant model in `SPEC.md` +
-`env-grants-SPEC.md` (those two describe the legacy `organization_role` /
-`environment_grant` system this spec REPLACES). Implementers follow this EXACTLY.
+Status: SUPERSEDED (2026-07-03) by `GITLAB-RBAC-SPEC.md` — the policy/group
+engine described here was REMOVED (fixed roles + project membership replaced
+it; migrations 0086–0090). Kept for history only. It had superseded the
+role/grant model in `SPEC.md` + `env-grants-SPEC.md` (the legacy
+`organization_role` / `environment_grant` system).
 
 Toolchain reminders (project rules): `bun`/`bunx` only; `bun run lint` for
 lint+typecheck; `bun run format` (oxfmt). Extensionless imports. No `== null`

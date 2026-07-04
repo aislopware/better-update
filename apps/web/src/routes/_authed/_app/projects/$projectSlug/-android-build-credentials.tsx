@@ -1,7 +1,10 @@
 import {
   androidApplicationIdentifiersQueryOptions,
   androidBuildCredentialsQueryOptions,
+  androidUploadKeystoresQueryKey,
   androidUploadKeystoresQueryOptions,
+  meQueryOptions,
+  setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardPanel } from "@better-update/ui/components/ui/card";
@@ -21,7 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { toastManager } from "@better-update/ui/components/ui/toast";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -30,8 +34,12 @@ import type {
   AndroidUploadKeystoreItem,
 } from "@better-update/api-client/react";
 
+import { BoundProjectsCell } from "../../-credential-bindings";
+import { ProtectionCell } from "../../-credential-cells";
+import { isOrgAdmin } from "../../../../../lib/access";
 import { CopyButton } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
 import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
 
@@ -52,7 +60,69 @@ const FingerprintCell = ({ value, label }: { value: string | null; label: string
     </span>
   );
 
-const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null }) => (
+// Per-row protection toggle (GITLAB-RBAC-SPEC §3b): protected keystores are
+// restricted to Maintainers; only org admins/owners may flip the switch.
+const KeystoreProtectionSwitch = ({
+  orgId,
+  keystore,
+}: {
+  orgId: string;
+  keystore: AndroidUploadKeystoreItem;
+}) => {
+  const queryClient = useQueryClient();
+  const { data: me } = useSuspenseQuery(meQueryOptions());
+  const protectionMutation = useApiMutation({
+    mutationFn: async (next: boolean) => setAndroidUploadKeystoreProtection(keystore.id, next),
+    onSuccess: async (_result, next) => {
+      toastManager.add({
+        title: next ? "Keystore protected" : "Keystore unprotected",
+        type: "success",
+      });
+      await queryClient.invalidateQueries({ queryKey: androidUploadKeystoresQueryKey(orgId) });
+    },
+  });
+  return (
+    <ProtectionCell
+      label={`Protect ${keystore.keyAlias}`}
+      checked={keystore.protected}
+      canManage={isOrgAdmin(me.orgRole)}
+      isPending={protectionMutation.isPending}
+      onToggle={(next) => {
+        protectionMutation.mutate(next);
+      }}
+    />
+  );
+};
+
+// Per-row binding chips + admin-only manage dialog (GITLAB-RBAC-SPEC §1a):
+// upload keystores bind to projects individually, same gate as protection.
+const KeystoreBindingsCell = ({
+  orgId,
+  keystore,
+}: {
+  orgId: string;
+  keystore: AndroidUploadKeystoreItem;
+}) => {
+  const { data: me } = useSuspenseQuery(meQueryOptions());
+  return (
+    <BoundProjectsCell
+      orgId={orgId}
+      resourceType="androidUploadKeystore"
+      resourceId={keystore.id}
+      resourceLabel={`the ${keystore.keyAlias} keystore`}
+      boundProjectIds={keystore.boundProjectIds}
+      canManage={isOrgAdmin(me.orgRole)}
+    />
+  );
+};
+
+const KeystoreCard = ({
+  orgId,
+  keystore,
+}: {
+  orgId: string;
+  keystore: AndroidUploadKeystoreItem | null;
+}) => (
   <CredentialFrame title="Android upload keystore">
     {keystore === null ? (
       <EmptyBindingPanel message="No upload keystore bound — bind one with the CLI." />
@@ -64,6 +134,8 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
             <TableHead>Type</TableHead>
             <TableHead>SHA-1 Fingerprint</TableHead>
             <TableHead>SHA-256 Fingerprint</TableHead>
+            <TableHead>Protected</TableHead>
+            <TableHead>Projects</TableHead>
             <TableHead>Uploaded at</TableHead>
           </TableRow>
         </TableHeader>
@@ -82,6 +154,12 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
             </TableCell>
             <TableCell>
               <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
+            </TableCell>
+            <TableCell>
+              <KeystoreProtectionSwitch orgId={orgId} keystore={keystore} />
+            </TableCell>
+            <TableCell>
+              <KeystoreBindingsCell orgId={orgId} keystore={keystore} />
             </TableCell>
             <TableCell className="text-muted-foreground">
               {formatShortDateTime(keystore.updatedAt)}
@@ -212,7 +290,7 @@ export const AndroidBuildCredentialsSection = ({
             onChange={setSelectedId}
             group={group}
           />
-          <KeystoreCard keystore={keystore} />
+          <KeystoreCard orgId={orgId} keystore={keystore} />
         </>
       )}
     </section>

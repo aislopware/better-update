@@ -28,6 +28,7 @@ import {
 import { extractMetadataFromP12, normalizeAppleSerial } from "./apple-cert-to-p12";
 import { fetchAscCredentials } from "./asc-credentials";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
+import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -141,6 +142,7 @@ export const generateAndUploadDistributionCertificate = (
           appleTeamName: toOptional(metadata.appleTeamName),
           developerIdIdentifier: toOptional(metadata.developerIdIdentifier),
         }),
+        ...(yield* autoBindProjectId),
       },
     });
 
@@ -405,6 +407,7 @@ export const generateAndUploadProvisioningProfile = (
         appleDistributionCertificateId: input.distributionCertificateId,
         isManaged: true,
         ...compact({ deviceRosterHash: rosterHash }),
+        ...(yield* autoBindProjectId),
       },
     });
 

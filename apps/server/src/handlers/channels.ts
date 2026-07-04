@@ -3,10 +3,8 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
-import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
-import { isAllowed, resolvePath } from "../auth/policy-match";
 import {
   buildBranchMapping,
   extractNewBranchId,
@@ -104,7 +102,6 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          const ctx = yield* CurrentActor;
           const repo = yield* ChannelRepo;
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseChannelSort(urlParams.sort);
@@ -118,29 +115,14 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             offset,
           });
 
-          // Per-channel read filter (deny-wins), so an environment-scoped grant
-          // sees its own channels here instead of a blanket 403 — the channel's
-          // NAME is its environment segment, matching the by-id write gates.
-          // Owner/superadmin (and project-wide `channel:read`) see everything.
-          const bypass = ctx.isSuperadmin || ctx.isOwner;
-          const visible = bypass
-            ? items
-            : items.filter((channel) =>
-                isAllowed(
-                  ctx.effectiveStatements,
-                  "channel:read",
-                  resolvePath({
-                    kind: "channel",
-                    projectId: urlParams.projectId,
-                    environment: channel.name,
-                    channelId: channel.id,
-                  }),
-                ),
-              );
+          // Roles are project-wide (GITLAB-RBAC-SPEC §1): the channel:read gate
+          // above already admitted the caller to the whole project, so every
+          // channel is visible — no per-environment filtering.
+          const visible = items;
 
           return {
             items: visible.map(toApiChannel),
-            total: bypass ? total : visible.length,
+            total,
             page,
             limit,
           };

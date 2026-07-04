@@ -5,7 +5,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
-import { isAllowed } from "../auth/policy-match";
+import { matrixAllows } from "../auth/policy";
 import { BadRequest } from "../errors";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiUserEncryptionKey } from "../http/to-api-vault";
@@ -28,7 +28,7 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
             const canGrant =
               ctx.isSuperadmin ||
               ctx.isOwner ||
-              isAllowed(ctx.effectiveStatements, "vaultAccess:create", "org");
+              matrixAllows(ctx, "vaultAccess", "create", { kind: "org" });
             const items = yield* canGrant
               ? repo.listGrantable({ organizationId: ctx.organizationId })
               : repo.listForActor({ organizationId: ctx.organizationId, userId: ctx.userId });

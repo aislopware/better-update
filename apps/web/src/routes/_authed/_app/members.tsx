@@ -1,4 +1,3 @@
-import { memberAccessSummariesQueryOptions } from "@better-update/api-client/react";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -84,25 +83,13 @@ const MembersContent = () => {
   });
 
   // Per-action capabilities come from the server, not the role string — each
-  // mirrors the exact token its endpoint gates on (invitation:create / member:delete
-  // / policy:update on org). A role-"member" principal holding managed:admin (or a
-  // matching custom policy) sees exactly the actions it can actually perform.
+  // mirrors the exact token its endpoint gates on (invitation:create /
+  // member:delete / member:update on org). The role select is additionally
+  // owner-only: granting/revoking admin is an owner power (GITLAB-RBAC-SPEC §2).
   const { data: me } = useSuspenseQuery(meQueryOptions());
-  const { canInviteMembers, canRemoveMembers, canManagePolicies, canViewPolicies } = me;
-
-  // Access chips need policy:read; without it the table falls back to the
-  // plain owner/member badge.
-  const { data: accessSummaryItems } = useQuery({
-    ...memberAccessSummariesQueryOptions(orgId),
-    enabled: canViewPolicies,
-  });
-  const accessSummaries = useMemo(
-    () =>
-      accessSummaryItems
-        ? new Map(accessSummaryItems.map((item) => [item.memberId, item]))
-        : undefined,
-    [accessSummaryItems],
-  );
+  const { canInviteMembers, canRemoveMembers, canManageMembers, orgRole } = me;
+  const isOwner = orgRole === "owner";
+  const canEditOrgRoles = canManageMembers && isOwner;
 
   // The IAM list endpoint returns invitations with ISO-string `expiresAt` and a
   // nullable `role`; map them to the table's `InvitationInput` shape (Date +
@@ -125,8 +112,10 @@ const MembersContent = () => {
     removeMemberId,
     setRemoveMemberId,
     handleRemove,
+    handleRoleChange,
     handleCancelInvitation,
     memberPendingId,
+    rolePendingId,
     invitationPendingId,
     isRemoving,
   } = useMembersHandlers(orgId);
@@ -140,7 +129,9 @@ const MembersContent = () => {
     [statusFilter, pendingInvitations],
   );
   const visibleCount = filteredMembers.length + filteredInvitations.length;
-  const headerActions = canInviteMembers ? <InviteDialog orgId={orgId} /> : undefined;
+  const headerActions = canInviteMembers ? (
+    <InviteDialog orgId={orgId} isOwner={isOwner} />
+  ) : undefined;
   const countLabel = `${visibleCount} ${pluralize(visibleCount, "member")}`;
 
   const isOrgEmpty =
@@ -205,20 +196,20 @@ const MembersContent = () => {
           </Card>
         ) : (
           <MembersTableView
-            orgId={orgId}
             members={filteredMembers}
             invitations={filteredInvitations}
             currentUserId={user.id}
             canRemoveMembers={canRemoveMembers}
-            canManagePolicies={canManagePolicies}
-            accessSummaries={accessSummaries}
+            canEditOrgRoles={canEditOrgRoles}
             pendingMemberId={memberPendingId}
             pendingInvitationId={invitationPendingId}
+            pendingRoleMemberId={rolePendingId}
             countLabel={countLabel}
             sorting={sorting}
             onSortingChange={onSortingChange}
             onRemove={setRemoveMemberId}
             onCancelInvitation={handleCancelInvitation}
+            onRoleChange={handleRoleChange}
           />
         )}
       </div>

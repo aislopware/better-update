@@ -5,9 +5,9 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { syncAppleDevices } from "../application/sync-apple-devices";
 import { logAudit } from "../audit/logger";
+import { assertDeviceAccess, readableAppleTeamRowIds } from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
 import { normalizeIdentifier } from "../domain/device";
 import { NotFound } from "../errors";
@@ -67,9 +67,15 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("register", ({ payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "create");
-          const ctx = yield* CurrentActor;
           yield* assertAppleTeamInOrg(payload.appleTeamId);
+          // Devices ride their team's project bindings (spec §1a): create
+          // needs Developer on a bound project; team-less devices are
+          // admin-only.
+          yield* assertDeviceAccess({
+            action: "create",
+            appleTeamRowId: toDbNull(payload.appleTeamId),
+          });
+          const ctx = yield* CurrentActor;
           const repo = yield* DeviceRepo;
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
@@ -105,12 +111,14 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("list", ({ urlParams }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRepo;
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseDeviceSort(urlParams.sort);
 
+          // Binding scope (spec §1a): admin tier sees everything; members
+          // see only devices of teams bound to a project they can read.
+          const readableTeams = yield* readableAppleTeamRowIds;
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
             sort,
@@ -119,6 +127,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
             offset,
             deviceClass: urlParams.deviceClass,
             appleTeamId: urlParams.appleTeamId,
+            appleTeamIdIn: readableTeams === "all" ? undefined : readableTeams,
             query: urlParams.query,
           });
 
@@ -129,10 +138,10 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("get", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "read");
           const repo = yield* DeviceRepo;
           const device = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(device.organizationId);
+          yield* assertDeviceAccess({ action: "read", appleTeamRowId: device.appleTeamId });
           return toApiDevice(device);
         }),
       ),
@@ -140,11 +149,17 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("update", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "update");
           const repo = yield* DeviceRepo;
           const device = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(device.organizationId);
           yield* assertAppleTeamInOrg(payload.appleTeamId);
+          yield* assertDeviceAccess({ action: "update", appleTeamRowId: device.appleTeamId });
+          if (payload.appleTeamId !== undefined && payload.appleTeamId !== device.appleTeamId) {
+            yield* assertDeviceAccess({
+              action: "update",
+              appleTeamRowId: payload.appleTeamId,
+            });
+          }
 
           const now = new Date().toISOString();
           yield* repo.update({
@@ -182,10 +197,10 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "delete");
           const repo = yield* DeviceRepo;
           const device = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(device.organizationId);
+          yield* assertDeviceAccess({ action: "delete", appleTeamRowId: device.appleTeamId });
           yield* repo.delete({ id: path.id });
 
           yield* logAudit({
@@ -202,9 +217,9 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("syncDevices", ({ payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "create");
-          const ctx = yield* CurrentActor;
           yield* assertAppleTeamInOrg(payload.appleTeamId);
+          yield* assertDeviceAccess({ action: "create", appleTeamRowId: payload.appleTeamId });
+          const ctx = yield* CurrentActor;
 
           const result = yield* syncAppleDevices({
             organizationId: ctx.organizationId,
@@ -230,9 +245,12 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("createRegistrationRequest", ({ payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "create");
-          const ctx = yield* CurrentActor;
           yield* assertAppleTeamInOrg(payload.appleTeamId);
+          yield* assertDeviceAccess({
+            action: "create",
+            appleTeamRowId: toDbNull(payload.appleTeamId),
+          });
+          const ctx = yield* CurrentActor;
           const repo = yield* DeviceRegistrationRequestRepo;
           const env = yield* cloudflareEnv;
           const origin = env.PUBLIC_API_URL;
@@ -274,7 +292,6 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
     .handle("listRegistrationRequests", ({ urlParams }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("device", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRegistrationRequestRepo;
           const env = yield* cloudflareEnv;
@@ -287,8 +304,18 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
             now: new Date().toISOString(),
           });
 
+          // Binding scope (spec §1a): members see only requests for teams
+          // they can read; team-less requests stay admin-only.
+          const readableTeams = yield* readableAppleTeamRowIds;
+          const visible =
+            readableTeams === "all"
+              ? items
+              : items.filter(
+                  (item) => item.appleTeamId !== null && readableTeams.includes(item.appleTeamId),
+                );
+
           return {
-            items: items.map((item) =>
+            items: visible.map((item) =>
               toApiDeviceRegistrationRequest(item, `${origin}/register-device/${item.id}`),
             ),
           };

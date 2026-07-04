@@ -12,6 +12,7 @@ import {
   toUploadEnvelope,
 } from "../application/credential-cipher";
 import { AppleIdGenerateFailedError, messageOf, wrap } from "./credentials-generator-apple";
+import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -183,7 +184,12 @@ export const generateAndUploadAscApiKeyViaAppleId = (
       const created = yield* api.ascApiKeys.upload({
         // Persist the role we created the key with so the dashboard's Roles column
         // reflects it (matches Apple's UserRole string: ADMIN / APP_MANAGER).
-        payload: { ...toUploadEnvelope(envelope), ...metadata, roles: [input.role] },
+        payload: {
+          ...toUploadEnvelope(envelope),
+          ...metadata,
+          roles: [input.role],
+          ...(yield* autoBindProjectId),
+        },
       });
       return { id: created.id, issuerId };
     });

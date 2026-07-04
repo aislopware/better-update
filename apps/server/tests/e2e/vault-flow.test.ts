@@ -100,7 +100,33 @@ describe("Credential vault lifecycle", () => {
     expect(recoveryKey.organizationId).toBe(organizationId);
     recovery = recoveryKey.id;
 
-    machine = await idOf(await registerKey(cookiesA, "machine", "CI runner"));
+    // Machine keys are minted only alongside a robot account (the register
+    // endpoint rejects kind=machine) — the robot row carries the vault
+    // recipient's `userEncryptionKeyId`. Robots are project-scoped (spec
+    // §1b, v2), so mint a fixture project to hang it on.
+    const projectRes = await post(
+      "/api/projects",
+      { name: "Vault Fixture", slug: "vault-fixture" },
+      { cookie: cookiesA },
+    );
+    expect(projectRes.status).toBe(201);
+    const fixtureProjectId = (await projectRes.json()).id as string;
+
+    const robotRes = await post(
+      "/api/robot-accounts",
+      {
+        name: "CI runner",
+        projectId: fixtureProjectId,
+        role: "developer",
+        publicKey: `age1${rand()}${rand()}`,
+        fingerprint: `SHA256:${rand()}`,
+      },
+      { cookie: cookiesA },
+    );
+    expect(robotRes.status).toBe(201);
+    const robot = await robotRes.json();
+    expect(robot.userEncryptionKeyId).not.toBeNull();
+    machine = robot.userEncryptionKeyId;
   });
 
   it("lists the caller's own device key + the org-owned keys", async () => {
@@ -398,129 +424,6 @@ describe("Credential vault lifecycle", () => {
     expect(cert.wrappedDek).toBe(nextDek);
   });
 
-  // ── Section 7: role gating — a developer cannot mutate the vault ──
-
-  it("downgrades a second member to developer and enforces vault authz", async () => {
-    const bEmail = "vault-dev@example.com";
-
-    const invite = await post(
-      "/api/auth/organization/invite-member",
-      { email: bEmail, role: "member", organizationId },
-      { cookie: cookiesA },
-    );
-    expect(invite.status).toBe(200);
-
-    const invitations = await (
-      await get(`/api/auth/organization/list-invitations?organizationId=${organizationId}`, {
-        cookie: cookiesA,
-      })
-    ).json();
-    const list = Array.isArray(invitations)
-      ? invitations
-      : (invitations.invitations ?? invitations);
-    const invitationId = list.find(
-      (item: { email: string; status: string }) =>
-        item.email === bEmail && item.status === "pending",
-    ).id;
-
-    const signup = await post("/api/auth/sign-up/email", {
-      name: "Vault Dev",
-      email: bEmail,
-      password: "SecureP@ss123",
-    });
-    expect(signup.status).toBe(200);
-
-    // Email/password signups land unverified, which the org plugin blocks from
-    // accepting invitations; verify in D1 then re-sign-in (compact cookie cache).
-    await env.DB.prepare(`UPDATE "user" SET "email_verified" = 1 WHERE "email" = ?`)
-      .bind(bEmail)
-      .run();
-    let cookiesB = parseCookies(
-      await post("/api/auth/sign-in/email", { email: bEmail, password: "SecureP@ss123" }),
-    );
-
-    expect(
-      (
-        await post(
-          "/api/auth/organization/accept-invitation",
-          { invitationId },
-          { cookie: cookiesB },
-        )
-      ).status,
-    ).toBe(200);
-    cookiesB =
-      parseCookies(
-        await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesB }),
-      ) || cookiesB;
-
-    // Under the unified IAM model "developer" is no longer a member role — the
-    // capability set comes from attaching the `managed:developer` preset policy to
-    // the member (member.role stays "member"; only `owner` grants anything by role).
-    // The owner attaches it via the IAM endpoint; the gate reads effective
-    // statements fresh per request, so this takes effect without a re-sign-in.
-    const members = await (
-      await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
-        cookie: cookiesA,
-      })
-    ).json();
-    const memberList = Array.isArray(members) ? members : (members.members ?? members);
-    const devMember = memberList.find((m: { user: { email: string } }) => m.user.email === bEmail);
-    expect(devMember).toBeDefined();
-
-    const attachDeveloper = await post(
-      `/api/members/${devMember.id}/policies`,
-      { policyId: "managed:developer" },
-      { cookie: cookiesA },
-    );
-    expect(attachDeveloper.status).toBe(201);
-
-    // Read access is allowed for a developer (managed:developer grants vaultAccess:read).
-    expect((await get("/api/vault", { cookie: cookiesB })).status).toBe(200);
-
-    // Registering one's OWN device is self-service (no permission gate).
-    expect((await registerKey(cookiesB, "device", "Dev laptop")).status).toBe(201);
-
-    // …but every org-key registration + vault mutation is admin/owner-gated.
-    expect((await registerKey(cookiesB, "machine", "Dev CI")).status).toBe(403);
-    expect(
-      (
-        await post(
-          "/api/vault/wraps",
-          { vaultVersion: 3, wrap: wrapFor(machine) },
-          { cookie: cookiesB },
-        )
-      ).status,
-    ).toBe(403);
-    expect(
-      (
-        await post(
-          "/api/vault",
-          { wraps: [wrapFor(deviceA), wrapFor(recovery)] },
-          { cookie: cookiesB },
-        )
-      ).status,
-    ).toBe(403);
-    expect(
-      (
-        await post(
-          "/api/vault/rotate",
-          {
-            fromVersion: 3,
-            recipientWraps: [wrapFor(deviceA), wrapFor(recovery)],
-            credentialDeks: [
-              {
-                credentialType: "appleDistributionCertificate",
-                credentialId: certId,
-                wrappedDek: opaque(),
-              },
-            ],
-          },
-          { cookie: cookiesB },
-        )
-      ).status,
-    ).toBe(403);
-  });
-
   // ── Section 8: isolation + unauthenticated ──────────────────────
 
   it("isolates vault reads across organizations and rejects anonymous callers", async () => {
@@ -547,97 +450,5 @@ describe("Credential vault lifecycle", () => {
     expect((await get("/api/vault", { cookie: cookiesOther })).status).toBe(404);
     // `machine` is org A's org-owned key — invisible from the other org.
     expect((await get(`/api/vault/wraps/${machine}`, { cookie: cookiesOther })).status).toBe(404);
-  });
-
-  // ── Section 9: a viewer is not a vault participant ──────────────
-
-  it("blocks a viewer from reading the vault, enrolling a device, or self-linking", async () => {
-    const cEmail = "vault-viewer@example.com";
-
-    const invite = await post(
-      "/api/auth/organization/invite-member",
-      { email: cEmail, role: "member", organizationId },
-      { cookie: cookiesA },
-    );
-    expect(invite.status).toBe(200);
-
-    const invitations = await (
-      await get(`/api/auth/organization/list-invitations?organizationId=${organizationId}`, {
-        cookie: cookiesA,
-      })
-    ).json();
-    const list = Array.isArray(invitations)
-      ? invitations
-      : (invitations.invitations ?? invitations);
-    const invitationId = list.find(
-      (item: { email: string; status: string }) =>
-        item.email === cEmail && item.status === "pending",
-    ).id;
-
-    const signup = await post("/api/auth/sign-up/email", {
-      name: "Vault Viewer",
-      email: cEmail,
-      password: "SecureP@ss123",
-    });
-    expect(signup.status).toBe(200);
-
-    await env.DB.prepare(`UPDATE "user" SET "email_verified" = 1 WHERE "email" = ?`)
-      .bind(cEmail)
-      .run();
-    let cookiesC = parseCookies(
-      await post("/api/auth/sign-in/email", { email: cEmail, password: "SecureP@ss123" }),
-    );
-    expect(
-      (
-        await post(
-          "/api/auth/organization/accept-invitation",
-          { invitationId },
-          { cookie: cookiesC },
-        )
-      ).status,
-    ).toBe(200);
-    cookiesC =
-      parseCookies(
-        await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesC }),
-      ) || cookiesC;
-
-    // Section 8 created another org, switching A's active org; point it back to the
-    // vault org so the policy-attach (scoped to the caller's active org) resolves.
-    cookiesA =
-      parseCookies(
-        await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesA }),
-      ) || cookiesA;
-
-    const members = await (
-      await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
-        cookie: cookiesA,
-      })
-    ).json();
-    const memberList = Array.isArray(members) ? members : (members.members ?? members);
-    const viewerMember = memberList.find(
-      (m: { user: { email: string } }) => m.user.email === cEmail,
-    );
-    expect(viewerMember).toBeDefined();
-
-    const attachViewer = await post(
-      `/api/members/${viewerMember.id}/policies`,
-      { policyId: "managed:viewer" },
-      { cookie: cookiesA },
-    );
-    expect(attachViewer.status).toBe(201);
-
-    // A viewer holds no `vaultAccess` — every vault surface is read-gated first,
-    // so all three escalation primitives are refused before any key is touched.
-    expect((await get("/api/vault", { cookie: cookiesC })).status).toBe(403);
-    expect((await registerKey(cookiesC, "device", "Viewer laptop")).status).toBe(403);
-    expect(
-      (
-        await post(
-          "/api/vault/wraps",
-          { vaultVersion: 3, wrap: wrapFor(deviceA) },
-          { cookie: cookiesC },
-        )
-      ).status,
-    ).toBe(403);
   });
 });

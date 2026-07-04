@@ -1,99 +1,79 @@
 # Access control, devices, and webhooks
 
-This reference covers the organization-management surfaces: IAM (the managed admin policy + custom
-policies + groups), Apple device registration, and webhook subscriptions.
+This reference covers the organization-management surfaces: GitLab-style RBAC (fixed org + project
+roles, protected environments/credentials), Apple device registration, and webhook subscriptions.
 
-## Access model
+## Access model — GitLab-style RBAC
 
-Authorization is **default-deny**: members and robots get **no** permissions from a role string.
-Three tiers:
+Two fixed role ladders; no policy documents, no groups, no allow/deny statements.
 
-- **Owner** — org root (set at org creation), bypasses policy evaluation.
-- **Admin** — attach the single managed policy `managed:admin` (full org administration).
-- **Everything else** — **custom policies** (allow/deny statements with path-glob selectors),
-  attached directly or via groups. A plain member holds only the baseline: org + environment-name
-  reads.
+**Org roles** (`owner | admin | member`):
 
-**Protected environments** (default: `production`) only accept writes from principals holding
-`environment:update` on them — Admins, Owner, or a custom grant (e.g. `environment:update` on
-`project/*/env/production` = "production publisher"). Toggle protection in the dashboard
-(Environment variables → Environments) or via the API.
+- **Owner** — org root (set at org creation). Unconditional allow; billing, org delete,
+  granting/revoking `admin`.
+- **Admin** — org management (members, invitations, robots, vault access, webhooks, audit log,
+  environments + protection toggles, org settings) and an **implicit maintainer on every project**.
+- **Member** — baseline. Sees the org, but only the projects where they hold a project role
+  (no role ⇒ the project 404s). Any member may create a project (becoming its maintainer).
 
-**Apple credentials are scoped by Apple team.** Paths are
-`appleTeam/{APPLE_TEAM_ID}/credential[/{id}]` where `APPLE_TEAM_ID` is the 10-char portal
-identifier, so ONE selector covers every credential type of a team (distribution/push/pass-type/pay
-certificates, push keys, provisioning profiles, ASC API keys):
+**Project roles** (`maintainer | developer | reporter`, granted per principal per project):
 
-```json
-// "jmango360-apple-admin" — full CRUD + download on one team's credentials
-{ "statements": [{ "effect": "allow", "actions": ["appleCredential:*"], "resources": ["appleTeam/JMANGO1234"] }] }
-// "jmango360-apple-view" — read-only (add "appleCredential:download" to allow decrypt-download)
-{ "statements": [{ "effect": "allow", "actions": ["appleCredential:read"], "resources": ["appleTeam/JMANGO1234"] }] }
-```
+- **Maintainer** — full project control incl. protected environments, project settings, project
+  member management, deletes.
+- **Developer** — daily work: publish updates, create branches/channels, builds, submissions, env
+  vars — on NON-protected environments only.
+- **Reporter** — read + download everything in the project; no writes.
 
-Credential lists (and the Teams view) filter to the credentials the principal can read (a per-item,
-deny-aware filter: a team-wide allow surfaces all of a team's credentials, an item-level deny hides
-just that one). ASC keys not linked to a team live under `appleTeam/none` — grant `appleTeam/*` to
-cover them. Note the IAM grant gates the API only: decrypting credential blobs still requires vault
-access (E2E).
+Effective role on a project = max(org-role-implied, project role). Human roles are managed in the
+web dashboard (Members page for org roles; a project's Settings → Members for project roles;
+invitations can carry an org role + project grants).
 
-**Android + iOS credentials are scoped by project.** iOS bundle configs / app metadata and Android
-application identifiers + build-credential groups gate at `project/{projectId}` — grant
-`androidCredential:*` / `iosBundleConfiguration:*` on a project to cover just that project. (Android
-upload keystores and Google service-account keys are org-shared secrets, so they stay org-level;
-grant on `*` or `org` to manage them.)
+**Robots are project-scoped** (GitLab project-access-token shape): one robot = **one project + one
+project role**, both fixed at creation (`credentials robot create --project <id> --role
+<maintainer|developer|reporter>` — see `references/credentials.md`). A robot authenticates as an org
+_member_ with exactly that one project membership: it can never manage org members, webhooks, or
+org settings, cannot create projects, and cannot WRITE org-global env vars (it can still READ them
+with developer+). Robot management (create/rotate/revoke) takes **Maintainer+ on the robot's
+project** (org admin/owner implicitly). Pre-v2 robots with no project show as "legacy — recreate"
+in `robot list`: they no longer authenticate and only exist to be revoked.
 
-**Group membership is a privilege delta.** Adding a member to a group grants them everything the
-group's policies confer, so `addMember`/`removeMember` and `detach` are boundary-checked: a non-owner
-can only change membership of (or detach) policies that grant nothing beyond what they themselves
-hold. This blocks self-escalation into a group that carries `managed:admin`. Lists for channels,
-branches, and updates also filter to the environments the caller can read, so an environment-scoped
-grant sees its own items instead of an empty page.
+**Protected environments** (default: `production`) only accept writes from project **Maintainers**
+(and org admins/owner) — developers cannot publish/edit branches, channels, updates, rollouts, or
+env vars inside them. Toggle protection in the dashboard (Environment variables → Environments) or
+via the API (org admin+).
 
-```
-policy (allow/deny statements) ──attach──► group ──membership──► member / robot
-```
+**Org credentials are usable in a project only when BOUND to it.** Apple teams, team-less ASC API
+keys, Google service-account keys, and upload keystores are stored at org scope, but a
+`credential→project binding` decides where they may be used. For a non-admin member, an action on a
+credential (or a registered device) is allowed iff **some bound project** gives them the required
+effective rank — developer for read/create/update/download, maintainer for delete (and maintainer
+for everything on protected rows). An **unbound credential is org-admin-only**. Owner/admin bypass
+bindings (implicit maintainer everywhere). Binding kinds: `appleTeam` (CASCADES to every child
+credential — dist/push/pass-type/pay certs, push keys, profiles, team-scoped ASC keys — and the
+team's registered devices), `ascApiKey` (team-less keys only), `googleServiceAccountKey`,
+`androidUploadKeystore`.
 
-### policies
+Bindings are managed by org admins — `credentials bindings list|plan|add|remove` in the CLI (see
+`references/credentials.md`; `plan [--apply]` bulk re-binds whatever existing project configs rely
+on) or the dashboard — PLUS **auto-bind on create**: a credential created
+from CLI project context carries the linked `projectId`, and the new credential (or its Apple team)
+is bound to that project in the same request. A project **Maintainer** can therefore bootstrap CI
+credentials without an org admin, but cannot bind PRE-EXISTING credentials to new projects. Members
+creating a brand-new team/credential MUST be in a project context they maintain (else 403).
 
-IAM policy documents.
+**Build credential resolution requires bindings for everyone**: `build`/`build-credentials resolve`
+hard-fails — admins included — when the resolved Apple team or upload keystore is not bound to the
+target project; bind it first.
 
-```bash
-better-update policies list
-better-update policies create --name <name> --document <json> [--description <text>]
-better-update policies update <id> [--name <name>] [--description <text>] [--document <json>]
-better-update policies delete <id> [--yes]
-```
+The one surviving "highest role anywhere" rule: **org-global env-var READS** (`envVar:read` on the
+`global` scope) need developer-on-any-project; writes are org admin+.
 
-`--document` is JSON, shape-validated client-side:
-
-```json
-{ "statements": [{ "effect": "allow", "actions": ["update:create"], "resources": ["project/*"] }] }
-```
-
-Each statement has `effect` (`allow`|`deny`), `actions`, and `resources` (path-glob scoped). There are
-read-only **managed presets** referenced as `managed:<name>` (e.g. `managed:admin`) — they appear in
-`list` but cannot be updated or deleted.
-
-### groups
-
-```bash
-better-update groups list
-better-update groups create --name <name> [--description <text>]
-better-update groups update <id> [--name <name>] [--description <text>]
-better-update groups delete <id> [--yes]                     # also sweeps memberships + policy attachments
-
-better-update groups members list <id>
-better-update groups members add <id> --member-id <memberId>
-better-update groups members remove <id> --member-id <memberId>
-
-better-update groups policies <id>                           # list policies attached to the group
-better-update groups attach <id> --policy-id <policyId>      # accepts a real id OR a managed preset (e.g. managed:admin)
-better-update groups detach <id> --policy-id <policyId>
-```
-
-Typical setup: create a group → attach a policy (custom or `managed:*`) → add members. They inherit
-the group's permissions immediately.
+**Protected credentials** require **maintainer** (via a bound project) for every action. An Apple
+team's protected flag CASCADES to all of its child credentials (dist/push/pass-type/pay
+certificates, push keys, provisioning profiles, ASC API keys) — children have no independent toggle
+and show an inherited "Protected (via team)" badge. Team-less ASC keys are ALWAYS protected. Google
+service-account keys and upload keystores have per-row toggles. Toggling protection is org admin+.
+Note RBAC gates the API only: decrypting credential blobs still requires vault access (E2E).
 
 ## devices — Apple UDID registration
 

@@ -22,6 +22,7 @@ import type {
   AppleTeamType,
   AuditLogResourceType,
   AuditLogSource,
+  CredentialBindingType,
   DeviceClass,
   Distribution,
   DistributionType,
@@ -29,7 +30,8 @@ import type {
   EnvVarScope,
   EnvVarVisibility,
   Platform,
-  PrincipalType,
+  ProjectPrincipalType,
+  ProjectRole,
 } from "../models";
 import type { SubmissionArchiveSource } from "../submission-models";
 import type { EnvVaultRecipientKind } from "../vault-models";
@@ -95,10 +97,10 @@ export type EnvVars = WithNonNullId<
   Narrow<Gen.EnvVars, { scope: EnvVarScope; visibility: EnvVarVisibility }>
 >;
 export type GoogleServiceAccountKeys = WithNonNullId<Gen.GoogleServiceAccountKeys>;
-export type IamGroup = WithNonNullId<Gen.IamGroup>;
-export type IamGroupMembership = WithNonNullId<Gen.IamGroupMembership>;
 export type Invitation = WithNonNullId<Gen.Invitation>;
-export type InvitationGrant = WithNonNullId<Gen.InvitationGrant>;
+export type InvitationProjectGrant = WithNonNullId<
+  Narrow<Gen.InvitationProjectGrant, { role: ProjectRole }>
+>;
 export type IosAppMetadata = WithNonNullId<Gen.IosAppMetadata>;
 export type IosBundleConfigurations = WithNonNullId<
   Narrow<Gen.IosBundleConfigurations, { distribution_type: DistributionType }>
@@ -114,15 +116,19 @@ export type Passkey = WithNonNullId<Gen.Passkey>;
 // PK is `session_id` (not `id`), so WithNonNullId is a no-op here — narrow the
 // real PK back to non-null instead (SQLite TEXT-PK-nullable quirk).
 export type PasskeyStepUp = Narrow<Gen.PasskeyStepUp, { session_id: string }>;
-export type Policy = WithNonNullId<Gen.Policy>;
-export type PolicyAttachment = WithNonNullId<
-  Narrow<Gen.PolicyAttachment, { principal_type: PrincipalType }>
+export type ProjectCredentialBinding = WithNonNullId<
+  Narrow<Gen.ProjectCredentialBinding, { resource_type: CredentialBindingType }>
+>;
+export type ProjectMember = WithNonNullId<
+  Narrow<Gen.ProjectMember, { principal_type: ProjectPrincipalType; role: ProjectRole }>
 >;
 export type ProjectProtocolMetadata = WithNonNullId<Gen.ProjectProtocolMetadata>;
 export type Projects = WithNonNullId<Gen.Projects>;
 export type ProjectsFts = WithNonNullId<Gen.ProjectsFts>;
 export type ProtectedEnvironment = WithNonNullId<Gen.ProtectedEnvironment>;
-export type RobotAccount = WithNonNullId<Gen.RobotAccount>;
+export type RobotAccount = WithNonNullId<
+  Narrow<Gen.RobotAccount, { project_role: ProjectRole | null }>
+>;
 export type Session = WithNonNullId<Gen.Session>;
 export type Submissions = WithNonNullId<
   Narrow<Gen.Submissions, { archive_source: SubmissionArchiveSource; platform: Platform }>
@@ -168,10 +174,8 @@ export interface DB {
   env_vars: EnvVars;
   environments: Environments;
   google_service_account_keys: GoogleServiceAccountKeys;
-  iam_group: IamGroup;
-  iam_group_membership: IamGroupMembership;
   invitation: Invitation;
-  invitation_grant: InvitationGrant;
+  invitation_project_grant: InvitationProjectGrant;
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
@@ -181,8 +185,8 @@ export interface DB {
   organization: Organization;
   passkey: Passkey;
   passkey_step_up: PasskeyStepUp;
-  policy: Policy;
-  policy_attachment: PolicyAttachment;
+  project_credential_binding: ProjectCredentialBinding;
+  project_member: ProjectMember;
   project_protocol_metadata: ProjectProtocolMetadata;
   projects: Projects;
   projects_fts: ProjectsFts;

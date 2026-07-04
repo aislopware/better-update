@@ -8,6 +8,8 @@ describe("Multi-org data isolation", () => {
   let cookies: string;
   let orgAId: string;
   let orgBId: string;
+  let projectAId: string;
+  let projectBId: string;
   let apiKeyA: string;
   let apiKeyB: string;
 
@@ -69,7 +71,9 @@ describe("Multi-org data isolation", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(201);
-    expect((await res.json()).name).toBe("Alpha Project");
+    const created = await res.json();
+    expect(created.name).toBe("Alpha Project");
+    projectAId = created.id;
   });
 
   it("org A has 1 project via session", async () => {
@@ -106,25 +110,15 @@ describe("Multi-org data isolation", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(201);
-    expect((await res.json()).name).toBe("Beta Project");
+    const created = await res.json();
+    expect(created.name).toBe("Beta Project");
+    projectBId = created.id;
   });
 
-  // ── Section 4: API key scoping ─────────────────────────────────
+  // ── Section 4: Robot bearer scoping ────────────────────────────
 
-  it("creates API key for org A", async () => {
-    const res = await post(
-      "/api/auth/api-key/create",
-      { name: "key-alpha", organizationId: orgAId },
-      { cookie: cookies },
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.key).toMatch(/^bu_/);
-    apiKeyA = body.key;
-
-    // Attach the managed admin preset so the key (default-deny) gains access.
-    // The attachment is scoped to the acting org, so activate org A first — the
-    // key resolves within org A via its referenceId.
+  it("creates a project robot for org A", async () => {
+    // Robot creation is scoped to the ACTIVE org — activate org A first.
     const activateA = await post(
       "/api/auth/organization/set-active",
       { organizationId: orgAId },
@@ -133,27 +127,24 @@ describe("Multi-org data isolation", () => {
     expect(activateA.status).toBe(200);
     cookies = parseCookies(activateA) || cookies;
 
-    const attach = await post(
-      `/api/api-keys/${body.id}/policies`,
-      { policyId: "managed:admin" },
+    const res = await post(
+      "/api/robot-accounts",
+      {
+        name: "robot-alpha",
+        projectId: projectAId,
+        role: "maintainer",
+        publicKey: "age1e2efixturealpha",
+        fingerprint: "SHA256:e2e-fixture-alpha",
+      },
       { cookie: cookies },
     );
-    expect(attach.status).toBe(201);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    apiKeyA = body.bearerSecret;
   });
 
-  it("creates API key for org B", async () => {
-    const res = await post(
-      "/api/auth/api-key/create",
-      { name: "key-beta", organizationId: orgBId },
-      { cookie: cookies },
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.key).toMatch(/^bu_/);
-    apiKeyB = body.key;
-
-    // Attach managed admin to the org B key — activate org B so the attachment
-    // is scoped to org B, matching the key's referenceId.
+  it("creates a project robot for org B", async () => {
     const activateB = await post(
       "/api/auth/organization/set-active",
       { organizationId: orgBId },
@@ -162,12 +153,21 @@ describe("Multi-org data isolation", () => {
     expect(activateB.status).toBe(200);
     cookies = parseCookies(activateB) || cookies;
 
-    const attach = await post(
-      `/api/api-keys/${body.id}/policies`,
-      { policyId: "managed:admin" },
+    const res = await post(
+      "/api/robot-accounts",
+      {
+        name: "robot-beta",
+        projectId: projectBId,
+        role: "maintainer",
+        publicKey: "age1e2efixturebeta",
+        fingerprint: "SHA256:e2e-fixture-beta",
+      },
       { cookie: cookies },
     );
-    expect(attach.status).toBe(201);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    apiKeyB = body.bearerSecret;
   });
 
   it("org A key sees only Alpha Project", async () => {
@@ -190,23 +190,25 @@ describe("Multi-org data isolation", () => {
     expect(body.items[0].name).toBe("Beta Project");
   });
 
-  // ── Section 5: Cross-org key cannot leak data ──────────────────
+  // ── Section 5: Robots are project-scoped tokens ─────────────────
 
-  it("project created via org A key stays in org A", async () => {
+  it("a robot cannot create projects, and org B stays isolated", async () => {
+    // Robots are project-scoped (GITLAB-RBAC-SPEC §1b, v2): a per-project CI
+    // credential must not widen its own footprint.
     const createRes = await post(
       "/api/projects",
       { name: "Extra Alpha", slug: "alpha-extra" },
       { authorization: `Bearer ${apiKeyA}` },
     );
-    expect(createRes.status).toBe(201);
+    expect(createRes.status).toBe(403);
 
-    // org A now has 2 projects
+    // org A robot still sees exactly its project
     const orgARes = await get("/api/projects", {
       authorization: `Bearer ${apiKeyA}`,
     });
-    expect((await orgARes.json()).items).toHaveLength(2);
+    expect((await orgARes.json()).items).toHaveLength(1);
 
-    // org B still has 1 project — no leakage
+    // org B robot untouched — no leakage
     const orgBRes = await get("/api/projects", {
       authorization: `Bearer ${apiKeyB}`,
     });

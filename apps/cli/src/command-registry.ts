@@ -14,13 +14,11 @@ import { doctorCommand } from "./commands/doctor";
 import { envCommand } from "./commands/env";
 import { environmentsCommand } from "./commands/environments";
 import { fingerprintCommand } from "./commands/fingerprint";
-import { groupsCommand } from "./commands/groups";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { metadataCommand } from "./commands/metadata";
 import { openCommand } from "./commands/open";
-import { policiesCommand } from "./commands/policies";
 import { projectsCommand } from "./commands/projects";
 import { reviewsCommand } from "./commands/reviews";
 import { statusCommand } from "./commands/status";
@@ -54,8 +52,6 @@ export const commandRegistry = {
   init: initCommand,
   status: statusCommand,
   projects: projectsCommand,
-  policies: policiesCommand,
-  groups: groupsCommand,
   branches: branchesCommand,
   channels: channelsCommand,
   environments: environmentsCommand,

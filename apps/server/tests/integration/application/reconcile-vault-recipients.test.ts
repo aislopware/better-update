@@ -3,30 +3,22 @@ import { Effect, Layer } from "effect";
 
 import { reconcileVaultRecipients } from "../../../src/application/reconcile-vault-recipients";
 import { AccountKeyRepoLive } from "../../../src/repositories/account-keys";
-import { GroupRepoLive } from "../../../src/repositories/group-repo";
 import { MemberRepoLive } from "../../../src/repositories/member-repo";
 import { OrgEnvVaultRepoLive } from "../../../src/repositories/org-env-vault";
 import { OrgVaultRepo, OrgVaultRepoLive } from "../../../src/repositories/org-vault";
-import {
-  PolicyAttachmentRepo,
-  PolicyAttachmentRepoLive,
-} from "../../../src/repositories/policy-attachment-repo";
-import { PolicyRepo, PolicyRepoLive } from "../../../src/repositories/policy-repo";
 import { UserEncryptionKeyRepoLive } from "../../../src/repositories/user-encryption-keys";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
-// reconcile pulls together the credential + env vaults, account keys, user-keys,
-// member, and the three policy repos (for resolveEffectiveStatements) — provide
-// all the real D1-backed layers.
+// reconcile pulls together the credential + env vaults, account keys,
+// user-keys, and member repos (vaultAccess:read is an org-admin rule under
+// GITLAB-RBAC — resolved from member.role alone) — provide the real
+// D1-backed layers.
 const REPOS = Layer.mergeAll(
   OrgVaultRepoLive,
   OrgEnvVaultRepoLive,
   AccountKeyRepoLive,
   UserEncryptionKeyRepoLive,
   MemberRepoLive,
-  GroupRepoLive,
-  PolicyAttachmentRepoLive,
-  PolicyRepoLive,
 );
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, never>) =>
@@ -80,16 +72,16 @@ const countWraps = async (userEncryptionKeyId: string) => {
 
 beforeAll(async () => {
   await insertOrg(ORG);
-  // owner: kept via the owner root bypass even though they hold NO policy.
+  // owner: kept via the owner root bypass.
   await insertUser("rec-u-owner");
   await insertMember("rec-m-owner", "rec-u-owner", "owner");
   await insertDeviceKey("rec-dk-owner", "rec-u-owner");
-  // vault reader: kept — a custom policy grants vaultAccess:read (only
-  // managed:admin and custom policies confer vault access now).
+  // vault reader: kept — an org ADMIN holds vaultAccess:read under
+  // GITLAB-RBAC (spec §2, org table).
   await insertUser("rec-u-dev");
-  await insertMember("rec-m-dev", "rec-u-dev", "member");
+  await insertMember("rec-m-dev", "rec-u-dev", "admin");
   await insertDeviceKey("rec-dk-dev", "rec-u-dev");
-  // viewer: dropped — no attachment grants any vaultAccess.
+  // plain member: dropped — no org-admin rank, no vaultAccess.
   await insertUser("rec-u-viewer");
   await insertMember("rec-m-viewer", "rec-u-viewer", "member");
   await insertDeviceKey("rec-dk-viewer", "rec-u-viewer");
@@ -117,21 +109,6 @@ beforeAll(async () => {
         envWraps: [{ recipientKind: "recovery", recipientId: "rec-r", wrappedKey: "env-recovery" }],
         now: "2026-05-01T00:00:00Z",
       });
-      const attach = yield* PolicyAttachmentRepo;
-      const policyRepo = yield* PolicyRepo;
-      const vaultReadPolicy = yield* policyRepo.create({
-        organizationId: ORG,
-        name: "vault-read",
-        description: null,
-        document: {
-          statements: [{ effect: "allow", actions: ["vaultAccess:read"], resources: ["*"] }],
-        },
-      });
-      yield* attach.attach({
-        organizationId: ORG,
-        policyId: vaultReadPolicy.id,
-        principal: { type: "member", id: "rec-m-dev" },
-      });
     }),
   );
 });
@@ -149,7 +126,7 @@ describe("reconcileVaultRecipients — D1 integration", () => {
     expect(await countWraps("rec-dk-viewer")).toBe(0);
     expect(await countWraps("rec-dk-gone")).toBe(0);
 
-    // Kept: owner (root bypass, no policy), vault reader (vaultAccess:read), org recovery key.
+    // Kept: owner (root bypass), org admin (vaultAccess:read), org recovery key.
     expect(await countWraps("rec-dk-owner")).toBe(1);
     expect(await countWraps("rec-dk-dev")).toBe(1);
     expect(await countWraps("rec-r")).toBe(1);

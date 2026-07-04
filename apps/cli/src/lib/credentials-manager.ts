@@ -15,6 +15,7 @@ import { uploadIosPayCertificate } from "./credentials-pay-certificate";
 import { uploadIosPushCertificate } from "./credentials-push-certificate";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
+import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -50,8 +51,6 @@ const makeRow = (
   fields: Pick<CliCredentialRow, "id" | "identifier" | "platform" | "type" | "createdAt"> &
     Partial<Pick<CliCredentialRow, "name" | "distribution" | "sha1Fingerprint">>,
 ): CliCredentialRow => ({ name: null, distribution: null, sha1Fingerprint: null, ...fields });
-
-const formatDistribution = (value: string): string => value.toLowerCase().replaceAll("_", "-");
 
 export const listAllCredentials = (api: ApiClient) =>
   Effect.gen(function* () {
@@ -142,7 +141,7 @@ export const listAllCredentials = (api: ApiClient) =>
           identifier: profile.profileName ?? profile.bundleIdentifier,
           platform: "ios",
           type: "provisioning-profile",
-          distribution: formatDistribution(profile.distributionType),
+          distribution: profile.distributionType.toLowerCase().replaceAll("_", "-"),
           createdAt: profile.createdAt,
         }),
       ),
@@ -251,7 +250,7 @@ const uploadIosDistributionCertificate = (
       secret: { p12Base64: toBase64(bytes), p12Password: input.password },
     });
     const created = yield* api.appleDistributionCertificates.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata },
+      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,
@@ -278,7 +277,7 @@ const uploadIosPushKey = (api: ApiClient, input: UploadCredentialInput, bytes: U
       secret: { p8Pem: toUtf8(bytes) },
     });
     const created = yield* api.applePushKeys.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata },
+      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,
@@ -310,7 +309,7 @@ const uploadIosAscApiKey = (api: ApiClient, input: UploadCredentialInput, bytes:
       secret: { p8Pem: toUtf8(bytes) },
     });
     const created = yield* api.ascApiKeys.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata },
+      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,
@@ -327,7 +326,7 @@ const uploadIosProvisioningProfile = (
 ) =>
   Effect.gen(function* () {
     const created = yield* api.appleProvisioningProfiles.upload({
-      payload: { profileBase64: toBase64(bytes) },
+      payload: { profileBase64: toBase64(bytes), ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,
@@ -382,7 +381,7 @@ const uploadAndroidKeystore = (api: ApiClient, input: UploadCredentialInput, byt
       },
     });
     const created = yield* api.androidUploadKeystores.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata },
+      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,
@@ -414,7 +413,7 @@ const uploadAndroidGoogleServiceAccountKey = (
       secret: { json },
     });
     const created = yield* api.googleServiceAccountKeys.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata },
+      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
     });
     return {
       id: created.id,
