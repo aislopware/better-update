@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.55.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.54.0...%40better-update%2Fcli%400.55.0) (2026-07-04)
+
+**Note:** Version bump only for package @better-update/cli
+
 ## [0.54.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.53.2...%40better-update%2Fcli%400.54.0) (2026-07-03)
 
 **Note:** Version bump only for package @better-update/cli
