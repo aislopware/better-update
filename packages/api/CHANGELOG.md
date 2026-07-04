@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.37.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.36.0...%40better-update%2Fapi%400.37.0) (2026-07-04)
+
+**Note:** Version bump only for package @better-update/api
+
 ## [0.36.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.35.0...%40better-update%2Fapi%400.36.0) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/api
