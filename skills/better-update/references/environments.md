@@ -98,7 +98,10 @@ better-update env pull --environment staging --stdout                # prints `e
 - `env import` applies one `--visibility` (default `plaintext`) to every imported line; bump
   individual sensitive ones afterward with `env update … --visibility sensitive`.
 - `env push` is the smarter bulk path: it auto-classifies `EXPO_PUBLIC_*` keys as `plaintext` and
-  everything else as `sensitive`. The file defaults to `.env.local`.
+  everything else as `sensitive`. The file defaults to `.env.local`. Keys that any eas.json build
+  profile defines in its `env` block are **skipped by default** (so a `pull --profile` → `push`
+  round-trip can't copy eas.json config into the server store); pass `--include-profile-keys` to
+  push them anyway.
 - `env export` prints all values to stdout. `env pull` **writes a dotenv file by default** (`.env.local`,
   overridable with `--path`, `--force` to skip the overwrite prompt). To source into a shell, use
   `--stdout`: `eval "$(better-update env pull --environment staging --stdout)"`.

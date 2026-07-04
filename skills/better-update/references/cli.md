@@ -412,7 +412,7 @@ better-update env delete <key> [--environment <name>]          # NO --environmen
 better-update env history <key> [--environment <name>=production]
 better-update env rollback <key> --to <revision> [--environment <name>=production]
 better-update env import <file> [--environment <csv>=production] [--visibility <plaintext|sensitive>=plaintext]
-better-update env push [file=.env.local] [--environment <csv>=production]    # auto-classify EXPO_PUBLIC_* as plaintext, others sensitive
+better-update env push [file=.env.local] [--environment <csv>=production] [--include-profile-keys]   # auto-classify EXPO_PUBLIC_* as plaintext, others sensitive
 better-update env export [--environment <name>=production] [--profile <name>]   # prints KEY='value' per line (all values)
 better-update env pull [--environment <name>=production] [--profile <name>] [--path <file>=.env.local] [--stdout] [--force]
 better-update env exec <environment> [--profile <name>] -- <command…>       # run a command with project env vars injected
@@ -426,6 +426,9 @@ better-update env exec <environment> [--profile <name>] -- <command…>       # 
 > profile: its `environment` becomes the default scope and its `env` block overlays the server
 > set (profile wins on collision) — the same merge `build` runs, so per-app config can live in
 > eas.json instead of the env store.
+> `env push` **skips keys any eas.json build profile defines in its `env` block** (printed as
+> skipped) so a `pull --profile` → `push` round-trip can't copy eas.json config into the server
+> store; `--include-profile-keys` pushes them anyway (e.g. to keep a server-side base value).
 
 ## environments
 

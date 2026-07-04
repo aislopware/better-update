@@ -3,8 +3,10 @@ import { Effect } from "effect";
 import type { FileSystem } from "@effect/platform";
 
 import { readBuildProfile } from "./build-profile";
+import { readEasJson } from "./eas-config";
 
 import type { BuildProfile } from "./build-profile";
+import type { EasConfig } from "./eas-config";
 import type { DecryptedEnvVar } from "./env-exporter";
 import type { BuildProfileError } from "./exit-codes";
 
@@ -62,3 +64,22 @@ export const overlayProfileEnvItems = (
     })),
   ].toSorted((left, right) => left.key.localeCompare(right.key));
 };
+
+/**
+ * Union of env keys across every eas.json build profile — the set `env push`
+ * skips by default so eas.json config can't round-trip into the server store
+ * (`env pull --profile` writes overlay values into the dotenv it pushes back).
+ * Raw profiles suffice: `extends` only inherits from profiles already in the
+ * file, so the union over raw blocks equals the union over resolved ones.
+ */
+export const collectProfileEnvKeys = (config: EasConfig): ReadonlySet<string> =>
+  new Set(Object.values(config.build ?? {}).flatMap((profile) => Object.keys(profile.env ?? {})));
+
+/** Best-effort read of that union: a missing or malformed eas.json yields the empty set, so commands that never needed eas.json keep working. */
+export const readProfileEnvKeys = (
+  projectRoot: string,
+): Effect.Effect<ReadonlySet<string>, never, FileSystem.FileSystem> =>
+  readEasJson(projectRoot).pipe(
+    Effect.map(collectProfileEnvKeys),
+    Effect.orElseSucceed((): ReadonlySet<string> => new Set()),
+  );

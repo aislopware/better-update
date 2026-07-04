@@ -1,4 +1,16 @@
-import { overlayProfileEnv, overlayProfileEnvItems, resolveEnvironmentScope } from "./profile-env";
+import path from "node:path";
+
+import { FileSystem } from "@effect/platform";
+import { it } from "@effect/vitest";
+import { Effect } from "effect";
+
+import {
+  collectProfileEnvKeys,
+  overlayProfileEnv,
+  overlayProfileEnvItems,
+  readProfileEnvKeys,
+  resolveEnvironmentScope,
+} from "./profile-env";
 
 import type { BuildProfile } from "./build-profile";
 import type { DecryptedEnvVar } from "./env-exporter";
@@ -73,4 +85,51 @@ describe("overlaying the profile env block on pulled items", () => {
     expect(overlayProfileEnvItems(items, undefined)).toBe(items);
     expect(overlayProfileEnvItems(items, profileWith({}))).toBe(items);
   });
+});
+
+describe("collecting profile env keys for the push guard", () => {
+  it("unions env keys across all build profiles", () => {
+    expect(
+      collectProfileEnvKeys({
+        build: {
+          production: { env: { API_URL: "https://prod", APP_ID: "com.x" } },
+          preview: { env: { API_URL: "https://preview", FLAG: "1" } },
+          bare: {},
+        },
+      }),
+    ).toStrictEqual(new Set(["API_URL", "APP_ID", "FLAG"]));
+  });
+
+  it("is empty without a build section", () => {
+    expect(collectProfileEnvKeys({})).toStrictEqual(new Set());
+  });
+});
+
+describe("reading profile env keys from eas.json", () => {
+  const projectRoot = "/tmp/proj";
+  const fsWith = (content: string) =>
+    FileSystem.layerNoop({
+      readFileString: (filePath: string) =>
+        filePath === path.join(projectRoot, "eas.json")
+          ? Effect.succeed(content)
+          : Effect.die(new Error(`unexpected read: ${filePath}`)),
+    });
+
+  it.effect("reads the union of profile env keys", () =>
+    Effect.gen(function* () {
+      const keys = yield* readProfileEnvKeys(projectRoot).pipe(
+        Effect.provide(
+          fsWith(JSON.stringify({ build: { production: { env: { APP_ID: "com.x" } } } })),
+        ),
+      );
+      expect(keys).toStrictEqual(new Set(["APP_ID"]));
+    }),
+  );
+
+  it.effect("falls back to the empty set on a malformed eas.json", () =>
+    Effect.gen(function* () {
+      const keys = yield* readProfileEnvKeys(projectRoot).pipe(Effect.provide(fsWith("not json")));
+      expect(keys).toStrictEqual(new Set());
+    }),
+  );
 });
