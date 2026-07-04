@@ -12,6 +12,8 @@ export class ApplePushKey extends Schema.Class<ApplePushKey>("ApplePushKey")({
   organizationId: Id,
   appleTeamId: Id,
   keyId: Schema.String,
+  /** Per-row protected flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}

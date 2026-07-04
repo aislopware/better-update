@@ -13,7 +13,7 @@ import {
 } from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertAccessAny } from "../auth/policy";
+import { assertAccessAny, assertOrgAdmin } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest } from "../errors";
 import { toApiApplePushCertificate } from "../http/to-api";
@@ -33,6 +33,36 @@ const decodeBase64 = (value: string) =>
     catch: () => new BadRequest({ message: "Push certificate must be valid base64" }),
   });
 
+// Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b) — org admin only,
+// idempotent, audit-logged. The row flag is the whole gate for this
+// credential; the team flag only guards team-level interactions.
+const setProtectionEffect = (id: string, isProtected: boolean) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const repo = yield* ApplePushCertificateRepo;
+      const existing = yield* repo.findById({ id });
+      yield* assertOrgOwnership(existing.organizationId);
+      yield* assertOrgAdmin;
+      const ctx = yield* CurrentActor;
+      yield* repo.setProtection({
+        id,
+        organizationId: ctx.organizationId,
+        isProtected,
+        now: new Date().toISOString(),
+      });
+      yield* logAudit({
+        action: isProtected ? "apple.push-certificate.protect" : "apple.push-certificate.unprotect",
+        resourceType: "appleCredential",
+        resourceId: id,
+        metadata: {
+          serialNumber: existing.serialNumber,
+          bundleIdentifier: existing.bundleIdentifier,
+        },
+      });
+      return toApiApplePushCertificate({ ...existing, isProtected });
+    }),
+  );
+
 export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
   ManagementApi,
   "applePushCertificates",
@@ -45,7 +75,11 @@ export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
             const ctx = yield* CurrentActor;
             const repo = yield* ApplePushCertificateRepo;
             const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-            const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId);
+            const visible = yield* filterByAppleTeamRead(
+              items,
+              (item) => item.appleTeamId,
+              (item) => item.isProtected,
+            );
             return { items: visible.map(toApiApplePushCertificate) };
           }),
         ),
@@ -100,6 +134,7 @@ export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
                 r2Key,
                 wrappedDek: payload.wrappedDek,
                 vaultVersion: payload.vaultVersion,
+                isProtected: team.isProtected,
                 createdAt: now,
                 updatedAt: now,
               }),
@@ -127,6 +162,7 @@ export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
               r2Key,
               wrappedDek: payload.wrappedDek,
               vaultVersion: payload.vaultVersion,
+              isProtected: team.isProtected,
               createdAt: now,
               updatedAt: now,
             });
@@ -143,6 +179,7 @@ export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "delete",
               appleTeamRowId: existing.appleTeamId,
+              credentialIsProtected: existing.isProtected,
             });
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
@@ -171,6 +208,7 @@ export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "download",
               appleTeamRowId: existing.appleTeamId,
+              credentialIsProtected: existing.isProtected,
             });
 
             const blob = yield* artifacts.get(existing.r2Key, "Push certificate");
@@ -195,5 +233,7 @@ export const ApplePushCertificatesGroupLive = HttpApiBuilder.group(
             };
           }),
         ),
-      ),
+      )
+      .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
+      .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
 );

@@ -55,6 +55,27 @@ export class ApplePayCertificatesGroup extends HttpApiGroup.make("applePayCertif
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/pay-certificates/${idParam}/protection`
+      .addSuccess(ApplePayCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the Apple Pay certificate protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/pay-certificates/${idParam}/protection`
+      .addSuccess(ApplePayCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the certificate's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

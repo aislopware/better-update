@@ -24,6 +24,8 @@ export class AppleProvisioningProfile extends Schema.Class<AppleProvisioningProf
   developerPortalIdentifier: Schema.NullOr(Schema.String),
   profileName: Schema.NullOr(Schema.String),
   validUntil: Schema.NullOr(DateTimeString),
+  /** Per-row protected flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}

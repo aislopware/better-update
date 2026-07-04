@@ -169,7 +169,12 @@ export interface AppleTeamModel {
   readonly appleTeamId: string;
   readonly appleTeamType: AppleTeamType;
   readonly name: string | null;
-  /** Protected-team flag (GITLAB-RBAC-SPEC §3b) — cascades to every child credential. */
+  /**
+   * Protected-team flag (GITLAB-RBAC-SPEC §3b) — gates team-level
+   * interactions (creating credentials under the team, devices) and seeds
+   * new child rows' own `isProtected`; existing children keep their per-row
+   * flag (team-less ASC keys are created protected).
+   */
   readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -186,6 +191,7 @@ export interface AppleDistributionCertificateModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -198,6 +204,7 @@ export interface ApplePushKeyModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -213,6 +220,7 @@ export interface ApplePushCertificateModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -228,6 +236,7 @@ export interface ApplePayCertificateModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -243,6 +252,7 @@ export interface ApplePassTypeCertificateModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -262,6 +272,7 @@ export interface AscApiKeyModel {
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -279,6 +290,7 @@ export interface AppleProvisioningProfileModel {
   readonly r2Key: string;
   readonly isManaged: boolean;
   readonly deviceRosterHash: string | null;
+  readonly isProtected: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

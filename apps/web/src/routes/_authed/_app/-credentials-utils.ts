@@ -20,6 +20,15 @@ export const indexAppleTeamsById = (
   teams: readonly AppleTeamItem[],
 ): ReadonlyMap<string, AppleTeamItem> => new Map(teams.map((team) => [team.id, team]));
 
+// Every child credential table shares the same protection props: the org for
+// query invalidation, the team map for the Team column, and the org-admin
+// gate for the per-row protection switch (GITLAB-RBAC-SPEC §3b).
+export interface ChildCredentialTableProps {
+  orgId: string;
+  teamsById: ReadonlyMap<string, AppleTeamItem>;
+  canManageProtection: boolean;
+}
+
 export const isoToDate = (iso: string): Date | undefined => (iso ? new Date(iso) : undefined);
 
 // Snap a calendar date to the UTC start/end of that day so credential validity

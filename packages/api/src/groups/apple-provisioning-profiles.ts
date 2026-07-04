@@ -57,6 +57,27 @@ export class AppleProvisioningProfilesGroup extends HttpApiGroup.make("appleProv
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/provisioning-profiles/${idParam}/protection`
+      .addSuccess(AppleProvisioningProfile)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the provisioning profile protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/provisioning-profiles/${idParam}/protection`
+      .addSuccess(AppleProvisioningProfile)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the profile's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

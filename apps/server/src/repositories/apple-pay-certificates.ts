@@ -25,6 +25,8 @@ export interface ApplePayCertificateRepository {
     readonly r2Key: string;
     readonly wrappedDek: string;
     readonly vaultVersion: number;
+    /** Snapshot of the team's protected flag at creation (spec §3b). */
+    readonly isProtected: boolean;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -36,6 +38,14 @@ export interface ApplePayCertificateRepository {
   readonly findById: (params: {
     readonly id: string;
   }) => Effect.Effect<ApplePayCertificateModel, NotFound>;
+
+  /** Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
 
   readonly delete: (params: {
     readonly id: string;
@@ -60,6 +70,7 @@ const COLUMNS = [
   "r2_key",
   "wrapped_dek",
   "vault_version",
+  "is_protected",
   "created_at",
   "updated_at",
 ] as const;
@@ -75,6 +86,7 @@ const toModel = (row: Selectable<ApplePayCertificates>): ApplePayCertificateMode
   r2Key: row.r2_key,
   wrappedDek: row.wrapped_dek,
   vaultVersion: row.vault_version,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -98,6 +110,7 @@ export const ApplePayCertificateRepoLive = Layer.succeed(ApplePayCertificateRepo
               r2_key: params.r2Key,
               wrapped_dek: params.wrappedDek,
               vault_version: params.vaultVersion,
+              is_protected: params.isProtected ? 1 : 0,
               created_at: params.createdAt,
               updated_at: params.updatedAt,
             })
@@ -134,6 +147,19 @@ export const ApplePayCertificateRepoLive = Layer.succeed(ApplePayCertificateRepo
         return yield* new NotFound({ message: "Apple Pay certificate not found" });
       }
       return toModel(row);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("apple_pay_certificates")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

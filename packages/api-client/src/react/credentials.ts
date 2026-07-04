@@ -311,10 +311,47 @@ export const deleteAndroidBuildCredentials = async (id: string) =>
   runApi((api) => api.androidBuildCredentials.delete({ path: { id } }));
 
 // Protection toggles (GITLAB-RBAC-SPEC §3b) — org admin only, idempotent.
+// The team flag gates team-level interactions and seeds new child rows;
+// each Apple child credential is gated by its own per-row flag.
 export const setAppleTeamProtection = async (id: string, isProtected: boolean) =>
   isProtected
     ? runApi((api) => api.appleTeams.protect({ path: { id } }))
     : runApi((api) => api.appleTeams.unprotect({ path: { id } }));
+
+export const setAppleDistributionCertificateProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.appleDistributionCertificates.protect({ path: { id } }))
+    : runApi((api) => api.appleDistributionCertificates.unprotect({ path: { id } }));
+
+export const setApplePushKeyProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.applePushKeys.protect({ path: { id } }))
+    : runApi((api) => api.applePushKeys.unprotect({ path: { id } }));
+
+export const setApplePushCertificateProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.applePushCertificates.protect({ path: { id } }))
+    : runApi((api) => api.applePushCertificates.unprotect({ path: { id } }));
+
+export const setApplePayCertificateProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.applePayCertificates.protect({ path: { id } }))
+    : runApi((api) => api.applePayCertificates.unprotect({ path: { id } }));
+
+export const setApplePassTypeCertificateProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.applePassTypeCertificates.protect({ path: { id } }))
+    : runApi((api) => api.applePassTypeCertificates.unprotect({ path: { id } }));
+
+export const setAppleProvisioningProfileProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.appleProvisioningProfiles.protect({ path: { id } }))
+    : runApi((api) => api.appleProvisioningProfiles.unprotect({ path: { id } }));
+
+export const setAscApiKeyProtection = async (id: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.ascApiKeys.protect({ path: { id } }))
+    : runApi((api) => api.ascApiKeys.unprotect({ path: { id } }));
 
 export const setGoogleServiceAccountKeyProtection = async (id: string, isProtected: boolean) =>
   isProtected

@@ -167,23 +167,23 @@ protected environment).
 
 ### Org-scoped
 
-| resource                                            | rule                                                                                                                                |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| organization                                        | read: any member · update: ≥A · delete: O (better-auth, unchanged)                                                                  |
-| member                                              | read (directory): any member · role change / remove: ≥A · granting or revoking `admin`/`owner`: O only                              |
-| invitation                                          | org-level (role member/admin): ≥A · project-level grants ≤ maintainer: project ≥M may invite to THEIR project                       |
-| project_member                                      | read: ≥R on that project · add/update/remove up to maintainer: ≥M on that project                                                   |
-| robotAccount                                        | v2: PROJECT rule — ≥M on the robot's project (create/rotate/revoke/read); legacy NULL-project rows: ≥A                              |
-| credentialBinding                                   | v2: read ≥A · bind/unbind ≥A · auto-bind on create by project ≥M (create payload `projectId`)                                       |
-| vaultAccess                                         | ≥A                                                                                                                                  |
-| auditLog                                            | ≥A                                                                                                                                  |
-| webhook                                             | ≥A                                                                                                                                  |
-| device                                              | ≥D⚓ via the device's team binding (read/create/update/delete); team-less registration requests: ≥A                                 |
-| environment (org env names + protection toggle)     | read: any member · create/update/delete/protect: ≥A                                                                                 |
-| billing                                             | O                                                                                                                                   |
-| appleCredential                                     | §3b — non-protected team: ≥D⚓ (read/create/update/download), delete ≥M⚓ · protected team: ≥M⚓ (all actions) · protect toggle: ≥A |
-| androidCredential (org: upload keystores, GSA keys) | same ladder as appleCredential, per-row toggle + per-row binding                                                                    |
-| project:create                                      | any org member; creator is auto-added as its maintainer                                                                             |
+| resource                                            | rule                                                                                                                                                              |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| organization                                        | read: any member · update: ≥A · delete: O (better-auth, unchanged)                                                                                                |
+| member                                              | read (directory): any member · role change / remove: ≥A · granting or revoking `admin`/`owner`: O only                                                            |
+| invitation                                          | org-level (role member/admin): ≥A · project-level grants ≤ maintainer: project ≥M may invite to THEIR project                                                     |
+| project_member                                      | read: ≥R on that project · add/update/remove up to maintainer: ≥M on that project                                                                                 |
+| robotAccount                                        | v2: PROJECT rule — ≥M on the robot's project (create/rotate/revoke/read); legacy NULL-project rows: ≥A                                                            |
+| credentialBinding                                   | v2: read ≥A · bind/unbind ≥A · auto-bind on create by project ≥M (create payload `projectId`)                                                                     |
+| vaultAccess                                         | ≥A                                                                                                                                                                |
+| auditLog                                            | ≥A                                                                                                                                                                |
+| webhook                                             | ≥A                                                                                                                                                                |
+| device                                              | ≥D⚓ via the device's team binding (read/create/update/delete); team-less registration requests: ≥A                                                               |
+| environment (org env names + protection toggle)     | read: any member · create/update/delete/protect: ≥A                                                                                                               |
+| billing                                             | O                                                                                                                                                                 |
+| appleCredential                                     | §3b — non-protected row: ≥D⚓ (read/update/download), delete ≥M⚓ · row-protected: ≥M⚓ (all actions) · create under a protected TEAM: ≥M⚓ · protect toggles: ≥A |
+| androidCredential (org: upload keystores, GSA keys) | same ladder as appleCredential, per-row toggle + per-row binding                                                                                                  |
+| project:create                                      | any org member; creator is auto-added as its maintainer                                                                                                           |
 
 Superadmin (platform, cross-org) is untouched.
 
@@ -194,8 +194,9 @@ Superadmin (platform, cross-org) is untouched.
 2. Protected credentials = ≥M⚑ (maintainers can still build with protected
    certs; vault membership is the real secret gate). Alternative: ≥A.
 3. Team-less Apple credentials (issuer-only ASC keys, path segment `none`) =
-   ALWAYS protected (≥M⚑). They are org-wide powerful and have no team to
-   toggle.
+   protected BY DEFAULT (≥M⚑): created protected, 0093-backfilled protected.
+   They are org-wide powerful and have no team to inherit from; since v2.2
+   they carry their own per-row toggle (org admin may unprotect).
 4. `organization:update` = ≥A (today's `managed:admin` behavior). Alternative:
    O only (GitLab group settings).
 
@@ -224,25 +225,47 @@ maintainers can.)
 
 ### 3b. Protected credentials
 
-New flags, presence-column style:
+Flags, presence-column style, two INDEPENDENT levels on the Apple axis (v2.2
+— migration 0093 added the per-row columns; before that the team flag was the
+only Apple toggle and cascaded):
 
-- `apple_teams.is_protected INTEGER NOT NULL DEFAULT 0` — **the ONLY Apple
-  toggle**. Every credential row resolves its team; the guard reads the TEAM's
-  flag. Children cannot diverge by construction — no per-credential column, no
-  sync problem. UI shows children with an inherited "Protected (via team)"
-  badge and no switch.
-- Team-less Apple credentials (sentinel segment `none`): always protected
-  (§2a-3).
+- Every Apple child table (`apple_distribution_certificates`,
+  `apple_push_keys`, `apple_push_certificates`, `apple_pay_certificates`,
+  `apple_pass_type_certificates`, `apple_provisioning_profiles`,
+  `asc_api_keys`) carries its own `is_protected INTEGER NOT NULL DEFAULT 0` —
+  **the ONLY flag that gates actions on an existing credential** (read/
+  download/build/delete). A protected team with an unprotected child does NOT
+  stop a developer from using that child.
+- `apple_teams.is_protected` gates **team-level interactions** instead:
+  creating a credential under the team (`assertAppleCredentialCreate` raises
+  the create rank to maintainer — checked before upload, right after the CLI
+  team pick), team-row visibility, and the team's devices. It is also the
+  **default for new children**: uploads snapshot `team.is_protected` onto the
+  new row (a later team toggle does not touch existing rows).
+- Team-less Apple credentials (sentinel segment `none`, issuer-only ASC
+  keys): **created protected** (preserving the old "always protected" §2a-3
+  behavior); an org admin may unprotect them.
+- 0093 backfills **every existing credential row to protected** — the 7
+  Apple child tables plus `apple_teams`, `google_service_account_keys` and
+  `android_upload_keystores` (owner decision 2026-07-04): the fleet starts
+  locked down and admins unprotect selectively. This strictly covers the two
+  no-regression cases (children of protected teams under the old cascade,
+  always-protected team-less keys) — the deliberate cost is that
+  previously-open credentials now need an admin unprotect before developers
+  can use them again.
 - `google_service_account_keys.is_protected`, `android_upload_keystores.is_protected`
-  — per-row toggles (no parent to inherit from).
+  — per-row toggles (no parent).
 
-Guard: any action on a credential whose team/row is protected ⇒ require
-anywhere-rank ≥ maintainer (§2a-2). Enforcement lives in the credential access
-helpers (`auth/apple-team-access.ts`, `auth/android-credential-access.ts`) and
-the list filters — the handlers already resolve the row/team, so the flag is
-checked there rather than inside the generic `assertAccess` (which would need
-its own repo lookups). Toggle mutation: ≥A (`assertOrgAdmin`), audit-logged
-(`appleTeam.protect` / `.unprotect`, etc.).
+Guard: any action on a row-protected credential ⇒ require anywhere-rank ≥
+maintainer (§2a-2). Enforcement lives in the credential access helpers
+(`auth/apple-team-access.ts` — callers pass the row's own flag as
+`credentialIsProtected` / `itemProtectedOf` — and
+`auth/android-credential-access.ts`) and the list filters — the handlers
+already resolve the row/team, so the flag is checked there rather than inside
+the generic `assertAccess` (which would need its own repo lookups). Toggle
+mutations: `PUT/DELETE /api/apple/<type>/:id/protection` per child type plus
+the team route, ≥A (`assertOrgAdmin`), audit-logged (`appleTeam.protect` /
+`apple.distribution-certificate.protect` / `.unprotect`, etc.).
 
 `apple-team-access.ts` survives: same responsibilities (internal id ↔ 10-char
 team id, list filtering, create-before-upsert gate), but `isAllowed`/glob calls

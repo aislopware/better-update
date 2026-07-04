@@ -162,16 +162,25 @@ describe(canReadAppleTeamCredentials, () => {
 
 describe(filterByAppleTeamRead, () => {
   const items = [
-    { id: "c-open", appleTeamId: OPEN_TEAM.id },
-    { id: "c-protected", appleTeamId: PROTECTED_TEAM.id },
-    { id: "c-unbound", appleTeamId: UNBOUND_TEAM.id },
-    { id: "c-teamless", appleTeamId: null },
-    { id: "c-dangling", appleTeamId: "row-dangling" },
+    { id: "c-open", appleTeamId: OPEN_TEAM.id, isProtected: false },
+    { id: "c-own-protected", appleTeamId: OPEN_TEAM.id, isProtected: true },
+    // Row under a protected team but itself unprotected: the team flag does
+    // NOT cascade onto existing rows, so developers still see/use it.
+    { id: "c-under-protected-team", appleTeamId: PROTECTED_TEAM.id, isProtected: false },
+    { id: "c-unbound", appleTeamId: UNBOUND_TEAM.id, isProtected: false },
+    { id: "c-teamless", appleTeamId: null, isProtected: true },
+    { id: "c-dangling", appleTeamId: "row-dangling", isProtected: false },
   ];
+  const filterFor = (rows: typeof items) =>
+    filterByAppleTeamRead(
+      rows,
+      (item) => item.appleTeamId,
+      (item) => item.isProtected,
+    );
 
   it.effect("owner sees everything (repo untouched)", () =>
     Effect.gen(function* () {
-      const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId).pipe(
+      const visible = yield* filterFor(items).pipe(
         runWith(
           actor({ isOwner: true }),
           stubTeamRepo({ listByOrg: () => Effect.die(new Error("must not be called")) }),
@@ -181,71 +190,110 @@ describe(filterByAppleTeamRead, () => {
     }),
   );
 
-  it.effect("developer sees bound non-protected rows only — never unbound or dangling", () =>
-    Effect.gen(function* () {
-      const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId).pipe(
-        runWith(developerOnBound),
-      );
-      expect(visible.map((item) => item.id)).toStrictEqual(["c-open"]);
-    }),
+  it.effect(
+    "developer sees bound non-protected rows (team flag irrelevant) — never own-protected, unbound or dangling",
+    () =>
+      Effect.gen(function* () {
+        const visible = yield* filterFor(items).pipe(runWith(developerOnBound));
+        expect(visible.map((item) => item.id)).toStrictEqual(["c-open", "c-under-protected-team"]);
+      }),
   );
 
-  it.effect("maintainer on the bound project additionally sees protected rows", () =>
+  it.effect("maintainer on the bound project additionally sees row-protected rows", () =>
     Effect.gen(function* () {
-      const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId).pipe(
-        runWith(maintainerOnBound),
-      );
-      expect(visible.map((item) => item.id)).toStrictEqual(["c-open", "c-protected"]);
+      const visible = yield* filterFor(items).pipe(runWith(maintainerOnBound));
+      expect(visible.map((item) => item.id)).toStrictEqual([
+        "c-open",
+        "c-own-protected",
+        "c-under-protected-team",
+      ]);
     }),
   );
 
   it.effect("maintainer elsewhere sees nothing", () =>
     Effect.gen(function* () {
-      const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId).pipe(
-        runWith(maintainerElsewhere),
-      );
+      const visible = yield* filterFor(items).pipe(runWith(maintainerElsewhere));
       expect(visible).toStrictEqual([]);
     }),
   );
 
-  it.effect("team-less rows surface via their own ascApiKey binding", () =>
+  it.effect("team-less rows surface via their own ascApiKey binding + own flag", () =>
     Effect.gen(function* () {
       const keys = [
-        { id: "key-bound", appleTeamId: null },
-        { id: "key-unbound", appleTeamId: null },
+        { id: "key-bound", appleTeamId: null, isProtected: true },
+        { id: "key-unbound", appleTeamId: null, isProtected: true },
       ];
-      const visible = yield* filterByAppleTeamRead(keys, (item) => item.appleTeamId, {
-        teamlessBindingIdOf: (item) => item.id,
-      }).pipe(runWith(maintainerOnBound));
-      expect(visible.map((item) => item.id)).toStrictEqual(["key-bound"]);
+      const asMaintainer = yield* filterByAppleTeamRead(
+        keys,
+        (item) => item.appleTeamId,
+        (item) => item.isProtected,
+        { teamlessBindingIdOf: (item) => item.id },
+      ).pipe(runWith(maintainerOnBound));
+      // An UNPROTECTED team-less key drops the gate back to the base rank.
+      const asDeveloper = yield* filterByAppleTeamRead(
+        [{ id: "key-bound", appleTeamId: null, isProtected: false }],
+        (item) => item.appleTeamId,
+        (item) => item.isProtected,
+        { teamlessBindingIdOf: (item) => item.id },
+      ).pipe(runWith(developerOnBound));
+      expect(asMaintainer.map((item) => item.id)).toStrictEqual(["key-bound"]);
+      expect(asDeveloper.map((item) => item.id)).toStrictEqual(["key-bound"]);
     }),
   );
 });
 
 describe(assertAppleCredentialAccess, () => {
-  it.effect("developer downloads from a bound non-protected team, not a protected one", () =>
+  it.effect("only the row's OWN flag gates downloads — the team flag does not cascade", () =>
     Effect.gen(function* () {
       const open = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "download", appleTeamRowId: OPEN_TEAM.id }).pipe(
-          runWith(developerOnBound),
-        ),
+        assertAppleCredentialAccess({
+          action: "download",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(developerOnBound)),
       );
-      const guarded = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "download", appleTeamRowId: PROTECTED_TEAM.id }).pipe(
-          runWith(developerOnBound),
-        ),
+      // Protected TEAM, unprotected row: developers can still use it.
+      const underProtectedTeam = yield* isForbidden(
+        assertAppleCredentialAccess({
+          action: "download",
+          appleTeamRowId: PROTECTED_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(developerOnBound)),
       );
       expect(open).toBe(false);
-      expect(guarded).toBe(true);
+      expect(underProtectedTeam).toBe(false);
+    }),
+  );
+
+  it.effect("a row-protected credential requires maintainer on a bound project", () =>
+    Effect.gen(function* () {
+      const asDeveloper = yield* isForbidden(
+        assertAppleCredentialAccess({
+          action: "download",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: true,
+        }).pipe(runWith(developerOnBound)),
+      );
+      const asMaintainer = yield* isForbidden(
+        assertAppleCredentialAccess({
+          action: "download",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: true,
+        }).pipe(runWith(maintainerOnBound)),
+      );
+      expect(asDeveloper).toBe(true);
+      expect(asMaintainer).toBe(false);
     }),
   );
 
   it.effect("rank on an unrelated project does not open a bound team", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "read", appleTeamRowId: OPEN_TEAM.id }).pipe(
-          runWith(maintainerElsewhere),
-        ),
+        assertAppleCredentialAccess({
+          action: "read",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(maintainerElsewhere)),
       );
       expect(forbidden).toBe(true);
     }),
@@ -254,14 +302,18 @@ describe(assertAppleCredentialAccess, () => {
   it.effect("an unbound team is admin-only", () =>
     Effect.gen(function* () {
       const asMaintainer = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "read", appleTeamRowId: UNBOUND_TEAM.id }).pipe(
-          runWith(maintainerOnBound),
-        ),
+        assertAppleCredentialAccess({
+          action: "read",
+          appleTeamRowId: UNBOUND_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(maintainerOnBound)),
       );
       const asAdmin = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "read", appleTeamRowId: UNBOUND_TEAM.id }).pipe(
-          runWith(actor({ orgRole: "admin" })),
-        ),
+        assertAppleCredentialAccess({
+          action: "read",
+          appleTeamRowId: UNBOUND_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(actor({ orgRole: "admin" }))),
       );
       expect(asMaintainer).toBe(true);
       expect(asAdmin).toBe(false);
@@ -271,26 +323,31 @@ describe(assertAppleCredentialAccess, () => {
   it.effect("delete requires maintainer even on a bound non-protected team", () =>
     Effect.gen(function* () {
       const asDeveloper = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "delete", appleTeamRowId: OPEN_TEAM.id }).pipe(
-          runWith(developerOnBound),
-        ),
+        assertAppleCredentialAccess({
+          action: "delete",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(developerOnBound)),
       );
       const asMaintainer = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "delete", appleTeamRowId: OPEN_TEAM.id }).pipe(
-          runWith(maintainerOnBound),
-        ),
+        assertAppleCredentialAccess({
+          action: "delete",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(runWith(maintainerOnBound)),
       );
       expect(asDeveloper).toBe(true);
       expect(asMaintainer).toBe(false);
     }),
   );
 
-  it.effect("team-less keys gate on their own binding (always protected)", () =>
+  it.effect("team-less keys gate on their own binding + own protected flag", () =>
     Effect.gen(function* () {
       const boundKey = yield* isForbidden(
         assertAppleCredentialAccess({
           action: "read",
           appleTeamRowId: null,
+          credentialIsProtected: true,
           ascApiKeyId: "key-bound",
         }).pipe(runWith(maintainerOnBound)),
       );
@@ -298,6 +355,7 @@ describe(assertAppleCredentialAccess, () => {
         assertAppleCredentialAccess({
           action: "read",
           appleTeamRowId: null,
+          credentialIsProtected: true,
           ascApiKeyId: "key-unbound",
         }).pipe(runWith(maintainerOnBound)),
       );
@@ -305,19 +363,34 @@ describe(assertAppleCredentialAccess, () => {
         assertAppleCredentialAccess({
           action: "read",
           appleTeamRowId: null,
+          credentialIsProtected: true,
+          ascApiKeyId: "key-bound",
+        }).pipe(runWith(developerOnBound)),
+      );
+      // Unprotecting a team-less key lowers the gate back to the base rank.
+      const developerUnprotectedKey = yield* isForbidden(
+        assertAppleCredentialAccess({
+          action: "read",
+          appleTeamRowId: null,
+          credentialIsProtected: false,
           ascApiKeyId: "key-bound",
         }).pipe(runWith(developerOnBound)),
       );
       expect(boundKey).toBe(false);
       expect(unboundKey).toBe(true);
       expect(developerBoundKey).toBe(true);
+      expect(developerUnprotectedKey).toBe(false);
     }),
   );
 
   it.effect("owner skips the team lookup entirely", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAppleCredentialAccess({ action: "delete", appleTeamRowId: OPEN_TEAM.id }).pipe(
+        assertAppleCredentialAccess({
+          action: "delete",
+          appleTeamRowId: OPEN_TEAM.id,
+          credentialIsProtected: false,
+        }).pipe(
           runWith(
             actor({ isOwner: true }),
             stubTeamRepo({ findById: () => Effect.die(new Error("must not be called")) }),

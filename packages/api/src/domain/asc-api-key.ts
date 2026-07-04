@@ -22,6 +22,11 @@ export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
   issuerId: IssuerId,
   name: Schema.String,
   roles: Schema.Array(Schema.String),
+  /**
+   * Per-row protected flag (GITLAB-RBAC-SPEC §3b): reads/uses require
+   * Maintainer+ when set. Team-less keys are created protected.
+   */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}

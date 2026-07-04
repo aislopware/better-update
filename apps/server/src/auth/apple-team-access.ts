@@ -1,12 +1,16 @@
 // Apple-team-scoped authorization helpers for the credential handlers
 // (authz-models.ts "APPLE-TEAM axis", GITLAB-RBAC-SPEC §1a/§3b). Credential
-// rows store the INTERNAL `apple_teams.id`; these helpers resolve the team
-// row and enforce the v2 binding gate: the required rank (base
-// CREDENTIAL_RULES rank, raised to maintainer when the team is protected)
-// must be held on SOME project the TEAM is bound to — an unbound team is
-// admin-only. The team's protected flag AND its bindings CASCADE — child
-// credentials have neither of their own. Team-less credentials (issuer-only
-// ASC keys) are ALWAYS protected and bind individually (`ascApiKey` rows).
+// rows store the INTERNAL `apple_teams.id`; these helpers enforce the v2
+// binding gate: the required rank (base CREDENTIAL_RULES rank, raised to
+// maintainer when the credential is protected) must be held on SOME project
+// the TEAM is bound to — an unbound team is admin-only. Bindings CASCADE
+// from the team; the protected flag does NOT: an existing credential is
+// gated by its OWN `is_protected` only. The TEAM's flag gates team-level
+// interactions instead — creating credentials under the team
+// (assertAppleCredentialCreate), team visibility, and devices — and is
+// snapshotted onto new child rows at creation time. Team-less credentials
+// (issuer-only ASC keys) are created protected and bind individually
+// (`ascApiKey` rows).
 
 import { Effect } from "effect";
 
@@ -110,10 +114,11 @@ const resolveBoundProjectIds = (params: {
 };
 
 /**
- * Whether the actor can read credentials under an Apple team, given the
- * team's protected flag and its bound project ids. `team === null` = the
- * team-less bucket (always protected; pass the ASC key's OWN binding set).
- * Pure — backs list filtering; per-object gates stay on
+ * Whether the actor can see/interact with an Apple TEAM row (the teams
+ * list): a protected team is a maintainer-level surface — its own flag does
+ * not gate existing child credentials, which carry their own. `team === null`
+ * = the team-less bucket (treated protected; pass the ASC key's OWN binding
+ * set). Pure — per-object credential gates stay on
  * {@link assertAppleCredentialAccess}.
  */
 export const canReadAppleTeamCredentials = (
@@ -126,15 +131,18 @@ export const canReadAppleTeamCredentials = (
 /**
  * Filter credential rows down to the ones the actor can read under the v2
  * binding gate. `teamRowIdOf` returns the row's INTERNAL `apple_teams.id`
- * (or `null` for team-less credentials). Teams + bindings are loaded once
- * per call; each row is evaluated against its team's protected flag and
- * bound projects. A dangling team reference hides the row (fail closed).
- * Team-less rows are admin-only UNLESS `teamlessBindingIdOf` supplies their
- * own `ascApiKey` binding id (only the ASC key handler does).
+ * (or `null` for team-less credentials); `itemProtectedOf` the row's OWN
+ * protected flag — the only one that gates existing rows (the team's flag
+ * gates team-level interactions, not its children). Teams + bindings are
+ * loaded once per call; each row is evaluated against its own flag and its
+ * team's bound projects. A dangling team reference hides the row (fail
+ * closed). Team-less rows are admin-only UNLESS `teamlessBindingIdOf`
+ * supplies their own `ascApiKey` binding id (only the ASC key handler does).
  */
 export const filterByAppleTeamRead = <T>(
   items: readonly T[],
   teamRowIdOf: (item: T) => string | null,
+  itemProtectedOf: (item: T) => boolean,
   opts?: { readonly teamlessBindingIdOf?: (item: T) => string },
 ) =>
   Effect.gen(function* () {
@@ -158,35 +166,38 @@ export const filterByAppleTeamRead = <T>(
             organizationId: ctx.organizationId,
             resourceType: "ascApiKey",
           });
-    const protectedByRowId = new Map(teams.map((team) => [team.id, team.isProtected]));
+    const teamRowIds = new Set(teams.map((team) => team.id));
     return items.filter((item) => {
       const rowId = teamRowIdOf(item);
       if (rowId === null) {
-        // Team-less bucket: always protected, bound per ASC key row.
+        // Team-less bucket: the row's own flag governs, bound per ASC key row.
         const bound =
           teamlessBindingIdOf === undefined
             ? []
             : (ascKeyBindings[teamlessBindingIdOf(item)] ?? []);
-        return holdsCredentialRank(ctx, "read", true, bound);
+        return holdsCredentialRank(ctx, "read", itemProtectedOf(item), bound);
       }
-      const isProtected = protectedByRowId.get(rowId);
-      if (isProtected === undefined) {
+      if (!teamRowIds.has(rowId)) {
         return false;
       }
-      return holdsCredentialRank(ctx, "read", isProtected, teamBindings[rowId] ?? []);
+      return holdsCredentialRank(ctx, "read", itemProtectedOf(item), teamBindings[rowId] ?? []);
     });
   });
 
 /**
- * Per-object gate for an EXISTING credential: resolve the row's internal team
- * reference, its bindings, and enforce the (protected-aware) bound-rank
- * ladder. Owner/superadmin/org-admin skip the lookups — the gate would
- * bypass anyway. For TEAM-LESS ASC keys pass `ascApiKeyId` so their own
- * binding set applies; other team-less rows are admin-only.
+ * Per-object gate for an EXISTING credential: resolve the row's bindings
+ * (cascading from its team) and enforce the (protected-aware) bound-rank
+ * ladder. `credentialIsProtected` is the row's OWN flag — the team's flag
+ * does not raise the gate here; it only guards team-level interactions like
+ * creating new credentials ({@link assertAppleCredentialCreate}).
+ * Owner/superadmin/org-admin skip the lookups — the gate would bypass
+ * anyway. For TEAM-LESS ASC keys pass `ascApiKeyId` so their own binding set
+ * applies; other team-less rows are admin-only.
  */
 export const assertAppleCredentialAccess = (params: {
   readonly action: Action;
   readonly appleTeamRowId: string | null;
+  readonly credentialIsProtected: boolean;
   readonly ascApiKeyId?: string | undefined;
 }) =>
   Effect.gen(function* () {
@@ -194,10 +205,7 @@ export const assertAppleCredentialAccess = (params: {
     if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
       return;
     }
-    const isProtected =
-      params.appleTeamRowId === null
-        ? true
-        : (yield* (yield* AppleTeamRepo).findById({ id: params.appleTeamRowId })).isProtected;
+    const isProtected = params.credentialIsProtected;
     const bound = yield* resolveBoundProjectIds({
       organizationId: ctx.organizationId,
       appleTeamRowId: params.appleTeamRowId,

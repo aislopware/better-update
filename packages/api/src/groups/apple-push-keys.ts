@@ -54,6 +54,27 @@ export class ApplePushKeysGroup extends HttpApiGroup.make("applePushKeys")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/push-keys/${idParam}/protection`
+      .addSuccess(ApplePushKey)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the push key protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/push-keys/${idParam}/protection`
+      .addSuccess(ApplePushKey)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the key's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

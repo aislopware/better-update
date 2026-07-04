@@ -22,6 +22,8 @@ export interface ApplePushKeyRepository {
     readonly r2Key: string;
     readonly wrappedDek: string;
     readonly vaultVersion: number;
+    /** Snapshot of the team's protected flag at creation (spec §3b). */
+    readonly isProtected: boolean;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -33,6 +35,14 @@ export interface ApplePushKeyRepository {
   readonly findById: (params: {
     readonly id: string;
   }) => Effect.Effect<ApplePushKeyModel, NotFound>;
+
+  /** Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
 
   readonly delete: (params: {
     readonly id: string;
@@ -54,6 +64,7 @@ const COLUMNS = [
   "r2_key",
   "wrapped_dek",
   "vault_version",
+  "is_protected",
   "created_at",
   "updated_at",
 ] as const;
@@ -66,6 +77,7 @@ const toModel = (row: Selectable<ApplePushKeys>): ApplePushKeyModel => ({
   r2Key: row.r2_key,
   wrappedDek: row.wrapped_dek,
   vaultVersion: row.vault_version,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -86,6 +98,7 @@ export const ApplePushKeyRepoLive = Layer.succeed(ApplePushKeyRepo, {
               r2_key: params.r2Key,
               wrapped_dek: params.wrappedDek,
               vault_version: params.vaultVersion,
+              is_protected: params.isProtected ? 1 : 0,
               created_at: params.createdAt,
               updated_at: params.updatedAt,
             })
@@ -122,6 +135,19 @@ export const ApplePushKeyRepoLive = Layer.succeed(ApplePushKeyRepo, {
         return yield* new NotFound({ message: "Push key not found" });
       }
       return toModel(row);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("apple_push_keys")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

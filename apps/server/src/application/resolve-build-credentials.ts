@@ -40,6 +40,13 @@ export interface IosResolvedIds {
   readonly pushKeyId: string | null;
   readonly profileStale: boolean;
   readonly currentDeviceRosterHash: string | null;
+  /**
+   * True when the cert or profile whose CIPHERTEXT this resolve returns is
+   * itself protected (spec §3b) — the per-row flags are the whole gate (the
+   * team's flag only guards team-level interactions). The push key rides
+   * along id-only, so its flag is checked at submit time, not here.
+   */
+  readonly anyReturnedCredentialProtected: boolean;
 }
 
 export interface AndroidResolvedIds {
@@ -242,6 +249,7 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
         pushKeyId: pushKey === null ? null : pushKey.id,
         profileStale,
         currentDeviceRosterHash,
+        anyReturnedCredentialProtected: cert.isProtected || profile.isProtected,
       } satisfies IosResolvedIds,
     } as const;
   });

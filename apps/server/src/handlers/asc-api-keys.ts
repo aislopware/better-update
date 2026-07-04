@@ -13,7 +13,7 @@ import {
 } from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertAccessAny } from "../auth/policy";
+import { assertAccessAny, assertOrgAdmin } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest, NotFound } from "../errors";
 import { toApiAscApiKey } from "../http/to-api";
@@ -34,6 +34,53 @@ const decodeBase64 = (value: string) =>
     catch: () => new BadRequest({ message: "ASC API key must be valid base64" }),
   });
 
+// Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b) — org admin only,
+// idempotent, audit-logged. The row flag is the whole gate for this key; the
+// team flag only guards team-level interactions. Team-less keys are created
+// protected.
+const setProtectionEffect = (id: string, isProtected: boolean) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const repo = yield* AscApiKeyRepo;
+      const existing = yield* repo.findById({ id });
+      yield* assertOrgOwnership(existing.organizationId);
+      yield* assertOrgAdmin;
+      const ctx = yield* CurrentActor;
+      yield* repo.setProtection({
+        id,
+        organizationId: ctx.organizationId,
+        isProtected,
+        now: new Date().toISOString(),
+      });
+      yield* logAudit({
+        action: isProtected ? "apple.asc-api-key.protect" : "apple.asc-api-key.unprotect",
+        resourceType: "appleCredential",
+        resourceId: id,
+        metadata: { keyId: existing.keyId, name: existing.name },
+      });
+      // Response bindings mirror `list`: a team-scoped key surfaces its
+      // team's bound projects (cascade); a team-less key its own.
+      const bound = yield* ProjectCredentialBindingRepo.pipe(
+        Effect.flatMap((bindings) =>
+          bindings.boundProjectIds(
+            existing.appleTeamId === null
+              ? {
+                  organizationId: ctx.organizationId,
+                  resourceType: "ascApiKey",
+                  resourceId: existing.id,
+                }
+              : {
+                  organizationId: ctx.organizationId,
+                  resourceType: "appleTeam",
+                  resourceId: existing.appleTeamId,
+                },
+          ),
+        ),
+      );
+      return toApiAscApiKey({ ...existing, isProtected }, bound);
+    }),
+  );
+
 export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKeys", (handlers) =>
   handlers
     .handle("list", () =>
@@ -43,9 +90,12 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
           const ctx = yield* CurrentActor;
           const repo = yield* AscApiKeyRepo;
           const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-          const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId, {
-            teamlessBindingIdOf: (item) => item.id,
-          });
+          const visible = yield* filterByAppleTeamRead(
+            items,
+            (item) => item.appleTeamId,
+            (item) => item.isProtected,
+            { teamlessBindingIdOf: (item) => item.id },
+          );
           // Response bindings: a team-scoped key surfaces its TEAM's bound
           // projects (cascade); a team-less key its own.
           const bindingsRepo = yield* ProjectCredentialBindingRepo;
@@ -90,19 +140,23 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
 
           const blob = yield* decodeBase64(payload.ciphertext);
 
-          const teamId = payload.appleTeamIdentifier
-            ? (yield* teams.upsertByAppleTeamId({
+          const team = payload.appleTeamIdentifier
+            ? yield* teams.upsertByAppleTeamId({
                 organizationId: ctx.organizationId,
                 appleTeamId: payload.appleTeamIdentifier,
                 appleTeamType: payload.appleTeamType ?? "COMPANY_ORGANIZATION",
                 name: toDbNull(payload.appleTeamName),
-              })).id
+              })
             : null;
+          const teamId = team === null ? null : team.id;
 
           const r2Key = `asc-api-keys/${ctx.organizationId}/${crypto.randomUUID()}.p8.enc`;
           yield* artifacts.put(r2Key, blob);
 
           const rolesJson = JSON.stringify(payload.roles ?? []);
+          // Team-less keys start protected (spec §3b); team-scoped keys
+          // snapshot their team's flag. An org admin can toggle afterwards.
+          const isProtected = team === null ? true : team.isProtected;
           const now = new Date().toISOString();
           yield* withR2Compensation(
             artifacts.delete(r2Key),
@@ -117,6 +171,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
               r2Key,
               wrappedDek: payload.wrappedDek,
               vaultVersion: payload.vaultVersion,
+              isProtected,
               createdAt: now,
               updatedAt: now,
             }),
@@ -147,6 +202,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
               r2Key,
               wrappedDek: payload.wrappedDek,
               vaultVersion: payload.vaultVersion,
+              isProtected,
               createdAt: now,
               updatedAt: now,
             },
@@ -165,6 +221,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
           yield* assertAppleCredentialAccess({
             action: "delete",
             appleTeamRowId: existing.appleTeamId,
+            credentialIsProtected: existing.isProtected,
             ascApiKeyId: existing.id,
           });
           const { r2Key } = yield* repo.delete({ id: path.id });
@@ -208,6 +265,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
           yield* assertAppleCredentialAccess({
             action: "download",
             appleTeamRowId: key.appleTeamId,
+            credentialIsProtected: key.isProtected,
             ascApiKeyId: key.id,
           });
 
@@ -231,5 +289,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
           };
         }),
       ),
-    ),
+    )
+    .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
+    .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
 );

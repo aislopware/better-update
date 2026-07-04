@@ -55,6 +55,27 @@ export class ApplePassTypeCertificatesGroup extends HttpApiGroup.make("applePass
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/pass-type-certificates/${idParam}/protection`
+      .addSuccess(ApplePassTypeCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the Pass Type ID certificate protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/pass-type-certificates/${idParam}/protection`
+      .addSuccess(ApplePassTypeCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the certificate's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

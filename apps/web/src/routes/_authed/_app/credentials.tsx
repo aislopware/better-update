@@ -24,25 +24,36 @@ import {
   AscApiKeysTable,
   DistributionCertificatesEmptyState,
   DistributionCertificatesTable,
+  PushKeysEmptyState,
+  PushKeysTable,
+} from "./-credentials-tables";
+import {
   PassTypeCertificatesEmptyState,
   PassTypeCertificatesTable,
   PayCertificatesEmptyState,
   PayCertificatesTable,
   PushCertificatesEmptyState,
   PushCertificatesTable,
-  PushKeysEmptyState,
-  PushKeysTable,
-} from "./-credentials-tables";
+} from "./-credentials-tables-certs";
 import {
   GoogleServiceAccountKeysEmptyState,
   GoogleServiceAccountKeysTable,
 } from "./-credentials-tables-google";
 import { indexAppleTeamsById } from "./-credentials-utils";
 
-const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
-  const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
+// Every Apple child section shares the same shape: the list itself, the teams
+// map (team labels) and the org-admin gate for the per-row protection
+// switches (GITLAB-RBAC-SPEC §3b).
+const useAppleChildSection = (orgId: string) => {
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
   const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
+  const { data: me } = useSuspenseQuery(meQueryOptions());
+  return { teamsById, canManageProtection: isOrgAdmin(me.orgRole) };
+};
+
+const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
+  const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
   return (
     <section className="flex flex-col gap-3">
@@ -54,7 +65,12 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
         <DistributionCertificatesEmptyState />
       ) : (
         <Frame>
-          <DistributionCertificatesTable items={data.items} teamsById={teamsById} />
+          <DistributionCertificatesTable
+            items={data.items}
+            orgId={orgId}
+            teamsById={teamsById}
+            canManageProtection={canManageProtection}
+          />
         </Frame>
       )}
     </section>
@@ -63,8 +79,7 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
 
 const PushKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushKeysQueryOptions(orgId));
-  const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
-  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
   return (
     <section className="flex flex-col gap-3">
@@ -76,7 +91,12 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
         <PushKeysEmptyState />
       ) : (
         <Frame>
-          <PushKeysTable items={data.items} teamsById={teamsById} />
+          <PushKeysTable
+            items={data.items}
+            orgId={orgId}
+            teamsById={teamsById}
+            canManageProtection={canManageProtection}
+          />
         </Frame>
       )}
     </section>
@@ -85,6 +105,7 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
 
 const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
   return (
     <section className="flex flex-col gap-3">
@@ -96,7 +117,12 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
         <PushCertificatesEmptyState />
       ) : (
         <Frame>
-          <PushCertificatesTable items={data.items} />
+          <PushCertificatesTable
+            items={data.items}
+            orgId={orgId}
+            teamsById={teamsById}
+            canManageProtection={canManageProtection}
+          />
         </Frame>
       )}
     </section>
@@ -105,6 +131,7 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
 
 const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
   return (
     <section className="flex flex-col gap-3">
@@ -116,7 +143,12 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
         <PayCertificatesEmptyState />
       ) : (
         <Frame>
-          <PayCertificatesTable items={data.items} />
+          <PayCertificatesTable
+            items={data.items}
+            orgId={orgId}
+            teamsById={teamsById}
+            canManageProtection={canManageProtection}
+          />
         </Frame>
       )}
     </section>
@@ -125,6 +157,7 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
 
 const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
   return (
     <section className="flex flex-col gap-3">
@@ -136,7 +169,12 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
         <PassTypeCertificatesEmptyState />
       ) : (
         <Frame>
-          <PassTypeCertificatesTable items={data.items} />
+          <PassTypeCertificatesTable
+            items={data.items}
+            orgId={orgId}
+            teamsById={teamsById}
+            canManageProtection={canManageProtection}
+          />
         </Frame>
       )}
     </section>
@@ -145,11 +183,9 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
 
 const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(ascApiKeysQueryOptions(orgId));
-  const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
-  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
   // Binding management is org-admin work (GITLAB-RBAC-SPEC §1a) — same gate
   // as the protection toggles. Team-scoped keys inherit their team's bindings.
-  const { data: me } = useSuspenseQuery(meQueryOptions());
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
   return (
     <section className="flex flex-col gap-3">
@@ -162,7 +198,8 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
             items={data.items}
             teamsById={teamsById}
             orgId={orgId}
-            canManageBindings={isOrgAdmin(me.orgRole)}
+            canManageBindings={canManageProtection}
+            canManageProtection={canManageProtection}
           />
         </Frame>
       )}
@@ -180,7 +217,7 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
     <section className="flex flex-col gap-3">
       <SectionHeader
         title="Apple Teams"
-        description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict every credential in the team to Maintainers."
+        description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict creating credentials under the team to Maintainers; new credentials start with the team's protected state."
       />
       {teams.items.length === 0 ? (
         <AppleTeamsEmptyState />

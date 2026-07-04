@@ -55,6 +55,27 @@ export class AscApiKeysGroup extends HttpApiGroup.make("ascApiKeys")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/asc-api-keys/${idParam}/protection`
+      .addSuccess(AscApiKey)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the ASC API key protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/asc-api-keys/${idParam}/protection`
+      .addSuccess(AscApiKey)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the key's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

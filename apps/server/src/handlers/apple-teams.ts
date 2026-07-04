@@ -13,8 +13,9 @@ import { AppleTeamRepo } from "../repositories/apple-teams";
 import { ProjectCredentialBindingRepo } from "../repositories/project-credential-bindings";
 
 // Toggle the protected-team flag (GITLAB-RBAC-SPEC §3b) — org admin only,
-// idempotent, audit-logged. The flag cascades to every credential under the
-// team, so no per-credential writes are needed.
+// idempotent, audit-logged. The flag gates team-level interactions (creating
+// credentials under the team, devices) and seeds new child rows' own flags;
+// it does NOT touch existing children, which keep their per-row toggles.
 const setProtectionEffect = (id: string, isProtected: boolean) =>
   toApiCrudEffect(
     Effect.gen(function* () {

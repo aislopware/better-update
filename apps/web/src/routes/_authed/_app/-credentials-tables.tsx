@@ -15,20 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import {
-  BellRingIcon,
-  CreditCardIcon,
-  KeyRoundIcon,
-  ShieldCheckIcon,
-  UsersRoundIcon,
-  WalletIcon,
-} from "lucide-react";
+import { BellRingIcon, KeyRoundIcon, ShieldCheckIcon, UsersRoundIcon } from "lucide-react";
 
 import type {
   AppleDistributionCertificateItem,
-  ApplePassTypeCertificateItem,
-  ApplePayCertificateItem,
-  ApplePushCertificateItem,
   ApplePushKeyItem,
   AppleTeamItem,
   AscApiKeyItem,
@@ -40,8 +30,10 @@ import { formatShortDate } from "../../../lib/format-date";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BoundProjectsCell, InheritedProjectsCell } from "./-credential-bindings";
 import { RolesCell, TeamCell } from "./-credential-cells";
-import { AppleTeamProtectionSwitch } from "./-credential-protection";
+import { AppleChildProtectionSwitch, AppleTeamProtectionSwitch } from "./-credential-protection";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
+
+import type { ChildCredentialTableProps } from "./-credentials-utils";
 
 export const DistributionCertificatesEmptyState = () => (
   <Card>
@@ -62,16 +54,18 @@ export const DistributionCertificatesEmptyState = () => (
 
 export const DistributionCertificatesTable = ({
   items,
+  orgId,
   teamsById,
-}: {
+  canManageProtection,
+}: ChildCredentialTableProps & {
   items: readonly AppleDistributionCertificateItem[];
-  teamsById: ReadonlyMap<string, AppleTeamItem>;
 }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Serial</TableHead>
         <TableHead>Team</TableHead>
+        <TableHead>Protected</TableHead>
         <TableHead>Developer ID</TableHead>
         <TableHead>Status</TableHead>
         <TableHead>Valid until</TableHead>
@@ -87,7 +81,17 @@ export const DistributionCertificatesTable = ({
               <CopyableMono value={cert.serialNumber} label="Serial" />
             </TableCell>
             <TableCell>
-              <TeamCell team={teamsById.get(cert.appleTeamId)} showProtected />
+              <TeamCell team={teamsById.get(cert.appleTeamId)} />
+            </TableCell>
+            <TableCell>
+              <AppleChildProtectionSwitch
+                orgId={orgId}
+                kind="distributionCertificate"
+                id={cert.id}
+                label={cert.serialNumber}
+                isProtected={cert.protected}
+                canManage={canManageProtection}
+              />
             </TableCell>
             <TableCell>
               <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
@@ -125,16 +129,18 @@ export const PushKeysEmptyState = () => (
 
 export const PushKeysTable = ({
   items,
+  orgId,
   teamsById,
-}: {
+  canManageProtection,
+}: ChildCredentialTableProps & {
   items: readonly ApplePushKeyItem[];
-  teamsById: ReadonlyMap<string, AppleTeamItem>;
 }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Key ID</TableHead>
         <TableHead>Team</TableHead>
+        <TableHead>Protected</TableHead>
         <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
@@ -145,155 +151,20 @@ export const PushKeysTable = ({
             <CopyableMono value={key.keyId} label="Key ID" />
           </TableCell>
           <TableCell>
-            <TeamCell team={teamsById.get(key.appleTeamId)} showProtected />
+            <TeamCell team={teamsById.get(key.appleTeamId)} />
+          </TableCell>
+          <TableCell>
+            <AppleChildProtectionSwitch
+              orgId={orgId}
+              kind="pushKey"
+              id={key.id}
+              label={key.keyId}
+              isProtected={key.protected}
+              canManage={canManageProtection}
+            />
           </TableCell>
           <TableCell className="text-muted-foreground">
             <RelativeTime value={key.createdAt} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
-
-export const PushCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <BellRingIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No push certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a legacy APNs Push Services .p12 certificate to send push
-          notifications.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
-);
-
-export const PushCertificatesTable = ({
-  items,
-}: {
-  items: readonly ApplePushCertificateItem[];
-}) => (
-  <Table variant="card">
-    <TableHeader>
-      <TableRow>
-        <TableHead>Bundle identifier</TableHead>
-        <TableHead>Serial number</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead>Created</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell>
-            <CopyableMono value={cert.bundleIdentifier} label="Bundle identifier" />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={cert.serialNumber} label="Serial number" />
-          </TableCell>
-          <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-muted-foreground">
-            <RelativeTime value={cert.createdAt} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
-
-export const PayCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CreditCardIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Apple Pay certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload an Apple Pay payment processing .p12 certificate bound to a Merchant
-          ID.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
-);
-
-export const PayCertificatesTable = ({ items }: { items: readonly ApplePayCertificateItem[] }) => (
-  <Table variant="card">
-    <TableHeader>
-      <TableRow>
-        <TableHead>Merchant ID</TableHead>
-        <TableHead>Serial</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead>Created</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell>
-            <CopyableMono value={cert.merchantIdentifier} label="Merchant ID" />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={cert.serialNumber} label="Serial" />
-          </TableCell>
-          <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-muted-foreground">
-            <RelativeTime value={cert.createdAt} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
-
-export const PassTypeCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <WalletIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Pass Type ID certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a Wallet Pass Type ID .p12 certificate bound to a Pass Type ID.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
-);
-
-export const PassTypeCertificatesTable = ({
-  items,
-}: {
-  items: readonly ApplePassTypeCertificateItem[];
-}) => (
-  <Table variant="card">
-    <TableHeader>
-      <TableRow>
-        <TableHead>Pass Type ID</TableHead>
-        <TableHead>Serial</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead>Created</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell>
-            <CopyableMono value={cert.passTypeIdentifier} label="Pass Type ID" />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={cert.serialNumber} label="Serial" />
-          </TableCell>
-          <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-muted-foreground">
-            <RelativeTime value={cert.createdAt} />
           </TableCell>
         </TableRow>
       ))}
@@ -322,10 +193,9 @@ export const AscApiKeysTable = ({
   teamsById,
   orgId,
   canManageBindings,
-}: {
+  canManageProtection,
+}: ChildCredentialTableProps & {
   items: readonly AscApiKeyItem[];
-  teamsById: ReadonlyMap<string, AppleTeamItem>;
-  orgId: string;
   canManageBindings: boolean;
 }) => (
   <Table variant="card">
@@ -335,6 +205,7 @@ export const AscApiKeysTable = ({
         <TableHead>Key ID</TableHead>
         <TableHead>Issuer ID</TableHead>
         <TableHead>Team</TableHead>
+        <TableHead>Protected</TableHead>
         <TableHead>Roles</TableHead>
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
@@ -353,7 +224,16 @@ export const AscApiKeysTable = ({
           <TableCell>
             <TeamCell
               team={key.appleTeamId === null ? undefined : teamsById.get(key.appleTeamId)}
-              showProtected
+            />
+          </TableCell>
+          <TableCell>
+            <AppleChildProtectionSwitch
+              orgId={orgId}
+              kind="ascApiKey"
+              id={key.id}
+              label={key.name}
+              isProtected={key.protected}
+              canManage={canManageProtection}
             />
           </TableCell>
           <TableCell>

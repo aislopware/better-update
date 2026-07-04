@@ -99,6 +99,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "download",
               appleTeamRowId: team.id,
+              credentialIsProtected: resolvedIds.anyReturnedCredentialProtected,
             });
             yield* logAudit({
               action: "build-credentials.resolve",

@@ -54,6 +54,27 @@ export class ApplePushCertificatesGroup extends HttpApiGroup.make("applePushCert
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/push-certificates/${idParam}/protection`
+      .addSuccess(ApplePushCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the push certificate protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/push-certificates/${idParam}/protection`
+      .addSuccess(ApplePushCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the certificate's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

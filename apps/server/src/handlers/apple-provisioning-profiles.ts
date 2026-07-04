@@ -12,7 +12,7 @@ import {
 } from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertAccessAny } from "../auth/policy";
+import { assertAccessAny, assertOrgAdmin } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { parseProvisioningProfile } from "../domain/apple-provisioning-profile-parser";
 import { BadRequest } from "../errors";
@@ -38,6 +38,38 @@ const decodeBase64 = (value: string) =>
     catch: () => new BadRequest({ message: "Provisioning profile must be valid base64" }),
   });
 
+// Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b) — org admin only,
+// idempotent, audit-logged. The row flag is the whole gate for this
+// credential; the team flag only guards team-level interactions.
+const setProtectionEffect = (id: string, isProtected: boolean) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const repo = yield* AppleProvisioningProfileRepo;
+      const existing = yield* repo.findById({ id });
+      yield* assertOrgOwnership(existing.organizationId);
+      yield* assertOrgAdmin;
+      const ctx = yield* CurrentActor;
+      yield* repo.setProtection({
+        id,
+        organizationId: ctx.organizationId,
+        isProtected,
+        now: new Date().toISOString(),
+      });
+      yield* logAudit({
+        action: isProtected
+          ? "apple.provisioning-profile.protect"
+          : "apple.provisioning-profile.unprotect",
+        resourceType: "appleCredential",
+        resourceId: id,
+        metadata: {
+          bundleIdentifier: existing.bundleIdentifier,
+          distributionType: existing.distributionType,
+        },
+      });
+      return toApiAppleProvisioningProfile({ ...existing, isProtected });
+    }),
+  );
+
 export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
   ManagementApi,
   "appleProvisioningProfiles",
@@ -55,7 +87,11 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
               distributionType: urlParams.distributionType,
               appleTeamId: urlParams.appleTeamId,
             });
-            const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId);
+            const visible = yield* filterByAppleTeamRead(
+              items,
+              (item) => item.appleTeamId,
+              (item) => item.isProtected,
+            );
             return { items: visible.map(toApiAppleProvisioningProfile) };
           }),
         ),
@@ -108,6 +144,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
                 r2Key,
                 isManaged: payload.isManaged ?? false,
                 deviceRosterHash: toDbNull(payload.deviceRosterHash),
+                isProtected: team.isProtected,
               }),
             );
 
@@ -141,6 +178,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "delete",
               appleTeamRowId: existing.appleTeamId,
+              credentialIsProtected: existing.isProtected,
             });
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
@@ -170,6 +208,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "download",
               appleTeamRowId: existing.appleTeamId,
+              credentialIsProtected: existing.isProtected,
             });
 
             const profileBytes = yield* artifacts.get(existing.r2Key, "Provisioning profile");
@@ -194,5 +233,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             };
           }),
         ),
-      ),
+      )
+      .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
+      .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
 );

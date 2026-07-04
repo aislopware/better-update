@@ -70,12 +70,17 @@ target project; bind it first.
 The one surviving "highest role anywhere" rule: **org-global env-var READS** (`envVar:read` on the
 `global` scope) need developer-on-any-project; writes are org admin+.
 
-**Protected credentials** require **maintainer** (via a bound project) for every action. An Apple
-team's protected flag CASCADES to all of its child credentials (dist/push/pass-type/pay
-certificates, push keys, provisioning profiles, ASC API keys) — children have no independent toggle
-and show an inherited "Protected (via team)" badge. Team-less ASC keys are ALWAYS protected. Google
-service-account keys and upload keystores have per-row toggles. Toggling protection is org admin+.
-Note RBAC gates the API only: decrypting credential blobs still requires vault access (E2E).
+**Protected credentials** require **maintainer** (via a bound project) for every action on the
+credential. Each Apple child credential (dist/push/pass-type/pay certificates, push keys,
+provisioning profiles, ASC API keys) carries its OWN protected toggle — the row flag is the whole
+gate for using an existing credential; a protected team with an unprotected cert still lets
+developers build with that cert. The Apple TEAM's protected flag instead gates team-level
+interactions: creating new credentials under the team requires maintainer+ (checked at upload,
+right after the CLI team pick), and it seeds the default — new children start with the team's
+protected state (team-less ASC keys start protected). Toggling the team later does not change
+existing children. Google service-account keys and upload keystores have per-row toggles. Toggling
+protection is org admin+. Note RBAC gates the API only: decrypting credential blobs still requires
+vault access (E2E).
 
 ## devices — Apple UDID registration
 

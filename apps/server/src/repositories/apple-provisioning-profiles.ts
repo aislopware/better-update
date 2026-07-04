@@ -25,6 +25,11 @@ export interface AppleProvisioningProfileRepository {
     readonly r2Key: string;
     readonly isManaged: boolean;
     readonly deviceRosterHash: string | null;
+    /**
+     * Snapshot of the team's protected flag at creation (spec §3b) — applied
+     * on INSERT only; a re-upload keeps the existing row's own flag.
+     */
+    readonly isProtected: boolean;
   }) => Effect.Effect<{
     readonly model: AppleProvisioningProfileModel;
     readonly previousR2Key: string | null;
@@ -40,6 +45,14 @@ export interface AppleProvisioningProfileRepository {
   readonly findById: (params: {
     readonly id: string;
   }) => Effect.Effect<AppleProvisioningProfileModel, NotFound>;
+
+  /** Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
 
   readonly delete: (params: {
     readonly id: string;
@@ -66,6 +79,7 @@ const toModel = (row: Selectable<AppleProvisioningProfiles>): AppleProvisioningP
   r2Key: row.r2_key,
   isManaged: row.is_managed === 1,
   deviceRosterHash: row.device_roster_hash,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -106,6 +120,7 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
             r2_key: params.r2Key,
             is_managed: params.isManaged ? 1 : 0,
             device_roster_hash: params.deviceRosterHash,
+            is_protected: params.isProtected ? 1 : 0,
             created_at: now,
             updated_at: now,
           })
@@ -182,6 +197,19 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
         return yield* new NotFound({ message: "Provisioning profile not found" });
       }
       return toModel(row);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("apple_provisioning_profiles")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

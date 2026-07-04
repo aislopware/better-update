@@ -69,9 +69,12 @@ export interface CurrentActor {
  * A separate APPLE-TEAM axis scopes Apple credentials by the 10-char Apple
  * Team identifier (`appleTeam/{T}/credential[/{id}]`). Every credential type
  * under the team (distribution certs, push keys/certs, pass-type/pay certs,
- * provisioning profiles, ASC API keys) shares ONE leaf; the team's
- * `is_protected` flag AND its project bindings cascade to all of them (spec
- * §1a/§3b). Team-less credentials are always protected and bind per-row.
+ * provisioning profiles, ASC API keys) shares ONE leaf and the team's
+ * project bindings cascade to all of them (spec §1a/§3b). Protection does
+ * NOT cascade: an existing credential is gated by its own `is_protected`
+ * only, while the team's flag gates team-level interactions (creating
+ * credentials, devices) and seeds new rows' flags. Team-less credentials
+ * (created protected) bind per-row.
  */
 export type ObjectRef =
   | { readonly kind: "org" }

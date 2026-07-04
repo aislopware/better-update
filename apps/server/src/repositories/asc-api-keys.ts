@@ -23,6 +23,8 @@ export interface AscApiKeyRepository {
     readonly r2Key: string;
     readonly wrappedDek: string;
     readonly vaultVersion: number;
+    /** Team-less keys are inserted protected (spec §3b). */
+    readonly isProtected: boolean;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -37,6 +39,14 @@ export interface AscApiKeyRepository {
   }) => Effect.Effect<readonly AscApiKeyModel[]>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<AscApiKeyModel, NotFound>;
+
+  /** Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b). Idempotent. */
+  readonly setProtection: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly isProtected: boolean;
+    readonly now: string;
+  }) => Effect.Effect<void>;
 
   readonly delete: (params: {
     readonly id: string;
@@ -61,6 +71,7 @@ const COLUMNS = [
   "r2_key",
   "wrapped_dek",
   "vault_version",
+  "is_protected",
   "created_at",
   "updated_at",
 ] as const;
@@ -76,6 +87,7 @@ const toModel = (row: Selectable<AscApiKeys>): AscApiKeyModel => ({
   r2Key: row.r2_key,
   wrappedDek: row.wrapped_dek,
   vaultVersion: row.vault_version,
+  isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -99,6 +111,7 @@ export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
               r2_key: params.r2Key,
               wrapped_dek: params.wrappedDek,
               vault_version: params.vaultVersion,
+              is_protected: params.isProtected ? 1 : 0,
               created_at: params.createdAt,
               updated_at: params.updatedAt,
             })
@@ -150,6 +163,19 @@ export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
         return yield* new NotFound({ message: "ASC API key not found" });
       }
       return toModel(row);
+    }),
+
+  setProtection: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("asc_api_keys")
+          .set({ is_protected: params.isProtected ? 1 : 0, updated_at: params.now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
     }),
 
   delete: (params) =>

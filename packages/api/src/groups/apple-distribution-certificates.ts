@@ -57,6 +57,27 @@ export class AppleDistributionCertificatesGroup extends HttpApiGroup.make(
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/apple/distribution-certificates/${idParam}/protection`
+      .addSuccess(AppleDistributionCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect credential",
+          description:
+            "Mark the certificate protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/apple/distribution-certificates/${idParam}/protection`
+      .addSuccess(AppleDistributionCertificate)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect credential",
+          description: "Remove the certificate's protection. Org admin only. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

@@ -13,7 +13,7 @@ import {
 } from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertAccessAny } from "../auth/policy";
+import { assertAccessAny, assertOrgAdmin } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest } from "../errors";
 import { toApiApplePassTypeCertificate } from "../http/to-api";
@@ -33,6 +33,38 @@ const decodeBase64 = (value: string) =>
     catch: () => new BadRequest({ message: "Pass Type ID certificate must be valid base64" }),
   });
 
+// Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b) — org admin only,
+// idempotent, audit-logged. The row flag is the whole gate for this
+// credential; the team flag only guards team-level interactions.
+const setProtectionEffect = (id: string, isProtected: boolean) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const repo = yield* ApplePassTypeCertificateRepo;
+      const existing = yield* repo.findById({ id });
+      yield* assertOrgOwnership(existing.organizationId);
+      yield* assertOrgAdmin;
+      const ctx = yield* CurrentActor;
+      yield* repo.setProtection({
+        id,
+        organizationId: ctx.organizationId,
+        isProtected,
+        now: new Date().toISOString(),
+      });
+      yield* logAudit({
+        action: isProtected
+          ? "apple.pass-type-certificate.protect"
+          : "apple.pass-type-certificate.unprotect",
+        resourceType: "appleCredential",
+        resourceId: id,
+        metadata: {
+          serialNumber: existing.serialNumber,
+          passTypeIdentifier: existing.passTypeIdentifier,
+        },
+      });
+      return toApiApplePassTypeCertificate({ ...existing, isProtected });
+    }),
+  );
+
 export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
   ManagementApi,
   "applePassTypeCertificates",
@@ -45,7 +77,11 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
             const ctx = yield* CurrentActor;
             const repo = yield* ApplePassTypeCertificateRepo;
             const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-            const visible = yield* filterByAppleTeamRead(items, (item) => item.appleTeamId);
+            const visible = yield* filterByAppleTeamRead(
+              items,
+              (item) => item.appleTeamId,
+              (item) => item.isProtected,
+            );
             return { items: visible.map(toApiApplePassTypeCertificate) };
           }),
         ),
@@ -100,6 +136,7 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
                 r2Key,
                 wrappedDek: payload.wrappedDek,
                 vaultVersion: payload.vaultVersion,
+                isProtected: team.isProtected,
                 createdAt: now,
                 updatedAt: now,
               }),
@@ -127,6 +164,7 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
               r2Key,
               wrappedDek: payload.wrappedDek,
               vaultVersion: payload.vaultVersion,
+              isProtected: team.isProtected,
               createdAt: now,
               updatedAt: now,
             });
@@ -143,6 +181,7 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "delete",
               appleTeamRowId: existing.appleTeamId,
+              credentialIsProtected: existing.isProtected,
             });
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
@@ -171,6 +210,7 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
             yield* assertAppleCredentialAccess({
               action: "download",
               appleTeamRowId: existing.appleTeamId,
+              credentialIsProtected: existing.isProtected,
             });
 
             const blob = yield* artifacts.get(existing.r2Key, "Pass Type ID certificate");
@@ -195,5 +235,7 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
             };
           }),
         ),
-      ),
+      )
+      .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
+      .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
 );

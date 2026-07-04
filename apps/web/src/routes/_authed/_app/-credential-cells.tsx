@@ -8,19 +8,22 @@ import { formatAppleTeamType } from "./-credentials-utils";
 
 export const EmptyDash = () => <span className="text-muted-foreground">—</span>;
 
+// Read-only per-row protected indicator (GITLAB-RBAC-SPEC §3b) for
+// project-scoped credential views; the org tables render the toggle instead.
+export const ProtectedBadgeCell = ({ isProtected }: { isProtected: boolean }) =>
+  isProtected ? (
+    <Badge variant="outline" className="gap-1">
+      <LockIcon strokeWidth={2} className="size-3" />
+      Protected
+    </Badge>
+  ) : (
+    <EmptyDash />
+  );
+
 // Stacked team label shared across every credential/device table: human-readable
 // name on top, Apple team type + raw identifier below. Accepts null/undefined so
 // both map lookups (`map.get`) and array finds can pass results through directly.
-// `showProtected` (credential tables only) surfaces the team's cascading
-// protection flag (GITLAB-RBAC-SPEC §3b): children inherit it and have no
-// toggle of their own, so the badge is their only protection indicator.
-export const TeamCell = ({
-  team,
-  showProtected = false,
-}: {
-  team: AppleTeamItem | null | undefined;
-  showProtected?: boolean;
-}) => {
+export const TeamCell = ({ team }: { team: AppleTeamItem | null | undefined }) => {
   if (!team) {
     return <EmptyDash />;
   }
@@ -31,12 +34,6 @@ export const TeamCell = ({
       <span className="text-muted-foreground text-xs">
         {team.name === null ? type : `${type} · ${team.appleTeamId}`}
       </span>
-      {showProtected && team.protected ? (
-        <Badge variant="outline" className="mt-1 w-fit gap-1">
-          <LockIcon strokeWidth={2} className="size-3" />
-          Protected (via team)
-        </Badge>
-      ) : null}
     </div>
   );
 };
@@ -82,13 +79,5 @@ export const ProtectionCell = ({
       />
     );
   }
-  if (checked) {
-    return (
-      <Badge variant="outline" className="gap-1">
-        <LockIcon strokeWidth={2} className="size-3" />
-        Protected
-      </Badge>
-    );
-  }
-  return <EmptyDash />;
+  return <ProtectedBadgeCell isProtected={checked} />;
 };

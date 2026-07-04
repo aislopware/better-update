@@ -20,7 +20,7 @@ import type {
   AscApiKeyItem,
 } from "@better-update/api-client/react";
 
-import { RolesCell, TeamCell } from "../../-credential-cells";
+import { ProtectedBadgeCell, RolesCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
 import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
@@ -41,6 +41,7 @@ const PushKeyTableCard = ({
           <TableRow>
             <TableHead>Key ID</TableHead>
             <TableHead>Apple Team</TableHead>
+            <TableHead>Protected</TableHead>
             <TableHead>Uploaded at</TableHead>
           </TableRow>
         </TableHeader>
@@ -50,7 +51,10 @@ const PushKeyTableCard = ({
               <CopyableMono value={pushKey.keyId} label="Key ID" />
             </TableCell>
             <TableCell>
-              <TeamCell team={team} showProtected />
+              <TeamCell team={team} />
+            </TableCell>
+            <TableCell>
+              <ProtectedBadgeCell isProtected={pushKey.protected} />
             </TableCell>
             <TableCell className="text-muted-foreground">
               {formatShortDateTime(pushKey.createdAt)}
@@ -80,6 +84,7 @@ const AscKeyTableCard = ({
             <TableHead>Key ID</TableHead>
             <TableHead>Issuer ID</TableHead>
             <TableHead>Apple Team</TableHead>
+            <TableHead>Protected</TableHead>
             <TableHead>Roles</TableHead>
             <TableHead>Uploaded at</TableHead>
           </TableRow>
@@ -94,7 +99,10 @@ const AscKeyTableCard = ({
               <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
             </TableCell>
             <TableCell>
-              <TeamCell team={team} showProtected />
+              <TeamCell team={team} />
+            </TableCell>
+            <TableCell>
+              <ProtectedBadgeCell isProtected={ascKey.protected} />
             </TableCell>
             <TableCell>
               <RolesCell roles={ascKey.roles} />

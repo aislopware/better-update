@@ -21,6 +21,8 @@ export class ApplePassTypeCertificate extends Schema.Class<ApplePassTypeCertific
   serialNumber: Schema.String,
   validFrom: DateTimeString,
   validUntil: DateTimeString,
+  /** Per-row protected flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}

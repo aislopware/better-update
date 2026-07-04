@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import type { AppleTeamItem } from "@better-update/api-client/react";
 
-import { ProtectionCell, TeamCell } from "./-credential-cells";
+import { ProtectedBadgeCell, ProtectionCell, TeamCell } from "./-credential-cells";
 
 const makeTeam = (overrides?: Partial<AppleTeamItem>): AppleTeamItem =>
   ({
@@ -22,15 +22,22 @@ const makeTeam = (overrides?: Partial<AppleTeamItem>): AppleTeamItem =>
   }) as AppleTeamItem;
 
 describe(TeamCell, () => {
-  it("shows the inherited protection badge only when opted in AND the team is protected", () => {
-    const { rerender } = render(<TeamCell team={makeTeam({ protected: true })} showProtected />);
-    expect(screen.getByText("Protected (via team)")).toBeInTheDocument();
+  it("renders the team label and a dash when the team is missing", () => {
+    const { rerender } = render(<TeamCell team={makeTeam()} />);
+    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
 
-    rerender(<TeamCell team={makeTeam({ protected: true })} />);
-    expect(screen.queryByText("Protected (via team)")).not.toBeInTheDocument();
+    rerender(<TeamCell team={undefined} />);
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+});
 
-    rerender(<TeamCell team={makeTeam({ protected: false })} showProtected />);
-    expect(screen.queryByText("Protected (via team)")).not.toBeInTheDocument();
+describe(ProtectedBadgeCell, () => {
+  it("renders a badge when protected and a dash otherwise", () => {
+    const { rerender } = render(<ProtectedBadgeCell isProtected />);
+    expect(screen.getByText("Protected")).toBeInTheDocument();
+
+    rerender(<ProtectedBadgeCell isProtected={false} />);
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 });
 

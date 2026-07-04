@@ -2,14 +2,6 @@ import {
   AndroidApplicationIdentifier,
   AndroidBuildCredentials,
   AndroidUploadKeystore,
-  AppleDistributionCertificate,
-  ApplePassTypeCertificate,
-  ApplePayCertificate,
-  AppleProvisioningProfile,
-  ApplePushCertificate,
-  ApplePushKey,
-  AppleTeam,
-  AscApiKey,
   AuditLog,
   Branch,
   BuildCompatibilityChannel,
@@ -27,20 +19,12 @@ import {
   Project,
   Update,
 } from "@better-update/api";
-import { safeJsonParse } from "@better-update/safe-json";
 
 import type { EnvVarModel } from "../env-var-models";
 import type {
   AndroidApplicationIdentifierModel,
   AndroidBuildCredentialsModel,
   AndroidUploadKeystoreModel,
-  AppleDistributionCertificateModel,
-  ApplePassTypeCertificateModel,
-  ApplePayCertificateModel,
-  AppleProvisioningProfileModel,
-  ApplePushCertificateModel,
-  ApplePushKeyModel,
-  AscApiKeyModel,
   AuditLogModel,
   BranchModel,
   BuildCompatibilityChannelModel,
@@ -57,7 +41,6 @@ import type {
   ProjectModel,
   UpdateModel,
 } from "../models";
-import type { AppleTeamWithCounts } from "../repositories/apple-teams";
 import type { IosAppMetadataModel } from "../submission-models";
 
 export const toApiProject = (project: ProjectModel) =>
@@ -262,134 +245,18 @@ export const toApiAuditLog = (log: AuditLogModel) =>
     createdAt: log.createdAt,
   });
 
-export const toApiAppleTeamWithCounts = (
-  team: AppleTeamWithCounts,
-  boundProjectIds: readonly string[],
-): AppleTeam =>
-  new AppleTeam({
-    boundProjectIds,
-    id: team.id,
-    organizationId: team.organizationId,
-    appleTeamId: team.appleTeamId,
-    appleTeamType: team.appleTeamType,
-    name: team.name,
-    protected: team.isProtected,
-    distributionCertificateCount: team.distributionCertificateCount,
-    pushKeyCount: team.pushKeyCount,
-    ascApiKeyCount: team.ascApiKeyCount,
-    provisioningProfileCount: team.provisioningProfileCount,
-    deviceCount: team.deviceCount,
-    createdAt: team.createdAt,
-    updatedAt: team.updatedAt,
-  });
-
-export const toApiAppleDistributionCertificate = (
-  model: AppleDistributionCertificateModel,
-): AppleDistributionCertificate =>
-  new AppleDistributionCertificate({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    serialNumber: model.serialNumber,
-    developerIdIdentifier: model.developerIdIdentifier,
-    validFrom: model.validFrom,
-    validUntil: model.validUntil,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
-
-export const toApiApplePushKey = (model: ApplePushKeyModel): ApplePushKey =>
-  new ApplePushKey({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    keyId: model.keyId,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
-
-export const toApiApplePushCertificate = (model: ApplePushCertificateModel): ApplePushCertificate =>
-  new ApplePushCertificate({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    bundleIdentifier: model.bundleIdentifier,
-    serialNumber: model.serialNumber,
-    validFrom: model.validFrom,
-    validUntil: model.validUntil,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
-
-export const toApiApplePayCertificate = (model: ApplePayCertificateModel): ApplePayCertificate =>
-  new ApplePayCertificate({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    merchantIdentifier: model.merchantIdentifier,
-    serialNumber: model.serialNumber,
-    validFrom: model.validFrom,
-    validUntil: model.validUntil,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
-
-export const toApiApplePassTypeCertificate = (
-  model: ApplePassTypeCertificateModel,
-): ApplePassTypeCertificate =>
-  new ApplePassTypeCertificate({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    passTypeIdentifier: model.passTypeIdentifier,
-    serialNumber: model.serialNumber,
-    validFrom: model.validFrom,
-    validUntil: model.validUntil,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
-
-const parseRoles = (roles: string): readonly string[] => {
-  const parsed = safeJsonParse(roles);
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-  return parsed.filter((value): value is string => typeof value === "string");
-};
-
-export const toApiAscApiKey = (
-  model: AscApiKeyModel,
-  boundProjectIds: readonly string[],
-): AscApiKey =>
-  new AscApiKey({
-    boundProjectIds,
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    keyId: model.keyId,
-    issuerId: model.issuerId,
-    name: model.name,
-    roles: parseRoles(model.roles),
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
-
-export const toApiAppleProvisioningProfile = (
-  model: AppleProvisioningProfileModel,
-): AppleProvisioningProfile =>
-  new AppleProvisioningProfile({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    appleDistributionCertificateId: model.appleDistributionCertificateId,
-    bundleIdentifier: model.bundleIdentifier,
-    distributionType: model.distributionType,
-    developerPortalIdentifier: model.developerPortalIdentifier,
-    profileName: model.profileName,
-    validUntil: model.validUntil,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+// Apple credential mappers live in ./to-api-apple (extracted for the line
+// budget); re-exported here so existing import sites stay stable.
+export {
+  toApiAppleDistributionCertificate,
+  toApiApplePassTypeCertificate,
+  toApiApplePayCertificate,
+  toApiAppleProvisioningProfile,
+  toApiApplePushCertificate,
+  toApiApplePushKey,
+  toApiAppleTeamWithCounts,
+  toApiAscApiKey,
+} from "./to-api-apple";
 
 export const toApiGoogleServiceAccountKey = (
   model: GoogleServiceAccountKeyModel,

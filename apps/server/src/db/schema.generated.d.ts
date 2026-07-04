@@ -83,6 +83,7 @@ export interface AppleDistributionCertificates {
   created_at: Generated<string>;
   developer_id_identifier: string | null;
   id: string | null;
+  is_protected: Generated<number>;
   organization_id: string;
   r2_key: string;
   serial_number: string;
@@ -97,6 +98,7 @@ export interface ApplePassTypeCertificates {
   apple_team_id: string;
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   organization_id: string;
   pass_type_identifier: string;
   r2_key: string;
@@ -112,6 +114,7 @@ export interface ApplePayCertificates {
   apple_team_id: string;
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   merchant_identifier: string;
   organization_id: string;
   r2_key: string;
@@ -133,6 +136,7 @@ export interface AppleProvisioningProfiles {
   distribution_type: string;
   id: string | null;
   is_managed: Generated<number>;
+  is_protected: Generated<number>;
   organization_id: string;
   profile_name: string | null;
   r2_key: string;
@@ -145,6 +149,7 @@ export interface ApplePushCertificates {
   bundle_identifier: string;
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   organization_id: string;
   r2_key: string;
   serial_number: string;
@@ -159,6 +164,7 @@ export interface ApplePushKeys {
   apple_team_id: string;
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   key_id: string;
   organization_id: string;
   r2_key: string;
@@ -182,6 +188,7 @@ export interface AscApiKeys {
   apple_team_id: string | null;
   created_at: Generated<string>;
   id: string | null;
+  is_protected: Generated<number>;
   issuer_id: Generated<string>;
   key_id: string;
   name: string;

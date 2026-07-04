@@ -65,6 +65,7 @@ const pushKey = ApplePushKey.make({
   organizationId: "org",
   appleTeamId: "team-uuid",
   keyId: "ABC1234567",
+  protected: false,
   createdAt: "2026-02-03T00:00:00.000Z",
   updatedAt: "2026-02-03T00:00:00.000Z",
 });
@@ -119,6 +120,7 @@ const distributionCert = AppleDistributionCertificate.make({
   developerIdIdentifier: null,
   validFrom: "2025-01-01T00:00:00.000Z",
   validUntil: "2027-01-01T00:00:00.000Z",
+  protected: false,
   createdAt: "2025-01-01T00:00:00.000Z",
   updatedAt: "2025-01-01T00:00:00.000Z",
 });

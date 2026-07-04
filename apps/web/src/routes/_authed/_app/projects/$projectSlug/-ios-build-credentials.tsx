@@ -24,7 +24,7 @@ import type {
   IosBundleConfigurationItem,
 } from "@better-update/api-client/react";
 
-import { TeamCell } from "../../-credential-cells";
+import { ProtectedBadgeCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
@@ -45,7 +45,10 @@ const CertRow = ({
         <CopyableMono value={cert.serialNumber} label="Serial" />
       </TableCell>
       <TableCell>
-        <TeamCell team={team} showProtected />
+        <TeamCell team={team} />
+      </TableCell>
+      <TableCell>
+        <ProtectedBadgeCell isProtected={cert.protected} />
       </TableCell>
       <TableCell>
         <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
@@ -77,6 +80,7 @@ const CertTableCard = ({
           <TableRow>
             <TableHead>Serial</TableHead>
             <TableHead>Apple Team</TableHead>
+            <TableHead>Protected</TableHead>
             <TableHead>Developer ID</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead>Updated at</TableHead>
@@ -104,7 +108,10 @@ const ProfileRow = ({
         {profile.profileName ?? profile.developerPortalIdentifier ?? "Unnamed profile"}
       </TableCell>
       <TableCell>
-        <TeamCell team={team} showProtected />
+        <TeamCell team={team} />
+      </TableCell>
+      <TableCell>
+        <ProtectedBadgeCell isProtected={profile.protected} />
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
@@ -135,6 +142,7 @@ const ProfileTableCard = ({
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Apple Team</TableHead>
+            <TableHead>Protected</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead>Updated at</TableHead>
           </TableRow>

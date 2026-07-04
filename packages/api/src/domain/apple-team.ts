@@ -30,8 +30,10 @@ export class AppleTeam extends Schema.Class<AppleTeam>("AppleTeam")({
   appleTeamType: AppleTeamType,
   name: Schema.NullOr(Schema.String),
   /**
-   * Protected-team flag (GITLAB-RBAC-SPEC §3b): every credential under the
-   * team requires Maintainer+ when set. Cascades — children have no own flag.
+   * Protected-team flag (GITLAB-RBAC-SPEC §3b): team-level interactions
+   * (creating credentials under the team, devices) require Maintainer+ when
+   * set, and new child rows snapshot it as their own initial flag. It does
+   * NOT gate existing child credentials — those carry their own toggle.
    */
   protected: Schema.Boolean,
   distributionCertificateCount: Schema.Number,
