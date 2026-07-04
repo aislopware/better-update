@@ -9,16 +9,12 @@ import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { InteractiveMode } from "../../lib/interactive-mode";
 import { printHuman } from "../../lib/output";
-import {
-  overlayProfileEnvItems,
-  readOptionalProfile,
-  resolveEnvironmentScope,
-} from "../../lib/profile-env";
+import { overlayProfileEnvItems, readOptionalProfile } from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
 import { promptConfirm } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
-import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
+import { envErrorExtras, parseEnvironmentScopeArg } from "./helpers";
 
 import type { OutputMode } from "../../lib/output-mode";
 
@@ -112,9 +108,7 @@ export const pullCommand = defineCommand({
         const runtime = yield* CliRuntime;
         const cwd = yield* runtime.cwd;
         const profile = yield* readOptionalProfile(cwd, args.profile);
-        const environment = yield* parseSingleEnvironmentArg(
-          resolveEnvironmentScope(args.environment, profile),
-        );
+        const environment = yield* parseEnvironmentScopeArg(args.environment, profile);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 

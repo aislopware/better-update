@@ -6,15 +6,11 @@ import { runEffect } from "../../lib/citty-effect";
 import { pullEnvVars } from "../../lib/env-exporter";
 import { getExecTrailingArgv } from "../../lib/exec-trailing-argv";
 import { InvalidArgumentError } from "../../lib/exit-codes";
-import {
-  overlayProfileEnv,
-  readOptionalProfile,
-  resolveEnvironmentScope,
-} from "../../lib/profile-env";
+import { overlayProfileEnv, readOptionalProfile } from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
-import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
+import { envErrorExtras, parseEnvironmentScopeArg } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
 import type { EnvironmentName } from "./helpers";
@@ -75,9 +71,7 @@ export const execCommand = defineCommand({
               "Pass an environment (`env exec production -- …`) or an eas.json profile (`env exec --profile preview -- …`).",
           });
         }
-        const environment = yield* parseSingleEnvironmentArg(
-          resolveEnvironmentScope(args.environment, profile),
-        );
+        const environment = yield* parseEnvironmentScopeArg(args.environment, profile);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
         const baseEnv = yield* runtime.commandEnvironment();

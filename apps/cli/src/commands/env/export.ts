@@ -4,15 +4,11 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { printHuman } from "../../lib/output";
-import {
-  overlayProfileEnvItems,
-  readOptionalProfile,
-  resolveEnvironmentScope,
-} from "../../lib/profile-env";
+import { overlayProfileEnvItems, readOptionalProfile } from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
-import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
+import { envErrorExtras, parseEnvironmentScopeArg } from "./helpers";
 
 export const exportCommand = defineCommand({
   meta: { name: "export", description: "Print env vars in KEY='value' format" },
@@ -34,9 +30,7 @@ export const exportCommand = defineCommand({
         const runtime = yield* CliRuntime;
         const projectRoot = yield* runtime.cwd;
         const profile = yield* readOptionalProfile(projectRoot, args.profile);
-        const environment = yield* parseSingleEnvironmentArg(
-          resolveEnvironmentScope(args.environment, profile),
-        );
+        const environment = yield* parseEnvironmentScopeArg(args.environment, profile);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 

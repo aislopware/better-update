@@ -1,7 +1,9 @@
 import { Data, Effect } from "effect";
 
 import { InvalidArgumentError } from "../../lib/exit-codes";
+import { resolveEnvironmentScope } from "../../lib/profile-env";
 
+import type { BuildProfile } from "../../lib/build-profile";
 import type { ApiClient } from "../../services/api-client";
 
 export class EnvResourceNotFoundError extends Data.TaggedError("EnvResourceNotFoundError")<{
@@ -65,6 +67,30 @@ export const parseSingleEnvironmentArg = (
       });
     }
     return raw;
+  });
+
+/**
+ * Resolve + validate the env scope for commands that accept both --environment
+ * and --profile: the explicit flag wins, then the profile's `environment`, then
+ * "production". A name that came from eas.json rather than the flag is
+ * attributed to its profile in the error so the user knows where to fix it.
+ */
+export const parseEnvironmentScopeArg = (
+  explicit: string | undefined,
+  profile: BuildProfile | undefined,
+): Effect.Effect<EnvironmentName, InvalidArgumentError> =>
+  Effect.gen(function* () {
+    const resolved = resolveEnvironmentScope(explicit, profile);
+    if (isEnvironmentName(resolved)) {
+      return resolved;
+    }
+    const source =
+      explicit === undefined && profile !== undefined
+        ? ` (from eas.json profile "${profile.name}")`
+        : "";
+    return yield* new InvalidArgumentError({
+      message: `Invalid environment "${resolved}"${source}: must be lowercase letters, digits, and hyphens, starting with a letter.`,
+    });
   });
 
 export const formatEnvironments = (environments: readonly EnvironmentName[]): string =>
