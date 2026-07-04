@@ -1,5 +1,7 @@
 import { Schema } from "effect";
 
+import { DateTimeString, UploadHeaders } from "./common";
+
 export const MeUser = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -54,4 +56,36 @@ export const Me = Schema.Struct({
   canManageOrgEnvVars: Schema.Boolean,
   /** organization:update — gates Organization settings mutations. */
   canManageOrgSettings: Schema.Boolean,
+});
+
+/** Image MIME types accepted for a user avatar. */
+export const AvatarContentType = Schema.Literal(
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+);
+
+/**
+ * Request a presigned PUT to upload the current user's avatar. The server builds
+ * the R2 key itself (`logos/user/{userId}`) — never trusting a client-sent key —
+ * and signs the content type into the URL, so the direct upload must send the
+ * returned headers.
+ */
+export const AvatarUploadBody = Schema.Struct({
+  contentType: AvatarContentType,
+});
+
+export const AvatarUploadResult = Schema.Struct({
+  /** R2 object key the presigned URL targets (`logos/user/{userId}`). */
+  key: Schema.String,
+  uploadUrl: Schema.String,
+  uploadExpiresAt: DateTimeString,
+  uploadHeaders: UploadHeaders,
+});
+
+/** Result of finalizing an avatar upload: the public CDN URL of the stored image. */
+export const AvatarResult = Schema.Struct({
+  /** Absolute public CDN URL of the avatar; the caller persists it via the auth client. */
+  imageUrl: Schema.String,
 });

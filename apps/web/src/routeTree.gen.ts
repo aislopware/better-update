@@ -34,7 +34,6 @@ import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app
 import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
 import { Route as AuthedAppAccountSessionsRouteImport } from './routes/_authed/_app/account/sessions'
 import { Route as AuthedAppAccountProfileRouteImport } from './routes/_authed/_app/account/profile'
-import { Route as AuthedAppAccountPasswordRouteImport } from './routes/_authed/_app/account/password'
 import { Route as AuthedAppAccountPasskeysRouteImport } from './routes/_authed/_app/account/passkeys'
 import { Route as AuthedAppAccountConnectionsRouteImport } from './routes/_authed/_app/account/connections'
 import { Route as AuthedAppAccountAppearanceRouteImport } from './routes/_authed/_app/account/appearance'
@@ -188,12 +187,6 @@ const AuthedAppAccountProfileRoute = AuthedAppAccountProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthedAppAccountRoute,
 } as any)
-const AuthedAppAccountPasswordRoute =
-  AuthedAppAccountPasswordRouteImport.update({
-    id: '/password',
-    path: '/password',
-    getParentRoute: () => AuthedAppAccountRoute,
-  } as any)
 const AuthedAppAccountPasskeysRoute =
   AuthedAppAccountPasskeysRouteImport.update({
     id: '/passkeys',
@@ -364,7 +357,6 @@ export interface FileRoutesByFullPath {
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
   '/account/passkeys': typeof AuthedAppAccountPasskeysRoute
-  '/account/password': typeof AuthedAppAccountPasswordRoute
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
@@ -414,7 +406,6 @@ export interface FileRoutesByTo {
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
   '/account/passkeys': typeof AuthedAppAccountPasskeysRoute
-  '/account/password': typeof AuthedAppAccountPasswordRoute
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/account': typeof AuthedAppAccountIndexRoute
@@ -466,7 +457,6 @@ export interface FileRoutesById {
   '/_authed/_app/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/_authed/_app/account/connections': typeof AuthedAppAccountConnectionsRoute
   '/_authed/_app/account/passkeys': typeof AuthedAppAccountPasskeysRoute
-  '/_authed/_app/account/password': typeof AuthedAppAccountPasswordRoute
   '/_authed/_app/account/profile': typeof AuthedAppAccountProfileRoute
   '/_authed/_app/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/_authed/_app/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
@@ -519,7 +509,6 @@ export interface FileRouteTypes {
     | '/account/appearance'
     | '/account/connections'
     | '/account/passkeys'
-    | '/account/password'
     | '/account/profile'
     | '/account/sessions'
     | '/projects/$projectSlug'
@@ -569,7 +558,6 @@ export interface FileRouteTypes {
     | '/account/appearance'
     | '/account/connections'
     | '/account/passkeys'
-    | '/account/password'
     | '/account/profile'
     | '/account/sessions'
     | '/account'
@@ -620,7 +608,6 @@ export interface FileRouteTypes {
     | '/_authed/_app/account/appearance'
     | '/_authed/_app/account/connections'
     | '/_authed/_app/account/passkeys'
-    | '/_authed/_app/account/password'
     | '/_authed/_app/account/profile'
     | '/_authed/_app/account/sessions'
     | '/_authed/_app/projects/$projectSlug'
@@ -839,13 +826,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppAccountProfileRouteImport
       parentRoute: typeof AuthedAppAccountRoute
     }
-    '/_authed/_app/account/password': {
-      id: '/_authed/_app/account/password'
-      path: '/password'
-      fullPath: '/account/password'
-      preLoaderRoute: typeof AuthedAppAccountPasswordRouteImport
-      parentRoute: typeof AuthedAppAccountRoute
-    }
     '/_authed/_app/account/passkeys': {
       id: '/_authed/_app/account/passkeys'
       path: '/passkeys'
@@ -1028,7 +1008,6 @@ interface AuthedAppAccountRouteChildren {
   AuthedAppAccountAppearanceRoute: typeof AuthedAppAccountAppearanceRoute
   AuthedAppAccountConnectionsRoute: typeof AuthedAppAccountConnectionsRoute
   AuthedAppAccountPasskeysRoute: typeof AuthedAppAccountPasskeysRoute
-  AuthedAppAccountPasswordRoute: typeof AuthedAppAccountPasswordRoute
   AuthedAppAccountProfileRoute: typeof AuthedAppAccountProfileRoute
   AuthedAppAccountSessionsRoute: typeof AuthedAppAccountSessionsRoute
   AuthedAppAccountIndexRoute: typeof AuthedAppAccountIndexRoute
@@ -1038,7 +1017,6 @@ const AuthedAppAccountRouteChildren: AuthedAppAccountRouteChildren = {
   AuthedAppAccountAppearanceRoute: AuthedAppAccountAppearanceRoute,
   AuthedAppAccountConnectionsRoute: AuthedAppAccountConnectionsRoute,
   AuthedAppAccountPasskeysRoute: AuthedAppAccountPasskeysRoute,
-  AuthedAppAccountPasswordRoute: AuthedAppAccountPasswordRoute,
   AuthedAppAccountProfileRoute: AuthedAppAccountProfileRoute,
   AuthedAppAccountSessionsRoute: AuthedAppAccountSessionsRoute,
   AuthedAppAccountIndexRoute: AuthedAppAccountIndexRoute,

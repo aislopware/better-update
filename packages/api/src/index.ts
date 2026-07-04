@@ -411,7 +411,15 @@ export {
   UpdateOrganizationBody,
 } from "./domain/organization";
 
-export { Me, MeOrganization, MeUser } from "./domain/me";
+export {
+  AvatarContentType,
+  AvatarResult,
+  AvatarUploadBody,
+  AvatarUploadResult,
+  Me,
+  MeOrganization,
+  MeUser,
+} from "./domain/me";
 export {
   CreateWebhookBody,
   DeleteWebhookResult,

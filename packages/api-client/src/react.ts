@@ -159,6 +159,8 @@ export {
 } from "./react/robot-accounts";
 export type { RobotAccountItem } from "./react/robot-accounts";
 export { meQueryKey, meQueryOptions, removeMember, updateMemberRole } from "./react/members";
+export { isAvatarContentType, removeUserAvatar, uploadUserAvatar } from "./react/me";
+export type { AvatarContentTypeValue } from "./react/me";
 export {
   addProjectMember,
   projectMembersQueryKey,

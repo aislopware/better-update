@@ -1,4 +1,4 @@
-import { actorHolds } from "./me";
+import { actorHolds, avatarRejectionReason } from "./me";
 
 import type { CurrentActor } from "../models";
 
@@ -59,5 +59,43 @@ describe(actorHolds, () => {
     const projectMaintainer = actor({ projectRoles: { projA: "maintainer" } });
     expect(actorHolds(projectMaintainer, "invitation", "create")).toBe(false);
     expect(actorHolds(projectMaintainer, "auditLog", "read")).toBe(false);
+  });
+});
+
+// `setAvatar` gates the uploaded R2 object on these rules, since a presigned PUT
+// can neither cap its own size nor fully constrain its type. Mirrors the shared
+// logo cap (2 MiB) and image allow-list, worded for the avatar.
+describe(avatarRejectionReason, () => {
+  it("accepts each allowed image type within the size cap", () => {
+    const types = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+    for (const contentType of types) {
+      expect(avatarRejectionReason({ size: 1024, contentType })).toBeNull();
+    }
+  });
+
+  it("accepts a missing content type (R2 recorded none)", () => {
+    expect(avatarRejectionReason({ size: 1024, contentType: null })).toBeNull();
+  });
+
+  it("accepts an object exactly at the 2 MiB boundary", () => {
+    expect(avatarRejectionReason({ size: 2_097_152, contentType: "image/png" })).toBeNull();
+  });
+
+  it("rejects an object larger than 2 MiB", () => {
+    expect(avatarRejectionReason({ size: 2_097_153, contentType: "image/png" })).toBe(
+      "Avatar must be 2 MB or smaller",
+    );
+  });
+
+  it("rejects a disallowed content type", () => {
+    expect(avatarRejectionReason({ size: 1024, contentType: "image/gif" })).toBe(
+      "Unsupported avatar type: image/gif",
+    );
+  });
+
+  it("checks the size cap before the content type", () => {
+    expect(avatarRejectionReason({ size: 9_999_999, contentType: "image/gif" })).toBe(
+      "Avatar must be 2 MB or smaller",
+    );
   });
 });
