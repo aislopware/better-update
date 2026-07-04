@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.2](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.47.1...%40better-update%2Fserver%400.47.2) (2026-07-04)
+
+### Bug Fixes
+
+* **server:** dedupe Apple device sync and adopt team-less devices ([aca8c58](https://github.com/better-update/better-update/commit/aca8c584ee178a604cef794ad16b335c67ee7a1d))
+
 ## [0.47.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.47.0...%40better-update%2Fserver%400.47.1) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/server

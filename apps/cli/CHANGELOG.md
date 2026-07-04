@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.58.2](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.58.1...%40better-update%2Fcli%400.58.2) (2026-07-04)
+
+### Bug Fixes
+
+* **cli:** push team-less devices during device sync ([a7a2947](https://github.com/better-update/better-update/commit/a7a29473e3a6eb3e15df24320b87aea8c2ff2757))
+
 ## [0.58.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.58.0...%40better-update%2Fcli%400.58.1) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/cli
