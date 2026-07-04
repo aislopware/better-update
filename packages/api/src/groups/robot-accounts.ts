@@ -7,6 +7,7 @@ import { Conflict } from "../domain/errors";
 import {
   CreateRobotAccountBody,
   CreatedRobotAccount,
+  ListRobotAccountsParams,
   RobotAccountList,
   RotatedRobotAccountBearer,
 } from "../domain/robot-account";
@@ -14,6 +15,7 @@ import {
 export class RobotAccountsGroup extends HttpApiGroup.make("robot-accounts")
   .add(
     HttpApiEndpoint.get("list", "/api/robot-accounts")
+      .setUrlParams(ListRobotAccountsParams)
       .addSuccess(RobotAccountList)
       .annotateContext(
         OpenApi.annotations({

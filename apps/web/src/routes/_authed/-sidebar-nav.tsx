@@ -41,7 +41,6 @@ type MeCapability = keyof Pick<
   | "canViewCredentials"
   | "canViewDevices"
   | "canViewVaultAccess"
-  | "canViewRobots"
   | "canManageOrgEnvVars"
   | "canManageOrgSettings"
 >;
@@ -54,7 +53,6 @@ interface OrgNavItem {
     | "/credentials"
     | "/apple-devices"
     | "/vault-access"
-    | "/robot-accounts"
     | "/environment-variables"
     | "/settings"
     | "/admin"
@@ -83,6 +81,7 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/submissions"
     | "/projects/$projectSlug/settings"
     | "/projects/$projectSlug/members"
+    | "/projects/$projectSlug/robot-accounts"
     | "/projects/$projectSlug/environment-variables";
   label: string;
   icon: LucideIcon;
@@ -132,12 +131,6 @@ const ORG_NAV: OrgNavSection[] = [
   {
     label: "Settings",
     items: [
-      {
-        to: "/robot-accounts",
-        label: "Robot accounts",
-        icon: BotIcon,
-        capability: "canViewRobots",
-      },
       {
         to: "/environment-variables",
         label: "Environment variables",
@@ -201,6 +194,11 @@ const PROJECT_NAV: ProjectNavSection[] = [
         to: "/projects/$projectSlug/credentials",
         label: "Credentials",
         icon: ShieldCheckIcon,
+      },
+      {
+        to: "/projects/$projectSlug/robot-accounts",
+        label: "Robot accounts",
+        icon: BotIcon,
       },
       {
         to: "/projects/$projectSlug/environment-variables",

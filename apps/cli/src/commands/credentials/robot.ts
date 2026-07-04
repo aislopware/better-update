@@ -255,7 +255,7 @@ const listCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list();
+        const { items } = yield* api["robot-accounts"].list({ urlParams: {} });
         const projectNames = yield* projectNamesById(api);
         // "Vault identity" (not "access"): a registered identity may not have
         // been GRANTED the vault yet — actual membership is `credentials access list`.
@@ -334,7 +334,7 @@ const revokeCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list();
+        const { items } = yield* api["robot-accounts"].list({ urlParams: {} });
         const robot = items.find((item) => item.id === args.id);
         if (robot === undefined) {
           return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
@@ -394,7 +394,7 @@ const grantEnvCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list();
+        const { items } = yield* api["robot-accounts"].list({ urlParams: {} });
         const robot = items.find((item) => item.id === args.id);
         if (robot === undefined) {
           return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });

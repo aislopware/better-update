@@ -38,7 +38,6 @@ export type MeCapability = keyof Pick<
   | "canViewCredentials"
   | "canViewDevices"
   | "canViewVaultAccess"
-  | "canViewRobots"
   | "canManageOrgEnvVars"
   | "canManageOrgSettings"
 >;

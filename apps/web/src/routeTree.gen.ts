@@ -21,7 +21,6 @@ import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboardin
 import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
 import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
 import { Route as AuthedAppVaultAccessRouteImport } from './routes/_authed/_app/vault-access'
-import { Route as AuthedAppRobotAccountsRouteImport } from './routes/_authed/_app/robot-accounts'
 import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
 import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
 import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
@@ -40,6 +39,7 @@ import { Route as AuthedAppAccountPasskeysRouteImport } from './routes/_authed/_
 import { Route as AuthedAppAccountConnectionsRouteImport } from './routes/_authed/_app/account/connections'
 import { Route as AuthedAppAccountAppearanceRouteImport } from './routes/_authed/_app/account/appearance'
 import { Route as AuthedAppProjectsProjectSlugIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/index'
+import { Route as AuthedAppProjectsProjectSlugRobotAccountsRouteImport } from './routes/_authed/_app/projects/$projectSlug/robot-accounts'
 import { Route as AuthedAppProjectsProjectSlugMembersRouteImport } from './routes/_authed/_app/projects/$projectSlug/members'
 import { Route as AuthedAppProjectsProjectSlugCredentialsRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials'
 import { Route as AuthedAppProjectsProjectSlugAuditLogRouteImport } from './routes/_authed/_app/projects/$projectSlug/audit-log'
@@ -117,11 +117,6 @@ const AuthedAppIndexRoute = AuthedAppIndexRouteImport.update({
 const AuthedAppVaultAccessRoute = AuthedAppVaultAccessRouteImport.update({
   id: '/vault-access',
   path: '/vault-access',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppRobotAccountsRoute = AuthedAppRobotAccountsRouteImport.update({
-  id: '/robot-accounts',
-  path: '/robot-accounts',
   getParentRoute: () => AuthedAppRoute,
 } as any)
 const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
@@ -221,6 +216,12 @@ const AuthedAppProjectsProjectSlugIndexRoute =
   AuthedAppProjectsProjectSlugIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugRobotAccountsRoute =
+  AuthedAppProjectsProjectSlugRobotAccountsRouteImport.update({
+    id: '/robot-accounts',
+    path: '/robot-accounts',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugMembersRoute =
@@ -359,7 +360,6 @@ export interface FileRoutesByFullPath {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
-  '/robot-accounts': typeof AuthedAppRobotAccountsRoute
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -376,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
   '/projects/$projectSlug/credentials': typeof AuthedAppProjectsProjectSlugCredentialsRouteWithChildren
   '/projects/$projectSlug/members': typeof AuthedAppProjectsProjectSlugMembersRoute
+  '/projects/$projectSlug/robot-accounts': typeof AuthedAppProjectsProjectSlugRobotAccountsRoute
   '/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -409,7 +410,6 @@ export interface FileRoutesByTo {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
-  '/robot-accounts': typeof AuthedAppRobotAccountsRoute
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -424,6 +424,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
   '/projects/$projectSlug/members': typeof AuthedAppProjectsProjectSlugMembersRoute
+  '/projects/$projectSlug/robot-accounts': typeof AuthedAppProjectsProjectSlugRobotAccountsRoute
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -460,7 +461,6 @@ export interface FileRoutesById {
   '/_authed/_app/audit-log': typeof AuthedAppAuditLogRoute
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
-  '/_authed/_app/robot-accounts': typeof AuthedAppRobotAccountsRoute
   '/_authed/_app/vault-access': typeof AuthedAppVaultAccessRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/account/appearance': typeof AuthedAppAccountAppearanceRoute
@@ -478,6 +478,7 @@ export interface FileRoutesById {
   '/_authed/_app/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
   '/_authed/_app/projects/$projectSlug/credentials': typeof AuthedAppProjectsProjectSlugCredentialsRouteWithChildren
   '/_authed/_app/projects/$projectSlug/members': typeof AuthedAppProjectsProjectSlugMembersRoute
+  '/_authed/_app/projects/$projectSlug/robot-accounts': typeof AuthedAppProjectsProjectSlugRobotAccountsRoute
   '/_authed/_app/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/_authed/_app/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/_authed/_app/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -514,7 +515,6 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
-    | '/robot-accounts'
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
@@ -531,6 +531,7 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/audit-log'
     | '/projects/$projectSlug/credentials'
     | '/projects/$projectSlug/members'
+    | '/projects/$projectSlug/robot-accounts'
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/builds/$buildId'
     | '/projects/$projectSlug/channels/$channelId'
@@ -564,7 +565,6 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
-    | '/robot-accounts'
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
@@ -579,6 +579,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/projects/$projectSlug/audit-log'
     | '/projects/$projectSlug/members'
+    | '/projects/$projectSlug/robot-accounts'
     | '/projects/$projectSlug'
     | '/projects/$projectSlug/builds/$buildId'
     | '/projects/$projectSlug/channels/$channelId'
@@ -614,7 +615,6 @@ export interface FileRouteTypes {
     | '/_authed/_app/audit-log'
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
-    | '/_authed/_app/robot-accounts'
     | '/_authed/_app/vault-access'
     | '/_authed/_app/'
     | '/_authed/_app/account/appearance'
@@ -632,6 +632,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/projects/$projectSlug/audit-log'
     | '/_authed/_app/projects/$projectSlug/credentials'
     | '/_authed/_app/projects/$projectSlug/members'
+    | '/_authed/_app/projects/$projectSlug/robot-accounts'
     | '/_authed/_app/projects/$projectSlug/'
     | '/_authed/_app/projects/$projectSlug/builds/$buildId'
     | '/_authed/_app/projects/$projectSlug/channels/$channelId'
@@ -745,13 +746,6 @@ declare module '@tanstack/react-router' {
       path: '/vault-access'
       fullPath: '/vault-access'
       preLoaderRoute: typeof AuthedAppVaultAccessRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/robot-accounts': {
-      id: '/_authed/_app/robot-accounts'
-      path: '/robot-accounts'
-      fullPath: '/robot-accounts'
-      preLoaderRoute: typeof AuthedAppRobotAccountsRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/members': {
@@ -878,6 +872,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/projects/$projectSlug/'
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/robot-accounts': {
+      id: '/_authed/_app/projects/$projectSlug/robot-accounts'
+      path: '/robot-accounts'
+      fullPath: '/projects/$projectSlug/robot-accounts'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRobotAccountsRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/members': {
@@ -1071,6 +1072,7 @@ interface AuthedAppProjectsProjectSlugRouteChildren {
   AuthedAppProjectsProjectSlugAuditLogRoute: typeof AuthedAppProjectsProjectSlugAuditLogRoute
   AuthedAppProjectsProjectSlugCredentialsRoute: typeof AuthedAppProjectsProjectSlugCredentialsRouteWithChildren
   AuthedAppProjectsProjectSlugMembersRoute: typeof AuthedAppProjectsProjectSlugMembersRoute
+  AuthedAppProjectsProjectSlugRobotAccountsRoute: typeof AuthedAppProjectsProjectSlugRobotAccountsRoute
   AuthedAppProjectsProjectSlugIndexRoute: typeof AuthedAppProjectsProjectSlugIndexRoute
   AuthedAppProjectsProjectSlugBuildsBuildIdRoute: typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   AuthedAppProjectsProjectSlugChannelsChannelIdRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -1096,6 +1098,8 @@ const AuthedAppProjectsProjectSlugRouteChildren: AuthedAppProjectsProjectSlugRou
       AuthedAppProjectsProjectSlugCredentialsRouteWithChildren,
     AuthedAppProjectsProjectSlugMembersRoute:
       AuthedAppProjectsProjectSlugMembersRoute,
+    AuthedAppProjectsProjectSlugRobotAccountsRoute:
+      AuthedAppProjectsProjectSlugRobotAccountsRoute,
     AuthedAppProjectsProjectSlugIndexRoute:
       AuthedAppProjectsProjectSlugIndexRoute,
     AuthedAppProjectsProjectSlugBuildsBuildIdRoute:
@@ -1139,7 +1143,6 @@ interface AuthedAppRouteChildren {
   AuthedAppAuditLogRoute: typeof AuthedAppAuditLogRoute
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
-  AuthedAppRobotAccountsRoute: typeof AuthedAppRobotAccountsRoute
   AuthedAppVaultAccessRoute: typeof AuthedAppVaultAccessRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
@@ -1155,7 +1158,6 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppAuditLogRoute: AuthedAppAuditLogRoute,
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
-  AuthedAppRobotAccountsRoute: AuthedAppRobotAccountsRoute,
   AuthedAppVaultAccessRoute: AuthedAppVaultAccessRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,
   AuthedAppProjectsProjectSlugRoute:

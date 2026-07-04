@@ -35,7 +35,9 @@ _member_ with exactly that one project membership: it can never manage org membe
 org settings, cannot create projects, and cannot WRITE org-global env vars (it can still READ them
 with developer+). Robot management (create/rotate/revoke) takes **Maintainer+ on the robot's
 project** (org admin/owner implicitly). Pre-v2 robots with no project show as "legacy — recreate"
-in `robot list`: they no longer authenticate and only exist to be revoked.
+in `robot list`: they no longer authenticate and only exist to be revoked. The dashboard lists a
+project's robots read-only (project → Robot accounts, visible to Maintainer+); all mutations stay
+CLI-only.
 
 **Protected environments** (default: `production`) only accept writes from project **Maintainers**
 (and org admins/owner) — developers cannot publish/edit branches, channels, updates, rollouts, or

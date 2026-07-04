@@ -59,4 +59,8 @@ export class RotatedRobotAccountBearer extends Schema.Class<RotatedRobotAccountB
   bearerSecret: Schema.String,
 }) {}
 
+// Optional server-side project scope for the list (the dashboard's per-project
+// robots tab); omitted = every robot visible to the actor, incl. legacy rows.
+export const ListRobotAccountsParams = Schema.Struct({ projectId: Schema.optional(Id) });
+
 export const RobotAccountList = Schema.Struct({ items: Schema.Array(RobotAccount) });

@@ -1,0 +1,103 @@
+import { meQueryOptions, projectRobotAccountsQueryOptions } from "@better-update/api-client/react";
+import { Card } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
+import { Frame } from "@better-update/ui/components/ui/frame";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { BotIcon, LockIcon } from "lucide-react";
+import { Suspense } from "react";
+
+import type { MeResult } from "@better-update/api-client/react";
+
+import { SectionHeader } from "../../../../../components/page-header";
+import { TableSkeleton } from "../../../../../components/skeletons";
+import { ProjectRobotsTable } from "./-project-robots-table";
+
+// Robot visibility is maintainer-gated (GITLAB-RBAC-SPEC §1b): org owner/admin
+// are implicit maintainers everywhere; everyone else needs an explicit
+// maintainer row on THIS project. UX only — the endpoint stays IAM-gated and
+// simply returns nothing for lower ranks.
+const canViewProjectRobots = (me: MeResult, projectId: string): boolean =>
+  me.orgRole === "owner" || me.orgRole === "admin" || me.projectRoles[projectId] === "maintainer";
+
+const EmptyRobots = () => (
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <BotIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No robot accounts yet</EmptyTitle>
+        <EmptyDescription>
+          Robot accounts are created from the CLI: run{" "}
+          <code className="font-mono text-xs">
+            better-update credentials robot create --project &lt;id&gt; --role &lt;role&gt;
+          </code>{" "}
+          from a maintainer device.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
+);
+
+const MaintainerRequired = () => (
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <LockIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>Maintainer access required</EmptyTitle>
+        <EmptyDescription>
+          Only project maintainers (and organization owners/admins) can see the robot accounts of
+          this project.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
+);
+
+const ProjectRobotsContent = () => {
+  const { project } = Route.useRouteContext();
+  const { data: me } = useSuspenseQuery(meQueryOptions());
+
+  if (!canViewProjectRobots(me, project.id)) {
+    return <MaintainerRequired />;
+  }
+  return <ProjectRobotsList projectId={project.id} />;
+};
+
+const ProjectRobotsList = ({ projectId }: { projectId: string }) => {
+  const { data: items } = useSuspenseQuery(projectRobotAccountsQueryOptions(projectId));
+
+  if (items.length === 0) {
+    return <EmptyRobots />;
+  }
+  return (
+    <Frame>
+      <ProjectRobotsTable items={items} />
+    </Frame>
+  );
+};
+
+const ProjectRobotsPage = () => (
+  <div className="flex flex-col gap-3">
+    <SectionHeader
+      title="Robot accounts"
+      description="This project's CI identities — one robot per project and role, bearer secret and vault identity in one. Created, rotated, and revoked exclusively from the CLI."
+    />
+    <Suspense fallback={<TableSkeleton columns={4} rows={3} hasFooter={false} />}>
+      <ProjectRobotsContent />
+    </Suspense>
+  </div>
+);
+
+export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/robot-accounts")({
+  component: ProjectRobotsPage,
+});

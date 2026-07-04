@@ -45,12 +45,15 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
   "robot-accounts",
   (handlers) =>
     handlers
-      .handle("list", () =>
+      .handle("list", ({ urlParams }) =>
         toApiReadEffect(
           Effect.gen(function* () {
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
-            const accounts = yield* repo.list({ organizationId: ctx.organizationId });
+            const accounts = yield* repo.list({
+              organizationId: ctx.organizationId,
+              projectId: urlParams.projectId,
+            });
             // Admin tier sees every robot (incl. legacy unassigned rows);
             // otherwise the list scopes to projects the actor maintains —
             // the same rank that could rotate/revoke them.

@@ -58,9 +58,13 @@ export interface RobotAccountRepository {
    */
   readonly create: (params: CreateRobotAccountInput) => Effect.Effect<CreateRobotAccountResult>;
 
-  /** All robot accounts for an org, newest first. Never selects the hashed bearer. */
+  /**
+   * All robot accounts for an org, newest first, optionally scoped to one
+   * project. Never selects the hashed bearer.
+   */
   readonly list: (params: {
     readonly organizationId: string;
+    readonly projectId?: string | undefined;
   }) => Effect.Effect<readonly RobotAccountModel[]>;
 
   readonly findById: (params: {
@@ -243,15 +247,17 @@ export const RobotAccountRepoLive = Layer.effect(
       list: (params) =>
         Effect.gen(function* () {
           const db = yield* kyselyDb;
-          const rows = yield* Effect.promise(async () =>
-            db
+          const { projectId } = params;
+          const rows = yield* Effect.promise(async () => {
+            const base = db
               .selectFrom("robot_account")
               .select(PUBLIC_COLUMNS)
               .where("organization_id", "=", params.organizationId)
-              .where("revoked_at", "is", null)
-              .orderBy("created_at", "desc")
-              .execute(),
-          );
+              .where("revoked_at", "is", null);
+            const scoped =
+              projectId === undefined ? base : base.where("project_id", "=", projectId);
+            return scoped.orderBy("created_at", "desc").execute();
+          });
           return rows.map(toModel);
         }),
 

@@ -145,9 +145,12 @@ export {
   invitationsQueryKey,
   invitationsQueryOptions,
 } from "./react/invitations";
-export { robotAccountsQueryKey, robotAccountsQueryOptions } from "./react/robot-accounts";
-export type { RobotAccountItem } from "./react/robot-accounts";
 export type { InvitationItem } from "./react/invitations";
+export {
+  projectRobotAccountsQueryKey,
+  projectRobotAccountsQueryOptions,
+} from "./react/robot-accounts";
+export type { RobotAccountItem } from "./react/robot-accounts";
 export { meQueryKey, meQueryOptions, removeMember, updateMemberRole } from "./react/members";
 export {
   addProjectMember,
