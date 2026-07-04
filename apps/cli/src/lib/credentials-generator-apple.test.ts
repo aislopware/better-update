@@ -92,6 +92,7 @@ vi.mock(import("@expo/apple-utils"), () => {
     CertificateType: {
       IOS_DISTRIBUTION: "IOS_DISTRIBUTION",
       IOS_DEVELOPMENT: "IOS_DEVELOPMENT",
+      DEVELOPER_ID_APPLICATION: "DEVELOPER_ID_APPLICATION",
     },
     ProfileType: {
       IOS_APP_STORE: "IOS_APP_STORE",
@@ -418,6 +419,21 @@ describe(listDistributionCerts, () => {
         { query: { filter: { certificateType: string } } },
       ];
       expect(args.query.filter.certificateType).toBe("IOS_DISTRIBUTION");
+    }),
+  );
+
+  it.effect("filters by DEVELOPER_ID_APPLICATION for macOS Developer ID certs", () =>
+    Effect.gen(function* () {
+      mocks.certificateGetAsync.mockResolvedValue([]);
+
+      const result = yield* listDistributionCerts(context, "DEVELOPER_ID_APPLICATION");
+
+      expect(result).toStrictEqual([]);
+      const [, args] = mocks.certificateGetAsync.mock.calls[0] as [
+        unknown,
+        { query: { filter: { certificateType: string } } },
+      ];
+      expect(args.query.filter.certificateType).toBe("DEVELOPER_ID_APPLICATION");
     }),
   );
 });

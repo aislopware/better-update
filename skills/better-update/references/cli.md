@@ -310,7 +310,7 @@ better-update credentials remove [--platform <ios|android>] [--type <type>] [--y
 
 ```bash
 better-update credentials generate keystore [--name] [--alias] [--store-password] [--key-password] [--common-name] [--organization] [--validity-days <n>=10000]
-better-update credentials generate distribution-certificate --asc-key-id <id> [--type <distribution|development>=distribution]
+better-update credentials generate distribution-certificate --asc-key-id <id> [--type <distribution|development|developer-id>=distribution]   # developer-id = macOS Developer ID Application (Account Holder only)
 better-update credentials generate provisioning-profile --asc-key-id <id> --cert-id <id> --bundle <id> \
   --distribution <APP_STORE|AD_HOC|DEVELOPMENT|ENTERPRISE> [--device-ids id1,id2]
 better-update credentials generate push-key [--method <apple-id|upload>] [--key-id] [--apple-team-id] [--p8 <path>] [--asc-key-id] [--name] [--skip-portal-hint]

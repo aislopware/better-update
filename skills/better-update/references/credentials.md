@@ -91,9 +91,11 @@ better-update credentials generate keystore \
   --alias upload-key --store-password "..." --key-password "..." \
   --common-name "MyApp" --organization "Acme Inc" [--name "MyApp upload key"] [--validity-days 10000]
 
-# iOS distribution cert: builds the CSR locally, requests a fresh .p12 from the ASC API, uploads it.
-# At Apple's 3-cert limit, offers an interactive revoke + retry.
-better-update credentials generate distribution-certificate --asc-key-id <asc-api-key-id> [--type distribution|development]
+# Apple signing cert: builds the CSR locally, requests a fresh .p12 from the ASC API, uploads it.
+# --type distribution|development = iOS; developer-id = macOS Developer ID Application (signs apps
+# distributed outside the Mac App Store; Apple only lets the team's Account Holder create these).
+# At Apple's per-type cert limit, offers an interactive revoke + retry.
+better-update credentials generate distribution-certificate --asc-key-id <asc-api-key-id> [--type distribution|development|developer-id]
 
 # iOS provisioning profile via ASC API. Needs a distribution cert + ASC API key for the same team.
 better-update credentials generate provisioning-profile \

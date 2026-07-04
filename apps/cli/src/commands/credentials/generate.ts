@@ -20,6 +20,8 @@ import { ascKeyCommand } from "./generate-asc-key";
 import { merchantIdCommand } from "./generate-merchant-id";
 import { pushKeyCommand } from "./generate-push-key";
 
+import type { AppleCertificateType } from "../../lib/credentials-generator-apple";
+
 const GENERATE_EXIT_EXTRAS = {
   CredentialValidationError: 2,
   BuildFailedError: 6,
@@ -133,11 +135,17 @@ const keystoreCommand = defineCommand({
     ),
 });
 
+const CLI_TYPE_TO_CERTIFICATE_TYPE: Record<string, AppleCertificateType> = {
+  distribution: "IOS_DISTRIBUTION",
+  development: "IOS_DEVELOPMENT",
+  "developer-id": "DEVELOPER_ID_APPLICATION",
+};
+
 const distributionCertificateCommand = defineCommand({
   meta: {
     name: "distribution-certificate",
     description:
-      "Generate an iOS distribution certificate via the App Store Connect API and store the resulting .p12",
+      "Generate an Apple signing certificate via the App Store Connect API and store the resulting .p12 (iOS distribution/development, or Developer ID for macOS apps distributed outside the Mac App Store)",
   },
   args: {
     "asc-key-id": {
@@ -147,17 +155,22 @@ const distributionCertificateCommand = defineCommand({
     },
     type: {
       type: "enum",
-      options: ["distribution", "development"],
+      options: ["distribution", "development", "developer-id"],
       default: "distribution",
-      description: "Certificate type to issue",
+      description:
+        "Certificate type to issue (developer-id = macOS Developer ID Application; Apple only lets the Account Holder create these)",
     },
   },
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const certificateType =
-          args.type === "development" ? "IOS_DEVELOPMENT" : "IOS_DISTRIBUTION";
+        const certificateType = CLI_TYPE_TO_CERTIFICATE_TYPE[args.type] ?? "IOS_DISTRIBUTION";
+        if (certificateType === "DEVELOPER_ID_APPLICATION") {
+          yield* printHuman(
+            "Note: Apple only issues Developer ID certificates to the team's Account Holder — this fails with a permissions error for other roles.",
+          );
+        }
         yield* printHuman("Requesting a distribution certificate from Apple...");
 
         const context = yield* ascKeyRequestContext(api, args["asc-key-id"]);
@@ -186,11 +199,11 @@ const distributionCertificateCommand = defineCommand({
 
 const handleCertLimitInteractive = (
   context: Parameters<typeof listDistributionCerts>[0],
-  certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT",
+  certificateType: AppleCertificateType,
 ) =>
   Effect.gen(function* () {
     yield* printHuman("");
-    yield* printHuman("Apple reports the certificate limit was hit (max 3 distribution certs).");
+    yield* printHuman("Apple reports the certificate limit for this certificate type was hit.");
     const certs = yield* listDistributionCerts(context, certificateType);
     if (certs.length === 0) {
       return yield* new CertificateLimitError({

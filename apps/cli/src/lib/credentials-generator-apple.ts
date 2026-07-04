@@ -83,16 +83,29 @@ const wrapCertificateCreate = <T>(run: () => Promise<T>) =>
     },
   });
 
+/**
+ * Certificate kinds the CLI can generate/list. `DEVELOPER_ID_APPLICATION` signs
+ * macOS apps distributed outside the Mac App Store — Apple only issues those to
+ * the Account Holder, so API-key creation can be rejected with a permissions error.
+ */
+export type AppleCertificateType =
+  | "IOS_DISTRIBUTION"
+  | "IOS_DEVELOPMENT"
+  | "DEVELOPER_ID_APPLICATION";
+
+const CERTIFICATE_TYPE_TO_APPLE: Record<AppleCertificateType, AppleUtils.CertificateType> = {
+  IOS_DISTRIBUTION: AppleUtils.CertificateType.IOS_DISTRIBUTION,
+  IOS_DEVELOPMENT: AppleUtils.CertificateType.IOS_DEVELOPMENT,
+  DEVELOPER_ID_APPLICATION: AppleUtils.CertificateType.DEVELOPER_ID_APPLICATION,
+};
+
 const certificateTypeOf = (
-  certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT" | undefined,
-): AppleUtils.CertificateType =>
-  certificateType === "IOS_DEVELOPMENT"
-    ? AppleUtils.CertificateType.IOS_DEVELOPMENT
-    : AppleUtils.CertificateType.IOS_DISTRIBUTION;
+  certificateType: AppleCertificateType | undefined,
+): AppleUtils.CertificateType => CERTIFICATE_TYPE_TO_APPLE[certificateType ?? "IOS_DISTRIBUTION"];
 
 export interface GenerateCertificateInput {
   readonly context: AppleUtils.RequestContext;
-  readonly certificateType?: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT";
+  readonly certificateType?: AppleCertificateType;
 }
 
 export const generateAndUploadDistributionCertificate = (
@@ -165,7 +178,7 @@ export interface DistributionCertificateSummary {
 
 export const listDistributionCerts = (
   ctx: AppleUtils.RequestContext,
-  certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT" = "IOS_DISTRIBUTION",
+  certificateType: AppleCertificateType = "IOS_DISTRIBUTION",
 ) =>
   Effect.gen(function* () {
     const certs = yield* wrap("apple-list-certificates", async () =>
