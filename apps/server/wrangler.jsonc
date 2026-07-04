@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "better-update-server",
   "compatibility_flags": ["nodejs_compat"],
-  "compatibility_date": "2026-04-25",
+  "compatibility_date": "2026-07-04",
   "main": "src/index.ts",
   "observability": {
     "enabled": true,
