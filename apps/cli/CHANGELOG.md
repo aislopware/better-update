@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.59.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.58.2...%40better-update%2Fcli%400.59.0) (2026-07-06)
+
+### Features
+
+* **cli:** cover both vaults on grant and add access grant-env ([20e0313](https://github.com/better-update/better-update/commit/20e03139a48bed28bc1a46111ee2b3fc8dd882df))
+
 ## [0.58.2](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.58.1...%40better-update%2Fcli%400.58.2) (2026-07-04)
 
 ### Bug Fixes
