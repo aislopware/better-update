@@ -243,6 +243,20 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
               message: "No env-vault key wrap for this recipient — request access",
             });
           }
+
+          // Fetching one's wrap IS using the recipient key (the caller unwraps
+          // it to unlock the env vault) — stamp last-used on the right table
+          // for the polymorphic recipient. Telemetry only: a failed stamp must
+          // never fail the unlock.
+          const keyRepo = yield* UserEncryptionKeyRepo;
+          const accountRepo = yield* AccountKeyRepo;
+          const now = new Date().toISOString();
+          const touch =
+            path.recipientKind === "account"
+              ? accountRepo.touchLastUsed({ id: path.recipientId, now })
+              : keyRepo.touchLastUsed({ id: path.recipientId, now });
+          yield* touch.pipe(Effect.catchAllCause(() => Effect.void));
+
           return { envVaultVersion: wrap.envVaultVersion, wrappedKey: wrap.wrappedKey };
         }),
       ),

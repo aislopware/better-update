@@ -43,6 +43,12 @@ export interface UserEncryptionKeyRepository {
   readonly listGrantable: (params: {
     readonly organizationId: string;
   }) => Effect.Effect<readonly UserEncryptionKeyModel[]>;
+
+  /** Stamp the moment this key downloaded a wrap to unlock a vault (telemetry only). */
+  readonly touchLastUsed: (params: {
+    readonly id: string;
+    readonly now: string;
+  }) => Effect.Effect<void>;
 }
 
 export class UserEncryptionKeyRepo extends Context.Tag("api/UserEncryptionKeyRepo")<
@@ -165,5 +171,17 @@ export const UserEncryptionKeyRepoLive = Layer.succeed(UserEncryptionKeyRepo, {
           .execute(),
       );
       return rows.map(toModel);
+    }),
+
+  touchLastUsed: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("user_encryption_keys")
+          .set({ last_used_at: params.now })
+          .where("id", "=", params.id)
+          .execute(),
+      );
     }),
 });

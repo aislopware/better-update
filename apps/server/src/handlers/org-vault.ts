@@ -279,6 +279,13 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             });
           }
 
+          // Fetching one's wrap IS using the key (the caller unwraps it to
+          // unlock the vault) — stamp last-used. Telemetry only: a failed
+          // stamp must never fail the unlock.
+          yield* keyRepo
+            .touchLastUsed({ id: path.keyId, now: new Date().toISOString() })
+            .pipe(Effect.catchAllCause(() => Effect.void));
+
           return { vaultVersion: wrap.vaultVersion, wrappedKey: wrap.wrappedKey };
         }),
       ),

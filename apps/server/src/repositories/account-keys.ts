@@ -51,6 +51,12 @@ export interface AccountKeyRepository {
     readonly salt: string;
     readonly kdfParams: AccountKeyKdfParams;
   }) => Effect.Effect<void>;
+
+  /** Stamp the moment this account key downloaded its env wrap to unlock the vault (telemetry only). */
+  readonly touchLastUsed: (params: {
+    readonly id: string;
+    readonly now: string;
+  }) => Effect.Effect<void>;
 }
 
 export class AccountKeyRepo extends Context.Tag("api/AccountKeyRepo")<
@@ -188,6 +194,18 @@ export const AccountKeyRepoLive = Layer.succeed(AccountKeyRepo, {
           })
           .where("user_id", "=", params.userId)
           .where("revoked_at", "is", null)
+          .execute(),
+      );
+    }),
+
+  touchLastUsed: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("account_keys")
+          .set({ last_used_at: params.now })
+          .where("id", "=", params.id)
           .execute(),
       );
     }),
