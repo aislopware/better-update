@@ -188,8 +188,15 @@ const grantEnvCommand = defineCommand({
 });
 
 // Exported for reuse by `credentials robot revoke` (see toRotationRecipient above).
+// The header makes clear the keys listed below are the SURVIVORS the rotated key
+// is re-wrapped to — not whatever is being revoked.
 export const confirmRecipients = (recipients: readonly UserEncryptionKey[], skip: boolean) =>
-  Effect.forEach(recipients, (recipient) => confirmFingerprint(recipient, skip), { discard: true });
+  Effect.gen(function* () {
+    yield* printHuman("The rotated vault key will be re-wrapped to these recipients:");
+    yield* Effect.forEach(recipients, (recipient) => confirmFingerprint(recipient, skip), {
+      discard: true,
+    });
+  });
 
 const rotateCommand = defineCommand({
   meta: {
