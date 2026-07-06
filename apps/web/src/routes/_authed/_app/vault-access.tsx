@@ -1,5 +1,7 @@
 import {
+  accountKeysQueryOptions,
   encryptionKeysQueryOptions,
+  envVaultWrapsQueryOptions,
   orgVaultQueryOptions,
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
@@ -34,7 +36,11 @@ import { CopyableMono } from "../../../lib/copy-button";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { VaultAccessGrant } from "./-vault-access-grant";
-import { ENCRYPTION_KEY_KIND_META, joinVaultRecipients } from "./-vault-access-utils";
+import {
+  ENCRYPTION_KEY_KIND_META,
+  joinEnvVaultRecipients,
+  joinVaultRecipients,
+} from "./-vault-access-utils";
 
 import type { VaultRecipientRow } from "./-vault-access-utils";
 
@@ -70,7 +76,7 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
       {rows.map((row) => {
         const meta = ENCRYPTION_KEY_KIND_META[row.kind];
         return (
-          <TableRow key={row.userEncryptionKeyId}>
+          <TableRow key={row.recipientId}>
             <TableCell className="font-medium">{row.label}</TableCell>
             <TableCell>
               <div className="flex items-center gap-1.5">
@@ -107,6 +113,60 @@ const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
   </Alert>
 );
 
+const EnvRotationPendingBanner = () => (
+  <Alert variant="warning">
+    <TriangleAlertIcon />
+    <AlertTitle>Env rotation required</AlertTitle>
+    <AlertDescription>
+      An env-vault recipient was removed, so the env vault must be rotated before env values can be
+      read again. Run{" "}
+      <code className="font-mono text-xs">better-update credentials env-vault rotate</code> from the
+      CLI.
+    </AlertDescription>
+  </Alert>
+);
+
+/**
+ * Recipients of the SEPARATE env-vault key (post-cutover): the same key kinds as
+ * the credentials vault plus the members' browser account keys. Rendered only
+ * once the org has cut over — before that env values are sealed under the
+ * credentials vault and the section would be noise.
+ */
+const EnvVaultRecipientsSection = ({
+  orgId,
+  envVaultVersion,
+  rotationPending,
+}: {
+  orgId: string;
+  envVaultVersion: number;
+  rotationPending: boolean;
+}) => {
+  const { data: wraps } = useSuspenseQuery(envVaultWrapsQueryOptions(orgId));
+  const { data: keys } = useSuspenseQuery(encryptionKeysQueryOptions(orgId));
+  const { data: accounts } = useSuspenseQuery(accountKeysQueryOptions(orgId));
+  const rows = joinEnvVaultRecipients(wraps.recipients, keys.items, accounts.items);
+
+  return (
+    <section className="flex flex-col gap-3">
+      {rotationPending ? <EnvRotationPendingBanner /> : null}
+      <div className="flex items-center gap-2">
+        <Badge variant="outline">Env vault v{envVaultVersion}</Badge>
+        <span className="text-muted-foreground text-sm">
+          {rows.length} {pluralize(rows.length, "recipient")} can decrypt this organization&apos;s
+          env values
+        </span>
+      </div>
+      {rows.length > 0 ? (
+        <Frame>
+          <RecipientsTable rows={rows} />
+        </Frame>
+      ) : (
+        <p className="text-muted-foreground text-sm">No env-vault recipients yet.</p>
+      )}
+    </section>
+  );
+};
+
 const VaultAccessContent = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
@@ -120,21 +180,30 @@ const VaultAccessContent = () => {
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      {orgVault?.rotationPending ? (
-        <RotationPendingBanner reason={orgVault.rotationPendingReason} />
+    <>
+      <section className="flex flex-col gap-3">
+        {orgVault?.rotationPending ? (
+          <RotationPendingBanner reason={orgVault.rotationPendingReason} />
+        ) : null}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">Credentials vault v{vault.vaultVersion}</Badge>
+          <span className="text-muted-foreground text-sm">
+            {rows.length} {pluralize(rows.length, "recipient")} can decrypt this organization&apos;s
+            credentials
+          </span>
+        </div>
+        <Frame>
+          <RecipientsTable rows={rows} />
+        </Frame>
+      </section>
+      {orgVault !== null && orgVault.envVaultCutoverAt !== null ? (
+        <EnvVaultRecipientsSection
+          orgId={orgId}
+          envVaultVersion={orgVault.envVaultVersion}
+          rotationPending={orgVault.envRotationPending}
+        />
       ) : null}
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">Vault v{vault.vaultVersion}</Badge>
-        <span className="text-muted-foreground text-sm">
-          {rows.length} {pluralize(rows.length, "recipient")} can decrypt this organization&apos;s
-          credentials
-        </span>
-      </div>
-      <Frame>
-        <RecipientsTable rows={rows} />
-      </Frame>
-    </section>
+    </>
   );
 };
 
@@ -144,7 +213,7 @@ const VaultAccess = () => {
     <div className="flex w-full flex-col gap-6">
       <PageHeader
         title="Vault access"
-        description="Keys that can decrypt this organization's credential vault (managed from the CLI). Env-vault access can be granted from the browser on the vault origin."
+        description="Recipients that can decrypt this organization's credentials and env vaults (managed from the CLI). Env-vault access can be granted from the browser on the vault origin."
       />
       <Suspense fallback={<TableSkeleton columns={5} rows={3} hasFooter={false} />}>
         <VaultAccessContent />

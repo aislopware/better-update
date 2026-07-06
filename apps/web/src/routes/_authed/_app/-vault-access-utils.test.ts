@@ -1,6 +1,10 @@
-import type { UserEncryptionKeyItem } from "@better-update/api-client/react";
+import type { AccountKeyItem, UserEncryptionKeyItem } from "@better-update/api-client/react";
 
-import { ENCRYPTION_KEY_KIND_META, joinVaultRecipients } from "./-vault-access-utils";
+import {
+  ENCRYPTION_KEY_KIND_META,
+  joinEnvVaultRecipients,
+  joinVaultRecipients,
+} from "./-vault-access-utils";
 
 import type { RecipientKind } from "./-vault-access-utils";
 
@@ -35,7 +39,7 @@ describe(joinVaultRecipients, () => {
     );
     expect(rows).toStrictEqual([
       {
-        userEncryptionKeyId: "k1",
+        recipientId: "k1",
         label: "Work laptop",
         kind: "device",
         fingerprint: "SHA256:zzz",
@@ -52,7 +56,7 @@ describe(joinVaultRecipients, () => {
       [],
     );
     expect(row).toStrictEqual({
-      userEncryptionKeyId: "missing",
+      recipientId: "missing",
       label: "Unknown key",
       kind: "unknown",
       fingerprint: null,
@@ -78,7 +82,7 @@ describe(joinVaultRecipients, () => {
         makeKey({ id: "dev-a", kind: "device", label: "Alpha" }),
       ],
     );
-    expect(rows.map((row) => row.userEncryptionKeyId)).toStrictEqual([
+    expect(rows.map((row) => row.recipientId)).toStrictEqual([
       "dev-a",
       "dev-b",
       "ci",
@@ -88,17 +92,84 @@ describe(joinVaultRecipients, () => {
   });
 });
 
+const makeAccountKey = (
+  overrides: Pick<AccountKeyItem, "id"> & Partial<AccountKeyItem>,
+): AccountKeyItem => ({
+  userId: "user-1",
+  agePublicKey: "age1example",
+  ed25519PublicKey: "ed25519example",
+  fingerprint: "SHA256:acct",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  lastUsedAt: null,
+  revokedAt: null,
+  ...overrides,
+});
+
+describe(joinEnvVaultRecipients, () => {
+  it("resolves key wraps against encryption keys and account wraps against account keys", () => {
+    const rows = joinEnvVaultRecipients(
+      [
+        {
+          recipientKind: "account",
+          recipientId: "acct-1",
+          createdAt: "2026-02-02T00:00:00.000Z",
+        },
+        { recipientKind: "device", recipientId: "k1", createdAt: "2026-02-01T00:00:00.000Z" },
+      ],
+      [makeKey({ id: "k1", label: "Work laptop", fingerprint: "SHA256:zzz" })],
+      [
+        makeAccountKey({
+          id: "acct-1",
+          fingerprint: "SHA256:acct",
+          lastUsedAt: "2026-03-01T00:00:00.000Z",
+        }),
+      ],
+    );
+    expect(rows).toStrictEqual([
+      {
+        recipientId: "k1",
+        label: "Work laptop",
+        kind: "device",
+        fingerprint: "SHA256:zzz",
+        grantedAt: "2026-02-01T00:00:00.000Z",
+        lastUsedAt: null,
+        revokedAt: null,
+      },
+      {
+        recipientId: "acct-1",
+        label: "Account key",
+        kind: "account",
+        fingerprint: "SHA256:acct",
+        grantedAt: "2026-02-02T00:00:00.000Z",
+        lastUsedAt: "2026-03-01T00:00:00.000Z",
+        revokedAt: null,
+      },
+    ]);
+  });
+
+  it("keeps an account wrap whose key is not visible as an unknown recipient", () => {
+    const [row] = joinEnvVaultRecipients(
+      [{ recipientKind: "account", recipientId: "gone", createdAt: "2026-02-01T00:00:00.000Z" }],
+      [],
+      [],
+    );
+    expect(row?.kind).toBe("unknown");
+    expect(row?.label).toBe("Unknown key");
+  });
+});
+
 describe("encryption key kind metadata", () => {
   it("maps every recipient kind to a non-empty label", () => {
-    const kinds: readonly RecipientKind[] = ["device", "machine", "recovery", "unknown"];
+    const kinds: readonly RecipientKind[] = ["device", "machine", "account", "recovery", "unknown"];
     for (const kind of kinds) {
       expect(ENCRYPTION_KEY_KIND_META[kind].label.length).toBeGreaterThan(0);
     }
   });
 
-  it("gives recovery and machine recipients a variant distinct from device", () => {
+  it("gives recovery, machine, and account recipients a variant distinct from device", () => {
     expect(ENCRYPTION_KEY_KIND_META.device.variant).toBe("secondary");
     expect(ENCRYPTION_KEY_KIND_META.machine.variant).toBe("info");
+    expect(ENCRYPTION_KEY_KIND_META.account.variant).toBe("info");
     expect(ENCRYPTION_KEY_KIND_META.recovery.variant).toBe("warning");
     expect(ENCRYPTION_KEY_KIND_META.unknown.variant).toBe("outline");
   });

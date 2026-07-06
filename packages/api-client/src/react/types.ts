@@ -1,4 +1,5 @@
 import type {
+  AccountKey,
   AdminUser,
   AndroidApplicationIdentifier,
   AndroidBuildCredentials,
@@ -17,6 +18,7 @@ import type {
   DeviceRegistrationRequest,
   EncryptionKeyKind,
   Environment,
+  EnvVaultRecipientRef,
   GoogleServiceAccountKey,
   IosAppMetadata,
   IosBundleConfiguration,
@@ -58,3 +60,5 @@ export type UserEncryptionKeyItem = UserEncryptionKey;
 export type EncryptionKeyKindValue = EncryptionKeyKind;
 export type VaultRecipientItem = typeof VaultRecipientRef.Type;
 export type VaultRecipientsResult = typeof VaultRecipients.Type;
+export type EnvVaultRecipientItem = typeof EnvVaultRecipientRef.Type;
+export type AccountKeyItem = AccountKey;
