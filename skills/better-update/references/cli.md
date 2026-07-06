@@ -357,8 +357,9 @@ better-update credentials bindings <list|plan|add|remove> …                # d
 #     resourceType: appleTeam | ascApiKey | googleServiceAccountKey | androidUploadKeystore; --project defaults to the linked project
 better-update credentials passphrase [change]                              # change this device's passphrase; re-seals identity + enrolled account key; default `change`
 better-update credentials device <list|link> [<device>] [--yes]            # default `list`; link self-links a new device
-better-update credentials access <list|grant|rotate|revoke|recover|recovery> …   # default `list`
-#   access grant <recipient> [--yes] · access revoke <recipient> [--yes] · access rotate [--yes]
+better-update credentials access <list|grant|grant-env|rotate|revoke|recover|recovery> …   # default `list`
+#   access grant <recipient> [--yes] — BOTH vaults post-cutover (credentials + env) · access revoke <recipient> [--yes] · access rotate [--yes]
+#   access grant-env <recipient> [--yes] — env vault only; backfill a recipient granted before `grant` covered both (idempotent)
 #   access recover [--key <AGE-SECRET-KEY-1…>] · access recovery rotate [--yes]
 better-update credentials unlock [--duration <e.g. 15m|2h|1h30m>]          # cache the vault key in the OS keychain (default 15m, max 24h)
 better-update credentials lock                                             # clear the cached vault key
@@ -368,7 +369,8 @@ better-update credentials status                                          # is t
 `identity init` bootstraps the org vault + offline recovery key; `identity create`/`register`
 register/re-register this device's own key; `robot create` mints an org-owned CI identity (bearer
 secret for API auth + vault identity in one, printed as a single `BETTER_UPDATE_ROBOT` credential);
-`access grant`/`revoke` add/remove vault recipients (org members, other devices, or robots). See
+`access grant`/`revoke` add/remove vault recipients (org members, other devices, or robots) —
+post-cutover `grant` (and `device link`) wraps BOTH vault keys, credentials + env. See
 `references/credentials.md` for the full model.
 
 ### Browser env-vault: account keys (account / env-vault)
@@ -392,11 +394,12 @@ To edit env values from the browser you need an account key, a passkey, and an a
 access — all three have a browser path (**Set up vault access** to self-enroll; an admin clicks
 **Grant env access** on the Vault access page). Web errors: _"No account key is enrolled…"_ → **Set up
 vault access** (or `account create`); _"…can't open this org's env vault yet"_ → ask an admin to
-**Grant env access** (or `account link` after a rotate). A CI **robot** failing `env pull`/build-time
-env export with _"This device isn't an env-vault recipient"_ → an admin runs
-`credentials robot grant-env <robot-id>`. Note: **CLIs that predate the env-vault split
-cannot bootstrap a new org** — upgrade first. Full model + troubleshooting in
-`references/credentials.md`.
+**Grant env access** (or `account link` after a rotate). CLI error _"This device isn't an env-vault
+recipient"_ on `env` commands → the device was granted before `access grant` covered both vaults —
+an admin runs `credentials access grant-env <key id or fingerprint>`; for a CI **robot** failing
+`env pull`/build-time env export the same way → `credentials robot grant-env <robot-id>`. Note:
+**CLIs that predate the env-vault split cannot bootstrap a new org** — upgrade first. Full model +
+troubleshooting in `references/credentials.md`.
 
 ## env
 

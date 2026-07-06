@@ -2,10 +2,9 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import {
-  forgetCachedEnvVaultKey,
-  grantEnvRecipient,
+  grantEnvRecipientIdempotent,
+  keyHoldsEnvWrap,
   orgHasCutOver,
-  unlockEnvVaultKeyInteractive,
 } from "../../application/env-vault-access";
 import { rotateEnvVault } from "../../application/env-vault-rotation";
 import { createRobotAccount, rotateRobotAccountBearer } from "../../application/robot";
@@ -48,18 +47,8 @@ const grantRobotEnvAccess = (api: ApiClient, userEncryptionKeyId: string | null)
     if (target === undefined) {
       return yield* new IdentityError({ message: "Robot's vault identity was not found." });
     }
-    const ev = yield* unlockEnvVaultKeyInteractive(api);
-    yield* grantEnvRecipient({ api, vault: ev, target });
+    return yield* grantEnvRecipientIdempotent(api, target);
   });
-
-/** `true` while the robot's machine key holds a wrap on the CURRENT env vault. */
-const robotHoldsEnvWrap = (api: ApiClient, keyId: string) =>
-  api.envVault.listWraps().pipe(
-    Effect.map(({ recipients }) =>
-      recipients.some((wrap) => wrap.recipientKind !== "account" && wrap.recipientId === keyId),
-    ),
-    Effect.catchTag("NotFound", () => Effect.succeed(false)),
-  );
 
 /**
  * If the robot's machine key holds an env wrap, rotate the env vault to a new key
@@ -68,7 +57,7 @@ const robotHoldsEnvWrap = (api: ApiClient, keyId: string) =>
  */
 const revokeRobotEnvAccess = (api: ApiClient, keyId: string) =>
   Effect.gen(function* () {
-    if (!(yield* robotHoldsEnvWrap(api, keyId))) {
+    if (!(yield* keyHoldsEnvWrap(api, keyId))) {
       return false;
     }
     const rotated = yield* rotateEnvVault(api, { excludeKeyId: keyId });
@@ -411,25 +400,7 @@ const grantEnvCommand = defineCommand({
               "This organization's env values are still sealed under the credentials vault (no env cutover) — a credentials-vault grant already covers env; nothing to do.",
           });
         }
-        const keyId = robot.userEncryptionKeyId;
-        // Idempotent, but `addWrap` answers Conflict for BOTH a duplicate wrap
-        // and a stale `envVaultVersion` (a cached env key outlives rotations
-        // made from other devices). Only report "already" when the wrap really
-        // exists — otherwise drop the stale cache and grant once more against
-        // the freshly-fetched version.
-        const outcome = yield* grantRobotEnvAccess(api, keyId).pipe(
-          Effect.as("granted" as const),
-          Effect.catchTag("Conflict", () =>
-            Effect.gen(function* () {
-              if (yield* robotHoldsEnvWrap(api, keyId)) {
-                return "already" as const;
-              }
-              yield* forgetCachedEnvVaultKey;
-              yield* grantRobotEnvAccess(api, keyId);
-              return "granted" as const;
-            }),
-          ),
-        );
+        const outcome = yield* grantRobotEnvAccess(api, robot.userEncryptionKeyId);
         yield* printHuman(
           outcome === "granted"
             ? `✓ Granted env-vault access to ${robot.name} — it decrypts env vars non-interactively.`

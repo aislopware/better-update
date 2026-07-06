@@ -3,10 +3,12 @@ import { Effect, Either } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
 
+import { grantEnvRecipientIdempotent, orgHasCutOver } from "../../application/env-vault-access";
 import { activeRecipient } from "../../application/identity";
 import { findRecipient, grantRecipient } from "../../application/vault-access";
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
+import { formatCause } from "../../lib/format-error";
 import { printHuman, printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { confirmFingerprint, resolveSelector, unlockVaultInteractively } from "./vault-session";
@@ -73,6 +75,24 @@ const linkCommand = defineCommand({
         const vault = yield* unlockVaultInteractively(api);
         yield* grantRecipient({ api, vault, target });
         yield* printHuman(`Linked device ${target.label} (${target.fingerprint}) to the vault.`);
+        // Post-cutover the env vault is a SEPARATE key — self-link the new
+        // device as an env recipient too (own-device wraps are self-service).
+        // Best-effort: the credentials link already landed, so a failure here
+        // degrades to the `access grant-env` hand-off.
+        const envLinked = (yield* orgHasCutOver(api))
+          ? yield* grantEnvRecipientIdempotent(api, target).pipe(
+              Effect.as(true),
+              Effect.catchAll((error) =>
+                printHuman(
+                  `⚠ Env vault not linked: ${formatCause(error)}\n` +
+                    `  Link it later: better-update credentials access grant-env ${target.id}`,
+                ).pipe(Effect.as(false)),
+              ),
+            )
+          : false;
+        if (envLinked) {
+          yield* printHuman(`✓ Granted env-vault access to ${target.label}.`);
+        }
       }),
     ),
 });

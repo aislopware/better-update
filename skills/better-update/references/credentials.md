@@ -201,11 +201,12 @@ better-update credentials bindings remove <resourceType> <resourceId> [--project
 
 # Your devices
 better-update credentials device list                    # your device keys (active marked)
-better-update credentials device link [<device>] [--yes] # self-link another of your devices to the vault
+better-update credentials device link [<device>] [--yes] # self-link another of your devices to BOTH vaults (credentials + env)
 
 # Who can decrypt (org recipients) — owner/admin operations
 better-update credentials access list
-better-update credentials access grant <recipient> [--yes]
+better-update credentials access grant <recipient> [--yes]      # grants BOTH vaults post-cutover (credentials + env)
+better-update credentials access grant-env <recipient> [--yes]  # env vault only — backfill a recipient granted before `grant` covered both (idempotent)
 better-update credentials access revoke <recipient> [--yes]
 better-update credentials access rotate [--yes]          # rotate the vault key (e.g. after a revoke)
 better-update credentials access recover [--key AGE-SECRET-KEY-1…]   # recover using the offline recovery key
@@ -219,7 +220,11 @@ better-update credentials status                            # is the vault unloc
 
 Typical onboarding: `identity init` (first person in the org) → teammates run `identity create` and
 an owner runs `access grant <recipient>` → each person `unlock`s to cache their key for a session.
-When someone leaves, `access revoke <recipient>` then `access rotate`.
+Post-cutover, `access grant` wraps **both** vault keys (credentials + env) to the recipient
+(best-effort on the env half: a failure prints the `access grant-env` command to run later). A device
+that can read credentials but hits _"This device isn't an env-vault recipient"_ on `env` commands was
+granted before this — backfill it with `access grant-env <recipient>`. When someone leaves,
+`access revoke <recipient>` then `access rotate` (and `env-vault rotate` if flagged).
 
 ### CI / robot accounts (`BETTER_UPDATE_ROBOT`)
 

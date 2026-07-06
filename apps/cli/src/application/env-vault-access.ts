@@ -17,12 +17,13 @@ import type { UnlockedVault } from "./vault-access";
 
 /**
  * Guidance when this device holds no env-vault wrap. Post-cutover the env vault is
- * a SEPARATE key from the credentials vault, so even a device that can read
- * credentials may not be an env recipient yet — a user self-links by enrolling an
- * account key; a CI robot is granted by an admin.
+ * a SEPARATE key from the credentials vault, so a device granted before
+ * `access grant` covered both vaults may read credentials yet not be an env
+ * recipient — an admin backfills it with `access grant-env`; a CI robot with
+ * `robot grant-env`.
  */
 export const ENV_VAULT_NOT_RECIPIENT_GUIDANCE =
-  "This device isn't an env-vault recipient. Run `better-update credentials account create` to enroll, or — for a CI robot — ask an admin to run `better-update credentials robot grant-env <robot-id>`.";
+  "This device isn't an env-vault recipient. Ask an admin to run `better-update credentials access grant-env <key id or fingerprint>` (see `credentials device list` for yours), or — for a CI robot — `better-update credentials robot grant-env <robot-id>`.";
 
 /** `true` once the org has cut over to its separate env vault. */
 export const orgHasCutOver = (api: ApiClient) =>
@@ -131,6 +132,42 @@ export const forgetCachedEnvVaultKey: Effect.Effect<
   const cache = yield* VaultCache;
   yield* cache.clear(recipient.publicKey, "env");
 }).pipe(Effect.provide(VaultCacheLive));
+
+/** `true` while a key recipient (device/machine/recovery) holds a wrap on the CURRENT env vault. */
+export const keyHoldsEnvWrap = (api: ApiClient, keyId: string) =>
+  api.envVault.listWraps().pipe(
+    Effect.map(({ recipients }) =>
+      recipients.some((wrap) => wrap.recipientKind !== "account" && wrap.recipientId === keyId),
+    ),
+    Effect.catchTag("NotFound", () => Effect.succeed(false)),
+  );
+
+/**
+ * Unlock the env vault from this device and wrap it to `target`, idempotently.
+ * `addWrap` answers Conflict for BOTH a duplicate wrap and a stale
+ * `envVaultVersion` (a cached env key outlives rotations made from other
+ * devices), so only report "already" when the wrap really exists — otherwise
+ * drop the stale cache and grant once more against the freshly-fetched version.
+ */
+export const grantEnvRecipientIdempotent = (api: ApiClient, target: UserEncryptionKey) => {
+  const grantOnce = Effect.gen(function* () {
+    const vault = yield* unlockEnvVaultKeyInteractive(api);
+    yield* grantEnvRecipient({ api, vault, target });
+  });
+  return grantOnce.pipe(
+    Effect.as("granted" as const),
+    Effect.catchTag("Conflict", () =>
+      Effect.gen(function* () {
+        if (yield* keyHoldsEnvWrap(api, target.id)) {
+          return "already" as const;
+        }
+        yield* forgetCachedEnvVaultKey;
+        yield* grantOnce;
+        return "granted" as const;
+      }),
+    ),
+  );
+};
 
 /**
  * Resolve the vault session env VALUES are sealed under, branched on the org's

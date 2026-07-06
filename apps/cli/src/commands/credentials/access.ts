@@ -6,11 +6,13 @@ import { Effect } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
 
+import { grantEnvRecipientIdempotent, orgHasCutOver } from "../../application/env-vault-access";
 import { activeRecipient } from "../../application/identity";
 import { findRecipient, grantRecipient } from "../../application/vault-access";
 import { currentRecipients, rotateVaultTo } from "../../application/vault-rotation";
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
+import { formatCause } from "../../lib/format-error";
 import { printHuman, printHumanKeyValue, printHumanList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { confirmFingerprint, resolveSelector, unlockVaultInteractively } from "./vault-session";
@@ -85,7 +87,8 @@ const listCommand = defineCommand({
 const grantCommand = defineCommand({
   meta: {
     name: "grant",
-    description: "Grant another recipient access to the vault (admin/owner)",
+    description:
+      "Grant another recipient access to the vault — credentials and, post-cutover, env (admin/owner)",
   },
   args: {
     recipient: {
@@ -108,7 +111,77 @@ const grantCommand = defineCommand({
         const vault = yield* unlockVaultInteractively(api);
         yield* grantRecipient({ api, vault, target });
         yield* printHuman(`Granted vault access to ${target.label} (${target.fingerprint}).`);
-        return { granted: true, recipient: { id: target.id, fingerprint: target.fingerprint } };
+        // Post-cutover the env vault is a SEPARATE key, so the grant above does
+        // not cover env decryption — wrap the env key to the same recipient.
+        // Best-effort: the credentials grant already landed, so a failure here
+        // degrades to the `access grant-env` hand-off instead of sinking the
+        // command. Pre-cutover env is sealed under the credentials vault:
+        // nothing extra to grant.
+        const envGranted = (yield* orgHasCutOver(api))
+          ? yield* grantEnvRecipientIdempotent(api, target).pipe(
+              Effect.as(true),
+              Effect.catchAll((error) =>
+                printHuman(
+                  `⚠ Env vault not granted: ${formatCause(error)}\n` +
+                    `  Grant it later: better-update credentials access grant-env ${target.id}`,
+                ).pipe(Effect.as(false)),
+              ),
+            )
+          : false;
+        if (envGranted) {
+          yield* printHuman(`✓ Granted env-vault access to ${target.label}.`);
+        }
+        return {
+          granted: true,
+          envGranted,
+          recipient: { id: target.id, fingerprint: target.fingerprint },
+        };
+      }),
+      { json: "value" },
+    ),
+});
+
+const grantEnvCommand = defineCommand({
+  meta: {
+    name: "grant-env",
+    description:
+      "Grant an existing recipient access to the env vault alone — backfill for one granted before `access grant` covered both vaults (admin/owner)",
+  },
+  args: {
+    recipient: {
+      type: "positional",
+      required: false,
+      description: "Key id or fingerprint of the recipient to grant",
+    },
+    yes: {
+      type: "boolean",
+      description: "Skip the out-of-band fingerprint confirmation prompt",
+    },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const selector = yield* resolveSelector(args.recipient, "Recipient key id or fingerprint:");
+        const target = yield* findRecipient(api, selector);
+        if (!(yield* orgHasCutOver(api))) {
+          return yield* new IdentityError({
+            message:
+              "This organization's env values are still sealed under the credentials vault (no env cutover) — a credentials-vault grant already covers env; nothing to do.",
+          });
+        }
+        yield* confirmFingerprint(target, args.yes === true);
+        const outcome = yield* grantEnvRecipientIdempotent(api, target);
+        yield* printHuman(
+          outcome === "granted"
+            ? `✓ Granted env-vault access to ${target.label} (${target.fingerprint}).`
+            : `${target.label} is already an env-vault recipient — nothing to do.`,
+        );
+        return {
+          envGranted: true,
+          alreadyGranted: outcome === "already",
+          recipient: { id: target.id, fingerprint: target.fingerprint },
+        };
       }),
       { json: "value" },
     ),
@@ -334,6 +407,7 @@ export const accessCommand = defineCommand({
   subCommands: {
     list: listCommand,
     grant: grantCommand,
+    "grant-env": grantEnvCommand,
     rotate: rotateCommand,
     revoke: revokeCommand,
     recover: recoverCommand,
