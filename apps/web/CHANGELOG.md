@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.57.4](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.3...%40better-update%2Fweb%400.57.4) (2026-07-06)
+
+### Bug Fixes
+
+* **web:** name account-key recipients after their owning member ([0bbcf38](https://github.com/better-update/better-update/commit/0bbcf38cb93a1376ac740b65e32dccb4a1a7b97b))
+
 ## [0.57.3](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.2...%40better-update%2Fweb%400.57.3) (2026-07-06)
 
 ### Bug Fixes
