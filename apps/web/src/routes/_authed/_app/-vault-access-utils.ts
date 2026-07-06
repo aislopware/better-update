@@ -12,15 +12,76 @@ import type {
  */
 export type RecipientKind = EncryptionKeyKindValue | "account" | "unknown";
 
+/** Who a recipient's access binds to: a member (name + email), a robot, or the org itself. */
+export interface RecipientOwner {
+  readonly name: string;
+  readonly detail?: string;
+}
+
 export interface VaultRecipientRow {
   readonly recipientId: string;
   readonly label: string;
   readonly kind: RecipientKind;
+  readonly owner: RecipientOwner | undefined;
   readonly fingerprint: string | null;
   readonly grantedAt: string;
   readonly lastUsedAt: string | null;
   readonly revokedAt: string | null;
 }
+
+/** The minimal member shape the owner lookup needs (better-auth `listMembers` row). */
+export interface MemberOwnerInput {
+  readonly userId: string;
+  readonly user: { readonly name: string; readonly email: string };
+}
+
+/** The minimal robot shape the owner lookup needs. */
+export interface RobotOwnerInput {
+  readonly name: string;
+  readonly userEncryptionKeyId: string | null;
+}
+
+/** Pre-indexed owner lookups shared by both join functions. */
+export interface RecipientOwners {
+  readonly memberByUserId: ReadonlyMap<string, RecipientOwner>;
+  readonly robotByKeyId: ReadonlyMap<string, RecipientOwner>;
+}
+
+const ORG_OWNER: RecipientOwner = { name: "Organization" };
+
+/**
+ * Index members and robots for the per-row owner lookup. Robots may be missing
+ * (the caller may not be allowed to list them) — their machine keys then show no
+ * owner rather than failing the page.
+ */
+export const buildRecipientOwners = (
+  members: readonly MemberOwnerInput[],
+  robots: readonly RobotOwnerInput[],
+): RecipientOwners => ({
+  memberByUserId: new Map(
+    members.map((member) => [member.userId, { name: member.user.name, detail: member.user.email }]),
+  ),
+  robotByKeyId: new Map(
+    robots.flatMap((robot) =>
+      robot.userEncryptionKeyId === null
+        ? []
+        : [[robot.userEncryptionKeyId, { name: robot.name, detail: "CI robot" }] as const],
+    ),
+  ),
+});
+
+const keyOwner = (
+  key: UserEncryptionKeyItem,
+  owners: RecipientOwners,
+): RecipientOwner | undefined => {
+  if (key.kind === "recovery") {
+    return ORG_OWNER;
+  }
+  if (key.kind === "machine") {
+    return owners.robotByKeyId.get(key.id);
+  }
+  return key.userId === null ? undefined : owners.memberByUserId.get(key.userId);
+};
 
 const KIND_ORDER: Record<RecipientKind, number> = {
   device: 0,
@@ -41,6 +102,7 @@ const unknownRow = (recipientId: string, grantedAt: string): VaultRecipientRow =
   recipientId,
   label: "Unknown key",
   kind: "unknown",
+  owner: undefined,
   fingerprint: null,
   grantedAt,
   lastUsedAt: null,
@@ -51,12 +113,14 @@ const encryptionKeyRow = (
   recipientId: string,
   grantedAt: string,
   key: UserEncryptionKeyItem | undefined,
+  owners: RecipientOwners,
 ): VaultRecipientRow =>
   key
     ? {
         recipientId,
         label: key.label,
         kind: key.kind,
+        owner: keyOwner(key, owners),
         fingerprint: key.fingerprint,
         grantedAt,
         lastUsedAt: key.lastUsedAt,
@@ -68,12 +132,13 @@ const encryptionKeyRow = (
  * Join the credentials-vault wrap rows (the recipients that currently hold the
  * key) with the recipient public-key metadata, mirroring the CLI
  * `credentials access list`: iterate the wraps (the source of truth for "who can
- * decrypt") and decorate each with its key's label / kind / fingerprint. Sorted
- * by kind, then label.
+ * decrypt") and decorate each with its key's label / kind / fingerprint plus the
+ * member/robot the access binds to. Sorted by kind, then label.
  */
 export const joinVaultRecipients = (
   recipients: readonly VaultRecipientItem[],
   keys: readonly UserEncryptionKeyItem[],
+  owners: RecipientOwners,
 ): VaultRecipientRow[] => {
   const byId = new Map(keys.map((key) => [key.id, key]));
   return sortRecipientRows(
@@ -82,6 +147,7 @@ export const joinVaultRecipients = (
         recipient.userEncryptionKeyId,
         recipient.createdAt,
         byId.get(recipient.userEncryptionKeyId),
+        owners,
       ),
     ),
   );
@@ -97,6 +163,7 @@ export const joinEnvVaultRecipients = (
   recipients: readonly EnvVaultRecipientItem[],
   keys: readonly UserEncryptionKeyItem[],
   accountKeys: readonly AccountKeyItem[],
+  owners: RecipientOwners,
 ): VaultRecipientRow[] => {
   const keyById = new Map(keys.map((key) => [key.id, key]));
   const accountById = new Map(accountKeys.map((account) => [account.id, account]));
@@ -109,6 +176,7 @@ export const joinEnvVaultRecipients = (
               recipientId: recipient.recipientId,
               label: "Account key",
               kind: "account" as const,
+              owner: owners.memberByUserId.get(account.userId),
               fingerprint: account.fingerprint,
               grantedAt: recipient.createdAt,
               lastUsedAt: account.lastUsedAt,
@@ -120,6 +188,7 @@ export const joinEnvVaultRecipients = (
         recipient.recipientId,
         recipient.createdAt,
         keyById.get(recipient.recipientId),
+        owners,
       );
     }),
   );

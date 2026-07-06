@@ -2,6 +2,7 @@ import {
   accountKeysQueryOptions,
   encryptionKeysQueryOptions,
   envVaultWrapsQueryOptions,
+  orgRobotAccountsQueryOptions,
   orgVaultQueryOptions,
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
@@ -24,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, TriangleAlertIcon } from "lucide-react";
 import { Suspense } from "react";
@@ -35,14 +36,16 @@ import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
+import { membersQueryOptions } from "../../../queries/org";
 import { VaultAccessGrant } from "./-vault-access-grant";
 import {
+  buildRecipientOwners,
   ENCRYPTION_KEY_KIND_META,
   joinEnvVaultRecipients,
   joinVaultRecipients,
 } from "./-vault-access-utils";
 
-import type { VaultRecipientRow } from "./-vault-access-utils";
+import type { RecipientOwners, VaultRecipientRow } from "./-vault-access-utils";
 
 const VaultAccessEmptyState = () => (
   <Card>
@@ -61,11 +64,22 @@ const VaultAccessEmptyState = () => (
   </Card>
 );
 
+const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>
+  owner ? (
+    <div className="flex flex-col">
+      <span>{owner.name}</span>
+      {owner.detail ? <span className="text-muted-foreground text-xs">{owner.detail}</span> : null}
+    </div>
+  ) : (
+    <span className="text-muted-foreground">—</span>
+  );
+
 const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Recipient</TableHead>
+        <TableHead>Owner</TableHead>
         <TableHead>Type</TableHead>
         <TableHead>Fingerprint</TableHead>
         <TableHead>Granted</TableHead>
@@ -78,6 +92,9 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
         return (
           <TableRow key={row.recipientId}>
             <TableCell className="font-medium">{row.label}</TableCell>
+            <TableCell>
+              <OwnerCell owner={row.owner} />
+            </TableCell>
             <TableCell>
               <div className="flex items-center gap-1.5">
                 <Badge variant={meta.variant}>{meta.label}</Badge>
@@ -132,30 +149,47 @@ const EnvRotationPendingBanner = () => (
  * once the org has cut over — before that env values are sealed under the
  * credentials vault and the section would be noise.
  */
+/** Section heading: the vault name as a title with its key version alongside as a badge. */
+const VaultSectionHeading = ({
+  title,
+  version,
+  summary,
+}: {
+  title: string;
+  version: number;
+  summary: string;
+}) => (
+  <div className="flex items-center gap-2">
+    <h2 className="text-sm font-medium">{title}</h2>
+    <Badge variant="outline">v{version}</Badge>
+    <span className="text-muted-foreground text-sm">{summary}</span>
+  </div>
+);
+
 const EnvVaultRecipientsSection = ({
   orgId,
   envVaultVersion,
   rotationPending,
+  owners,
 }: {
   orgId: string;
   envVaultVersion: number;
   rotationPending: boolean;
+  owners: RecipientOwners;
 }) => {
   const { data: wraps } = useSuspenseQuery(envVaultWrapsQueryOptions(orgId));
   const { data: keys } = useSuspenseQuery(encryptionKeysQueryOptions(orgId));
   const { data: accounts } = useSuspenseQuery(accountKeysQueryOptions(orgId));
-  const rows = joinEnvVaultRecipients(wraps.recipients, keys.items, accounts.items);
+  const rows = joinEnvVaultRecipients(wraps.recipients, keys.items, accounts.items, owners);
 
   return (
     <section className="flex flex-col gap-3">
       {rotationPending ? <EnvRotationPendingBanner /> : null}
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">Env vault v{envVaultVersion}</Badge>
-        <span className="text-muted-foreground text-sm">
-          {rows.length} {pluralize(rows.length, "recipient")} can decrypt this organization&apos;s
-          env values
-        </span>
-      </div>
+      <VaultSectionHeading
+        title="Env vault"
+        version={envVaultVersion}
+        summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's env values`}
+      />
       {rows.length > 0 ? (
         <Frame>
           <RecipientsTable rows={rows} />
@@ -173,7 +207,12 @@ const VaultAccessContent = () => {
   const { data: vault } = useSuspenseQuery(vaultRecipientsQueryOptions(orgId));
   const { data: orgVault } = useSuspenseQuery(orgVaultQueryOptions(orgId));
   const { data: keys } = useSuspenseQuery(encryptionKeysQueryOptions(orgId));
-  const rows = joinVaultRecipients(vault.recipients, keys.items);
+  const { data: members } = useSuspenseQuery(membersQueryOptions(orgId));
+  // Robots resolve machine-key owners; a caller who may not list them still gets
+  // the page — those rows just show no owner.
+  const { data: robots } = useQuery(orgRobotAccountsQueryOptions(orgId));
+  const owners = buildRecipientOwners(members, robots ?? []);
+  const rows = joinVaultRecipients(vault.recipients, keys.items, owners);
 
   if (rows.length === 0) {
     return <VaultAccessEmptyState />;
@@ -185,13 +224,11 @@ const VaultAccessContent = () => {
         {orgVault?.rotationPending ? (
           <RotationPendingBanner reason={orgVault.rotationPendingReason} />
         ) : null}
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">Credentials vault v{vault.vaultVersion}</Badge>
-          <span className="text-muted-foreground text-sm">
-            {rows.length} {pluralize(rows.length, "recipient")} can decrypt this organization&apos;s
-            credentials
-          </span>
-        </div>
+        <VaultSectionHeading
+          title="Credentials vault"
+          version={vault.vaultVersion}
+          summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's credentials`}
+        />
         <Frame>
           <RecipientsTable rows={rows} />
         </Frame>
@@ -201,6 +238,7 @@ const VaultAccessContent = () => {
           orgId={orgId}
           envVaultVersion={orgVault.envVaultVersion}
           rotationPending={orgVault.envRotationPending}
+          owners={owners}
         />
       ) : null}
     </>
@@ -215,7 +253,7 @@ const VaultAccess = () => {
         title="Vault access"
         description="Recipients that can decrypt this organization's credentials and env vaults (managed from the CLI). Env-vault access can be granted from the browser on the vault origin."
       />
-      <Suspense fallback={<TableSkeleton columns={5} rows={3} hasFooter={false} />}>
+      <Suspense fallback={<TableSkeleton columns={6} rows={3} hasFooter={false} />}>
         <VaultAccessContent />
       </Suspense>
       <VaultAccessGrant orgId={activeOrg.id} />

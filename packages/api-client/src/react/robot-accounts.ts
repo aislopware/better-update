@@ -27,3 +27,17 @@ export const projectRobotAccountsQueryOptions = (projectId: string) =>
     },
     staleTime: 30_000,
   });
+
+export const orgRobotAccountsQueryKey = (orgId: string) =>
+  ["org", orgId, "robot-accounts"] as const;
+
+/** Every robot account in the org — resolves a machine key to its owning robot on the vault access view. */
+export const orgRobotAccountsQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: orgRobotAccountsQueryKey(orgId),
+    queryFn: async ({ signal }) => {
+      const result = await runApi((api) => api["robot-accounts"].list({ urlParams: {} }), signal);
+      return result.items;
+    },
+    staleTime: 30_000,
+  });
