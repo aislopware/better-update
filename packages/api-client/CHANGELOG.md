@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.28.2](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.28.1...%40better-update%2Fapi-client%400.28.2) (2026-07-06)
+
+### Bug Fixes
+
+* **web:** vault-access headings and recipient owner column ([285b1b0](https://gitlab.jmango360.com/mobile/better-update/commit/285b1b0567d1802717eb17df4bf95cbbbb76f6c1))
+
 ## [0.28.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.28.0...%40better-update%2Fapi-client%400.28.1) (2026-07-06)
 
 ### Bug Fixes

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.57.3](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.2...%40better-update%2Fweb%400.57.3) (2026-07-06)
+
+### Bug Fixes
+
+* **web:** vault-access headings and recipient owner column ([285b1b0](https://github.com/better-update/better-update/commit/285b1b0567d1802717eb17df4bf95cbbbb76f6c1))
+
 ## [0.57.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.1...%40better-update%2Fweb%400.57.2) (2026-07-06)
 
 ### Bug Fixes
