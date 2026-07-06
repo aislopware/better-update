@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.4](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.47.3...%40better-update%2Fserver%400.47.4) (2026-07-06)
+
+### Bug Fixes
+
+* **server:** fall back to exact key match when env-var search overflows D1's LIKE cap ([b5d55fb](https://github.com/better-update/better-update/commit/b5d55fb63a05e64d4a28627429af357d5979e5df))
+
 ## [0.47.3](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.47.2...%40better-update%2Fserver%400.47.3) (2026-07-06)
 
 ### Bug Fixes
