@@ -4,6 +4,7 @@ import { sql } from "kysely";
 
 import type { Expression, ExpressionBuilder, Kysely, Selectable, SqlBool } from "kysely";
 
+import { D1_MAX_LIKE_PATTERN } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { toDbNull } from "../lib/nullable";
 
@@ -321,14 +322,22 @@ const environmentsCondition = (
     ? eb("env_vars.environment", "in", [...environments])
     : null;
 
-// Case-insensitive key prefix/substring match. The escaped pattern is bound (not
+// Case-insensitive key substring match. The escaped pattern is bound (not
 // concatenated); `ESCAPE '\'` neutralizes the LIKE wildcards in the user term.
+// D1 rejects a LIKE pattern over `D1_MAX_LIKE_PATTERN` chars (→ a bare 500), and
+// a long, underscore-dense key inflates the pattern past that once escaped, so
+// when the pattern would overflow we match the key exactly instead — a term that
+// long is effectively a full key anyway (keys are stored upper-case). See BU-19.
 const searchCondition = (search: string | undefined): Expression<SqlBool> | null => {
   const trimmed = search?.trim();
   if (!trimmed) {
     return null;
   }
-  const pattern = `%${escapeLike(trimmed.toUpperCase())}%`;
+  const term = trimmed.toUpperCase();
+  const pattern = `%${escapeLike(term)}%`;
+  if (pattern.length > D1_MAX_LIKE_PATTERN) {
+    return sql<SqlBool>`"env_vars"."key" = ${term}`;
+  }
   return sql<SqlBool>`"env_vars"."key" LIKE ${pattern} ESCAPE '\\'`;
 };
 

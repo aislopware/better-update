@@ -49,6 +49,16 @@ export const kyselyDb: Effect.Effect<Kysely<DB>> = d1Session.pipe(Effect.map(kys
 export const D1_IN_PARAM_CHUNK = 80;
 
 /**
+ * D1 rejects a `LIKE`/`GLOB` pattern longer than this many characters with
+ * "LIKE or GLOB pattern too complex". Because our repos run the query through
+ * `Effect.promise`, that rejection becomes an unhandled defect → a bare HTTP 500
+ * rather than a mapped error. Any caller-controlled `LIKE` pattern (a search box
+ * term) must therefore stay within this bound; see `searchCondition` in
+ * `env-vars-sql.ts` for the exact-match fallback used when it would overflow.
+ */
+export const D1_MAX_LIKE_PATTERN = 50;
+
+/**
  * Run several compiled Kysely queries as a single atomic `D1.batch` — D1's only
  * form of multi-statement atomicity (it has no interactive transactions). If
  * any statement fails the whole batch rolls back. Returns each query's rows in
