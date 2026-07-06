@@ -177,7 +177,7 @@ describe(joinEnvVaultRecipients, () => {
       },
       {
         recipientId: "acct-1",
-        label: "Account key",
+        label: "Bob's account key",
         kind: "account",
         owner: { name: "Bob", detail: "bob@example.com" },
         fingerprint: "SHA256:acct",

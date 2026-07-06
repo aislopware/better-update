@@ -156,8 +156,9 @@ export const joinVaultRecipients = (
 /**
  * Join the ENV-vault wrap rows with their recipient metadata. Env recipients are
  * polymorphic: device/machine/recovery wraps resolve against the encryption keys,
- * `account` wraps against the members' browser account keys (labelled generically —
- * an account key has no user-chosen label; the fingerprint identifies it).
+ * `account` wraps against the members' browser account keys. An account key has
+ * no user-chosen label, so it is named after its owning member ("<name>'s
+ * account key"), falling back to a generic label when the member is not visible.
  */
 export const joinEnvVaultRecipients = (
   recipients: readonly EnvVaultRecipientItem[],
@@ -171,18 +172,20 @@ export const joinEnvVaultRecipients = (
     recipients.map((recipient) => {
       if (recipient.recipientKind === "account") {
         const account = accountById.get(recipient.recipientId);
-        return account
-          ? {
-              recipientId: recipient.recipientId,
-              label: "Account key",
-              kind: "account" as const,
-              owner: owners.memberByUserId.get(account.userId),
-              fingerprint: account.fingerprint,
-              grantedAt: recipient.createdAt,
-              lastUsedAt: account.lastUsedAt,
-              revokedAt: account.revokedAt,
-            }
-          : unknownRow(recipient.recipientId, recipient.createdAt);
+        if (account === undefined) {
+          return unknownRow(recipient.recipientId, recipient.createdAt);
+        }
+        const owner = owners.memberByUserId.get(account.userId);
+        return {
+          recipientId: recipient.recipientId,
+          label: owner === undefined ? "Account key" : `${owner.name}'s account key`,
+          kind: "account" as const,
+          owner,
+          fingerprint: account.fingerprint,
+          grantedAt: recipient.createdAt,
+          lastUsedAt: account.lastUsedAt,
+          revokedAt: account.revokedAt,
+        };
       }
       return encryptionKeyRow(
         recipient.recipientId,
