@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.3](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.47.2...%40better-update%2Fserver%400.47.3) (2026-07-06)
+
+### Bug Fixes
+
+* **server:** stamp key last-used when a vault wrap is fetched ([2058290](https://github.com/better-update/better-update/commit/205829018bfdf02924dec7c7c15a74e154283e34))
+
 ## [0.47.2](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.47.1...%40better-update%2Fserver%400.47.2) (2026-07-04)
 
 ### Bug Fixes
