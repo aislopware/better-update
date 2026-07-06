@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.28.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.28.0...%40better-update%2Fapi-client%400.28.1) (2026-07-06)
+
+### Bug Fixes
+
+* **web:** friendly env-unlock errors and env-vault recipients on vault access ([76e2e1c](https://gitlab.jmango360.com/mobile/better-update/commit/76e2e1c80446ca3b3280162af5b63f6a8703b21a))
+
 ## [0.28.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.27.0...%40better-update%2Fapi-client%400.28.0) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/api-client

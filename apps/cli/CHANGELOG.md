@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.59.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.59.0...%40better-update%2Fcli%400.59.1) (2026-07-06)
+
+### Bug Fixes
+
+* **cli:** label the surviving-recipient list during rotate confirmations ([a92dfe5](https://github.com/better-update/better-update/commit/a92dfe597119d510b3b4768a95622755ae60fc8d))
+
 ## [0.59.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.58.2...%40better-update%2Fcli%400.59.0) (2026-07-06)
 
 ### Features

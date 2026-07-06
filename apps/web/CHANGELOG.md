@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.57.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.1...%40better-update%2Fweb%400.57.2) (2026-07-06)
+
+### Bug Fixes
+
+* **web:** friendly env-unlock errors and env-vault recipients on vault access ([76e2e1c](https://github.com/better-update/better-update/commit/76e2e1c80446ca3b3280162af5b63f6a8703b21a))
+
 ## [0.57.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.0...%40better-update%2Fweb%400.57.1) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/web
