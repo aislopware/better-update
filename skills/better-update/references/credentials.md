@@ -295,7 +295,10 @@ and, if it held credentials-vault and/or env-vault access, each is excluded and 
 too (the revoking device must itself be able to unlock the vault(s) being rotated; a mid-way
 failure is safe to re-run). Rotate its bearer alone with `credentials robot rotate <id>` (its
 vault identity is left untouched); pass `--identity <its current age private key>` to get a fresh
-full `BETTER_UPDATE_ROBOT` bundle back.
+full `BETTER_UPDATE_ROBOT` bundle back. The flag requires the key as its value (a bare
+`--identity` errors before rotating) — the server never stores the private key, so it cannot be
+regenerated: extract it from the robot's original `BETTER_UPDATE_ROBOT` value, which is
+base64url-encoded JSON (`{version, bearer, identity}`).
 Robot management (create/update/rotate/revoke) takes Maintainer+ on the robot's project (org
 admin/owner implicitly). `robot list` shows every visible robot with its id, project + role.
 

@@ -1,12 +1,12 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import type { RobotAccountItem, RobotAccountRoleValue } from "@better-update/api-client/react";
+import type { RobotAccountItem } from "@better-update/api-client/react";
 
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
 import { ProjectRobotsTableView } from "./-project-robots-table";
 
-import type { RenameTarget } from "./-project-robots-mutations";
+import type { EditTarget } from "./-project-robots-mutations";
 
 const makeRobot = (overrides?: Partial<RobotAccountItem>): RobotAccountItem => ({
   id: "robot-1",
@@ -21,51 +21,25 @@ const makeRobot = (overrides?: Partial<RobotAccountItem>): RobotAccountItem => (
 });
 
 describe(ProjectRobotsTableView, () => {
-  const onRoleChange = vi.fn<(robot: RobotAccountItem, role: RobotAccountRoleValue) => void>();
-  const onRename = vi.fn<(target: RenameTarget) => void>();
+  const onEdit = vi.fn<(target: EditTarget) => void>();
 
-  it("renders the robot with an editable role and its copyable id", () => {
-    renderWithQuery(
-      <ProjectRobotsTableView
-        items={[makeRobot()]}
-        onRoleChange={onRoleChange}
-        onRename={onRename}
-      />,
-    );
+  it("renders the robot with a capitalized role badge and its copyable id", () => {
+    renderWithQuery(<ProjectRobotsTableView items={[makeRobot()]} onEdit={onEdit} />);
 
     expect(screen.getByText("ci-bot")).toBeInTheDocument();
-    expect(screen.getByLabelText("Change role for ci-bot")).toBeInTheDocument();
+    expect(screen.getByText("Developer")).toBeInTheDocument();
     // CopyableId shows the (truncated) id and copies the full value.
     expect(screen.getByText("robot-1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy robot id/i })).toBeInTheDocument();
   });
 
-  it("selecting a new role calls onRoleChange with the robot and role", async () => {
+  it("the edit menu item hands the robot's current name + role to onEdit", async () => {
     const user = userEvent.setup();
-    const robot = makeRobot();
-    renderWithQuery(
-      <ProjectRobotsTableView items={[robot]} onRoleChange={onRoleChange} onRename={onRename} />,
-    );
-
-    await user.click(screen.getByLabelText("Change role for ci-bot"));
-    await user.click(await screen.findByRole("option", { name: "Maintainer" }));
-
-    expect(onRoleChange).toHaveBeenCalledWith(robot, "maintainer");
-  });
-
-  it("the rename menu item hands the robot to onRename", async () => {
-    const user = userEvent.setup();
-    renderWithQuery(
-      <ProjectRobotsTableView
-        items={[makeRobot()]}
-        onRoleChange={onRoleChange}
-        onRename={onRename}
-      />,
-    );
+    renderWithQuery(<ProjectRobotsTableView items={[makeRobot()]} onEdit={onEdit} />);
 
     await user.click(screen.getByLabelText("Robot account actions"));
-    await user.click(await screen.findByRole("menuitem", { name: /rename/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /edit/i }));
 
-    expect(onRename).toHaveBeenCalledWith({ id: "robot-1", name: "ci-bot" });
+    expect(onEdit).toHaveBeenCalledWith({ id: "robot-1", name: "ci-bot", role: "developer" });
   });
 });

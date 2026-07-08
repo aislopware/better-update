@@ -362,7 +362,9 @@ better-update credentials robot <create|list|update|rotate|revoke|grant-env> …
 #   robot update <id> [--name <name>] [--role maintainer|developer|reporter] — rename and/or change the role in place
 #     (the PROJECT is fixed at creation — moving a robot still means mint new + revoke old). A rename also relabels the
 #     robot's vault identity; every change lands in the org audit log (`robotAccount.update`, with previous + new values).
-#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity to get a full bundle back
+#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity <key> to get a full
+#     bundle back (the flag REQUIRES the robot's current age private key — a bare `--identity` errors before rotating;
+#     the key is inside the original BETTER_UPDATE_ROBOT value, which is base64url-encoded JSON)
 #   robot revoke <id> [--yes] — bearer stops authenticating; excludes + rotates the credentials and env vaults it held access to
 #   robot grant-env <id> — enroll an EXISTING robot into the env vault so it decrypts env vars in CI (post-cutover; idempotent; `create` already covers new robots)
 better-update credentials bindings <list|plan|add|remove> …                # default `list`; credential→project bindings (org admin)

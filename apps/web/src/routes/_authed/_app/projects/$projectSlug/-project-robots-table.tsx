@@ -1,13 +1,6 @@
+import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@better-update/ui/components/ui/menu";
-import {
-  Select,
-  SelectGroup,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,60 +11,24 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { EllipsisVerticalIcon, PencilIcon } from "lucide-react";
 
-import type { RobotAccountItem, RobotAccountRoleValue } from "@better-update/api-client/react";
+import type { RobotAccountItem } from "@better-update/api-client/react";
 
 import { PROJECT_ROLE_LABELS } from "../../-invite-dialog";
 import { CopyableId } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
-import { RenameRobotDialog } from "./-project-robot-rename-dialog";
+import { EditRobotDialog } from "./-project-robot-edit-dialog";
 import { useProjectRobotsHandlers } from "./-project-robots-mutations";
 
-import type { RenameTarget } from "./-project-robots-mutations";
-
-const ROLE_VALUES = ["maintainer", "developer", "reporter"] as const;
-
-const RoleSelect = ({
-  robot,
-  isPending,
-  onRoleChange,
-}: {
-  robot: RobotAccountItem;
-  isPending: boolean;
-  onRoleChange: (robot: RobotAccountItem, role: RobotAccountRoleValue) => void;
-}) => (
-  <Select
-    items={PROJECT_ROLE_LABELS}
-    value={robot.role}
-    disabled={isPending}
-    onValueChange={(next) => {
-      if (next !== null && next !== robot.role) {
-        onRoleChange(robot, next);
-      }
-    }}
-  >
-    <SelectTrigger className="w-36" aria-label={`Change role for ${robot.name}`}>
-      <SelectValue />
-    </SelectTrigger>
-    <SelectPopup>
-      <SelectGroup>
-        {ROLE_VALUES.map((value) => (
-          <SelectItem key={value} value={value}>
-            {PROJECT_ROLE_LABELS[value]}
-          </SelectItem>
-        ))}
-      </SelectGroup>
-    </SelectPopup>
-  </Select>
-);
+import type { EditTarget } from "./-project-robots-mutations";
 
 const RowActions = ({
   robot,
   isPending,
-  onRename,
+  onEdit,
 }: {
   robot: RobotAccountItem;
   isPending: boolean;
-  onRename: (target: RenameTarget) => void;
+  onEdit: (target: EditTarget) => void;
 }) => (
   <Menu>
     <MenuTrigger
@@ -89,31 +46,30 @@ const RowActions = ({
     <MenuPopup align="end">
       <MenuItem
         onClick={() => {
-          onRename({ id: robot.id, name: robot.name });
+          onEdit({ id: robot.id, name: robot.name, role: robot.role });
         }}
       >
         <PencilIcon strokeWidth={2} />
-        <span>Rename</span>
+        <span>Edit</span>
       </MenuItem>
     </MenuPopup>
   </Menu>
 );
 
 // Robots are project-scoped (GITLAB-RBAC-SPEC §1b, v2): one robot = one
-// project, fixed at creation, so no project column. Name and role are editable
-// in place — the page is maintainer-gated, and everyone who can see a robot
-// here holds the rank the PATCH endpoint requires. The id is what the CLI
-// robot commands take (`rotate`/`revoke`/`grant-env`), hence the copyable cell.
+// project, fixed at creation, so no project column. Name and role are edited
+// together through the row menu's Edit dialog — the page is maintainer-gated,
+// and everyone who can see a robot here holds the rank the PATCH endpoint
+// requires. The id is what the CLI robot commands take
+// (`rotate`/`revoke`/`grant-env`), hence the copyable cell.
 export const ProjectRobotsTableView = ({
   items,
   pendingRobotId,
-  onRoleChange,
-  onRename,
+  onEdit,
 }: {
   items: readonly RobotAccountItem[];
   pendingRobotId?: string | undefined;
-  onRoleChange: (robot: RobotAccountItem, role: RobotAccountRoleValue) => void;
-  onRename: (target: RenameTarget) => void;
+  onEdit: (target: EditTarget) => void;
 }) => (
   <Table variant="card">
     <TableHeader>
@@ -130,11 +86,7 @@ export const ProjectRobotsTableView = ({
         <TableRow key={robot.id}>
           <TableCell className="font-medium">{robot.name}</TableCell>
           <TableCell>
-            <RoleSelect
-              robot={robot}
-              isPending={pendingRobotId === robot.id}
-              onRoleChange={onRoleChange}
-            />
+            <Badge variant="outline">{PROJECT_ROLE_LABELS[robot.role]}</Badge>
           </TableCell>
           <TableCell className="text-muted-foreground">
             <CopyableId value={robot.id} label="Robot ID" />
@@ -143,7 +95,7 @@ export const ProjectRobotsTableView = ({
             <RelativeTime value={robot.createdAt} />
           </TableCell>
           <TableCell className="text-right">
-            <RowActions robot={robot} isPending={pendingRobotId === robot.id} onRename={onRename} />
+            <RowActions robot={robot} isPending={pendingRobotId === robot.id} onEdit={onEdit} />
           </TableCell>
         </TableRow>
       ))}
@@ -151,7 +103,7 @@ export const ProjectRobotsTableView = ({
   </Table>
 );
 
-/** The robots table wired to its mutations (role select + rename dialog). */
+/** The robots table wired to its mutations (the row menu's Edit dialog). */
 export const ProjectRobotsTable = ({
   projectId,
   items,
@@ -165,17 +117,16 @@ export const ProjectRobotsTable = ({
     <>
       <ProjectRobotsTableView
         items={items}
-        pendingRobotId={handlers.pendingRobotId}
-        onRoleChange={handlers.handleRoleChange}
-        onRename={handlers.handleRenameRequest}
+        pendingRobotId={handlers.isEditing ? handlers.editTarget?.id : undefined}
+        onEdit={handlers.handleEditRequest}
       />
-      <RenameRobotDialog
-        target={handlers.renameTarget}
-        open={handlers.renameOpen}
-        isPending={handlers.isRenaming}
-        onOpenChange={handlers.handleRenameOpenChange}
-        onClosed={handlers.handleRenameClosed}
-        onSubmit={handlers.handleRename}
+      <EditRobotDialog
+        target={handlers.editTarget}
+        open={handlers.editOpen}
+        isPending={handlers.isEditing}
+        onOpenChange={handlers.handleEditOpenChange}
+        onClosed={handlers.handleEditClosed}
+        onSubmit={handlers.handleEditSubmit}
       />
     </>
   );

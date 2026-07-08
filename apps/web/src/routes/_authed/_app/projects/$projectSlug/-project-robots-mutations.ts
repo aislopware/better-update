@@ -3,83 +3,68 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
-import type { RobotAccountItem, RobotAccountRoleValue } from "@better-update/api-client/react";
+import type { RobotAccountRoleValue } from "@better-update/api-client/react";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
-/** The robot a pending rename dialog targets. */
-export interface RenameTarget {
+/** The robot a pending edit dialog targets (current values seed the form). */
+export interface EditTarget {
   id: string;
   name: string;
+  role: RobotAccountRoleValue;
 }
 
-// Robot mutations the dashboard CAN do (no key material involved): rename +
-// role change via the maintainer-gated PATCH /api/robot-accounts/:id. Create,
-// rotate, and revoke stay CLI-only — they mint or retire the age keypair.
+/** The changed-fields-only PATCH body the edit dialog submits. */
+export interface RobotAccountChanges {
+  name?: string;
+  role?: RobotAccountRoleValue;
+}
+
+// The one robot mutation the dashboard CAN do (no key material involved):
+// rename + role change via the maintainer-gated PATCH /api/robot-accounts/:id.
+// Create, rotate, and revoke stay CLI-only — they mint or retire the age keypair.
 export const useProjectRobotsHandlers = (projectId: string) => {
   const queryClient = useQueryClient();
-  // `renameTarget` survives the close animation (cleared in
+  // `editTarget` survives the close animation (cleared in
   // onOpenChangeComplete) so the dialog never loses its content mid-close.
-  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
-  const [renameOpen, setRenameOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
-  const updateRole = useApiMutation({
-    mutationFn: async (input: { id: string; role: RobotAccountRoleValue }) =>
-      updateRobotAccount(input.id, { role: input.role }),
+  const edit = useApiMutation({
+    mutationFn: async (input: { id: string; changes: RobotAccountChanges }) =>
+      updateRobotAccount(input.id, input.changes),
     onSuccess: async () => {
-      toastManager.add({ title: "Role updated", type: "success" });
+      setEditOpen(false);
+      toastManager.add({ title: "Robot account updated", type: "success" });
       await queryClient.invalidateQueries({ queryKey: projectRobotAccountsQueryKey(projectId) });
     },
   });
 
-  const rename = useApiMutation({
-    mutationFn: async (input: { id: string; name: string }) =>
-      updateRobotAccount(input.id, { name: input.name }),
-    onSuccess: async () => {
-      setRenameOpen(false);
-      toastManager.add({ title: "Robot renamed", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: projectRobotAccountsQueryKey(projectId) });
-    },
-  });
+  const { mutate: editMutate } = edit;
 
-  const { mutate: updateRoleMutate } = updateRole;
-  const { mutate: renameMutate } = rename;
-
-  const handleRoleChange = useCallback(
-    (robot: RobotAccountItem, role: RobotAccountRoleValue) => {
-      updateRoleMutate({ id: robot.id, role });
-    },
-    [updateRoleMutate],
-  );
-
-  const handleRenameRequest = useCallback((target: RenameTarget) => {
-    setRenameTarget(target);
-    setRenameOpen(true);
+  const handleEditRequest = useCallback((target: EditTarget) => {
+    setEditTarget(target);
+    setEditOpen(true);
   }, []);
 
-  const handleRename = useCallback(
-    (name: string) => {
-      if (renameTarget) {
-        renameMutate({ id: renameTarget.id, name });
+  const handleEditSubmit = useCallback(
+    (changes: RobotAccountChanges) => {
+      if (editTarget) {
+        editMutate({ id: editTarget.id, changes });
       }
     },
-    [renameTarget, renameMutate],
+    [editTarget, editMutate],
   );
 
-  const rolePendingId = updateRole.isPending ? updateRole.variables.id : undefined;
-  const renamePendingId = rename.isPending ? rename.variables.id : undefined;
-
   return {
-    renameTarget,
-    renameOpen,
-    handleRenameOpenChange: setRenameOpen,
-    handleRenameClosed: useCallback(() => {
-      setRenameTarget(null);
+    editTarget,
+    editOpen,
+    handleEditOpenChange: setEditOpen,
+    handleEditClosed: useCallback(() => {
+      setEditTarget(null);
     }, []),
-    handleRenameRequest,
-    handleRename,
-    handleRoleChange,
-    pendingRobotId: rolePendingId ?? renamePendingId,
-    isRenaming: rename.isPending,
+    handleEditRequest,
+    handleEditSubmit,
+    isEditing: edit.isPending,
   };
 };
