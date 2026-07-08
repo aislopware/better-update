@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.59.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.58.0...%40better-update%2Fweb%400.59.0) (2026-07-08)
+
+### Features
+
+* **robots:** allow renaming and role changes with audit logging ([dde4d2f](https://github.com/better-update/better-update/commit/dde4d2f3faf9adbfeb9f9f8e27fe6d5a4c1bf782))
+
 ## [0.58.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.4...%40better-update%2Fweb%400.58.0) (2026-07-08)
 
 ### ⚠ BREAKING CHANGES

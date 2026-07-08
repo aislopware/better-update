@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.39.0...%40better-update%2Fapi%400.40.0) (2026-07-08)
+
+### Features
+
+* **robots:** allow renaming and role changes with audit logging ([dde4d2f](https://gitlab.jmango360.com/mobile/better-update/commit/dde4d2f3faf9adbfeb9f9f8e27fe6d5a4c1bf782))
+
 ## [0.39.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.38.0...%40better-update%2Fapi%400.39.0) (2026-07-08)
 
 ### ⚠ BREAKING CHANGES
