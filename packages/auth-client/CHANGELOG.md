@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.2](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fauth-client%400.7.1...%40better-update%2Fauth-client%400.7.2) (2026-07-08)
+
+**Note:** Version bump only for package @better-update/auth-client
+
 ## [0.7.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fauth-client%400.7.0...%40better-update%2Fauth-client%400.7.1) (2026-07-03)
 
 **Note:** Version bump only for package @better-update/auth-client

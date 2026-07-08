@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.9](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fdotenv%400.2.8...%40better-update%2Fdotenv%400.2.9) (2026-07-08)
+
+**Note:** Version bump only for package @better-update/dotenv
+
 ## [0.2.8](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fdotenv%400.2.7...%40better-update%2Fdotenv%400.2.8) (2026-07-03)
 
 **Note:** Version bump only for package @better-update/dotenv

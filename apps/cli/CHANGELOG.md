@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.62.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.61.1...%40better-update%2Fcli%400.62.0) (2026-07-08)
+
+### Features
+
+* **cli:** store the Apple ID cookie session in the OS keychain ([fe75ab9](https://github.com/better-update/better-update/commit/fe75ab96488bc8bb2f936ffedd6367d9b406ed54))
+* **cli:** unify ASC API key resolution with team pickers and create-from-Apple-ID ([c6359ff](https://github.com/better-update/better-update/commit/c6359ffaa2708369698e32f04fd932b53100827c))
+* migrate dashboard to shadcn base-ui and purge coss/ui ([ee53d73](https://github.com/better-update/better-update/commit/ee53d73937502be27af11b38f62164a1c309c935)), references [#626](https://github.com/better-update/better-update/issues/626)
+
+### Bug Fixes
+
+* **cli:** build ad-hoc profiles from the reconciled UDID roster ([416d824](https://github.com/better-update/better-update/commit/416d8245c4eb9703cda904a8929dec4b4054462c))
+
 ## [0.61.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.61.0...%40better-update%2Fcli%400.61.1) (2026-07-08)
 
 ### Bug Fixes

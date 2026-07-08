@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.41.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.40.1...%40better-update%2Fapi%400.41.0) (2026-07-08)
+
+### Features
+
+* migrate dashboard to shadcn base-ui and purge coss/ui ([ee53d73](https://gitlab.jmango360.com/mobile/better-update/commit/ee53d73937502be27af11b38f62164a1c309c935)), references [#626](https://gitlab.jmango360.com/mobile/better-update/issues/626)
+
+### Bug Fixes
+
+* **server:** fingerprint device rosters by UDID instead of portal record ids ([5e2bd3e](https://gitlab.jmango360.com/mobile/better-update/commit/5e2bd3ea91aeb123ab5212d8ea68df9b8558b2a7))
+
 ## [0.40.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.40.0...%40better-update%2Fapi%400.40.1) (2026-07-08)
 
 ### Bug Fixes

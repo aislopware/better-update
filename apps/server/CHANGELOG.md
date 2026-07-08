@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.50.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.49.1...%40better-update%2Fserver%400.50.0) (2026-07-08)
+
+### Features
+
+* migrate dashboard to shadcn base-ui and purge coss/ui ([ee53d73](https://github.com/better-update/better-update/commit/ee53d73937502be27af11b38f62164a1c309c935)), references [#626](https://github.com/better-update/better-update/issues/626)
+
+### Bug Fixes
+
+* **server:** fingerprint device rosters by UDID instead of portal record ids ([5e2bd3e](https://github.com/better-update/better-update/commit/5e2bd3ea91aeb123ab5212d8ea68df9b8558b2a7))
+
 ## [0.49.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.49.0...%40better-update%2Fserver%400.49.1) (2026-07-08)
 
 ### Bug Fixes

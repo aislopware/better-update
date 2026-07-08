@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.30.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.29.1...%40better-update%2Fapi-client%400.30.0) (2026-07-08)
+
+### Features
+
+* migrate dashboard to shadcn base-ui and purge coss/ui ([ee53d73](https://gitlab.jmango360.com/mobile/better-update/commit/ee53d73937502be27af11b38f62164a1c309c935)), references [#626](https://gitlab.jmango360.com/mobile/better-update/issues/626)
+
 ## [0.29.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.29.0...%40better-update%2Fapi-client%400.29.1) (2026-07-08)
 
 **Note:** Version bump only for package @better-update/api-client

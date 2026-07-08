@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.5.5...%40better-update%2Fui%400.6.0) (2026-07-08)
+
+### Features
+
+* migrate dashboard to shadcn base-ui and purge coss/ui ([ee53d73](https://gitlab.jmango360.com/mobile/better-update/commit/ee53d73937502be27af11b38f62164a1c309c935)), references [#626](https://gitlab.jmango360.com/mobile/better-update/issues/626)
+
 ## [0.5.5](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.5.4...%40better-update%2Fui%400.5.5) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/ui
