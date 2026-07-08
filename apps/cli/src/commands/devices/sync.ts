@@ -2,45 +2,17 @@ import AppleUtils from "@expo/apple-utils";
 import { defineCommand } from "citty";
 import { Effect, Either } from "effect";
 
+import { createAscKeyViaLogin } from "../../application/asc-key-resolve";
 import { buildTokenRequestContext, wrapConnect } from "../../lib/apple-asc-connect";
+import { reconcilePortalSnapshot, toAppleDevice } from "../../lib/apple-device-roster";
 import { fetchAscCredentials } from "../../lib/asc-credentials";
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
+import type { AppleDevice } from "../../lib/apple-device-roster";
 import type { ApiClient } from "../../services/api-client";
-
-type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
-
-// Mirrors the server's DeviceIdentifier pattern so Apple-supplied UDIDs that our
-// schema would reject (exotic device classes, malformed values) are skipped with
-// a warning instead of failing the whole sync payload.
-const IDENTIFIER_PATTERN =
-  /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/u;
-
-const APPLE_DEVICE_CLASS: Record<string, DeviceClass> = {
-  IPHONE: "IPHONE",
-  IPAD: "IPAD",
-  MAC: "MAC",
-};
-
-const toDeviceClass = (raw: string | null): DeviceClass =>
-  raw === null ? "UNKNOWN" : (APPLE_DEVICE_CLASS[raw] ?? "UNKNOWN");
-
-interface AppleDevice {
-  readonly id: string;
-  readonly udid: string;
-  readonly name: string;
-  readonly deviceClass: string;
-}
-
-const toAppleDevice = (device: AppleUtils.Device): AppleDevice => ({
-  id: device.id,
-  udid: device.attributes.udid,
-  name: device.attributes.name,
-  deviceClass: device.attributes.deviceClass,
-});
 
 const LIST_LIMIT = 100;
 
@@ -88,12 +60,30 @@ const resolveTarget = (api: ApiClient, args: SyncArgs) =>
 
     if (teamArg !== undefined) {
       const match = ascKeys.items.find((key) => key.appleTeamId === teamArg);
-      if (match === undefined) {
-        return yield* new InvalidArgumentError({
-          message: `No ASC API key found for team "${teamArg}". Upload one with \`better-update credentials upload-asc-key\`.`,
-        });
+      if (match !== undefined) {
+        return { ascApiKeyId: match.id, appleTeamId: teamArg } satisfies SyncTarget;
       }
-      return { ascApiKeyId: match.id, appleTeamId: teamArg } satisfies SyncTarget;
+      // A fresh team has no key yet — offer to mint one from an Apple ID login
+      // (the login picks the team, so verify the key landed on the target team).
+      const created = yield* createAscKeyViaLogin(
+        api,
+        `No ASC API key stored for team "${teamArg}". Create one now from your Apple ID?`,
+      ).pipe(Effect.orElseSucceed(() => null));
+      if (created !== null) {
+        const refreshed = yield* api.ascApiKeys.list();
+        const onTeam = refreshed.items.some(
+          (key) => key.id === created.id && key.appleTeamId === teamArg,
+        );
+        if (onTeam) {
+          return { ascApiKeyId: created.id, appleTeamId: teamArg } satisfies SyncTarget;
+        }
+        yield* printHuman(
+          `The created key ${created.keyId} belongs to a different Apple team than "${teamArg}".`,
+        );
+      }
+      return yield* new InvalidArgumentError({
+        message: `No ASC API key found for team "${teamArg}". Create one with \`better-update credentials generate asc-key\`, or import a .p8 with \`better-update credentials upload-asc-key\`.`,
+      });
     }
 
     return yield* new InvalidArgumentError({
@@ -201,22 +191,13 @@ export const syncDeviceCommand = defineCommand({
         // Reconcile the Apple snapshot into our DB. When --no-pull, restrict to
         // UDIDs we already track so existing devices still get their portal id
         // linked, but Apple-only devices are not imported.
-        const reconcileEntries = [...appleDevices, ...pushed]
-          .filter((device) => args.pull || localUdids.has(device.udid.toLowerCase()))
-          .filter((device) => IDENTIFIER_PATTERN.test(device.udid) && device.name.length > 0)
-          .map((device) => ({
-            identifier: device.udid,
-            name: device.name.slice(0, 120),
-            deviceClass: toDeviceClass(device.deviceClass),
-            appleDevicePortalId: device.id,
-          }));
-
-        const summary =
-          reconcileEntries.length > 0
-            ? yield* api.devices.syncDevices({
-                payload: { appleTeamId: target.appleTeamId, devices: reconcileEntries },
-              })
-            : { created: 0, linked: 0, unchanged: 0 };
+        const summary = yield* reconcilePortalSnapshot(
+          api,
+          target.appleTeamId,
+          [...appleDevices, ...pushed].filter(
+            (device) => args.pull || localUdids.has(device.udid.toLowerCase()),
+          ),
+        );
 
         yield* printHumanKeyValue([
           ["Apple devices", String(appleDevices.length + pushed.length)],

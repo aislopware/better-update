@@ -498,7 +498,11 @@ better-update audit-logs list [--resource-type <type>[,<type>...]] [--from <ISO>
 
 Manages the Apple Developer **session** (cookie-based, used to issue iOS credentials). Distinct from
 the top-level `login`/`logout`/`whoami` (which are for better-update itself). The `builds` and `users`
-subgroups are **headless / CI-safe** (stored ASC API key, not the cookie session).
+subgroups are **headless / CI-safe** (stored ASC API key, not the cookie session). The cookie session
+is stored in the **OS keychain** (macOS Keychain / Windows Credential Manager / Linux libsecret, same
+store as the vault-key cache); machines without a usable keychain fall back to
+`~/.better-update/apple-session.json` (0600), and a legacy plaintext session is auto-migrated into the
+keychain on first use.
 
 ```bash
 better-update apple login [--username <appleId>]    # defaults to last-used Apple ID; 2FA interactive
@@ -559,11 +563,12 @@ printed to the terminal.
 **iOS upload auth resolution.** The upload uses, in order: an app-specific password
 (`appleId` in the submit profile + the `EXPO_APPLE_APP_SPECIFIC_PASSWORD` env var) if set, else the
 submit profile's `ascApiKeyId`. If neither is configured and the terminal is interactive, `submit`
-auto-resolves an ASC API key: it reuses a stored vault key (prompting to pick when several exist), or
-— with your confirmation — creates one from your Apple ID login (after warning about any keys the team
-already has, since Apple caps keys per team and a key's `.p8` downloads only once). The resolved id is
-written back to the submit profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with
-nothing configured skip the upload (no record is written) and print how to add a key.
+opens a team-labeled picker over ALL stored vault keys (even a lone key is never auto-picked — it may
+belong to a different Apple team than the app being submitted) plus a "create a new ASC API key from
+my Apple ID" option — the create path warns about any keys the team already has, since Apple caps
+keys per team and a key's `.p8` downloads only once. The resolved id is written back to the submit
+profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with nothing configured skip
+the upload (no record is written) and print how to add a key.
 
 **What to Test validation.** `--what-to-test` is validated **before** the (slow) upload: it must be non-empty and
 ≤ 4000 UTF-8 bytes, so an avoidable metadata error never costs a full `altool` run. Apple also enforces an
@@ -652,9 +657,11 @@ admit only App Store Connect users; `--no-internal` makes an external group (pub
 
 Every `testflight`/`app-store` command resolves three things, in this precedence:
 
-- **ASC API key** — `--asc-api-key-id` flag › submit profile `ios.ascApiKeyId` › your single stored key
-  (errors asking you to pick when several are stored). The `.p8` is decrypted locally; the server stays
-  zero-knowledge.
+- **ASC API key** — `--asc-api-key-id` flag › submit profile `ios.ascApiKeyId` › an interactive
+  team-labeled picker over ALL stored keys plus a "create from my Apple ID" option (a lone stored key
+  is never auto-picked — it may belong to a different Apple team); a picked id is written back to the
+  submit profile. Non-interactive runs with nothing configured error with guidance. The `.p8` is
+  decrypted locally; the server stays zero-knowledge.
 - **App** — `--app-id` flag › profile `ios.ascAppId` › `App.findAsync` by bundle id (`--bundle-identifier`
   flag › profile `ios.bundleIdentifier`).
 - **Profile** — `--profile` (default `production`) selects which `eas.json` submit profile to read the
@@ -870,7 +877,8 @@ better-update devices delete <id> [--yes]
 ```
 
 `--apple-team-id` is the internal team UUID (not the Apple Team Identifier). `devices sync` requires
-`--apple-team-id` or `--asc-api-key-id`. Sync reconciles by UDID against the whole org roster:
+`--apple-team-id` or `--asc-api-key-id`; a team with no stored ASC key offers (interactively) to
+create one from an Apple ID login on the spot. Sync reconciles by UDID against the whole org roster:
 team-less devices (added without `--apple-team-id`) are pushed to Apple and **claimed** into the
 synced team, and a UDID Apple lists more than once is collapsed to one row.
 

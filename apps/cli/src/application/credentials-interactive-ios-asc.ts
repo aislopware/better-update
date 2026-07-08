@@ -12,6 +12,7 @@ import {
 import { MissingCredentialsError } from "../lib/exit-codes";
 import { upsertIosBundleConfiguration } from "../lib/ios-bundle-config-upsert";
 import { promptConfirm, promptMultiSelect, promptSelect } from "../lib/prompts";
+import { createAscKeyViaLogin } from "./asc-key-resolve";
 
 import type { IosDistribution } from "../lib/build-profile";
 import type { ApiClient } from "../services/api-client";
@@ -140,9 +141,29 @@ export const pickIosAscKey = (api: ApiClient, appleTeamId: string) =>
       (key) => key.appleTeamId !== null && key.appleTeamId === appleTeamId,
     );
     if (teamAscKeys.length === 0) {
+      // Not a dead end: the team just doesn't have a key yet — offer to mint one
+      // from an Apple ID login instead of aborting the wizard.
+      const created = yield* createAscKeyViaLogin(
+        api,
+        `No ASC API key stored for this Apple team. Create one now from your Apple ID?`,
+      ).pipe(Effect.orElseSucceed(() => null));
+      if (created !== null) {
+        // The login may have targeted another team; only accept a key that
+        // actually landed on the one this wizard is configuring.
+        const refreshed = yield* api.ascApiKeys.list();
+        const onTeam = refreshed.items.some(
+          (key) => key.id === created.id && key.appleTeamId === appleTeamId,
+        );
+        if (onTeam) {
+          return created.id;
+        }
+        yield* Console.log(
+          `The created key ${created.keyId} belongs to a different Apple team than this certificate.`,
+        );
+      }
       return yield* new MissingCredentialsError({
         message: `No ASC API key linked to Apple team ${appleTeamId}.`,
-        hint: "Upload an ASC API key for that team via the dashboard, then retry.",
+        hint: "Create one with `credentials generate asc-key`, or import an existing .p8 with `credentials upload-asc-key`, then retry.",
       });
     }
     return yield* promptSelect<string>(

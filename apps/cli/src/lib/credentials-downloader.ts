@@ -228,7 +228,7 @@ const resolveOneBundleSettled = (
     );
 
 const autoProvisionHint =
-  "Upload an ASC API key for this Apple team in the dashboard (Credentials → ASC API Keys) so missing extension bundles can be auto-provisioned, or register them manually.";
+  "Bind an ASC API key to the main bundle (`credentials configure --bind-asc-key <id>`); create one with `credentials generate asc-key` or import a .p8 with `credentials upload-asc-key` first if the team has none. Then rerun the build to auto-provision the extension bundles.";
 
 export const downloadIosCredentials = (
   api: ApiClient,

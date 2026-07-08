@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 
 import { Console, Effect } from "effect";
 
+import type { IosBundleConfiguration } from "@better-update/api";
+
 import { keystoreChoice } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import { generateAndUploadKeystore } from "../lib/credentials-generator";
@@ -255,6 +257,47 @@ const findBoundIosConfig = (api: ApiClient, input: IosSetupInput) =>
     return match;
   });
 
+const APPLE_ID_FALLBACK = "__apple-id__";
+
+/**
+ * A bundle config without an ASC key regenerates via Apple ID login (2FA) on
+ * EVERY stale profile — even when the org already holds an ASC key for the
+ * config's team. Offer to bind one in place so future regenerations run
+ * headless over the ASC API. Returns the bound key id, or null to keep the
+ * Apple ID path (declined, no matching key, or non-interactive).
+ */
+const offerAscKeyBinding = (api: ApiClient, config: IosBundleConfiguration) =>
+  Effect.gen(function* () {
+    const mode = yield* InteractiveMode;
+    if (!mode.allow) {
+      return null;
+    }
+    const ascKeys = yield* api.ascApiKeys.list();
+    const teamKeys = ascKeys.items.filter((key) => key.appleTeamId === config.appleTeamId);
+    if (teamKeys.length === 0) {
+      return null;
+    }
+    const choice = yield* promptSelect<string>(
+      `${config.bundleIdentifier} has no ASC API key bound, so regenerating asks for Apple ID + 2FA every time. Bind one now to regenerate headless?`,
+      [
+        ...teamKeys.map((key) => ({
+          value: key.id,
+          label: `Bind ${key.name} (${key.keyId})`,
+        })),
+        { value: APPLE_ID_FALLBACK, label: "No — continue with Apple ID login" },
+      ],
+    );
+    if (choice === APPLE_ID_FALLBACK) {
+      return null;
+    }
+    yield* api.iosBundleConfigurations.update({
+      path: { id: config.id },
+      payload: { ascApiKeyId: choice },
+    });
+    yield* Console.log("ASC API key bound — this and future regenerations skip Apple ID login.");
+    return choice;
+  });
+
 export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInput) =>
   Effect.gen(function* () {
     const config = yield* findBoundIosConfig(api, input);
@@ -266,7 +309,8 @@ export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInp
       });
     }
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
-    if (config.ascApiKeyId === null) {
+    const ascApiKeyId = config.ascApiKeyId ?? (yield* offerAscKeyBinding(api, config));
+    if (ascApiKeyId === null) {
       return yield* regenerateProvisioningProfileViaAppleId(api, {
         bundleIdentifier: input.bundleIdentifier,
         distributionCertificateId: config.appleDistributionCertificateId,
@@ -275,7 +319,7 @@ export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInp
       });
     }
     yield* Console.log("Regenerating provisioning profile via App Store Connect API...");
-    const context = yield* ascKeyRequestContext(api, config.ascApiKeyId);
+    const context = yield* ascKeyRequestContext(api, ascApiKeyId);
     const created = yield* generateAndUploadProvisioningProfile(api, {
       context,
       distributionCertificateId: config.appleDistributionCertificateId,

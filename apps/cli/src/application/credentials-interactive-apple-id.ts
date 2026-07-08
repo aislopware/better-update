@@ -1,7 +1,9 @@
+import { compact, toOptional } from "@better-update/type-guards";
 import { Console, Effect } from "effect";
 
 import type { RequestContext } from "@expo/apple-utils";
 
+import { messageOf } from "../lib/apple-asc-connect";
 import { distributionCertChoice } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
@@ -20,6 +22,7 @@ import { CredentialValidationError } from "../lib/exit-codes";
 import { upsertIosBundleConfiguration } from "../lib/ios-bundle-config-upsert";
 import { promptMultiSelect, promptSelect } from "../lib/prompts";
 import { AppleAuth } from "../services/apple-auth";
+import { createAscKeyFromSession } from "./asc-key-resolve";
 
 import type { IosDistribution } from "../lib/build-profile";
 import type { ApiClient } from "../services/api-client";
@@ -186,6 +189,28 @@ const chooseDistributionCertViaAppleId = (
     return { id: cert.id, appleTeamId: cert.appleTeamId };
   });
 
+/**
+ * After a successful cookie-session setup/regeneration, offer to mint an ASC API
+ * key from the SAME session — the 2FA login the user just performed becomes the
+ * last one, since a bound key drives every future regeneration headless over
+ * the ASC API. Declines and failures return null (best-effort: the cookie path
+ * already delivered the credential).
+ */
+const offerAscKeyFromSession = (api: ApiClient, ctx: RequestContext, appleTeamIdentifier: string) =>
+  createAscKeyFromSession(api, {
+    ctx,
+    appleTeamIdentifier,
+    confirmMessage:
+      "Create an App Store Connect API key from this session and bind it, so future regenerations skip the Apple ID login?",
+  }).pipe(
+    Effect.map((created) => (created === null ? null : created.id)),
+    Effect.catchAll((error) =>
+      Console.log(
+        `Note: could not create an ASC API key (${messageOf(error)}). Continuing with Apple ID login for future regenerations.`,
+      ).pipe(Effect.as(null)),
+    ),
+  );
+
 export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) =>
   Effect.gen(function* () {
     const auth = yield* AppleAuth;
@@ -203,8 +228,9 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
       bundleIdentifier: input.bundleIdentifier,
       distributionType,
     });
-    // ascApiKeyId omitted — Apple ID setups don't bind an ASC key. Existing
-    // bindings (if any) are preserved by the upsert.
+    const ascApiKeyId = yield* offerAscKeyFromSession(api, ctx, session.teamId);
+    // A declined offer leaves ascApiKeyId unset; existing bindings (if any) are
+    // preserved by the upsert.
     yield* upsertIosBundleConfiguration(api, {
       projectId: input.projectId,
       bundleIdentifier: input.bundleIdentifier,
@@ -212,6 +238,7 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
       appleTeamId: cert.appleTeamId,
       appleDistributionCertificateId: cert.id,
       appleProvisioningProfileId: profile.id,
+      ...compact({ ascApiKeyId: toOptional(ascApiKeyId) }),
     });
     return undefined;
   });
@@ -230,16 +257,27 @@ export const regenerateProvisioningProfileViaAppleId = (
   Effect.gen(function* () {
     const auth = yield* AppleAuth;
     const session = yield* auth.ensureLoggedIn();
+    const ctx = auth.buildRequestContext(session);
     yield* Console.log("Regenerating provisioning profile via Apple ID...");
     const created = yield* generateAndUploadProvisioningProfile(api, {
-      context: auth.buildRequestContext(session),
+      context: ctx,
       distributionCertificateId: input.distributionCertificateId,
       bundleIdentifier: input.bundleIdentifier,
       distributionType: input.distributionType,
     });
+    // Reaching this path means the bundle has no bound ASC key AND the org holds
+    // none for the team (the caller already offered existing keys) — minting one
+    // from the session we just opened is the only way out of the login loop.
+    const ascApiKeyId = yield* offerAscKeyFromSession(api, ctx, session.teamId);
     yield* api.iosBundleConfigurations.update({
       path: { id: input.bundleConfigurationId },
-      payload: { appleProvisioningProfileId: created.id },
+      payload: {
+        appleProvisioningProfileId: created.id,
+        ...compact({ ascApiKeyId: toOptional(ascApiKeyId) }),
+      },
     });
+    if (ascApiKeyId !== null) {
+      yield* Console.log("ASC API key bound — future regenerations skip Apple ID login.");
+    }
     return created;
   });

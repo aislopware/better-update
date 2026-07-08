@@ -2,6 +2,7 @@ import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { pickOrCreateAscApiKey } from "../../application/asc-key-resolve";
 import { runEffect } from "../../lib/citty-effect";
 import { CertificateLimitError, generateAndUploadKeystore } from "../../lib/credentials-generator";
 import {
@@ -21,6 +22,7 @@ import { merchantIdCommand } from "./generate-merchant-id";
 import { pushKeyCommand } from "./generate-push-key";
 
 import type { AppleCertificateType } from "../../lib/credentials-generator-apple";
+import type { ApiClient } from "../../services/api-client";
 
 const GENERATE_EXIT_EXTRAS = {
   CredentialValidationError: 2,
@@ -135,6 +137,30 @@ const keystoreCommand = defineCommand({
     ),
 });
 
+/**
+ * `--asc-key-id` flag › interactive team-labeled picker over stored keys (plus
+ * create-from-Apple-ID) › a clear error for non-interactive runs. Mirrors how
+ * `credentials revoke` treats the same flag, so no generate subcommand hard
+ * requires an id the user has to go look up first.
+ */
+const resolveAscKeyIdArg = (api: ApiClient, raw: string | undefined) =>
+  Effect.gen(function* () {
+    if (raw !== undefined && raw.length > 0) {
+      return raw;
+    }
+    const picked = yield* pickOrCreateAscApiKey(
+      api,
+      "Which ASC API key should authenticate this request?",
+    );
+    if (picked === null) {
+      return yield* new CredentialValidationError({
+        message:
+          "No ASC API key selected. Pass --asc-key-id <id> (from `credentials list`), or run interactively to pick or create one.",
+      });
+    }
+    return picked;
+  });
+
 const CLI_TYPE_TO_CERTIFICATE_TYPE: Record<string, AppleCertificateType> = {
   distribution: "IOS_DISTRIBUTION",
   development: "IOS_DEVELOPMENT",
@@ -150,8 +176,8 @@ const distributionCertificateCommand = defineCommand({
   args: {
     "asc-key-id": {
       type: "string",
-      required: true,
-      description: "ASC API key ID (from `credentials list`)",
+      description:
+        "ASC API key ID (from `credentials list`); prompts to pick or create one if omitted",
     },
     type: {
       type: "enum",
@@ -171,9 +197,10 @@ const distributionCertificateCommand = defineCommand({
             "Note: Apple only issues Developer ID certificates to the team's Account Holder — this fails with a permissions error for other roles.",
           );
         }
+        const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
         yield* printHuman("Requesting a distribution certificate from Apple...");
 
-        const context = yield* ascKeyRequestContext(api, args["asc-key-id"]);
+        const context = yield* ascKeyRequestContext(api, ascKeyId);
         const attempt = generateAndUploadDistributionCertificate(api, { context, certificateType });
 
         const created = yield* attempt.pipe(
@@ -235,8 +262,8 @@ const provisioningProfileCommand = defineCommand({
   args: {
     "asc-key-id": {
       type: "string",
-      required: true,
-      description: "ASC API key ID (from `credentials list`)",
+      description:
+        "ASC API key ID (from `credentials list`); prompts to pick or create one if omitted",
     },
     "cert-id": {
       type: "string",
@@ -252,7 +279,8 @@ const provisioningProfileCommand = defineCommand({
     },
     "device-ids": {
       type: "string",
-      description: "Comma-separated better-update device IDs (required for AD_HOC/DEVELOPMENT)",
+      description:
+        "Comma-separated better-update device IDs to narrow the roster (AD_HOC/DEVELOPMENT only; default: all enabled team devices). Narrowed profiles are stored unmanaged — builds never auto-regenerate them",
     },
   },
   run: async ({ args }) =>
@@ -260,7 +288,8 @@ const provisioningProfileCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const deviceIds = parseDeviceIds(args["device-ids"]);
-        const context = yield* ascKeyRequestContext(api, args["asc-key-id"]);
+        const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
+        const context = yield* ascKeyRequestContext(api, ascKeyId);
         const created = yield* generateAndUploadProvisioningProfile(api, {
           context,
           distributionCertificateId: args["cert-id"],

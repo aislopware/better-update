@@ -95,11 +95,12 @@ better-update credentials generate keystore \
 # --type distribution|development = iOS; developer-id = macOS Developer ID Application (signs apps
 # distributed outside the Mac App Store; Apple only lets the team's Account Holder create these).
 # At Apple's per-type cert limit, offers an interactive revoke + retry.
-better-update credentials generate distribution-certificate --asc-key-id <asc-api-key-id> [--type distribution|development|developer-id]
+better-update credentials generate distribution-certificate [--asc-key-id <id>] [--type distribution|development|developer-id]
 
 # iOS provisioning profile via ASC API. Needs a distribution cert + ASC API key for the same team.
+# --asc-key-id omitted → interactive team-labeled picker over stored keys (+ create from Apple ID).
 better-update credentials generate provisioning-profile \
-  --asc-key-id <asc-api-key-id> --cert-id <distribution-certificate-id> \
+  [--asc-key-id <id>] --cert-id <distribution-certificate-id> \
   --bundle com.example.app --distribution APP_STORE [--device-ids id1,id2]
 
 # iOS APNs auth key (.p8). Apple's public API can't create APNs keys, so this uses the Developer
@@ -124,7 +125,11 @@ better-update credentials generate merchant-id --identifier merchant.com.example
 better-update credentials generate gsa-key [--file <path>] [--purpose fcm|play] [--skip-portal-hint]
 ```
 
-For `AD_HOC`/`DEVELOPMENT` profiles pass `--device-ids`. APNs push keys, ASC API keys, and merchant IDs
+`AD_HOC`/`DEVELOPMENT` profiles cover **all enabled devices of the team** by default: the CLI
+pull-reconciles Apple's device list into better-update, registers better-update-only devices on the
+portal, and fingerprints the roster's UDIDs so the server can detect drift. Pass `--device-ids` (device
+row ids) only to hand-pick a subset — such profiles are stored _unmanaged_ and never auto-regenerate.
+APNs push keys, ASC API keys, and merchant IDs
 are created via **Apple ID login (2FA), not the ASC API** — `generate asc-key` bootstraps the very
 credential the other ASC-API generators consume, so it needs no pre-existing `--asc-key-id`. Apple caps
 a team at 2 APNs keys; at the limit the CLI offers an interactive revoke + retry. Omitted args fall back
@@ -143,7 +148,16 @@ better-update credentials sync pull [--platform ios|android|all] [--keys-dir <di
 
 - `regenerate-profile` re-issues provisioning profiles via the ASC API (`--all` does every iOS bundle
   config). The CLI also auto-regenerates an `AD_HOC`/`DEVELOPMENT` profile during `build` when the
-  registered device roster changed.
+  registered device roster changed. Staleness compares SHA-256 fingerprints of the roster's **UDIDs**
+  (normalized + deduped) — the server hashes its enabled devices for the team, the CLI hashes the
+  roster it baked into the profile. If builds keep reporting a stale profile, run
+  `devices sync --apple-team-id <uuid>` then `credentials regenerate-profile` once to reset the
+  baseline; hand-picked (`--device-ids`) profiles are unmanaged and never flagged stale.
+  Regeneration prefers the bundle's bound ASC API key (headless JWT); when none is bound but the org
+  holds one for the config's team, an interactive run offers to **bind it in place** before falling
+  back to Apple ID + 2FA login. If the team has no stored key at all, the Apple ID fallback then
+  offers to **create an ASC key from that very session and bind it** — so the login it just performed
+  is the last one. The Apple ID setup path (`build` first-run wizard) makes the same offer.
 - `configure` is the non-build wizard to bind/rebind which credential each bundle/package uses.
 - `sync` bridges a local `credentials.json` (EAS-style) with the server vault.
 

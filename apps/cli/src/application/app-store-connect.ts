@@ -20,9 +20,9 @@ import { wrapConnect } from "../lib/apple-asc-connect";
 import { ascKeyRequestContext } from "../lib/credentials-generator-apple";
 import { readSubmitProfile } from "../lib/eas-json";
 import { AppStoreError, InvalidArgumentError } from "../lib/exit-codes";
-import { printHuman } from "../lib/output";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
+import { resolveSubmitProfileAscApiKeyId } from "./asc-key-resolve";
 
 import type { EasIosSubmitProfile } from "../lib/eas-config";
 import type { ApiClient } from "../services/api-client";
@@ -324,46 +324,19 @@ const buildAscContext = (params: {
   readonly api: ApiClient;
   readonly profile: EasIosSubmitProfile | undefined;
   readonly flagKeyId: string | undefined;
+  readonly projectRoot: string;
+  readonly profileName: string;
 }) =>
   Effect.gen(function* () {
-    const ascApiKeyId = yield* resolveAscApiKeyId({
+    const ascApiKeyId = yield* resolveSubmitProfileAscApiKeyId({
       api: params.api,
       flagKeyId: params.flagKeyId,
       profileKeyId: params.profile?.ascApiKeyId,
+      projectRoot: params.projectRoot,
+      profileName: params.profileName,
     });
     const ctx = yield* ascKeyRequestContext(params.api, ascApiKeyId);
     return { ctx, ascApiKeyId } satisfies AscContext;
-  });
-
-/** Resolve the ASC API key id to authenticate with: flag > profile > the lone stored key. */
-const resolveAscApiKeyId = (params: {
-  readonly api: ApiClient;
-  readonly flagKeyId: string | undefined;
-  readonly profileKeyId: string | undefined;
-}) =>
-  Effect.gen(function* () {
-    if (params.flagKeyId !== undefined) {
-      return params.flagKeyId;
-    }
-    if (params.profileKeyId !== undefined) {
-      return params.profileKeyId;
-    }
-    const stored = yield* params.api.ascApiKeys.list();
-    const [only] = stored.items;
-    if (stored.items.length === 1 && only !== undefined) {
-      yield* printHuman(`Using your stored ASC API key "${only.name}" (${only.keyId}).`);
-      return only.id;
-    }
-    if (stored.items.length === 0) {
-      return yield* new AppStoreError({
-        message:
-          "No App Store Connect API key found. Create one with `better-update credentials generate asc-key`, or pass --asc-api-key-id.",
-      });
-    }
-    const names = stored.items.map((key) => `${key.name} (${key.id})`).join(", ");
-    return yield* new AppStoreError({
-      message: `Multiple ASC API keys are stored: ${names}. Pass --asc-api-key-id <id>, or set ascApiKeyId on the eas.json submit profile.`,
-    });
   });
 
 /**
@@ -409,7 +382,13 @@ export const resolveAppId = (params: {
 export const resolveAscContext = (input: ResolveAscContextInput) =>
   Effect.gen(function* () {
     const profile = yield* loadSubmitProfile(input.projectRoot, input.profileName);
-    return yield* buildAscContext({ api: input.api, profile, flagKeyId: input.ascApiKeyId });
+    return yield* buildAscContext({
+      api: input.api,
+      profile,
+      flagKeyId: input.ascApiKeyId,
+      projectRoot: input.projectRoot,
+      profileName: input.profileName,
+    });
   });
 
 /**
@@ -424,6 +403,8 @@ export const resolveAscSession = (input: ResolveAscSessionInput) =>
       api: input.api,
       profile,
       flagKeyId: input.ascApiKeyId,
+      projectRoot: input.projectRoot,
+      profileName: input.profileName,
     });
     const bundleId = input.bundleIdentifier ?? profile?.bundleIdentifier;
     const appId = yield* resolveAppId({

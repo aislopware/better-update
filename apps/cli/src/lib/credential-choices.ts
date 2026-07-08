@@ -1,8 +1,11 @@
+import { toOptional } from "@better-update/type-guards";
+
 import type {
   AndroidUploadKeystore,
   AppleDistributionCertificate,
   ApplePushKey,
   AppleTeam,
+  AscApiKey,
 } from "@better-update/api";
 
 /** A `promptSelect` option enriched with a secondary `hint` line. */
@@ -56,6 +59,20 @@ export const pushKeyChoice = (
 ): CredentialChoice => ({
   value: key.id,
   label: `${key.keyId} (team ${teamLabel}, added ${isoDate(key.createdAt)})`,
+});
+
+/**
+ * ASC keys are org-wide while a submission must use the target app's Apple
+ * team, so lead with the team to make a wrong-team pick obvious. Pass a
+ * `teamLabel` (see {@link makeAppleTeamLabeler}) to show the team name instead
+ * of the internal UUID; team-less keys read "no team".
+ */
+export const ascApiKeyChoice = (
+  key: AscApiKey,
+  teamLabel: string | undefined = toOptional(key.appleTeamId),
+): CredentialChoice => ({
+  value: key.id,
+  label: `${key.name} (${key.keyId}, ${teamLabel === undefined ? "no team" : `team ${teamLabel}`})`,
 });
 
 /**

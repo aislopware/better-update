@@ -64,7 +64,13 @@ const appleAuthStub = Layer.succeed(AppleAuth, {
   whoami: Effect.succeed(null),
 } as unknown as typeof AppleAuth.Service);
 
-const api = { ascApiKeys: { list: () => mocks.ascApiKeysList() } } as unknown as ApiClient;
+const api = {
+  ascApiKeys: { list: () => mocks.ascApiKeysList() },
+  appleTeams: {
+    list: () =>
+      Effect.succeed({ items: [{ id: "team-uuid-1", name: "Acme", appleTeamId: "TEAM1234" }] }),
+  },
+} as unknown as ApiClient;
 
 const run = (interactive: boolean) =>
   // The mocked generator + eas-json never touch FileSystem/CliRuntime/IdentityStore at
@@ -103,19 +109,52 @@ describe(ensureAscApiKeyForSubmit, () => {
     }),
   );
 
-  it.effect("reuses the single stored vault key and persists it to eas.json", () =>
+  it.effect("offers even a lone stored key through a team-labeled picker", () =>
     Effect.gen(function* () {
       mocks.ascApiKeysList.mockReturnValue(
-        Effect.succeed({ items: [{ id: "vault-1", name: "My Key", keyId: "K1" }] }),
+        Effect.succeed({
+          items: [{ id: "vault-1", name: "My Key", keyId: "K1", appleTeamId: "team-uuid-1" }],
+        }),
       );
+      mocks.promptSelect.mockReturnValue(Effect.succeed("vault-1"));
 
       const result = yield* run(true);
 
       expect(result).toBe("vault-1");
       expect(mocks.setSubmit).toHaveBeenCalledWith("/proj", "production", "vault-1");
       expect(mocks.generate).not.toHaveBeenCalled();
-      expect(mocks.promptConfirm).not.toHaveBeenCalled();
-      expect(mocks.promptSelect).not.toHaveBeenCalled();
+      // A lone key may still belong to the wrong Apple team — never auto-pick.
+      expect(mocks.promptSelect).toHaveBeenCalledTimes(1);
+      const [, options] = mocks.promptSelect.mock.calls[0] as [
+        unknown,
+        { value: string; label: string }[],
+      ];
+      expect(options.map((option) => option.value)).toStrictEqual(["vault-1", "__create__"]);
+      expect(options[0]?.label).toContain("team Acme");
+    }),
+  );
+
+  it.effect("creates a new key when the user picks create despite stored keys", () =>
+    Effect.gen(function* () {
+      mocks.ascApiKeysList.mockReturnValue(
+        Effect.succeed({
+          items: [{ id: "vault-1", name: "My Key", keyId: "K1", appleTeamId: "team-uuid-1" }],
+        }),
+      );
+      mocks.promptSelect
+        .mockReturnValueOnce(Effect.succeed("__create__"))
+        .mockReturnValueOnce(Effect.succeed("ADMIN"));
+      mocks.listTeamKeys.mockReturnValue(Effect.succeed([]));
+      mocks.promptConfirm.mockReturnValue(Effect.succeed(true));
+      mocks.generate.mockReturnValue(
+        Effect.succeed({ id: "new-2", keyId: "NK2", issuerId: "iss", name: "NK2", role: "ADMIN" }),
+      );
+
+      const result = yield* run(true);
+
+      expect(result).toBe("new-2");
+      expect(mocks.generate).toHaveBeenCalledTimes(1);
+      expect(mocks.setSubmit).toHaveBeenCalledWith("/proj", "production", "new-2");
     }),
   );
 
