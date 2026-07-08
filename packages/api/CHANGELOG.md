@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.40.0...%40better-update%2Fapi%400.40.1) (2026-07-08)
+
+### Bug Fixes
+
+* **server:** open vault self-service to project developers and robots ([0aba6d0](https://gitlab.jmango360.com/mobile/better-update/commit/0aba6d0bb140eafdb03bc0f2ad2342a9ed74d5d6))
+
 ## [0.40.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.39.0...%40better-update%2Fapi%400.40.0) (2026-07-08)
 
 ### Features

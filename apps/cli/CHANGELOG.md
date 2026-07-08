@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.61.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.61.0...%40better-update%2Fcli%400.61.1) (2026-07-08)
+
+### Bug Fixes
+
+* **robots:** stamp project_id on robot audit entries ([9cb8a37](https://github.com/better-update/better-update/commit/9cb8a37efb33271286c9adab35e437b412813e41))
+
 ## [0.61.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.60.0...%40better-update%2Fcli%400.61.0) (2026-07-08)
 
 ### Features

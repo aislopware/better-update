@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.60.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.59.0...%40better-update%2Fweb%400.60.0) (2026-07-08)
+
+### Features
+
+* **web:** edit robot name and role together in one dialog ([1a02684](https://github.com/better-update/better-update/commit/1a0268469c2acd258055aa45119206e16fcf4350))
+
 ## [0.59.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.58.0...%40better-update%2Fweb%400.59.0) (2026-07-08)
 
 ### Features

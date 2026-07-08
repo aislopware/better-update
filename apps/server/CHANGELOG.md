@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.49.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.49.0...%40better-update%2Fserver%400.49.1) (2026-07-08)
+
+### Bug Fixes
+
+* **robots:** stamp project_id on robot audit entries ([9cb8a37](https://github.com/better-update/better-update/commit/9cb8a37efb33271286c9adab35e437b412813e41))
+* **server:** open vault self-service to project developers and robots ([0aba6d0](https://github.com/better-update/better-update/commit/0aba6d0bb140eafdb03bc0f2ad2342a9ed74d5d6))
+
 ## [0.49.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.48.0...%40better-update%2Fserver%400.49.0) (2026-07-08)
 
 ### Features
