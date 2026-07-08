@@ -23,6 +23,18 @@ export const DeviceIdentifier = Schema.String.pipe(
   }),
 );
 
+/**
+ * Canonical form of a device roster for staleness fingerprinting: UDIDs
+ * normalized (trim + lowercase), deduplicated, sorted, comma-joined. Both the
+ * server (`checkProfileStale`) and the CLI (profile generation) hash this exact
+ * string — UDIDs, not Apple portal record ids, because Apple can hold several
+ * portal records for one physical device while our roster keys by UDID.
+ */
+export const canonicalDeviceRoster = (identifiers: readonly string[]): string =>
+  [...new Set(identifiers.map((identifier) => identifier.trim().toLowerCase()))]
+    .toSorted()
+    .join(",");
+
 export class Device extends Schema.Class<Device>("Device")({
   id: Id,
   organizationId: Id,

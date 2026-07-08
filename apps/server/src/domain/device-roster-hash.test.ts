@@ -22,6 +22,22 @@ describe("device roster hash", () => {
     expect(first).toBe(second);
   });
 
+  it("normalizes case and whitespace, and collapses duplicate UDIDs", async () => {
+    const [canonical, noisy] = await Promise.all([
+      run(computeDeviceRosterHash(["00008020-001d09503c68002e"])),
+      // Apple can list one physical device several times (re-added after a
+      // disable keeps the UDID); duplicates must not change the fingerprint.
+      run(
+        computeDeviceRosterHash([
+          "00008020-001D09503C68002E",
+          " 00008020-001d09503c68002e ",
+          "00008020-001d09503c68002e",
+        ]),
+      ),
+    ]);
+    expect(noisy).toBe(canonical);
+  });
+
   it("differs when the roster changes", async () => {
     const [two, three] = await Promise.all([
       run(computeDeviceRosterHash(["x", "y"])),

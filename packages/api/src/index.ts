@@ -114,6 +114,7 @@ export {
   UpsertEnvVarDescriptionBody,
 } from "./domain/env-var";
 export {
+  canonicalDeviceRoster,
   CreateRegistrationRequestBody,
   DeleteDeviceResult,
   Device,

@@ -14,7 +14,7 @@ import { ApplePushKeyRepo } from "../repositories/apple-push-keys";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 import { AscApiKeyRepo } from "../repositories/asc-api-keys";
 import { IosBundleConfigurationRepo } from "../repositories/ios-bundle-configurations";
-import { collectDeviceAscIds } from "./collect-device-asc-ids";
+import { collectDeviceRosterUdids } from "./collect-device-roster";
 
 import type { AppleProvisioningProfileModel, DistributionType } from "../models";
 
@@ -83,11 +83,11 @@ const checkProfileStale = (
     if (!params.profile.isManaged) {
       return { stale: false, currentHash: null } as const;
     }
-    const currentAscIds = yield* collectDeviceAscIds({
+    const currentUdids = yield* collectDeviceRosterUdids({
       organizationId: params.organizationId,
       appleTeamId: params.appleTeamId,
     });
-    const currentHash = yield* computeDeviceRosterHash(currentAscIds).pipe(
+    const currentHash = yield* computeDeviceRosterHash(currentUdids).pipe(
       Effect.mapError(hashFailure),
     );
     return {

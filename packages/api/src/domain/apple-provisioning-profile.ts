@@ -34,6 +34,7 @@ export const UploadAppleProvisioningProfileBody = Schema.Struct({
   ...credentialCreateBindingField,
   profileBase64: Schema.String.pipe(Schema.minLength(1)),
   appleDistributionCertificateId: Schema.optional(Id),
+  /** SHA-256 hex of `canonicalDeviceRoster(udids)` for the roster baked into the profile. */
   deviceRosterHash: Schema.optional(Schema.String),
   isManaged: Schema.optional(Schema.Boolean),
 });
