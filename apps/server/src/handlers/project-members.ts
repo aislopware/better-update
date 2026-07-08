@@ -13,6 +13,7 @@ import { toApiCrudEffect } from "../http/to-api-effect";
 import { MemberRepo } from "../repositories/member-repo";
 import { ProjectMemberRepo } from "../repositories/project-members";
 import { ProjectRepo } from "../repositories/projects";
+import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 import type { ProjectPrincipalType, ProjectRole } from "../models";
 import type { ProjectMemberDetail } from "../repositories/project-members";
@@ -184,6 +185,15 @@ export const ProjectMembersGroupLive = HttpApiBuilder.group(
               role: payload.role,
               action: "projectMember.role_update",
             });
+            // Vault participation = ≥ developer on SOME project, so a downgrade
+            // to reporter can strip it — reconcile the recipient set (no-op when
+            // the member still qualifies elsewhere; never fails the mutation).
+            if (payload.role === "reporter") {
+              yield* reconcileVaultAccess({
+                organizationId: ctx.organizationId,
+                reason: `project-member-role-change:${path.principalId}`,
+              });
+            }
             return toApiProjectMember(detail);
           }),
         ),
@@ -210,6 +220,12 @@ export const ProjectMembersGroupLive = HttpApiBuilder.group(
               resourceId: path.principalId,
               projectId: path.id,
               metadata: { projectId: path.id, principalType: urlParams.principalType },
+            });
+            // Losing a membership row can strip vault participation (≥ developer
+            // on SOME project) — reconcile the recipient set.
+            yield* reconcileVaultAccess({
+              organizationId: ctx.organizationId,
+              reason: `project-member-remove:${path.principalId}`,
             });
             return { deleted: 1 };
           }),

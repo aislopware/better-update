@@ -56,9 +56,11 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
             metadata: { from: target.role, to: payload.role },
           });
 
-          // Demoting an admin strips vaultAccess:read (org-admin rule) — bind
-          // the change to the vault recipient set so their device wraps drop
-          // and the vault flags for rotation (vault-lifecycle-revocation §3.6).
+          // Demoting an admin can strip vault participation (kept only with
+          // ≥ developer on some project) — bind the change to the vault
+          // recipient set so stripped device wraps drop and the vault flags
+          // for rotation (vault-lifecycle-revocation §3.6). The reconcile
+          // re-checks participation, so it converges to a no-op otherwise.
           if (payload.role === "member") {
             yield* reconcileVaultAccess({
               organizationId: ctx.organizationId,

@@ -2,12 +2,13 @@ import { Effect } from "effect";
 
 import { toOrgRole } from "../auth/middleware";
 import { roleIsOwner } from "../auth/owner";
-import { meetsOrgRequirement } from "../auth/role-matrix";
+import { isVaultParticipant } from "../auth/role-matrix";
 import { roleIsSuperadmin } from "../auth/superadmin";
 import { AccountKeyRepo } from "../repositories/account-keys";
 import { MemberRepo } from "../repositories/member-repo";
 import { OrgEnvVaultRepo } from "../repositories/org-env-vault";
 import { OrgVaultRepo } from "../repositories/org-vault";
+import { ProjectMemberRepo } from "../repositories/project-members";
 import { UserEncryptionKeyRepo } from "../repositories/user-encryption-keys";
 import { isEnvVaultForked } from "../vault-models";
 
@@ -52,10 +53,11 @@ const envRecipientUserIds = (params: {
     return ids.filter((id): id is string => id !== null);
   });
 
-// Mirror the request-time gate (auth/policy.ts assertAccess): owner + superadmin
-// bypass; otherwise `vaultAccess:read` is an org-admin rule (GITLAB-RBAC-SPEC
-// §2). Resolved off-request from the persisted member row, so it reflects the
-// live state after the IAM mutation that triggered the reconcile.
+// Mirror the request-time gate (auth/policy.ts assertVaultParticipant): owner +
+// superadmin bypass; otherwise vault participation = ≥ developer on some
+// project (org admins qualify via their implicit maintainer-everywhere rank).
+// Resolved off-request from the persisted member + project_member rows, so it
+// reflects the live state after the IAM mutation that triggered the reconcile.
 const userStillHasVaultAccess = (params: {
   readonly organizationId: string;
   readonly userId: string;
@@ -70,15 +72,26 @@ const userStillHasVaultAccess = (params: {
     if (roleIsOwner(auth.memberRole) || roleIsSuperadmin(auth.userRole)) {
       return true;
     }
-    return meetsOrgRequirement(toOrgRole(auth.memberRole), "admin");
+    const orgRole = toOrgRole(auth.memberRole);
+    const projectMemberRepo = yield* ProjectMemberRepo;
+    const projectRoles =
+      orgRole === "member"
+        ? yield* projectMemberRepo.rolesForPrincipal({
+            organizationId: params.organizationId,
+            principalType: "member",
+            principalId: auth.memberId,
+          })
+        : {};
+    return isVaultParticipant({ orgRole, projectRoles });
   });
 
 /**
  * One authoritative pass binding the IAM access lifecycle to the vault recipient
  * set. For every device key currently wrapped at the live vault version, if its
- * owner no longer holds `vaultAccess:read` (removed from the org, or downgraded),
- * drop their wrap, flag the vault for rotation, and revoke the key on its last
- * org — via the same `dropDeviceWrapsForUser` the removal path uses.
+ * owner is no longer a vault participant (removed from the org, or left without
+ * ≥ developer on any project), drop their wrap, flag the vault for rotation, and
+ * revoke the key on its last org — via the same `dropDeviceWrapsForUser` the
+ * removal path uses.
  *
  * Fire it after ANY IAM change that can strip access (policy detach, group
  * membership/policy change, policy edit/delete) instead of diffing each site:

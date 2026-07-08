@@ -2,7 +2,7 @@
 // ./role-matrix.ts (docs/specs/authz/GITLAB-RBAC-SPEC.md §2); the runtime gate
 // is `assertAccess` in ./policy.ts.
 
-import { assertAccess, assertSuperadmin } from "./policy";
+import { assertAccess, assertSuperadmin, assertVaultParticipant } from "./policy";
 
 import type { Action, Resource } from "../models";
 
@@ -13,4 +13,4 @@ import type { Action, Resource } from "../models";
 export const assertPermission = (resource: Resource, action: Action) =>
   assertAccess(resource, action);
 
-export { assertSuperadmin };
+export { assertSuperadmin, assertVaultParticipant };

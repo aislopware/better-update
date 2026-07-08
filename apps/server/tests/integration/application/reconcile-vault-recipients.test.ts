@@ -6,19 +6,21 @@ import { AccountKeyRepoLive } from "../../../src/repositories/account-keys";
 import { MemberRepoLive } from "../../../src/repositories/member-repo";
 import { OrgEnvVaultRepoLive } from "../../../src/repositories/org-env-vault";
 import { OrgVaultRepo, OrgVaultRepoLive } from "../../../src/repositories/org-vault";
+import { ProjectMemberRepoLive } from "../../../src/repositories/project-members";
 import { UserEncryptionKeyRepoLive } from "../../../src/repositories/user-encryption-keys";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // reconcile pulls together the credential + env vaults, account keys,
-// user-keys, and member repos (vaultAccess:read is an org-admin rule under
-// GITLAB-RBAC — resolved from member.role alone) — provide the real
-// D1-backed layers.
+// user-keys, member, and project-member repos (vault participation = org
+// admin/owner OR ≥ developer on some project — resolved from the member +
+// project_member rows) — provide the real D1-backed layers.
 const REPOS = Layer.mergeAll(
   OrgVaultRepoLive,
   OrgEnvVaultRepoLive,
   AccountKeyRepoLive,
   UserEncryptionKeyRepoLive,
   MemberRepoLive,
+  ProjectMemberRepoLive,
 );
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, never>) =>
@@ -54,6 +56,20 @@ const insertDeviceKey = (id: string, userId: string) =>
     .bind(id, userId, `age1${id}`, `Key ${id}`, `SHA256:${id}`, "2026-01-01T00:00:00Z")
     .run();
 
+const insertProject = (id: string) =>
+  env.DB.prepare(
+    `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, '2026-01-01T00:00:00Z')`,
+  )
+    .bind(id, ORG, `Project ${id}`, `${id}-slug`)
+    .run();
+
+const insertProjectMember = (projectId: string, memberId: string, role: string) =>
+  env.DB.prepare(
+    `INSERT INTO "project_member" ("id", "organization_id", "project_id", "principal_type", "principal_id", "role", "created_at") VALUES (?, ?, ?, 'member', ?, ?, '2026-01-01T00:00:00Z')`,
+  )
+    .bind(`pm-${projectId}-${memberId}`, ORG, projectId, memberId, role)
+    .run();
+
 const insertOrgKey = (id: string) =>
   env.DB.prepare(
     `INSERT INTO "user_encryption_keys" ("id", "user_id", "organization_id", "kind", "public_key", "label", "fingerprint", "created_at") VALUES (?, NULL, ?, 'recovery', ?, ?, ?, ?)`,
@@ -76,12 +92,23 @@ beforeAll(async () => {
   await insertUser("rec-u-owner");
   await insertMember("rec-m-owner", "rec-u-owner", "owner");
   await insertDeviceKey("rec-dk-owner", "rec-u-owner");
-  // vault reader: kept — an org ADMIN holds vaultAccess:read under
-  // GITLAB-RBAC (spec §2, org table).
+  // org admin: kept — implicit maintainer everywhere is a vault participant.
   await insertUser("rec-u-dev");
   await insertMember("rec-m-dev", "rec-u-dev", "admin");
   await insertDeviceKey("rec-dk-dev", "rec-u-dev");
-  // plain member: dropped — no org-admin rank, no vaultAccess.
+  // plain member with a developer project row: kept — vault participation is
+  // ≥ developer on SOME project, not org-admin.
+  await insertProject("rec-p1");
+  await insertUser("rec-u-projdev");
+  await insertMember("rec-m-projdev", "rec-u-projdev", "member");
+  await insertProjectMember("rec-p1", "rec-m-projdev", "developer");
+  await insertDeviceKey("rec-dk-projdev", "rec-u-projdev");
+  // reporter-only member: dropped — below the participation rank everywhere.
+  await insertUser("rec-u-reporter");
+  await insertMember("rec-m-reporter", "rec-u-reporter", "member");
+  await insertProjectMember("rec-p1", "rec-m-reporter", "reporter");
+  await insertDeviceKey("rec-dk-reporter", "rec-u-reporter");
+  // plain member with no project rows: dropped — no rank anywhere.
   await insertUser("rec-u-viewer");
   await insertMember("rec-m-viewer", "rec-u-viewer", "member");
   await insertDeviceKey("rec-dk-viewer", "rec-u-viewer");
@@ -99,6 +126,8 @@ beforeAll(async () => {
         wraps: [
           { userEncryptionKeyId: "rec-dk-owner", wrappedKey: "w-owner" },
           { userEncryptionKeyId: "rec-dk-dev", wrappedKey: "w-dev" },
+          { userEncryptionKeyId: "rec-dk-projdev", wrappedKey: "w-projdev" },
+          { userEncryptionKeyId: "rec-dk-reporter", wrappedKey: "w-reporter" },
           { userEncryptionKeyId: "rec-dk-viewer", wrappedKey: "w-viewer" },
           { userEncryptionKeyId: "rec-dk-gone", wrappedKey: "w-gone" },
           { userEncryptionKeyId: "rec-r", wrappedKey: "w-recovery" },
@@ -119,16 +148,20 @@ describe("reconcileVaultRecipients — D1 integration", () => {
       reconcileVaultRecipients({ organizationId: ORG, reason: "downgrade-test" }),
     );
 
-    // Dropped: the downgraded viewer + the no-longer-a-member user.
-    expect([...dropped].sort()).toEqual(["rec-u-gone", "rec-u-viewer"]);
+    // Dropped: the reporter-only member, the row-less member, and the
+    // no-longer-a-member user.
+    expect([...dropped].sort()).toEqual(["rec-u-gone", "rec-u-reporter", "rec-u-viewer"]);
 
     // Their wraps are gone.
+    expect(await countWraps("rec-dk-reporter")).toBe(0);
     expect(await countWraps("rec-dk-viewer")).toBe(0);
     expect(await countWraps("rec-dk-gone")).toBe(0);
 
-    // Kept: owner (root bypass), org admin (vaultAccess:read), org recovery key.
+    // Kept: owner (root bypass), org admin, the developer-on-a-project member
+    // (vault participant), and the org recovery key.
     expect(await countWraps("rec-dk-owner")).toBe(1);
     expect(await countWraps("rec-dk-dev")).toBe(1);
+    expect(await countWraps("rec-dk-projdev")).toBe(1);
     expect(await countWraps("rec-r")).toBe(1);
 
     // A recipient was dropped → the vault is flagged for rotation.

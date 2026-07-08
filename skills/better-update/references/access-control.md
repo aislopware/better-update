@@ -41,6 +41,14 @@ active org and, for non-admins, to projects they maintain — an empty list can 
 active org (`better-update org list`). The dashboard lists a project's robots read-only (project →
 Robot accounts, visible to Maintainer+); all mutations stay CLI-only.
 
+**Vault participation** (self-service: `identity create`/`register`, self-linking your own device,
+fetching your own key wrap to unlock, account-key enrolment in the web) requires **developer or
+higher on at least one project** — org admins/owner always qualify; reporter-only members and
+members with no project role are refused (403). GRANTING vault access to someone (or something)
+else, bootstrap, and rotation stay org-admin operations. Losing your last developer+ project role
+(downgrade to reporter, removal, project delete) drops your vault wraps and flags the vault for
+rotation — access must be re-granted after you regain a qualifying role.
+
 **Protected environments** (default: `production`) only accept writes from project **Maintainers**
 (and org admins/owner) — developers cannot publish/edit branches, channels, updates, rollouts, or
 env vars inside them. Toggle protection in the dashboard (Environment variables → Environments) or

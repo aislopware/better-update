@@ -8,7 +8,7 @@ import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
 import { assertVaultRecipientOwnerInOrg } from "../application/assert-vault-recipient-in-org";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { assertPermission } from "../auth/permissions";
+import { assertPermission, assertVaultParticipant } from "../auth/permissions";
 import { BadRequest, Conflict, NotFound } from "../errors";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiOrgVault, toApiOrgVaultKeyWrap } from "../http/to-api-vault";
@@ -77,9 +77,9 @@ const assertCoversAllCredentials = (
 const handleAddWrap = ({ payload }: { readonly payload: typeof AddVaultWrapBody.Type }) =>
   toApiWriteEffect(
     Effect.gen(function* () {
-      // Any member may reach this (read-gated) before we touch a key, so a
-      // caller without vault access can't probe key existence.
-      yield* assertPermission("vaultAccess", "read");
+      // Any vault participant may reach this before we touch a key, so a
+      // caller without vault participation can't probe key existence.
+      yield* assertVaultParticipant;
       const ctx = yield* CurrentActor;
       const repo = yield* OrgVaultRepo;
       const keyRepo = yield* UserEncryptionKeyRepo;
@@ -140,7 +140,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
     .handle("get", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const repo = yield* OrgVaultRepo;
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
@@ -225,7 +225,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
     .handle("listWraps", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const repo = yield* OrgVaultRepo;
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
@@ -250,7 +250,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
     .handle("getWrap", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const repo = yield* OrgVaultRepo;
           const keyRepo = yield* UserEncryptionKeyRepo;
@@ -293,7 +293,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
     .handle("listCredentialDeks", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const repo = yield* OrgVaultRepo;
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });

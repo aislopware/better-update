@@ -5,7 +5,7 @@ import { ManagementApi } from "../api";
 import { assertWebEnvStepUp } from "../application/assert-web-env-step-up";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { assertPermission } from "../auth/permissions";
+import { assertVaultParticipant } from "../auth/permissions";
 import { BadRequest, NotFound } from "../errors";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiAccountKey, toApiAccountKeyEscrow } from "../http/to-api-vault";
@@ -18,10 +18,10 @@ export const AccountKeysGroupLive = HttpApiBuilder.group(ManagementApi, "account
       toApiWriteEffect(
         Effect.gen(function* () {
           // An account key makes the caller an env-vault recipient (the browser
-          // unwraps env with it), so gate it on the same read capability device
-          // keys require. It is always the caller's OWN key — needs an interactive
+          // unwraps env with it), so gate it on the same vault-participation
+          // rule device keys require. It is always the caller's OWN key — needs an interactive
           // user (api-key/CI actors use machine recipients, never account keys).
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           if (ctx.userId === null) {
             return yield* new BadRequest({
@@ -74,9 +74,9 @@ export const AccountKeysGroupLive = HttpApiBuilder.group(ManagementApi, "account
     .handle("list", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          // Listing the org's account-key recipients is a vault read (mirrors
-          // `orgVault.listWraps`); the cutover/rotate need it to wrap the env key.
-          yield* assertPermission("vaultAccess", "read");
+          // Listing the org's account-key recipients mirrors `orgVault.listWraps`
+          // (participant-gated); the cutover/rotate need it to wrap the env key.
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const memberRepo = yield* MemberRepo;
           const accountRepo = yield* AccountKeyRepo;
@@ -90,7 +90,7 @@ export const AccountKeysGroupLive = HttpApiBuilder.group(ManagementApi, "account
     .handle("reseal", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           if (ctx.userId === null) {
             return yield* new BadRequest({
@@ -129,9 +129,9 @@ export const AccountKeysGroupLive = HttpApiBuilder.group(ManagementApi, "account
     .handle("getMe", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          // Same vault read gate as register/list/reseal (a demoted viewer with a
-          // leftover account-key row must not fetch its own escrow).
-          yield* assertPermission("vaultAccess", "read");
+          // Same participation gate as register/list/reseal (a demoted member with
+          // a leftover account-key row must not fetch its own escrow).
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           if (ctx.userId === null) {
             return yield* new NotFound({ message: "No account key for this caller" });

@@ -40,7 +40,7 @@ export class AccountKey extends Schema.Class<AccountKey>("AccountKey")({
  * The full passphrase-sealed escrow for the caller — everything the browser needs
  * to open it locally ({@link AccountKeyKdfParams} + salt + ciphertext). The server
  * stores it opaquely and can never open it. Served by the `getMe` endpoint, which
- * is gated on `vaultAccess:read`; a 2FA step-up for browser sessions is REQUIRED
+ * is gated on vault participation; a 2FA step-up for browser sessions is REQUIRED
  * before any web consumer ships but is not yet implemented (P4). The contents stay
  * passphrase-sealed regardless. `version`/`kdf`/`cipher` are the fixed v1 envelope
  * constants, echoed so the browser can rebuild the crypto envelope.

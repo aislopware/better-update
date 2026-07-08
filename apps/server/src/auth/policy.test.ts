@@ -5,7 +5,13 @@ import { NotFound } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
 import { ProtectedEnvironmentRepo } from "../repositories/protected-environments";
 import { AuthContext } from "./context";
-import { assertAccess, assertAccessAny, assertSuperadmin, matrixAllows } from "./policy";
+import {
+  assertAccess,
+  assertAccessAny,
+  assertSuperadmin,
+  assertVaultParticipant,
+  matrixAllows,
+} from "./policy";
 
 import type { ProjectRepository } from "../repositories/projects";
 import type { ProtectedEnvironmentRepository } from "../repositories/protected-environments";
@@ -393,6 +399,58 @@ describe(matrixAllows, () => {
       }),
     ).toBe(false);
   });
+});
+
+describe("vault participation gate", () => {
+  it.effect("passes owner/superadmin/org admin", () =>
+    Effect.gen(function* () {
+      const asOwner = yield* isForbidden(
+        assertVaultParticipant.pipe(provide({ isOwner: true, orgRole: "owner" })),
+      );
+      const asSuperadmin = yield* isForbidden(
+        assertVaultParticipant.pipe(provide({ isSuperadmin: true })),
+      );
+      const asAdmin = yield* isForbidden(
+        assertVaultParticipant.pipe(provide({ orgRole: "admin" })),
+      );
+      expect(asOwner).toBe(false);
+      expect(asSuperadmin).toBe(false);
+      expect(asAdmin).toBe(false);
+    }),
+  );
+
+  it.effect("passes a member (or robot) with ≥ developer on some project", () =>
+    Effect.gen(function* () {
+      const asDeveloper = yield* isForbidden(
+        assertVaultParticipant.pipe(provide({ projectRoles: { p1: "developer" } })),
+      );
+      const asRobotMaintainer = yield* isForbidden(
+        assertVaultParticipant.pipe(
+          provide({
+            userId: null,
+            memberId: null,
+            source: "robot",
+            transport: "bearer",
+            robotId: "rob-1",
+            projectRoles: { p1: "maintainer" },
+          }),
+        ),
+      );
+      expect(asDeveloper).toBe(false);
+      expect(asRobotMaintainer).toBe(false);
+    }),
+  );
+
+  it.effect("denies reporter-only and project-less members", () =>
+    Effect.gen(function* () {
+      const asReporter = yield* isForbidden(
+        assertVaultParticipant.pipe(provide({ projectRoles: { p1: "reporter" } })),
+      );
+      const asBareMember = yield* isForbidden(assertVaultParticipant.pipe(provide({})));
+      expect(asReporter).toBe(true);
+      expect(asBareMember).toBe(true);
+    }),
+  );
 });
 
 describe("superadmin gate", () => {

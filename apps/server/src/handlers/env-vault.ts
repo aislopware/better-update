@@ -6,7 +6,7 @@ import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
 import { assertVaultRecipientOwnerInOrg } from "../application/assert-vault-recipient-in-org";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { assertPermission } from "../auth/permissions";
+import { assertPermission, assertVaultParticipant } from "../auth/permissions";
 import { BadRequest, Conflict, NotFound } from "../errors";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiOrgEnvVaultKeyWrap, toApiOrgVault } from "../http/to-api-vault";
@@ -125,7 +125,7 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
     .handle("listWraps", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const vaultRepo = yield* OrgVaultRepo;
           const envRepo = yield* OrgEnvVaultRepo;
@@ -151,7 +151,7 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
     .handle("addWrap", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const vaultRepo = yield* OrgVaultRepo;
           const envRepo = yield* OrgEnvVaultRepo;
@@ -216,7 +216,7 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
     .handle("getWrap", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const vaultRepo = yield* OrgVaultRepo;
           const envRepo = yield* OrgEnvVaultRepo;
@@ -264,7 +264,7 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
     .handle("listCredentialDeks", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("vaultAccess", "read");
+          yield* assertVaultParticipant;
           const ctx = yield* CurrentActor;
           const vaultRepo = yield* OrgVaultRepo;
           const envRepo = yield* OrgEnvVaultRepo;

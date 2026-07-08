@@ -7,6 +7,7 @@ import {
   CREDENTIAL_RULES,
   credentialRequiredRank,
   effectiveProjectRole,
+  isVaultParticipant,
   maxProjectRole,
   meetsAnywhereRequirement,
   meetsOrgRequirement,
@@ -64,6 +65,24 @@ describe("anywhereRank (spec §1a)", () => {
   it("meetsAnywhereRequirement compares against that rank", () => {
     expect(meetsAnywhereRequirement(memberCtx({ alpha: "developer" }), "developer")).toBe(true);
     expect(meetsAnywhereRequirement(memberCtx({ alpha: "developer" }), "maintainer")).toBe(false);
+  });
+});
+
+describe("vault participation (self-service vault surfaces)", () => {
+  it("org admin/owner participate via the implicit maintainer rank", () => {
+    expect(isVaultParticipant({ orgRole: "owner", projectRoles: {} })).toBe(true);
+    expect(isVaultParticipant({ orgRole: "admin", projectRoles: {} })).toBe(true);
+  });
+
+  it("members (and robots) participate with ≥ developer on some project", () => {
+    expect(isVaultParticipant(memberCtx({ alpha: "developer" }))).toBe(true);
+    expect(isVaultParticipant(memberCtx({ alpha: "maintainer" }))).toBe(true);
+    expect(isVaultParticipant(memberCtx({ alpha: "reporter", beta: "developer" }))).toBe(true);
+  });
+
+  it("reporter-only and project-less members stay out (viewer escalation guard)", () => {
+    expect(isVaultParticipant(memberCtx({ alpha: "reporter" }))).toBe(false);
+    expect(isVaultParticipant(memberCtx({}))).toBe(false);
   });
 });
 

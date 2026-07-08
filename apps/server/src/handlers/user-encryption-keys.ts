@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { assertPermission } from "../auth/permissions";
+import { assertPermission, assertVaultParticipant } from "../auth/permissions";
 import { matrixAllows } from "../auth/policy";
 import { BadRequest } from "../errors";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
@@ -19,7 +19,7 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
       .handle("list", () =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("vaultAccess", "read");
+            yield* assertVaultParticipant;
             const ctx = yield* CurrentActor;
             const repo = yield* UserEncryptionKeyRepo;
             // Admins/owners (vaultAccess:create) grant the vault to other members'
@@ -49,9 +49,9 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
             if (isDevice) {
               // Enrolling a device key makes the caller a vault recipient
               // candidate (it lands in `listGrantable` + is self-linkable). Gate
-              // it on the same read capability the vault requires, so a principal
-              // with no vault access (e.g. viewer) can't plant a recipient key.
-              yield* assertPermission("vaultAccess", "read");
+              // it on vault participation, so a principal with no build rank
+              // anywhere (e.g. reporter-only) can't plant a recipient key.
+              yield* assertVaultParticipant;
               if (ctx.userId === null) {
                 return yield* new BadRequest({
                   message: "Device keys require an interactive user session",

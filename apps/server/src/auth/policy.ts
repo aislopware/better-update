@@ -8,6 +8,7 @@ import { CurrentActor } from "./current-actor";
 import {
   CREDENTIAL_RULES,
   effectiveProjectRole,
+  isVaultParticipant,
   meetsAnywhereRequirement,
   meetsOrgRequirement,
   ORG_RULES,
@@ -298,6 +299,27 @@ export const assertAccessAny = (resource: Resource, action: Action) =>
     }
     return yield* new Forbidden({ message: `Insufficient permission: ${token}` });
   });
+
+/**
+ * Gate for vault PARTICIPATION (self-service surfaces: enrolling one's own
+ * device/account key, self-link wraps, fetching one's wrap, reading the vault
+ * metadata needed to decrypt). Distinct from `vaultAccess:*`, which is vault
+ * ADMINISTRATION (granting others, bootstrap, rotate) and stays org-admin.
+ * Passes for owner/superadmin, org admins, and anyone — human or robot — with
+ * ≥ developer on some project (role-matrix `isVaultParticipant`).
+ */
+export const assertVaultParticipant = Effect.gen(function* () {
+  const ctx = yield* CurrentActor;
+  if (ctx.isSuperadmin || ctx.isOwner) {
+    return;
+  }
+  if (!isVaultParticipant(ctx)) {
+    return yield* new Forbidden({
+      message:
+        "Vault access requires the Developer role or higher on at least one project in this organization",
+    });
+  }
+});
 
 // Gate for org administration without a dedicated matrix token (the
 // protected-resource toggles): owner/superadmin bypass, org admin passes.

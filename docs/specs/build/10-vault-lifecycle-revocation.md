@@ -68,6 +68,15 @@ change:
 > the recipient structures and pollute the grantable pool — a foot-gun for an over-broad admin
 > grant, and a persistence primitive for a downgraded member who cached the key. Both are gone.
 
+> **GITLAB-RBAC v2 amendment (2026-07-08).** Under v2 the `vaultAccess:*` tokens became
+> org-admin rules, which silently turned every gate above admin-only and broke the documented
+> self-service flows (`identity create` for maintainers/developers, robot CI wrap fetches, web
+> account-key enrolment). The "vault participation starts at `developer`" intent now has its own
+> gate: `assertVaultParticipant` (owner/admin, or ≥ developer on SOME project — anywhere-rank),
+> used by the self-service/read surfaces, while grants-to-others/bootstrap/cutover/rotate keep
+> `vaultAccess:*` ≥ admin. The reconcile predicate (§3.6) mirrors the same participation rule and
+> now also fires on project-member downgrades/removals and project deletes.
+
 These are enforced by `assertAccess` (unit-pinned in `auth/managed-policies.test.ts`) and the
 vault e2e (`tests/e2e/vault-flow.test.ts` §9).
 

@@ -240,6 +240,19 @@ export const orgGlobalEnvVarRequirement = (action: Action): OrgRequirement | "an
 
 export const PROTECTED_CREDENTIAL_MIN_ROLE: ProjectRole = "maintainer";
 
+/**
+ * Vault PARTICIPATION (self-service) is distinct from vault ADMINISTRATION
+ * (`vaultAccess:*`, org-admin ORG_RULES). Enrolling one's own device/account
+ * key, self-linking a wrap, fetching one's wrap, and reading the vault
+ * metadata needed to decrypt are open to anyone holding ≥ developer on SOME
+ * project — the same anywhere-rank that may read/download credentials and env
+ * vars, i.e. exactly the principals who must be able to unlock the vault
+ * (humans and robots alike). Reporter-only principals stay out: the viewer
+ * escalation guard from the vault-lifecycle spec (docs/specs/build/10 §3)
+ * survives as "no build rank anywhere → no recipient key".
+ */
+export const VAULT_PARTICIPANT_MIN_ROLE: ProjectRole = "developer";
+
 // -- Evaluation helpers --------------------------------------------------------
 
 export const meetsOrgRequirement = (orgRole: OrgRole, requirement: OrgRequirement): boolean => {
@@ -261,6 +274,14 @@ export const meetsOrgRequirement = (orgRole: OrgRole, requirement: OrgRequiremen
 
 export const meetsAnywhereRequirement = (ctx: RoleContext, min: ProjectRole): boolean =>
   projectRoleAtLeast(anywhereRank(ctx), min);
+
+/**
+ * Whether the principal may PARTICIPATE in the org vaults (see
+ * {@link VAULT_PARTICIPANT_MIN_ROLE}). Org owner/admin pass via their implicit
+ * maintainer-everywhere rank; robots pass via their single project role.
+ */
+export const isVaultParticipant = (ctx: RoleContext): boolean =>
+  meetsAnywhereRequirement(ctx, VAULT_PARTICIPANT_MIN_ROLE);
 
 /**
  * Required rank for a credential row, folding in the protected flag

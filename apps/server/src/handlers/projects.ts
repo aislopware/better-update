@@ -19,6 +19,7 @@ import { ChannelRepo } from "../repositories/channels";
 import { ProjectMemberRepo } from "../repositories/project-members";
 import { ProjectRepo } from "../repositories/projects";
 import { LOGO_UPLOAD_EXPIRY_SECONDS, logoRejectionReason } from "./logo-helpers";
+import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
 
@@ -362,6 +363,14 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             resourceType: "project",
             resourceId: path.id,
             projectId: path.id,
+          });
+
+          // The delete cascades project_member rows, which can strip a member's
+          // vault participation (≥ developer on SOME project) — reconcile the
+          // recipient set (never fails the delete).
+          yield* reconcileVaultAccess({
+            organizationId: project.organizationId,
+            reason: `project-delete:${path.id}`,
           });
 
           return { deleted: 1 };
