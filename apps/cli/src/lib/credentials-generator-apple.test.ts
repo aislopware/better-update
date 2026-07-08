@@ -15,6 +15,7 @@ import type * as AppleUtilsModule from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
+import { computeDeviceRosterHashHex } from "./credentials-generator";
 import {
   generateAndUploadApnsKeyViaAppleId,
   listApnsKeysViaAppleId,
@@ -40,7 +41,8 @@ const mocks = vi.hoisted(() => ({
   bundleIdFindAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   bundleIdCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   profileCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-  deviceGetAllIosAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  deviceGetAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  deviceCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   createCertAndP12Async: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   extractMetadataFromP12: vi.fn<(params: { p12Base64: string; password: string }) => unknown>(),
   keysCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -74,7 +76,7 @@ vi.mock(import("@expo/apple-utils"), () => {
     },
     BundleId: { findAsync: mocks.bundleIdFindAsync, createAsync: mocks.bundleIdCreateAsync },
     Profile: { createAsync: mocks.profileCreateAsync },
-    Device: { getAllIOSProfileDevicesAsync: mocks.deviceGetAllIosAsync },
+    Device: { getAsync: mocks.deviceGetAsync, createAsync: mocks.deviceCreateAsync },
     Keys: {
       createKeyAsync: mocks.keysCreateAsync,
       downloadKeyAsync: mocks.keysDownloadAsync,
@@ -131,9 +133,28 @@ const makeTestVault = Effect.gen(function* () {
   return { identity, wrappedVaultKey } satisfies TestVault;
 });
 
-const buildApi = (vault: TestVault) =>
+interface RosterItem {
+  readonly id: string;
+  readonly identifier: string;
+  readonly name: string;
+  readonly enabled: boolean;
+}
+
+/** Payloads captured from api calls so tests can assert on them. */
+const recordedDeviceSyncs: unknown[] = [];
+const recordedProfileUploads: { deviceRosterHash?: string; isManaged?: boolean }[] = [];
+
+const buildApi = (vault: TestVault, roster: readonly RosterItem[] = []) =>
   ({
     me: { get: () => Effect.succeed({ activeOrganization: { id: "org-1" } }) },
+    devices: {
+      syncDevices: (args: unknown) =>
+        Effect.sync(() => {
+          recordedDeviceSyncs.push(args);
+          return { created: 0, linked: 0, unchanged: 0 };
+        }),
+      list: () => Effect.succeed({ items: roster, total: roster.length }),
+    },
     userEncryptionKeys: {
       list: () =>
         Effect.succeed({
@@ -156,14 +177,17 @@ const buildApi = (vault: TestVault) =>
       upload: () => Effect.succeed({ id: "cert-local-1", appleTeamId: "team-uuid-1" }),
     },
     appleProvisioningProfiles: {
-      upload: () =>
-        Effect.succeed({
-          id: "profile-local-1",
-          bundleIdentifier: "com.example.app",
-          distributionType: "APP_STORE",
-          profileName: "test",
-          validUntil: "2030-01-01T00:00:00Z",
-          developerPortalIdentifier: "dev-portal-1",
+      upload: (args: { payload: { deviceRosterHash?: string; isManaged?: boolean } }) =>
+        Effect.sync(() => {
+          recordedProfileUploads.push(args.payload);
+          return {
+            id: "profile-local-1",
+            bundleIdentifier: "com.example.app",
+            distributionType: "APP_STORE",
+            profileName: "test",
+            validUntil: "2030-01-01T00:00:00Z",
+            developerPortalIdentifier: "dev-portal-1",
+          };
         }),
     },
     applePushKeys: {
@@ -213,10 +237,16 @@ const context: RequestContext = { teamId: "TEAM1234", providerId: 100 };
 beforeEach(() => {
   vi.clearAllMocks();
   recordedWrites.length = 0;
+  recordedDeviceSyncs.length = 0;
+  recordedProfileUploads.length = 0;
 });
 
 const PEM = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMG\n-----END PRIVATE KEY-----\n";
 const apnsServiceList = [{ id: "U27F4V844T", name: "APNS", configurations: [] }];
+
+const UDID_A = "00008020-001d09503c68002e";
+const UDID_B = "fb55a12d0a917a55de9d773818bfb67586cf4484";
+const UDID_C = "00008030-001078380cd9802e";
 
 // ── tests ──────────────────────────────────────────────────────
 
@@ -247,7 +277,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       expect(result.profileBase64).toBe(btoa("fake-profile"));
       expect(mocks.bundleIdFindAsync).toHaveBeenCalledTimes(1);
       expect(mocks.bundleIdCreateAsync).not.toHaveBeenCalled();
-      expect(mocks.deviceGetAllIosAsync).not.toHaveBeenCalled();
+      expect(mocks.deviceGetAsync).not.toHaveBeenCalled();
       const [, profileArgs] = mocks.profileCreateAsync.mock.calls[0] as [
         unknown,
         { bundleId: string; certificates: string[]; devices: string[]; profileType: string },
@@ -259,19 +289,80 @@ describe(generateAndUploadProvisioningProfile, () => {
     }).pipe(Effect.provide(vaultLayer("unused-identity"))),
   );
 
-  it.effect("AD_HOC: enrolls devices and includes them in profile request", () =>
+  it.effect(
+    "AD_HOC: fingerprints the backend roster's UDIDs and attaches every matching portal record",
+    () =>
+      Effect.gen(function* () {
+        mocks.certificateGetAsync.mockResolvedValue([
+          { id: "cert-asc-1", attributes: { serialNumber: "abc12345" } },
+        ]);
+        mocks.bundleIdFindAsync.mockResolvedValue(null);
+        mocks.bundleIdCreateAsync.mockResolvedValue({ id: "bundle-asc-new" });
+        // Apple lists device A twice (disable + re-add keeps the UDID) — both
+        // records attach, but the fingerprint must collapse them to one UDID.
+        mocks.deviceGetAsync.mockResolvedValue([
+          { id: "rec-a1", attributes: { udid: UDID_A, name: "iPhone A", deviceClass: "IPHONE" } },
+          {
+            id: "rec-a2",
+            attributes: { udid: UDID_A.toUpperCase(), name: "iPhone A", deviceClass: "IPHONE" },
+          },
+          { id: "rec-b", attributes: { udid: UDID_B, name: "iPhone B", deviceClass: "IPHONE" } },
+        ]);
+        mocks.profileCreateAsync.mockResolvedValue({
+          attributes: { profileContent: btoa("fake-adhoc") },
+        });
+
+        const api = buildApi(yield* makeTestVault, [
+          { id: "dev-a", identifier: UDID_A, name: "iPhone A", enabled: true },
+          { id: "dev-b", identifier: UDID_B, name: "iPhone B", enabled: true },
+          { id: "dev-off", identifier: UDID_C, name: "Disabled", enabled: false },
+        ]);
+        yield* generateAndUploadProvisioningProfile(api, {
+          context,
+          distributionCertificateId: "cert-local-1",
+          bundleIdentifier: "com.example.app",
+          distributionType: "AD_HOC",
+        });
+
+        expect(mocks.bundleIdCreateAsync).toHaveBeenCalledTimes(1);
+        // The portal snapshot is pull-reconciled into the backend first.
+        expect(recordedDeviceSyncs).toHaveLength(1);
+        const [, profileArgs] = mocks.profileCreateAsync.mock.calls[0] as [
+          unknown,
+          { profileType: string; devices: string[] },
+        ];
+        expect(profileArgs.profileType).toBe("IOS_APP_ADHOC");
+        expect(profileArgs.devices).toStrictEqual(["rec-a1", "rec-a2", "rec-b"]);
+        expect(recordedProfileUploads[0]?.isManaged).toBe(true);
+        // Fingerprint = enabled roster UDIDs — duplicate portal records and the
+        // disabled device do not shift it.
+        expect(recordedProfileUploads[0]?.deviceRosterHash).toBe(
+          computeDeviceRosterHashHex([UDID_A, UDID_B]),
+        );
+      }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+  );
+
+  it.effect("AD_HOC: registers backend-only devices on the portal before provisioning", () =>
     Effect.gen(function* () {
       mocks.certificateGetAsync.mockResolvedValue([
         { id: "cert-asc-1", attributes: { serialNumber: "abc12345" } },
       ]);
-      mocks.bundleIdFindAsync.mockResolvedValue(null);
-      mocks.bundleIdCreateAsync.mockResolvedValue({ id: "bundle-asc-new" });
-      mocks.deviceGetAllIosAsync.mockResolvedValue([{ id: "dev1" }, { id: "dev2" }]);
+      mocks.bundleIdFindAsync.mockResolvedValue({ id: "bundle-asc-1" });
+      mocks.deviceGetAsync.mockResolvedValue([
+        { id: "rec-a", attributes: { udid: UDID_A, name: "iPhone A", deviceClass: "IPHONE" } },
+      ]);
+      mocks.deviceCreateAsync.mockResolvedValue({
+        id: "rec-new",
+        attributes: { udid: UDID_B, name: "iPhone B", deviceClass: "IPHONE" },
+      });
       mocks.profileCreateAsync.mockResolvedValue({
         attributes: { profileContent: btoa("fake-adhoc") },
       });
 
-      const api = buildApi(yield* makeTestVault);
+      const api = buildApi(yield* makeTestVault, [
+        { id: "dev-a", identifier: UDID_A, name: "iPhone A", enabled: true },
+        { id: "dev-b", identifier: UDID_B, name: "iPhone B", enabled: true },
+      ]);
       yield* generateAndUploadProvisioningProfile(api, {
         context,
         distributionCertificateId: "cert-local-1",
@@ -279,14 +370,53 @@ describe(generateAndUploadProvisioningProfile, () => {
         distributionType: "AD_HOC",
       });
 
-      expect(mocks.bundleIdCreateAsync).toHaveBeenCalledTimes(1);
-      expect(mocks.deviceGetAllIosAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.deviceCreateAsync).toHaveBeenCalledTimes(1);
+      const [, createArgs] = mocks.deviceCreateAsync.mock.calls[0] as [
+        unknown,
+        { udid: string; platform: string },
+      ];
+      expect(createArgs.udid).toBe(UDID_B);
       const [, profileArgs] = mocks.profileCreateAsync.mock.calls[0] as [
         unknown,
-        { profileType: string; devices: string[] },
+        { devices: string[] },
       ];
-      expect(profileArgs.profileType).toBe("IOS_APP_ADHOC");
-      expect(profileArgs.devices).toStrictEqual(["dev1", "dev2"]);
+      expect(profileArgs.devices).toStrictEqual(["rec-a", "rec-new"]);
+    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+  );
+
+  it.effect("AD_HOC: a --device-ids subset is stored unmanaged without a fingerprint", () =>
+    Effect.gen(function* () {
+      mocks.certificateGetAsync.mockResolvedValue([
+        { id: "cert-asc-1", attributes: { serialNumber: "abc12345" } },
+      ]);
+      mocks.bundleIdFindAsync.mockResolvedValue({ id: "bundle-asc-1" });
+      mocks.deviceGetAsync.mockResolvedValue([
+        { id: "rec-a", attributes: { udid: UDID_A, name: "iPhone A", deviceClass: "IPHONE" } },
+        { id: "rec-b", attributes: { udid: UDID_B, name: "iPhone B", deviceClass: "IPHONE" } },
+      ]);
+      mocks.profileCreateAsync.mockResolvedValue({
+        attributes: { profileContent: btoa("fake-adhoc") },
+      });
+
+      const api = buildApi(yield* makeTestVault, [
+        { id: "dev-a", identifier: UDID_A, name: "iPhone A", enabled: true },
+        { id: "dev-b", identifier: UDID_B, name: "iPhone B", enabled: true },
+      ]);
+      yield* generateAndUploadProvisioningProfile(api, {
+        context,
+        distributionCertificateId: "cert-local-1",
+        bundleIdentifier: "com.example.app",
+        distributionType: "AD_HOC",
+        deviceIds: ["dev-a"],
+      });
+
+      const [, profileArgs] = mocks.profileCreateAsync.mock.calls[0] as [
+        unknown,
+        { devices: string[] },
+      ];
+      expect(profileArgs.devices).toStrictEqual(["rec-a"]);
+      expect(recordedProfileUploads[0]?.isManaged).toBe(false);
+      expect(recordedProfileUploads[0]?.deviceRosterHash).toBeUndefined();
     }).pipe(Effect.provide(vaultLayer("unused-identity"))),
   );
 

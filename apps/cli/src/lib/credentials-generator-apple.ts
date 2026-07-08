@@ -13,7 +13,7 @@ import { compact, toOptional } from "@better-update/type-guards";
 // via Node ESM's cjs-module-lexer, so the entity managers + enums (Certificate, BundleId,
 // Profile, Device, ProfileType, CertificateType, Keys, ...) are read off the default import.
 import AppleUtils from "@expo/apple-utils";
-import { Data, Effect } from "effect";
+import { Console, Data, Effect } from "effect";
 
 import {
   openVaultSessionInteractive,
@@ -26,6 +26,7 @@ import {
   messageOf,
 } from "./apple-asc-connect";
 import { extractMetadataFromP12, normalizeAppleSerial } from "./apple-cert-to-p12";
+import { collectProfileDeviceSet } from "./apple-device-roster";
 import { fetchAscCredentials } from "./asc-credentials";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 import { autoBindProjectId } from "./project-link";
@@ -328,26 +329,16 @@ const findAscCertificateId = (
     return match.id;
   });
 
-const collectIosDeviceIds = (
-  ctx: AppleUtils.RequestContext,
-  deviceIds: readonly string[] | undefined,
-) =>
-  Effect.gen(function* () {
-    const devices = yield* wrap("apple-list-devices", async () =>
-      AppleUtils.Device.getAllIOSProfileDevicesAsync(ctx),
-    );
-    if (deviceIds === undefined) {
-      return devices.map((device) => device.id);
-    }
-    const allowed = new Set(deviceIds);
-    return devices.filter((device) => allowed.has(device.id)).map((device) => device.id);
-  });
-
 export interface GenerateProvisioningProfileInput {
   readonly context: AppleUtils.RequestContext;
   readonly distributionCertificateId: string;
   readonly bundleIdentifier: string;
   readonly distributionType: DistributionType;
+  /**
+   * Backend device row ids narrowing the roster (AD_HOC/DEVELOPMENT only).
+   * A narrowed profile is stored unmanaged: it deliberately diverges from the
+   * team roster, so the server must not flag it stale against the full set.
+   */
   readonly deviceIds?: readonly string[];
 }
 
@@ -384,13 +375,23 @@ export const generateAndUploadProvisioningProfile = (
 
     const useDevices =
       input.distributionType === "AD_HOC" || input.distributionType === "DEVELOPMENT";
-    const deviceIds = useDevices ? yield* collectIosDeviceIds(ctx, input.deviceIds) : [];
+    const deviceSet = useDevices
+      ? yield* collectProfileDeviceSet(api, ctx, {
+          appleTeamId: cert.appleTeamId,
+          deviceIds: input.deviceIds,
+        })
+      : { attachIds: [], rosterUdids: [], unprovisionable: [] };
 
-    if (useDevices && deviceIds.length === 0) {
+    if (useDevices && deviceSet.attachIds.length === 0) {
       return yield* new AppleIdGenerateFailedError({
         step: "collect-devices",
         message: "No registered devices to attach to the provisioning profile",
       });
+    }
+    if (deviceSet.unprovisionable.length > 0) {
+      yield* Console.log(
+        `⚠ ${deviceSet.unprovisionable.length} registered device(s) could not be provisioned (still processing on Apple, rejected, or not an iOS-profile class): ${deviceSet.unprovisionable.join(", ")}`,
+      );
     }
 
     const profileName = `${input.bundleIdentifier} ${input.distributionType} ${Date.now()}`;
@@ -398,7 +399,7 @@ export const generateAndUploadProvisioningProfile = (
       AppleUtils.Profile.createAsync(ctx, {
         bundleId: bundleIdAscId,
         certificates: [certAscId],
-        devices: deviceIds,
+        devices: [...deviceSet.attachIds],
         name: profileName,
         profileType: DISTRIBUTION_TO_PROFILE_TYPE[input.distributionType],
       }),
@@ -412,13 +413,18 @@ export const generateAndUploadProvisioningProfile = (
       });
     }
     const profileBase64 = toBase64(fromBase64(profileContent));
-    const rosterHash = useDevices ? computeDeviceRosterHashHex(deviceIds) : undefined;
+    // A hand-picked subset (--device-ids) is not auto-managed: the server's
+    // stale check fingerprints the FULL team roster, which a subset profile
+    // would mismatch forever. Unmanaged profiles are never flagged stale.
+    const isManaged = !useDevices || input.deviceIds === undefined;
+    const rosterHash =
+      useDevices && isManaged ? computeDeviceRosterHashHex(deviceSet.rosterUdids) : undefined;
 
     const created = yield* api.appleProvisioningProfiles.upload({
       payload: {
         profileBase64,
         appleDistributionCertificateId: input.distributionCertificateId,
-        isManaged: true,
+        isManaged,
         ...compact({ deviceRosterHash: rosterHash }),
         ...(yield* autoBindProjectId),
       },

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 
+import { canonicalDeviceRoster } from "@better-update/api";
 import { toBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
@@ -17,11 +18,13 @@ import { acquireBuildTempDir } from "./temp-dir";
 
 import type { ApiClient } from "../services/api-client";
 
-/** Stable hash of an Apple device-id roster, used to detect profile drift. */
-export const computeDeviceRosterHashHex = (ascDeviceIds: readonly string[]): string => {
-  const sorted = [...ascDeviceIds].toSorted();
-  return createHash("sha256").update(sorted.join(","), "utf8").digest("hex");
-};
+/**
+ * Stable fingerprint of a device roster, used to detect profile drift. Hashes
+ * UDIDs via `canonicalDeviceRoster` — the exact string the server hashes in its
+ * staleness check, so the two fingerprints agree by construction.
+ */
+export const computeDeviceRosterHashHex = (udids: readonly string[]): string =>
+  createHash("sha256").update(canonicalDeviceRoster(udids), "utf8").digest("hex");
 
 export class CertificateLimitError extends Data.TaggedError("CertificateLimitError")<{
   readonly message: string;

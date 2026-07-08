@@ -95,8 +95,10 @@ vault access (E2E).
 ## devices — Apple UDID registration
 
 For ad-hoc / development provisioning, Apple needs the device UDIDs. These register them with
-better-update and sync with App Store Connect; the provisioning-profile generation
-(`credentials generate provisioning-profile --device-ids …`) then includes them.
+better-update and sync with App Store Connect; profile generation then covers every **enabled**
+device of the team automatically (registering better-update-only ones on the portal), or only a
+hand-picked subset via `credentials generate provisioning-profile --device-ids …` (such profiles
+are unmanaged: builds never auto-regenerate them).
 
 ```bash
 better-update devices add [--udid <udid>] [--name <name>] [--device-class IPHONE|IPAD|MAC|UNKNOWN] \
