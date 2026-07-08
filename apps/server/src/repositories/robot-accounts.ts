@@ -16,19 +16,17 @@ import type { ProjectRole } from "../models";
 // identity that both authenticates HTTP calls (bearer half) and, once linked,
 // decrypts the credential vault (the `userEncryptionKeyId` half — a
 // `user_encryption_keys` row of kind 'machine'). One robot = one project +
-// one project role; legacy pre-v2 rows carry NULL project/role, stay listed
-// (revocable) but never authenticate. The hashed bearer secret is never read
-// out of the repository.
+// one project role + one bearer, all NOT NULL invariants since migration 0094
+// (legacy pre-v2 rows are gone). The hashed bearer secret is never read out
+// of the repository.
 export interface RobotAccountModel {
   readonly id: string;
   readonly organizationId: string;
   readonly name: string;
-  readonly bearerStart: string | null;
-  readonly hasBearer: boolean;
+  readonly bearerStart: string;
   readonly userEncryptionKeyId: string | null;
-  /** NULL = legacy pre-v2 robot (cannot authenticate; recreate per-project). */
-  readonly projectId: string | null;
-  readonly role: ProjectRole | null;
+  readonly projectId: string;
+  readonly role: ProjectRole;
   readonly createdAt: string;
 }
 
@@ -74,9 +72,7 @@ export interface RobotAccountRepository {
 
   /**
    * Re-mint the bearer secret only — the linked vault identity (if any) is left
-   * untouched. Used both to rotate a compromised bearer and to top up a
-   * vault-only robot (backfilled from a pre-existing machine key) with API
-   * auth for the first time.
+   * untouched. Used to rotate a compromised bearer.
    */
   readonly rotateBearer: (params: {
     readonly id: string;
@@ -96,11 +92,7 @@ export interface RobotAccountRepository {
     readonly organizationId: string;
   }) => Effect.Effect<boolean>;
 
-  /**
-   * Bearer verification for auth middleware — SHA-256 hash lookup. Only
-   * PROJECT-scoped rows authenticate: legacy NULL-project robots resolve to
-   * `null` (401) by design (spec §1b migration posture).
-   */
+  /** Bearer verification for auth middleware — SHA-256 hash lookup. */
   readonly verifyBearer: (params: { readonly plaintext: string }) => Effect.Effect<{
     readonly id: string;
     readonly organizationId: string;
@@ -155,7 +147,6 @@ const PUBLIC_COLUMNS = [
   "id",
   "organization_id",
   "name",
-  "bearer_key_hash",
   "bearer_start",
   "user_encryption_key_id",
   "project_id",
@@ -170,7 +161,6 @@ const toModel = (row: RobotAccountRow): RobotAccountModel => ({
   organizationId: row.organization_id,
   name: row.name,
   bearerStart: row.bearer_start,
-  hasBearer: row.bearer_key_hash !== null,
   userEncryptionKeyId: row.user_encryption_key_id,
   projectId: row.project_id,
   role: row.project_role,
@@ -235,7 +225,6 @@ export const RobotAccountRepoLive = Layer.effect(
               organizationId: params.organizationId,
               name: params.name,
               bearerStart: bearer.start,
-              hasBearer: true,
               userEncryptionKeyId,
               projectId: params.projectId,
               role: params.role,
@@ -327,10 +316,6 @@ export const RobotAccountRepoLive = Layer.effect(
               .executeTakeFirst(),
           );
           if (row === undefined) {
-            return null;
-          }
-          // Legacy pre-v2 rows (NULL project) never authenticate (spec §1b).
-          if (row.project_id === null || row.project_role === null) {
             return null;
           }
           return {

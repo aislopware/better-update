@@ -73,6 +73,7 @@ manifest URL in `expo.updates.url`.
 ```
 better-update
 ├── login / logout / whoami   Auth + identity (token at ~/.better-update/auth.json, mode 0600)
+├── org                       list · switch — the session's active organization (all commands scope to it)
 ├── init / status / doctor    Link project · status · diagnostics
 ├── open / autocomplete       Open the dashboard · print a shell completion script
 ├── projects                  list · create · get · rename · archive · unarchive · delete

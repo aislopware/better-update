@@ -163,9 +163,13 @@ const createCommand = defineCommand({
 
         // The keypair was generated in-process a moment ago, so there is no
         // third-party public key to verify out-of-band — unlike `access grant`,
-        // we grant it directly (no fingerprint confirmation). A soft IdentityError
-        // (no vault yet, or this device isn't a recipient) leaves it registered
-        // but ungranted with guidance, rather than losing the just-printed bundle.
+        // we grant it directly (no fingerprint confirmation). Best-effort like
+        // the env grant below: NOTHING here may sink the command — the one-time
+        // bundle above is the output that must survive (a JSON consumer only
+        // receives it from the return value). Any failure — no vault yet, this
+        // device isn't a recipient, or the server's 403 (granting takes an org
+        // admin with vault membership; minting only takes a project Maintainer)
+        // — degrades to a warning + the admin hand-off.
         const granted = args.grant
           ? yield* unlockVaultInteractively(api).pipe(
               Effect.flatMap((vault) =>
@@ -181,10 +185,10 @@ const createCommand = defineCommand({
                 }),
               ),
               Effect.as(true),
-              Effect.catchTag("IdentityError", (error) =>
+              Effect.catchAll((error) =>
                 printHuman(
-                  `⚠ Registered but not granted: ${error.message}\n` +
-                    `  An admin can grant it later: better-update credentials access grant ${robot.account.id}`,
+                  `⚠ Registered but not granted: ${formatCause(error)}\n` +
+                    `  An org admin can grant it later: better-update credentials access grant ${robot.account.id}`,
                 ).pipe(Effect.as(false)),
               ),
             )
@@ -249,21 +253,16 @@ const listCommand = defineCommand({
         // "Vault identity" (not "access"): a registered identity may not have
         // been GRANTED the vault yet — actual membership is `credentials access list`.
         yield* printHumanList(
-          ["Id", "Name", "Project", "Role", "Bearer", "Vault identity", "Created"],
+          ["Id", "Name", "Project", "Role", "Vault identity", "Created"],
           items.map((robot) => [
             robot.id,
             robot.name,
-            // A NULL project marks a pre-v2 org-scoped robot: it can no longer
-            // authenticate (the server requires a project) and exists to be revoked.
-            robot.projectId === null
-              ? "legacy — recreate"
-              : (projectNames.get(robot.projectId) ?? robot.projectId),
-            robot.role ?? "—",
-            robot.bearerStart === null ? "— not minted —" : `${robot.bearerStart}···`,
+            projectNames.get(robot.projectId) ?? robot.projectId,
+            robot.role,
             robot.userEncryptionKeyId === null ? "no" : "yes",
             robot.createdAt,
           ]),
-          "No robot accounts yet — create one with `better-update credentials robot create`.",
+          "No robot accounts visible in this organization — robots are listed for their project's maintainers (org admins see all). Check the active organization with `better-update org list`, or create one with `better-update credentials robot create`.",
         );
         return { items };
       }),

@@ -126,9 +126,7 @@ export type ProjectProtocolMetadata = WithNonNullId<Gen.ProjectProtocolMetadata>
 export type Projects = WithNonNullId<Gen.Projects>;
 export type ProjectsFts = WithNonNullId<Gen.ProjectsFts>;
 export type ProtectedEnvironment = WithNonNullId<Gen.ProtectedEnvironment>;
-export type RobotAccount = WithNonNullId<
-  Narrow<Gen.RobotAccount, { project_role: ProjectRole | null }>
->;
+export type RobotAccount = WithNonNullId<Narrow<Gen.RobotAccount, { project_role: ProjectRole }>>;
 export type Session = WithNonNullId<Gen.Session>;
 export type Submissions = WithNonNullId<
   Narrow<Gen.Submissions, { archive_source: SubmissionArchiveSource; platform: Platform }>

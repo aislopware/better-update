@@ -540,14 +540,14 @@ export interface ProtectedEnvironment {
 }
 
 export interface RobotAccount {
-  bearer_key_hash: string | null;
-  bearer_start: string | null;
+  bearer_key_hash: string;
+  bearer_start: string;
   created_at: Generated<string>;
   id: string;
   name: string;
   organization_id: string;
-  project_id: string | null;
-  project_role: string | null;
+  project_id: string;
+  project_role: string;
   revoked_at: string | null;
   user_encryption_key_id: string | null;
 }

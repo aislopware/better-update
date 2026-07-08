@@ -29,6 +29,7 @@ Many booleans are citty-negatable — a `foo` flag with default on is disabled w
 ```
 better-update
 ├── login / logout / whoami        Auth + identity
+├── org                            list · switch — this session's active organization
 ├── init / status / doctor / open  Project link, status, diagnostics, dashboard
 ├── autocomplete <shell>           Print a shell completion script
 ├── projects                       list · create · get · rename · archive · unarchive · delete
@@ -89,6 +90,8 @@ current CLI.
 better-update login [--api-key]          # browser OAuth; --api-key prompts for a manual token paste
 better-update logout [--all]             # remove the auth token; --all also clears the cached Apple session
 better-update whoami                     # show the authenticated user/actor + active organization
+better-update org [list]                 # organizations you belong to (● marks this session's active one)
+better-update org switch [<slug-or-id>]  # set the session's active org (prompts when omitted)
 better-update init [--id <id>] [--name <name>] [--slug <slug>]
 better-update status                     # linked project info, credential counts, recent build counts
 better-update doctor                     # diagnostics (Node>=22, signing tools, server, auth, config); exit 6 on any fail
@@ -99,6 +102,11 @@ better-update autocomplete <shell>       # shell ∈ bash|zsh|fish
 - `login` writes `~/.better-update/auth.json` (mode `0600`). `--api-key` pastes a session token
   manually instead of opening the browser. CI doesn't use this at all — it authenticates via the
   `BETTER_UPDATE_ROBOT` env var (see `credentials robot create` below), never `login`.
+- The CLI session is pinned to ONE active organization — inherited from whichever org the browser
+  had active at `login` time and sticky afterwards (switching orgs in the web dashboard does NOT
+  move the CLI session). Every command (projects, robots, env vars, vaults) scopes to it; an
+  unexpectedly empty `list` usually means the wrong active org. `org switch` also drops the cached
+  credential/env vault keys, since they belong to the previous org's vaults.
 - `init` links the local project (Expo **or** any build system). With `--id` it links by explicit
   project id (skips slug lookup/creation). For non-Expo projects, `--name`/`--slug` default to
   package.json name / kebab-cased name, and the id is written to `eas.json`, not `app.json`.
@@ -344,8 +352,12 @@ better-update credentials robot <create|list|rotate|revoke|grant-env> …    # d
 #     — mint a robot (bearer + vault identity), grant it (incl. env-vault post-cutover), print BETTER_UPDATE_ROBOT once.
 #       One robot = ONE project + ONE role, fixed at creation (no grant/revoke-access subcommands).
 #       --project defaults to the linked project from the local context; --role defaults to developer.
-#       Requires Maintainer+ on that project (org admin/owner implicitly).
-#   robot list — shows each robot's project + role; pre-v2 rows show "legacy — recreate" (they no longer authenticate; revoke them)
+#       MINTING requires Maintainer+ on that project (org admin/owner implicitly); the vault GRANT
+#       additionally requires an org admin who is a vault recipient. A plain Maintainer still gets
+#       the robot + bundle — the grant degrades to "Registered but not granted" (never sinks the
+#       command or the one-time bundle) and an org admin runs `credentials access grant <robot-id>` later.
+#   robot list — shows each robot's id, project + role; scoped to the session's ACTIVE ORG, and non-admins
+#     only see robots on projects they maintain (empty list ≠ no robots — check `better-update org list`).
 #   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity to get a full bundle back
 #   robot revoke <id> [--yes] — bearer stops authenticating; excludes + rotates the credentials and env vaults it held access to
 #   robot grant-env <id> — enroll an EXISTING robot into the env vault so it decrypts env vars in CI (post-cutover; idempotent; `create` already covers new robots)

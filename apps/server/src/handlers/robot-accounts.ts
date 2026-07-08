@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { assertAccess, assertOrgAdmin } from "../auth/policy";
+import { assertAccess } from "../auth/policy";
 import { effectiveProjectRole, projectRoleAtLeast } from "../auth/role-matrix";
 import { NotFound } from "../errors";
 import { toApiCrudEffect, toApiReadEffect } from "../http/to-api-effect";
@@ -21,7 +21,6 @@ const toRobotAccount = (model: RobotAccountModel): RobotAccount =>
     organizationId: model.organizationId,
     name: model.name,
     bearerStart: model.bearerStart,
-    hasBearer: model.hasBearer,
     userEncryptionKeyId: model.userEncryptionKeyId,
     projectId: model.projectId,
     role: model.role,
@@ -29,15 +28,11 @@ const toRobotAccount = (model: RobotAccountModel): RobotAccount =>
   });
 
 // A robot is project-scoped (GITLAB-RBAC-SPEC §1b, v2): managing it requires
-// Maintainer+ on ITS project. Legacy pre-v2 rows (projectId null) fall back
-// to the org-admin gate — they exist only to be revoked.
+// Maintainer+ on ITS project.
 const assertRobotManageable = (target: RobotAccountModel) =>
-  target.projectId === null
-    ? assertOrgAdmin
-    : assertAccess("robotAccount", "update", { kind: "project", projectId: target.projectId });
+  assertAccess("robotAccount", "update", { kind: "project", projectId: target.projectId });
 
 const canSeeRobot = (ctx: CurrentActorModel, robot: RobotAccountModel): boolean =>
-  robot.projectId !== null &&
   projectRoleAtLeast(effectiveProjectRole(ctx, robot.projectId), "maintainer");
 
 export const RobotAccountsGroupLive = HttpApiBuilder.group(
@@ -54,9 +49,9 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               organizationId: ctx.organizationId,
               projectId: urlParams.projectId,
             });
-            // Admin tier sees every robot (incl. legacy unassigned rows);
-            // otherwise the list scopes to projects the actor maintains —
-            // the same rank that could rotate/revoke them.
+            // Admin tier sees every robot; otherwise the list scopes to
+            // projects the actor maintains — the same rank that could
+            // rotate/revoke them.
             if (ctx.isSuperadmin || ctx.isOwner || ctx.orgRole === "admin") {
               return { items: accounts.map(toRobotAccount) };
             }
@@ -114,7 +109,6 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               organizationId: created.model.organizationId,
               name: created.model.name,
               bearerStart: created.model.bearerStart,
-              hasBearer: created.model.hasBearer,
               userEncryptionKeyId: created.model.userEncryptionKeyId,
               projectId: payload.projectId,
               role: payload.role,
@@ -135,7 +129,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
             });
             // Rotating hands out the robot's NEW bearer — an identity
             // takeover — so it takes the same rank that could mint it:
-            // Maintainer on its project (admin for legacy rows). A robot can
+            // Maintainer on its project. A robot can
             // never escalate this way: the rotated identity holds at most
             // maintainer on the same single project.
             yield* assertRobotManageable(target);

@@ -186,7 +186,7 @@ better-update credentials passphrase change              # change this device's 
 # Org-owned, PROJECT-scoped CI identity (bearer auth + vault identity in one) — see below
 better-update credentials robot create [--name] [--no-grant] \
   [--project <projectId>] [--role maintainer|developer|reporter]  # mint + grant (credentials + env vault), prints BETTER_UPDATE_ROBOT once
-better-update credentials robot list                           # this org's robots (project + role; legacy rows flagged)
+better-update credentials robot list                           # active org's robots you may see (id, project + role)
 better-update credentials robot rotate <id> [--identity <key>] # re-mint the bearer only
 better-update credentials robot revoke <id> [--yes]            # bearer stops auth; excludes + rotates the vault(s) it held access to
 better-update credentials robot grant-env <id>                 # enroll an existing robot into the env vault (post-cutover; idempotent)
@@ -257,6 +257,13 @@ Because the keypair is generated in-process, there is no third-party public key 
 `robot create` grants vault access directly without the out-of-band fingerprint confirmation that
 `access grant` requires.
 
+Minting only takes **Maintainer on the project**; the vault **grant** additionally takes an **org
+admin who is a vault recipient** (`vaultAccess:*` is an org-admin rule). A plain Maintainer running
+`robot create` still gets the robot and the one-time bundle — the grant step degrades to
+_"Registered but not granted"_ (it never sinks the command) and hands off
+`credentials access grant <robot-id>` for an org admin to run later. In short: a Maintainer can mint
+an OTA-publishing robot; making it credential-decrypting takes an admin.
+
 Post-cutover orgs keep env-var values under a **separate env vault**, so credentials-vault access
 alone does not decrypt env vars in CI — `robot create` therefore also self-links the new robot as an
 env-vault recipient (best-effort: if that part fails you get a warning plus the `grant-env` command
@@ -284,9 +291,7 @@ failure is safe to re-run). Rotate its bearer alone with `credentials robot rota
 vault identity is left untouched); pass `--identity <its current age private key>` to get a fresh
 full `BETTER_UPDATE_ROBOT` bundle back.
 Robot management (create/rotate/revoke) takes Maintainer+ on the robot's project (org admin/owner
-implicitly). `robot list` shows every robot with its project + role; pre-v2 org-scoped robots show
-"legacy — recreate" — they no longer authenticate and should be revoked (their vault access is
-cleaned up through the normal revoke flow).
+implicitly). `robot list` shows every visible robot with its id, project + role.
 
 **Migrating from `BETTER_UPDATE_IDENTITY` + `BETTER_UPDATE_TOKEN`:** the old dual-secret setup
 (a standalone `identity create-ci` machine key paired with a dashboard API key) is gone — the API

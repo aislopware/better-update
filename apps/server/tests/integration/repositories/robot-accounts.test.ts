@@ -65,7 +65,6 @@ describe("RobotAccountRepo — create → verifyBearer (the linchpin)", () => {
 
     expect(created.bearerSecret.startsWith("bu_robot_")).toBe(true);
     expect(created.model.bearerStart).toBe(created.bearerSecret.slice(0, 6));
-    expect(created.model.hasBearer).toBe(true);
     expect(created.model.userEncryptionKeyId).not.toBeNull();
 
     const verified = await run(
@@ -269,34 +268,5 @@ describe("RobotAccountRepo — list / rotateBearer / revoke (org-scoped)", () =>
       }),
     );
     expect(again).toBe(false);
-  });
-
-  it("a legacy NULL-project row (pre-v2 migration posture) never verifies", async () => {
-    // Simulate a 0092-migrated legacy robot: bearer present, no project.
-    const created = await createRobot("org-robot-2", "legacy-row");
-    await env.DB.prepare(
-      `UPDATE "robot_account" SET "project_id" = NULL, "project_role" = NULL WHERE "id" = ?`,
-    )
-      .bind(created.model.id)
-      .run();
-
-    const verified = await run(
-      Effect.gen(function* () {
-        const repo = yield* RobotAccountRepo;
-        return yield* repo.verifyBearer({ plaintext: created.bearerSecret });
-      }),
-    );
-    expect(verified).toBeNull();
-
-    // Still listed (so it can be revoked) with the null project surfaced.
-    const listed = await run(
-      Effect.gen(function* () {
-        const repo = yield* RobotAccountRepo;
-        return yield* repo.list({ organizationId: "org-robot-2" });
-      }),
-    );
-    const legacy = listed.find((model) => model.id === created.model.id);
-    expect(legacy?.projectId).toBeNull();
-    expect(legacy?.role).toBeNull();
   });
 });

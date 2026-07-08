@@ -8,19 +8,18 @@ import { AgeRecipient, KeyFingerprint } from "./user-encryption-key";
 // identity that both authenticates HTTP calls (bearer secret) and, once
 // linked, decrypts the credential vault (a `user_encryption_keys` row of kind
 // 'machine', registered alongside it). One robot = one project + one project
-// role — its whole authorization. The hashed bearer secret is NEVER exposed —
-// only `bearerStart` (the first few characters of the plaintext, incl. the
-// prefix) for UI identification. `projectId`/`role` are null ONLY on legacy
-// pre-v2 rows, which never authenticate and exist to be revoked.
+// role + one bearer — all invariants since migration 0094 dropped the legacy
+// pre-v2 rows. The hashed bearer secret is NEVER exposed — only `bearerStart`
+// (the first few characters of the plaintext, incl. the prefix) so a masked
+// CI variable can be matched back to its robot.
 export class RobotAccount extends Schema.Class<RobotAccount>("RobotAccount")({
   id: Id,
   organizationId: Id,
   name: Name120,
-  bearerStart: Schema.NullOr(Schema.String),
-  hasBearer: Schema.Boolean,
+  bearerStart: Schema.String,
   userEncryptionKeyId: Schema.NullOr(Id),
-  projectId: Schema.NullOr(Id),
-  role: Schema.NullOr(ProjectMemberRole),
+  projectId: Id,
+  role: ProjectMemberRole,
   createdAt: DateTimeString,
 }) {}
 
@@ -31,8 +30,7 @@ export class CreatedRobotAccount extends Schema.Class<CreatedRobotAccount>("Crea
   id: Id,
   organizationId: Id,
   name: Name120,
-  bearerStart: Schema.NullOr(Schema.String),
-  hasBearer: Schema.Boolean,
+  bearerStart: Schema.String,
   userEncryptionKeyId: Schema.NullOr(Id),
   projectId: Id,
   role: ProjectMemberRole,
@@ -60,7 +58,7 @@ export class RotatedRobotAccountBearer extends Schema.Class<RotatedRobotAccountB
 }) {}
 
 // Optional server-side project scope for the list (the dashboard's per-project
-// robots tab); omitted = every robot visible to the actor, incl. legacy rows.
+// robots tab); omitted = every robot visible to the actor.
 export const ListRobotAccountsParams = Schema.Struct({ projectId: Schema.optional(Id) });
 
 export const RobotAccountList = Schema.Struct({ items: Schema.Array(RobotAccount) });

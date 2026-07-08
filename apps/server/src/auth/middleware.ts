@@ -253,7 +253,7 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
     // is the single (projectId → role) entry carried on the robot row.
     // Org-level: plain member — a robot can do exactly what a human with
     // that one membership row could, plus nothing org-administrative.
-    // verifyBearer already rejected legacy NULL-project rows.
+    // verifyBearer resolves the single (projectId → role) grant.
     return {
       userId: null,
       organizationId: verified.organizationId,

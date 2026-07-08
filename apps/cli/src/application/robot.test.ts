@@ -24,7 +24,6 @@ const buildApi = (captured: CreatePayload[]): ApiClient =>
           organizationId: "org-1",
           name: payload.name,
           bearerStart: "bu_rob",
-          hasBearer: true,
           userEncryptionKeyId: "key-1",
           projectId: payload.projectId,
           role: payload.role,

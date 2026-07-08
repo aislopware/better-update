@@ -34,10 +34,12 @@ project role**, both fixed at creation (`credentials robot create --project <id>
 _member_ with exactly that one project membership: it can never manage org members, webhooks, or
 org settings, cannot create projects, and cannot WRITE org-global env vars (it can still READ them
 with developer+). Robot management (create/rotate/revoke) takes **Maintainer+ on the robot's
-project** (org admin/owner implicitly). Pre-v2 robots with no project show as "legacy — recreate"
-in `robot list`: they no longer authenticate and only exist to be revoked. The dashboard lists a
-project's robots read-only (project → Robot accounts, visible to Maintainer+); all mutations stay
-CLI-only.
+project** (org admin/owner implicitly), while GRANTING a robot vault access stays an org-admin
+operation (`vaultAccess:*`) — a plain Maintainer mints an OTA-publishing robot, an admin makes it
+credential-decrypting (`credentials access grant <robot-id>`). `robot list` scopes to the session's
+active org and, for non-admins, to projects they maintain — an empty list can just mean the wrong
+active org (`better-update org list`). The dashboard lists a project's robots read-only (project →
+Robot accounts, visible to Maintainer+); all mutations stay CLI-only.
 
 **Protected environments** (default: `production`) only accept writes from project **Maintainers**
 (and org admins/owner) — developers cannot publish/edit branches, channels, updates, rollouts, or

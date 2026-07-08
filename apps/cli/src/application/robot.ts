@@ -48,9 +48,7 @@ export const createRobotAccount = (api: ApiClient, name: string, options: Create
 
 /**
  * Re-mint a robot account's bearer secret only — any linked vault identity is
- * left untouched. Used both to rotate a compromised bearer and to top up a
- * vault-only robot (backfilled from a pre-existing machine key, see migration
- * 0077) with API auth for the first time.
+ * left untouched. Used to rotate a compromised bearer.
  */
 export const rotateRobotAccountBearer = (api: ApiClient, id: string) =>
   api["robot-accounts"].rotate({ path: { id } });
