@@ -22,6 +22,7 @@ const TOP_LEVEL_COMMANDS = [
   "analytics",
   "audit-logs",
   "whoami",
+  "org",
   "open",
   "doctor",
   "devices",

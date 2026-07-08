@@ -104,6 +104,8 @@ const makeApiClientLayer = (api: ApiClient) =>
   Layer.succeed(ApiClientService, {
     get: Effect.succeed(api),
     exchangeOneTimeToken: () => Effect.succeed("test-session-token"),
+    listOrganizations: Effect.succeed([]),
+    setActiveOrganization: () => Effect.void,
   });
 
 const makeAssetUploaderLayer = (recorder: { uploads: UploadUpdateAssetInput[] }) =>

@@ -36,6 +36,8 @@ const apiLayer = (options: StubApiOptions): Layer.Layer<ApiClientService> =>
   Layer.succeed(ApiClientService, {
     get: Effect.succeed(makeStubApiClient(options)),
     exchangeOneTimeToken: () => Effect.succeed("token"),
+    listOrganizations: Effect.succeed([]),
+    setActiveOrganization: () => Effect.void,
   });
 
 const cliRuntimeLayer = (cwd = "/project"): Layer.Layer<CliRuntime> =>

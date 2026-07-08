@@ -10,6 +10,10 @@ export class LoginError extends Data.TaggedError("LoginError")<{
   readonly message: string;
 }> {}
 
+export class OrgError extends Data.TaggedError("OrgError")<{
+  readonly message: string;
+}> {}
+
 export class ProjectNotLinkedError extends Data.TaggedError("ProjectNotLinkedError")<{
   readonly message: string;
 }> {}

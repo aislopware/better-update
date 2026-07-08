@@ -19,6 +19,7 @@ import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { metadataCommand } from "./commands/metadata";
 import { openCommand } from "./commands/open";
+import { orgCommand } from "./commands/org";
 import { projectsCommand } from "./commands/projects";
 import { reviewsCommand } from "./commands/reviews";
 import { statusCommand } from "./commands/status";
@@ -64,6 +65,7 @@ export const commandRegistry = {
   analytics: analyticsCommand,
   "audit-logs": auditLogsCommand,
   whoami: whoamiCommand,
+  org: orgCommand,
   open: openCommand,
   doctor: doctorCommand,
   devices: devicesCommand,

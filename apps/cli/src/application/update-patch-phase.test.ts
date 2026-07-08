@@ -68,6 +68,8 @@ const makeApiLayer = (
       },
     } as unknown as ApiClient),
     exchangeOneTimeToken: () => Effect.succeed("token"),
+    listOrganizations: Effect.succeed([]),
+    setActiveOrganization: () => Effect.void,
   });
 
 const configLayer = Layer.succeed(ConfigStore, {
