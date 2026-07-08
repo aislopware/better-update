@@ -73,8 +73,7 @@ type RoleInput<
 
 type RoleAuthorizeRequest<TStatements extends Statements> = {
   [P in keyof TStatements]?:
-    | SubArray<TStatements[P]>
-    | { actions: SubArray<TStatements[P]>; connector: "OR" | "AND" };
+    SubArray<TStatements[P]> | { actions: SubArray<TStatements[P]>; connector: "OR" | "AND" };
 };
 type AuthorizeResponse = { success: false; error: string } | { success: true; error?: never };
 ```

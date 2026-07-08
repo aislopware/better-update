@@ -9,6 +9,6 @@
     "./react": "./src/react.ts"
   },
   "peerDependencies": {
-    "oxlint": "^1.72.0"
+    "oxlint": "^1.73.0"
   }
 }

@@ -616,17 +616,17 @@ Replace EVERY `assertPermission(resource, action)` and
 `assertPermissionOn(resource, action, scope)` call with
 `assertAccess(resource, action, target)`:
 
-| Surface                                                             | Old                           | New target                                               |
+| Surface | Old | New target |
 | ------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------- | ------------------------------ |
-| org-level (member/billing/apiKey/auditLog/org/webhook/device/vault) | `assertPermission`            | `{ kind: "org" }`                                        |
-| project read/create/update/delete                                   | `assertPermission`            | `{ kind: "project", projectId }` (create → `org`)        |
-| channel mutations + channel↔branch                                  | `assertPermissionOn(channel)` | `{ kind: "channel", projectId, environment, channelId }` |
-| publish / republish to channel                                      | `assertPermissionOn`          | `{ kind: "update", … }` (or `channel` for the gate)      |
-| rollout create/update                                               | `assertPermissionOn`          | `{ kind: "rollout", … }`                                 |
-| envVar read/mutate                                                  | `assertPermission`            | `{ kind: "envVar", projectId                             | "global", environment, key? }` |
-| build trigger/read/cancel                                           | `assertPermission`            | `{ kind: "build", projectId, buildId? }`                 |
-| credentials read/download                                           | `assertPermission`            | `{ kind: "credential", projectId, credentialId? }`       |
-| submission                                                          | `assertPermission`            | `{ kind: "submission", projectId, submissionId? }`       |
+| org-level (member/billing/apiKey/auditLog/org/webhook/device/vault) | `assertPermission` | `{ kind: "org" }` |
+| project read/create/update/delete | `assertPermission` | `{ kind: "project", projectId }` (create → `org`) |
+| channel mutations + channel↔branch | `assertPermissionOn(channel)` | `{ kind: "channel", projectId, environment, channelId }` |
+| publish / republish to channel | `assertPermissionOn` | `{ kind: "update", … }` (or `channel` for the gate) |
+| rollout create/update | `assertPermissionOn` | `{ kind: "rollout", … }` |
+| envVar read/mutate | `assertPermission` | `{ kind: "envVar", projectId                             | "global", environment, key? }` |
+| build trigger/read/cancel | `assertPermission` | `{ kind: "build", projectId, buildId? }` |
+| credentials read/download | `assertPermission` | `{ kind: "credential", projectId, credentialId? }` |
+| submission | `assertPermission` | `{ kind: "submission", projectId, submissionId? }` |
 
 Most sites already hold `projectId` + `channelId`; resolve `environment` from the
 branch the channel maps to (`ChannelRepo.findByBranchId` / branch lookup already
