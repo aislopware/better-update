@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.39.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.38.0...%40better-update%2Fapi%400.39.0) (2026-07-08)
+
+### ⚠ BREAKING CHANGES
+
+* **authz:** robot-accounts API responses drop hasBearer and require
+  project/role/bearer; CLIs at or below 0.59.1 fail to decode them.
+
+### Features
+
+* **authz:** drop legacy robot accounts for good ([7ee6545](https://gitlab.jmango360.com/mobile/better-update/commit/7ee6545638e576c7dda7425b072e0ea730b2255c))
+
 ## [0.38.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.37.0...%40better-update%2Fapi%400.38.0) (2026-07-04)
 
 **Note:** Version bump only for package @better-update/api

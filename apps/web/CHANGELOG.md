@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.58.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.4...%40better-update%2Fweb%400.58.0) (2026-07-08)
+
+### ⚠ BREAKING CHANGES
+
+* **authz:** robot-accounts API responses drop hasBearer and require
+  project/role/bearer; CLIs at or below 0.59.1 fail to decode them.
+
+### Features
+
+* **authz:** drop legacy robot accounts for good ([7ee6545](https://github.com/better-update/better-update/commit/7ee6545638e576c7dda7425b072e0ea730b2255c))
+
 ## [0.57.4](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.57.3...%40better-update%2Fweb%400.57.4) (2026-07-06)
 
 ### Bug Fixes

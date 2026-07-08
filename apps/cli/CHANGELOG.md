@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.60.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.59.1...%40better-update%2Fcli%400.60.0) (2026-07-08)
+
+### ⚠ BREAKING CHANGES
+
+* **authz:** robot-accounts API responses drop hasBearer and require
+  project/role/bearer; CLIs at or below 0.59.1 fail to decode them.
+
+### Features
+
+* **authz:** drop legacy robot accounts for good ([7ee6545](https://github.com/better-update/better-update/commit/7ee6545638e576c7dda7425b072e0ea730b2255c))
+* **cli:** add org list/switch for the session's active organization ([dfe17ac](https://github.com/better-update/better-update/commit/dfe17acb0103719bed9b54e107a58f802321b27e))
+
 ## [0.59.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.59.0...%40better-update%2Fcli%400.59.1) (2026-07-06)
 
 ### Bug Fixes
