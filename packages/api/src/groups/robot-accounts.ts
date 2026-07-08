@@ -8,8 +8,10 @@ import {
   CreateRobotAccountBody,
   CreatedRobotAccount,
   ListRobotAccountsParams,
+  RobotAccount,
   RobotAccountList,
   RotatedRobotAccountBearer,
+  UpdateRobotAccountBody,
 } from "../domain/robot-account";
 
 export class RobotAccountsGroup extends HttpApiGroup.make("robot-accounts")
@@ -34,6 +36,18 @@ export class RobotAccountsGroup extends HttpApiGroup.make("robot-accounts")
           title: "Create robot account",
           description:
             "Mint a new org-owned robot account: registers the given vault public key as a machine recipient and mints a bearer secret. Both secrets are returned ONCE",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.patch("update")`/api/robot-accounts/${idParam}`
+      .setPayload(UpdateRobotAccountBody)
+      .addSuccess(RobotAccount)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Update robot account",
+          description:
+            "Rename a robot account and/or change its project role in place (the project itself is fixed at creation). Every change is audit-logged",
         }),
       ),
   )

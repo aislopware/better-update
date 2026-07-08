@@ -1,4 +1,5 @@
 import { generateIdentity } from "@better-update/credentials-crypto";
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import type { CreatedRobotAccount } from "@better-update/api";
@@ -52,3 +53,20 @@ export const createRobotAccount = (api: ApiClient, name: string, options: Create
  */
 export const rotateRobotAccountBearer = (api: ApiClient, id: string) =>
   api["robot-accounts"].rotate({ path: { id } });
+
+/** In-place robot changes: rename and/or a new project role (never the project). */
+export interface UpdateRobotOptions {
+  readonly name?: string | undefined;
+  readonly role?: ProjectRole | undefined;
+}
+
+/**
+ * Rename a robot and/or change its project role in place — the project itself
+ * is fixed at mint. Server-side the change is audit-logged and a rename also
+ * relabels the linked vault identity.
+ */
+export const updateRobotAccount = (api: ApiClient, id: string, options: UpdateRobotOptions) =>
+  api["robot-accounts"].update({
+    path: { id },
+    payload: compact({ name: options.name, role: options.role }),
+  });

@@ -2,7 +2,7 @@ import { deriveRecipient } from "@better-update/credentials-crypto";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { createRobotAccount, rotateRobotAccountBearer } from "./robot";
+import { createRobotAccount, rotateRobotAccountBearer, updateRobotAccount } from "./robot";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -87,6 +87,56 @@ describe("rotating a robot account's bearer", () => {
     Effect.gen(function* () {
       const rotated = yield* rotateRobotAccountBearer(buildApi([]), "robot-1");
       expect(rotated.bearerSecret).toBe("bu_robot_new-secret");
+    }),
+  );
+});
+
+describe("updating a robot account", () => {
+  interface UpdateCall {
+    readonly path: { readonly id: string };
+    readonly payload: Record<string, unknown>;
+  }
+
+  const buildUpdateApi = (captured: UpdateCall[]): ApiClient =>
+    ({
+      "robot-accounts": {
+        update: (call: UpdateCall) => {
+          captured.push(call);
+          return Effect.succeed({
+            id: call.path.id,
+            organizationId: "org-1",
+            name: "renamed",
+            bearerStart: "bu_rob",
+            userEncryptionKeyId: "key-1",
+            projectId: "proj-1",
+            role: "maintainer",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+        },
+      },
+    }) as unknown as ApiClient;
+
+  it.effect("sends only the provided fields (undefined keys dropped from the PATCH)", () =>
+    Effect.gen(function* () {
+      const captured: UpdateCall[] = [];
+      yield* updateRobotAccount(buildUpdateApi(captured), "robot-1", { name: "renamed" });
+
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.path.id).toBe("robot-1");
+      expect(captured[0]?.payload).toStrictEqual({ name: "renamed" });
+    }),
+  );
+
+  it.effect("passes a role change through and returns the updated account", () =>
+    Effect.gen(function* () {
+      const captured: UpdateCall[] = [];
+      const updated = yield* updateRobotAccount(buildUpdateApi(captured), "robot-1", {
+        role: "maintainer",
+      });
+
+      expect(captured[0]?.payload).toStrictEqual({ role: "maintainer" });
+      expect(updated.role).toBe("maintainer");
+      expect(updated.name).toBe("renamed");
     }),
   );
 });

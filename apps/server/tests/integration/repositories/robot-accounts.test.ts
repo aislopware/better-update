@@ -166,6 +166,108 @@ describe("RobotAccountRepo — revoked_at tombstones are dead to every query", (
       }),
     );
     expect(rotated._tag).toBe("Left");
+
+    const updated = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo
+          .update({ id: created.model.id, organizationId: "org-robot-1", name: "renamed" })
+          .pipe(Effect.either);
+      }),
+    );
+    expect(updated._tag).toBe("Left");
+  });
+});
+
+describe("RobotAccountRepo — update (rename / role change in place)", () => {
+  it("renames the robot AND relabels its linked machine recipient atomically", async () => {
+    const created = await createRobot("org-robot-1", "old-name");
+
+    const updated = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.update({
+          id: created.model.id,
+          organizationId: "org-robot-1",
+          name: "new-name",
+        });
+      }),
+    );
+    expect(updated.name).toBe("new-name");
+    // Everything else is untouched.
+    expect(updated.role).toBe("developer");
+    expect(updated.projectId).toBe("proj-org-robot-1");
+    expect(updated.userEncryptionKeyId).toBe(created.model.userEncryptionKeyId);
+
+    const keyRow = await env.DB.prepare(`SELECT "label" FROM "user_encryption_keys" WHERE "id" = ?`)
+      .bind(created.model.userEncryptionKeyId)
+      .first<{ label: string }>();
+    expect(keyRow?.label).toBe("new-name");
+  });
+
+  it("changes the role alone, leaving name + vault label untouched", async () => {
+    const created = await createRobot("org-robot-1", "role-change");
+
+    const updated = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.update({
+          id: created.model.id,
+          organizationId: "org-robot-1",
+          role: "maintainer",
+        });
+      }),
+    );
+    expect(updated.role).toBe("maintainer");
+    expect(updated.name).toBe("role-change");
+
+    // The new role is live for auth immediately (verifyBearer reads the row).
+    const verified = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.verifyBearer({ plaintext: created.bearerSecret });
+      }),
+    );
+    expect(verified?.role).toBe("maintainer");
+
+    const keyRow = await env.DB.prepare(`SELECT "label" FROM "user_encryption_keys" WHERE "id" = ?`)
+      .bind(created.model.userEncryptionKeyId)
+      .first<{ label: string }>();
+    expect(keyRow?.label).toBe("role-change");
+  });
+
+  it("an empty patch is a no-op returning the current row", async () => {
+    const created = await createRobot("org-robot-1", "noop");
+
+    const updated = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.update({ id: created.model.id, organizationId: "org-robot-1" });
+      }),
+    );
+    expect(updated).toStrictEqual(created.model);
+  });
+
+  it("is org-scoped: another org's id is NotFound and nothing changes", async () => {
+    const created = await createRobot("org-robot-2", "cross-org");
+
+    const crossOrg = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo
+          .update({ id: created.model.id, organizationId: "org-robot-1", name: "stolen" })
+          .pipe(Effect.either);
+      }),
+    );
+    expect(crossOrg._tag).toBe("Left");
+
+    const found = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.findById({ id: created.model.id, organizationId: "org-robot-2" });
+      }),
+    );
+    expect(found.name).toBe("cross-org");
   });
 });
 

@@ -347,10 +347,11 @@ ciphertext. These manage who can decrypt and the local cached-key session.
 
 ```bash
 better-update credentials identity <create|init|register|show> [--label]   # default `show`; device identity only
-better-update credentials robot <create|list|rotate|revoke|grant-env> …    # default `list`; org-owned, PROJECT-scoped CI identity
+better-update credentials robot <create|list|update|rotate|revoke|grant-env> …   # default `list`; org-owned, PROJECT-scoped CI identity
 #   robot create [--name] [--no-grant] [--project <projectId>] [--role maintainer|developer|reporter]
 #     — mint a robot (bearer + vault identity), grant it (incl. env-vault post-cutover), print BETTER_UPDATE_ROBOT once.
-#       One robot = ONE project + ONE role, fixed at creation (no grant/revoke-access subcommands).
+#       One robot = ONE project + ONE role; the project is fixed at creation (no grant/revoke-access
+#       subcommands), the name/role can be changed later with `robot update`.
 #       --project defaults to the linked project from the local context; --role defaults to developer.
 #       MINTING requires Maintainer+ on that project (org admin/owner implicitly); the vault GRANT
 #       additionally requires an org admin who is a vault recipient. A plain Maintainer still gets
@@ -358,6 +359,9 @@ better-update credentials robot <create|list|rotate|revoke|grant-env> …    # d
 #       command or the one-time bundle) and an org admin runs `credentials access grant <robot-id>` later.
 #   robot list — shows each robot's id, project + role; scoped to the session's ACTIVE ORG, and non-admins
 #     only see robots on projects they maintain (empty list ≠ no robots — check `better-update org list`).
+#   robot update <id> [--name <name>] [--role maintainer|developer|reporter] — rename and/or change the role in place
+#     (the PROJECT is fixed at creation — moving a robot still means mint new + revoke old). A rename also relabels the
+#     robot's vault identity; every change lands in the org audit log (`robotAccount.update`, with previous + new values).
 #   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity to get a full bundle back
 #   robot revoke <id> [--yes] — bearer stops authenticating; excludes + rotates the credentials and env vaults it held access to
 #   robot grant-env <id> — enroll an EXISTING robot into the env vault so it decrypts env vars in CI (post-cutover; idempotent; `create` already covers new robots)

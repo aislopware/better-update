@@ -331,6 +331,7 @@ export {
   RobotAccount,
   RobotAccountList,
   RotatedRobotAccountBearer,
+  UpdateRobotAccountBody,
 } from "./domain/robot-account";
 export {
   CreateInvitationBody,

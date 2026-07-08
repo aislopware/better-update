@@ -50,6 +50,15 @@ export const CreateRobotAccountBody = Schema.Struct({
   role: ProjectMemberRole,
 });
 
+// PATCH body: rename and/or change the project role in place. The project is
+// NOT changeable — one robot = one project is a mint-time invariant (spec §1b);
+// moving a robot means minting a new one. Both fields optional so a caller can
+// change either alone; the server treats an empty patch as a no-op.
+export const UpdateRobotAccountBody = Schema.Struct({
+  name: Schema.optional(Name120),
+  role: Schema.optional(ProjectMemberRole),
+});
+
 // A re-minted bearer secret (rotate). Leaves any linked vault identity untouched.
 export class RotatedRobotAccountBearer extends Schema.Class<RotatedRobotAccountBearer>(
   "RotatedRobotAccountBearer",

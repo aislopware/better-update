@@ -7,7 +7,11 @@ import {
   orgHasCutOver,
 } from "../../application/env-vault-access";
 import { rotateEnvVault } from "../../application/env-vault-rotation";
-import { createRobotAccount, rotateRobotAccountBearer } from "../../application/robot";
+import {
+  createRobotAccount,
+  rotateRobotAccountBearer,
+  updateRobotAccount,
+} from "../../application/robot";
 import { grantRecipient } from "../../application/vault-access";
 import { currentRecipients, rotateVaultTo } from "../../application/vault-rotation";
 import { runEffect } from "../../lib/citty-effect";
@@ -270,6 +274,52 @@ const listCommand = defineCommand({
     ),
 });
 
+const updateCommand = defineCommand({
+  meta: {
+    name: "update",
+    description:
+      "Rename a robot account and/or change its project role in place (the project itself is fixed at creation); every change is audit-logged",
+  },
+  args: {
+    id: { type: "positional", required: true, description: "Robot account id" },
+    name: { type: "string", description: "New human name for this robot" },
+    role: {
+      type: "string",
+      description: 'New project role: "maintainer", "developer", or "reporter"',
+    },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const name = args.name?.trim();
+        if (name?.length === 0) {
+          return yield* new IdentityError({ message: "--name must not be empty." });
+        }
+        if (name === undefined && args.role === undefined) {
+          return yield* new IdentityError({
+            message: "Nothing to update — pass --name and/or --role.",
+          });
+        }
+        const role = args.role === undefined ? undefined : yield* parseProjectRole(args.role);
+        const api = yield* apiClient;
+        const updated = yield* updateRobotAccount(api, args.id, { name, role });
+        yield* printKeyValue([
+          ["Name", updated.name],
+          ["Id", updated.id],
+          ["Project", updated.projectId],
+          ["Role", updated.role],
+        ]);
+        return {
+          id: updated.id,
+          name: updated.name,
+          projectId: updated.projectId,
+          role: updated.role,
+        };
+      }),
+      { json: "value" },
+    ),
+});
+
 const rotateCommand = defineCommand({
   meta: {
     name: "rotate",
@@ -425,6 +475,7 @@ export const robotCommand = defineCommand({
   subCommands: {
     create: createCommand,
     list: listCommand,
+    update: updateCommand,
     rotate: rotateCommand,
     revoke: revokeCommand,
     "grant-env": grantEnvCommand,

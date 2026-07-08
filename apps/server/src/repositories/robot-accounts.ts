@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
 import type { Selectable } from "kysely";
@@ -68,6 +69,20 @@ export interface RobotAccountRepository {
   readonly findById: (params: {
     readonly id: string;
     readonly organizationId: string;
+  }) => Effect.Effect<RobotAccountModel, NotFound>;
+
+  /**
+   * Rename and/or change the project role in place. The project itself is a
+   * mint-time invariant and never changes here. A rename also relabels the
+   * linked machine-kind vault recipient (its label was born as the robot's
+   * name) in the same atomic batch, so vault access listings stay in sync.
+   * An empty patch is a no-op returning the current row.
+   */
+  readonly update: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly name?: string | undefined;
+    readonly role?: ProjectRole | undefined;
   }) => Effect.Effect<RobotAccountModel, NotFound>;
 
   /**
@@ -180,6 +195,25 @@ export const RobotAccountRepoLive = Layer.effect(
       return { plaintext, hash, start: plaintext.slice(0, START_LENGTH) };
     });
 
+    // Hoisted so `update` can reuse it (an empty patch degrades to a read).
+    const findById = (params: { readonly id: string; readonly organizationId: string }) =>
+      Effect.gen(function* () {
+        const db = yield* kyselyDb;
+        const row = yield* Effect.promise(async () =>
+          db
+            .selectFrom("robot_account")
+            .select(PUBLIC_COLUMNS)
+            .where("id", "=", params.id)
+            .where("organization_id", "=", params.organizationId)
+            .where("revoked_at", "is", null)
+            .executeTakeFirst(),
+        );
+        if (row === undefined) {
+          return yield* new NotFound({ message: "Robot account not found" });
+        }
+        return toModel(row);
+      });
+
     return {
       create: (params) =>
         Effect.gen(function* () {
@@ -250,18 +284,44 @@ export const RobotAccountRepoLive = Layer.effect(
           return rows.map(toModel);
         }),
 
-      findById: (params) =>
+      findById,
+
+      update: (params) =>
         Effect.gen(function* () {
           const db = yield* kyselyDb;
-          const row = yield* Effect.promise(async () =>
+          const { name } = params;
+          const patch = compact({ name, project_role: params.role });
+          if (Object.keys(patch).length === 0) {
+            return yield* findById(params);
+          }
+          // Resolve the row first (NotFound short-circuit + the linked key id
+          // a rename must relabel).
+          const current = yield* findById(params);
+          const robotUpdate = db
+            .updateTable("robot_account")
+            .set(patch)
+            .where("id", "=", params.id)
+            .where("organization_id", "=", params.organizationId)
+            .where("revoked_at", "is", null)
+            .returning(PUBLIC_COLUMNS);
+          if (name === undefined || current.userEncryptionKeyId === null) {
+            const row = yield* Effect.promise(async () => robotUpdate.executeTakeFirst());
+            if (row === undefined) {
+              return yield* new NotFound({ message: "Robot account not found" });
+            }
+            return toModel(row);
+          }
+          // A rename also relabels the linked machine recipient (its label was
+          // born as the robot's name) — one atomic batch, so the vault access
+          // listing can never show a stale name.
+          const [rows] = yield* d1Batch([
+            robotUpdate,
             db
-              .selectFrom("robot_account")
-              .select(PUBLIC_COLUMNS)
-              .where("id", "=", params.id)
-              .where("organization_id", "=", params.organizationId)
-              .where("revoked_at", "is", null)
-              .executeTakeFirst(),
-          );
+              .updateTable("user_encryption_keys")
+              .set({ label: name })
+              .where("id", "=", current.userEncryptionKeyId),
+          ]);
+          const [row] = rows;
           if (row === undefined) {
             return yield* new NotFound({ message: "Robot account not found" });
           }

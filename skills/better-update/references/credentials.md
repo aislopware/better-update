@@ -187,6 +187,8 @@ better-update credentials passphrase change              # change this device's 
 better-update credentials robot create [--name] [--no-grant] \
   [--project <projectId>] [--role maintainer|developer|reporter]  # mint + grant (credentials + env vault), prints BETTER_UPDATE_ROBOT once
 better-update credentials robot list                           # active org's robots you may see (id, project + role)
+better-update credentials robot update <id> [--name <name>] [--role maintainer|developer|reporter]
+#                                                              # rename / change role in place (project fixed; audit-logged)
 better-update credentials robot rotate <id> [--identity <key>] # re-mint the bearer only
 better-update credentials robot revoke <id> [--yes]            # bearer stops auth; excludes + rotates the vault(s) it held access to
 better-update credentials robot grant-env <id>                 # enroll an existing robot into the env vault (post-cutover; idempotent)
@@ -275,10 +277,14 @@ it from an env-recipient admin device:
 better-update credentials robot grant-env <id>   # idempotent — re-running reports "already a recipient"
 ```
 
-**One robot = one project + one project role**, both fixed at creation (GitLab
-project-access-token shape; see `references/access-control.md`). There is no `robot grant` /
-`robot revoke-access` — a robot's authorization never changes after mint; to change project or
-role, mint a new robot and revoke the old one. The robot authenticates as an org _member_ holding
+**One robot = one project + one project role** (GitLab project-access-token shape; see
+`references/access-control.md`). The **project** is fixed at creation — there is no `robot grant` /
+`robot revoke-access`, and moving a robot to another project means minting a new one and revoking
+the old. The **name and role** can be changed in place with
+`credentials robot update <id> [--name <name>] [--role <role>]` — or from the project's Robot
+accounts page in the dashboard (Maintainer+ on its project either way; a rename also relabels its
+vault identity, and every change is written to the org audit log as `robotAccount.update` with the
+previous + new values). The robot authenticates as an org _member_ holding
 exactly that one project membership: nothing org-level (members, webhooks, org env-var writes,
 project creation), though org-global env-var READS work with developer+. A typical CI robot is a
 `developer` (or `maintainer`, if it must publish into protected environments) on the project it
@@ -290,8 +296,8 @@ too (the revoking device must itself be able to unlock the vault(s) being rotate
 failure is safe to re-run). Rotate its bearer alone with `credentials robot rotate <id>` (its
 vault identity is left untouched); pass `--identity <its current age private key>` to get a fresh
 full `BETTER_UPDATE_ROBOT` bundle back.
-Robot management (create/rotate/revoke) takes Maintainer+ on the robot's project (org admin/owner
-implicitly). `robot list` shows every visible robot with its id, project + role.
+Robot management (create/update/rotate/revoke) takes Maintainer+ on the robot's project (org
+admin/owner implicitly). `robot list` shows every visible robot with its id, project + role.
 
 **Migrating from `BETTER_UPDATE_IDENTITY` + `BETTER_UPDATE_TOKEN`:** the old dual-secret setup
 (a standalone `identity create-ci` machine key paired with a dashboard API key) is gone — the API

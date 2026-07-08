@@ -81,7 +81,7 @@ const ProjectRobotsList = ({ projectId }: { projectId: string }) => {
   }
   return (
     <Frame>
-      <ProjectRobotsTable items={items} />
+      <ProjectRobotsTable projectId={projectId} items={items} />
     </Frame>
   );
 };
@@ -90,7 +90,7 @@ const ProjectRobotsPage = () => (
   <div className="flex flex-col gap-3">
     <SectionHeader
       title="Robot accounts"
-      description="This project's CI identities — one robot per project and role, bearer secret and vault identity in one. Created, rotated, and revoked exclusively from the CLI."
+      description="This project's CI identities — one robot per project, bearer secret and vault identity in one. Rename or change roles here; creating, rotating, and revoking stay CLI-only."
     />
     <Suspense fallback={<TableSkeleton columns={4} rows={3} hasFooter={false} />}>
       <ProjectRobotsContent />

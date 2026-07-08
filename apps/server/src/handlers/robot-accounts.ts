@@ -118,6 +118,45 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
+      .handle("update", ({ path, payload }) =>
+        toApiCrudEffect(
+          Effect.gen(function* () {
+            const ctx = yield* CurrentActor;
+            const repo = yield* RobotAccountRepo;
+            const target = yield* repo.findById({
+              id: path.id,
+              organizationId: ctx.organizationId,
+            });
+            // Rename/role change takes the same rank that could mint or rotate
+            // it: Maintainer+ on ITS project. The role can only move within
+            // the same single project (≤ maintainer), so a robot can never be
+            // escalated past what its manager already holds.
+            yield* assertRobotManageable(target);
+            if (payload.name === undefined && payload.role === undefined) {
+              return toRobotAccount(target);
+            }
+            const updated = yield* repo.update({
+              id: path.id,
+              organizationId: ctx.organizationId,
+              name: payload.name,
+              role: payload.role,
+            });
+            yield* logAudit({
+              action: "robotAccount.update",
+              resourceType: "robotAccount",
+              resourceId: path.id,
+              metadata: {
+                projectId: target.projectId,
+                previousName: target.name,
+                name: updated.name,
+                previousRole: target.role,
+                role: updated.role,
+              },
+            });
+            return toRobotAccount(updated);
+          }),
+        ),
+      )
       .handle("rotate", ({ path }) =>
         toApiReadEffect(
           Effect.gen(function* () {
