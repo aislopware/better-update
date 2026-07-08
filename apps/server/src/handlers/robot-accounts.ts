@@ -92,10 +92,13 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               fingerprint: payload.fingerprint,
             });
 
+            // Top-level projectId (not just metadata) so the entry shows on
+            // the PROJECT audit log too — it filters on the project_id column.
             yield* logAudit({
               action: "robotAccount.create",
               resourceType: "robotAccount",
               resourceId: created.model.id,
+              projectId: payload.projectId,
               metadata: {
                 name: payload.name,
                 fingerprint: payload.fingerprint,
@@ -145,6 +148,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               action: "robotAccount.update",
               resourceType: "robotAccount",
               resourceId: path.id,
+              projectId: target.projectId,
               metadata: {
                 projectId: target.projectId,
                 previousName: target.name,
@@ -180,6 +184,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               action: "robotAccount.rotate",
               resourceType: "robotAccount",
               resourceId: path.id,
+              projectId: target.projectId,
             });
             return new RotatedRobotAccountBearer({ bearerSecret: rotated.bearerSecret });
           }),
@@ -203,6 +208,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               action: "robotAccount.delete",
               resourceType: "robotAccount",
               resourceId: path.id,
+              projectId: target.projectId,
             });
             return { deleted: 1 };
           }),

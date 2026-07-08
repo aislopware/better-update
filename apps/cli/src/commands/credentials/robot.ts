@@ -337,19 +337,31 @@ const rotateCommand = defineCommand({
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
+        // Reject a bare `--identity` BEFORE rotating: the flag needs the robot's
+        // age private key as its value (citty hands a valueless string flag to us
+        // as ""), and silently falling back to the bearer-only path would burn a
+        // rotation the caller didn't want.
+        const identity = args.identity?.trim();
+        if (identity?.length === 0) {
+          return yield* new IdentityError({
+            message:
+              "--identity needs a value: this robot's current age private key (AGE-SECRET-KEY-1…), " +
+              "found inside its original BETTER_UPDATE_ROBOT or BETTER_UPDATE_IDENTITY secret.",
+          });
+        }
         const api = yield* apiClient;
         const rotated = yield* rotateRobotAccountBearer(api, args.id);
-        if (args.identity && args.identity.trim().length > 0) {
+        if (identity !== undefined) {
           const bundle = serializeRobotEnv({
             bearer: rotated.bearerSecret,
-            identity: args.identity.trim(),
+            identity,
           });
           yield* printKeyValue([["BETTER_UPDATE_ROBOT", bundle]]);
           return { id: args.id, robotEnv: bundle };
         }
         yield* printHuman(
           "New bearer secret (this robot's vault identity, if any, is unchanged — combine with " +
-            "its existing private key yourself, or re-run with --identity to get a full bundle):",
+            "its existing private key yourself, or re-run with --identity <key> to get a full bundle):",
         );
         yield* printKeyValue([["Bearer secret", rotated.bearerSecret]]);
         return { id: args.id, bearerSecret: rotated.bearerSecret };
