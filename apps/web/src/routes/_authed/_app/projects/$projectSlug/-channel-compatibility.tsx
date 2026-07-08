@@ -9,6 +9,7 @@ import {
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
 
 import { PlatformBadge } from "../../../../../components/attribute-badges";
+import { pluralize } from "../../../../../lib/pluralize";
 
 export const MissingMatchingBuilds = ({
   missingRuntimeVersions,
@@ -36,7 +37,7 @@ export const MissingMatchingBuilds = ({
             <PlatformBadge platform={entry.platform} />
             <span className="font-medium">v{entry.runtimeVersion}</span>
             <span className="text-muted-foreground">
-              {entry.updateCount} updates but no uploaded build.
+              {entry.updateCount} {pluralize(entry.updateCount, "update")} but no uploaded build.
             </span>
           </div>
         ))}

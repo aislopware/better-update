@@ -8,7 +8,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -17,7 +17,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { Progress } from "@better-update/ui/components/ui/progress";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, PauseIcon, PlayIcon, RadioTowerIcon } from "lucide-react";
@@ -32,12 +34,15 @@ import {
   getMissingRuntimeVersionsForChannel,
 } from "../-channel-compatibility-helpers";
 import { ChannelRolloutCard } from "../-channel-rollout-card";
+import { parseRolloutState } from "../-channel-rollout-state";
 import { ChannelStatusBadge } from "../-channel-status-badge";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
-import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { invalidateChannels } from "../-update-helpers";
+import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { StatCard } from "../../../../../../components/stat-card";
 import { CopyableId } from "../../../../../../lib/copy-button";
+import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
@@ -80,10 +85,7 @@ const ChannelHeaderActions = ({
     mutationFn: async () =>
       channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
     onSuccess: async () => {
-      toastManager.add({
-        title: channel.isPaused ? "Channel resumed" : "Channel paused",
-        type: "success",
-      });
+      toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
       await invalidateChannels(queryClient, orgId, projectId);
     },
   });
@@ -92,16 +94,18 @@ const ChannelHeaderActions = ({
     <div className="flex items-center gap-2">
       <Button
         variant="outline"
-        loading={togglePauseMutation.isPending}
+        disabled={togglePauseMutation.isPending}
         onClick={() => {
           togglePauseMutation.mutate();
         }}
       >
-        {channel.isPaused ? (
-          <PlayIcon strokeWidth={2} data-icon="inline-start" />
-        ) : (
-          <PauseIcon strokeWidth={2} data-icon="inline-start" />
-        )}
+        {togglePauseMutation.isPending && <Spinner data-icon="inline-start" />}
+        {!togglePauseMutation.isPending &&
+          (channel.isPaused ? (
+            <PlayIcon strokeWidth={2} data-icon="inline-start" />
+          ) : (
+            <PauseIcon strokeWidth={2} data-icon="inline-start" />
+          ))}
         {channel.isPaused ? "Resume" : "Pause"}
       </Button>
       {channel.isBuiltin ? null : (
@@ -123,13 +127,14 @@ const ChannelSummaryCards = ({
   linkedBranch: BranchItem | undefined;
   compatibleBuildsCount: number;
   missingBuildCount: number;
-}) => (
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Linked branch</CardTitle>
-      </CardHeader>
-      <CardContent>
+}) => {
+  const rolloutState = channel.branchMappingJson
+    ? parseRolloutState(channel.branchMappingJson)
+    : null;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <StatCard label="Linked branch">
         {linkedBranch ? (
           <div className="flex items-center gap-2 font-medium">
             <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
@@ -138,37 +143,27 @@ const ChannelSummaryCards = ({
         ) : (
           <CopyableId value={channel.branchId} label="Branch ID" />
         )}
-      </CardContent>
-    </Card>
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Channel state</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center gap-2">
-        <ChannelStatusBadge channel={channel} branches={branches} />
-      </CardContent>
-    </Card>
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Build coverage</CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm">
-        <div className="font-medium">{compatibleBuildsCount} compatible builds</div>
-        <div className="text-muted-foreground mt-1">
-          {missingBuildCount} runtime versions currently missing builds
+      </StatCard>
+      <StatCard label="Channel state">
+        <div className="flex flex-col items-start gap-2">
+          <ChannelStatusBadge channel={channel} branches={branches} />
+          {rolloutState ? (
+            <Progress value={rolloutState.percentage} className="w-full max-w-xs" />
+          ) : null}
         </div>
-      </CardContent>
-    </Card>
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Created</CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm font-medium">
-        <RelativeTime value={channel.createdAt} />
-      </CardContent>
-    </Card>
-  </div>
-);
+      </StatCard>
+      <StatCard
+        label="Compatible builds"
+        value={compatibleBuildsCount}
+        footer={
+          missingBuildCount > 0
+            ? `${missingBuildCount} runtime ${pluralize(missingBuildCount, "version")} currently missing builds`
+            : undefined
+        }
+      />
+    </div>
+  );
+};
 
 const ChannelDetailContent = () => {
   const { channelId } = Route.useParams();
@@ -196,7 +191,7 @@ const ChannelDetailContent = () => {
   if (!channel) {
     return (
       <>
-        <ProjectSubpageHeader title="Channel details" />
+        <PageHeader size="sub" title="Channel details" />
         <ChannelNotFoundState projectSlug={project.slug} />
       </>
     );
@@ -211,11 +206,22 @@ const ChannelDetailContent = () => {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <ProjectSubpageHeader title={channel.name} />
-          {channel.isBuiltin ? <Badge variant="secondary">Built-in</Badge> : null}
-          <CopyableId value={channel.id} label="Channel ID" />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">
+            <span className="truncate">{channel.name}</span>
+            {channel.isBuiltin ? (
+              <Badge variant="outline" className="text-muted-foreground">
+                Built-in
+              </Badge>
+            ) : null}
+          </h1>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <CopyableId value={channel.id} label="Channel ID" />
+            <span>
+              Created <RelativeTime value={channel.createdAt} />
+            </span>
+          </div>
         </div>
         <ChannelHeaderActions channel={channel} orgId={orgId} projectId={projectId} />
       </div>
@@ -247,7 +253,7 @@ const ChannelDetailContent = () => {
 
 const ChannelDetailSkeleton = () => (
   <>
-    <ProjectSubpageHeader title="Channel" />
+    <PageHeader size="sub" title="Channel" />
     <SummaryCardsSkeleton count={4} />
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <DetailCardSkeleton rows={3} columns={2} />

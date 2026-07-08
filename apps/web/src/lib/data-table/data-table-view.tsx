@@ -1,9 +1,7 @@
-import { Frame } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
@@ -13,8 +11,8 @@ import { flexRender } from "@tanstack/react-table";
 import type { Table as ReactTableT, Row } from "@tanstack/react-table";
 
 import { cellAlignClass } from "./column-meta";
-import { PaginationControls } from "./pagination-controls";
-import { SortableHead } from "./sortable-head";
+import { DataTableColumnHeader } from "./data-table-column-header";
+import { DataTablePagination } from "./data-table-pagination";
 
 export interface DataTableViewProps<TData> {
   readonly table: ReactTableT<TData>;
@@ -25,46 +23,41 @@ export interface DataTableViewProps<TData> {
   readonly totalPages?: number | undefined;
   readonly onPageChange?: ((next: number) => void) | undefined;
   readonly onRowClick?: ((row: TData) => void | Promise<void>) | undefined;
+  /** Shown as a full-width row when the table has no rows (filtered-empty state). */
+  readonly emptyMessage?: string | undefined;
 }
 
-const DataTableFooter = ({
-  columnsCount,
+const DataTableFooterArea = ({
   countLabel,
+  selectedCount,
   safePage,
   totalPages,
   isPlaceholderData,
   onPageChange,
 }: {
-  columnsCount: number;
   countLabel: string;
+  selectedCount: number;
   safePage: number | undefined;
   totalPages: number | undefined;
   isPlaceholderData: boolean;
   onPageChange: ((next: number) => void) | undefined;
 }) => {
-  const hasPagination =
-    safePage !== undefined && totalPages !== undefined && onPageChange !== undefined;
+  if (safePage !== undefined && totalPages !== undefined && onPageChange !== undefined) {
+    return (
+      <DataTablePagination
+        countLabel={countLabel}
+        selectedCount={selectedCount}
+        safePage={safePage}
+        totalPages={totalPages}
+        isPlaceholderData={isPlaceholderData}
+        onChange={onPageChange}
+      />
+    );
+  }
   return (
-    <TableFooter>
-      <TableRow>
-        <TableCell
-          colSpan={columnsCount}
-          className={hasPagination ? undefined : "text-muted-foreground text-xs tabular-nums"}
-        >
-          {hasPagination ? (
-            <PaginationControls
-              countLabel={countLabel}
-              safePage={safePage}
-              totalPages={totalPages}
-              isPlaceholderData={isPlaceholderData}
-              onChange={onPageChange}
-            />
-          ) : (
-            countLabel
-          )}
-        </TableCell>
-      </TableRow>
-    </TableFooter>
+    <span className="text-muted-foreground text-xs tabular-nums">
+      {selectedCount > 0 ? `${selectedCount} selected` : countLabel}
+    </span>
   );
 };
 
@@ -76,6 +69,7 @@ const DataTableRow = <TData,>({
   onRowClick: ((row: TData) => void | Promise<void>) | undefined;
 }) => (
   <TableRow
+    data-state={row.getIsSelected() ? "selected" : undefined}
     className={cn(onRowClick ? "cursor-pointer" : undefined)}
     onClick={
       onRowClick
@@ -115,37 +109,54 @@ export const DataTableView = <TData,>({
   totalPages,
   onPageChange,
   onRowClick,
-}: DataTableViewProps<TData>) => (
-  <Frame
-    className={
-      isPlaceholderData ? "opacity-60 transition-opacity" : "opacity-100 transition-opacity"
-    }
-  >
-    <Table variant="card">
-      <TableHeader>
-        {table.getHeaderGroups().map((group) => (
-          <TableRow key={group.id}>
-            {group.headers.map((header) => (
-              <SortableHead key={header.id} header={header} />
+  emptyMessage,
+}: DataTableViewProps<TData>) => {
+  const { rows } = table.getRowModel();
+  const selectedCount = table.getSelectedRowModel().rows.length;
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 transition-opacity",
+        isPlaceholderData ? "opacity-60" : "opacity-100",
+      )}
+    >
+      <div className="overflow-hidden rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id}>
+                {group.headers.map((header) => (
+                  <DataTableColumnHeader key={header.id} header={header} />
+                ))}
+              </TableRow>
             ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.map((row) => (
-          <DataTableRow key={row.id} row={row} onRowClick={onRowClick} />
-        ))}
-      </TableBody>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 && emptyMessage !== undefined ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columnsCount}
+                  className="text-muted-foreground h-24 text-center whitespace-normal"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row) => <DataTableRow key={row.id} row={row} onRowClick={onRowClick} />)
+            )}
+          </TableBody>
+        </Table>
+      </div>
       {countLabel === undefined ? null : (
-        <DataTableFooter
-          columnsCount={columnsCount}
+        <DataTableFooterArea
           countLabel={countLabel}
+          selectedCount={selectedCount}
           safePage={safePage}
           totalPages={totalPages}
           isPlaceholderData={isPlaceholderData}
           onPageChange={onPageChange}
         />
       )}
-    </Table>
-  </Frame>
-);
+    </div>
+  );
+};

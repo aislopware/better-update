@@ -32,7 +32,7 @@ export interface BuildsFilters {
   readonly platform?: PlatformValue;
   readonly profile?: string;
   readonly runtimeVersion?: string;
-  readonly distribution?: BuildDistribution;
+  readonly distribution?: readonly BuildDistribution[];
   readonly audience?: BuildAudience;
   readonly query?: string;
   readonly page?: number;

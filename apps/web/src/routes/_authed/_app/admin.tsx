@@ -14,42 +14,30 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import {
-  Select,
-  SelectGroup,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { SearchIcon, SearchXIcon, UsersIcon } from "lucide-react";
+import { UsersIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { AdminUserItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ChangeEvent } from "react";
 
 import { PageHeader } from "../../../components/page-header";
 import { QueryErrorState } from "../../../components/query-error-state";
 import { TableSkeleton } from "../../../components/skeletons";
 import { isSuperadminUser } from "../../../lib/access";
 import {
+  DataTableFacetedFilter,
+  DataTableToolbar,
   DataTableView,
   PAGE_SIZE,
   computePagination,
-  enumParam,
+  enumArrayParam,
   fireAndForget,
   pageParam,
   queryParam,
@@ -61,19 +49,22 @@ import { useApiMutation } from "../../../lib/use-api-mutation";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const STATUS_VALUES = ["all", "pending", "approved"] as const;
+const STATUS_VALUES = ["pending", "approved"] as const;
 type StatusFilter = (typeof STATUS_VALUES)[number];
 
-const STATUS_LABELS: Record<StatusFilter, string> = {
-  all: "All",
-  pending: "Pending",
-  approved: "Approved",
-};
+// An empty (or full) chip selection means "all statuses".
+const STATUS_OPTIONS = [
+  { label: "Pending", value: "pending" },
+  { label: "Approved", value: "approved" },
+] as const;
+
+const isStatusFilter = (value: unknown): value is StatusFilter =>
+  (STATUS_VALUES as readonly unknown[]).includes(value);
 
 const adminSearchSchema = z.object({
   page: pageParam(),
   query: queryParam(),
-  status: enumParam(STATUS_VALUES, "all"),
+  status: enumArrayParam(STATUS_VALUES),
 });
 
 interface ApprovalVariables {
@@ -82,15 +73,7 @@ interface ApprovalVariables {
 }
 
 const StatusBadge = ({ approved }: { approved: boolean }) =>
-  approved ? (
-    <Badge variant="outline" className="text-success border-success/40">
-      Approved
-    </Badge>
-  ) : (
-    <Badge variant="outline" className="text-warning border-warning/40">
-      Pending
-    </Badge>
-  );
+  approved ? <Badge variant="success">Approved</Badge> : <Badge variant="warning">Pending</Badge>;
 
 const UserCell = ({ user }: { user: AdminUserItem }) => (
   <div className="flex min-w-0 flex-col">
@@ -149,21 +132,23 @@ const buildColumns = (
         <Button
           variant="ghost"
           size="sm"
-          loading={isPending}
+          disabled={isPending}
           onClick={() => {
             onSetApproval({ userId: user.id, approve: false });
           }}
         >
+          {isPending && <Spinner data-icon="inline-start" />}
           Revoke
         </Button>
       ) : (
         <Button
           size="sm"
-          loading={isPending}
+          disabled={isPending}
           onClick={() => {
             onSetApproval({ userId: user.id, approve: true });
           }}
         >
+          {isPending && <Spinner data-icon="inline-start" />}
           Approve
         </Button>
       );
@@ -194,10 +179,7 @@ const AdminUsers = () => {
   const setApproval = useApiMutation<AdminUserItem, ApprovalVariables>({
     mutationFn: async ({ userId, approve }) => (approve ? approveUser(userId) : revokeUser(userId)),
     onSuccess: async (user, { approve }) => {
-      toastManager.add({
-        title: approve ? `Approved ${user.email}` : `Revoked ${user.email}`,
-        type: "success",
-      });
+      toast.success(approve ? `Approved ${user.email}` : `Revoked ${user.email}`);
       await queryClient.invalidateQueries({ queryKey: adminUsersQueryKey });
     },
   });
@@ -207,7 +189,8 @@ const AdminUsers = () => {
       page,
       limit: PAGE_SIZE,
       ...(urlQuery ? { search: urlQuery } : {}),
-      ...(status === "all" ? {} : { status }),
+      // Both statuses selected ≡ no filter — the API keeps its tri-state param.
+      ...(status.length === 1 ? { status: status[0] } : {}),
     }),
     placeholderData: keepPreviousData,
   });
@@ -235,9 +218,20 @@ const AdminUsers = () => {
     fireAndForget(routeNavigate({ to: ".", search: (prev) => ({ ...prev, page: next }) }));
   };
 
-  const setStatusFilter = (next: StatusFilter): void => {
+  const setStatusFilter = (next: readonly StatusFilter[]): void => {
     fireAndForget(
-      routeNavigate({ to: ".", search: (prev) => ({ ...prev, status: next, page: 1 }) }),
+      routeNavigate({ to: ".", search: (prev) => ({ ...prev, status: [...next], page: 1 }) }),
+    );
+  };
+
+  const handleReset = (): void => {
+    handleSearchChange("");
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, query: "", status: [], page: 1 }),
+        replace: true,
+      }),
     );
   };
 
@@ -260,15 +254,14 @@ const AdminUsers = () => {
     page,
   );
 
-  const isFiltered = urlQuery.length > 0 || status !== "all";
-  const showsFilteredEmpty = data.total === 0 && isFiltered;
+  const isFiltered = urlQuery.length > 0 || status.length > 0;
   const showsGlobalEmpty = data.total === 0 && !isFiltered && searchDraft.length === 0;
 
   const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "user")}${
     isFiltered ? " (filtered)" : ""
   }`;
 
-  const emptyState = showsGlobalEmpty ? (
+  const emptyState = (
     <Card>
       <Empty>
         <EmptyHeader>
@@ -280,68 +273,31 @@ const AdminUsers = () => {
         </EmptyHeader>
       </Empty>
     </Card>
-  ) : (
-    <Card>
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <SearchXIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No users match your filters</EmptyTitle>
-          <EmptyDescription>Try a different keyword or status.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </Card>
   );
 
   return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader title="Users" description="Approve who can access Better Update." />
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <InputGroup className="flex-1">
-            <InputGroupAddon>
-              <SearchIcon aria-hidden="true" />
-            </InputGroupAddon>
-            <InputGroupInput
-              aria-label="Search users"
-              placeholder="Search by name or email…"
-              type="search"
-              value={searchDraft}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                handleSearchChange(event.target.value);
-              }}
-            />
-            {isPlaceholderData ? (
-              <InputGroupAddon align="inline-end">
-                <Spinner />
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
-          <Select
-            items={STATUS_LABELS}
-            value={status}
-            onValueChange={(next) => {
-              if (next !== null) {
-                setStatusFilter(next);
-              }
+        <DataTableToolbar
+          search={{
+            value: searchDraft,
+            onChange: handleSearchChange,
+            placeholder: "Search by name or email…",
+          }}
+          isFiltered={isFiltered}
+          onReset={handleReset}
+        >
+          <DataTableFacetedFilter
+            title="Status"
+            options={STATUS_OPTIONS}
+            selected={status}
+            onChange={(next) => {
+              setStatusFilter(next.filter(isStatusFilter));
             }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectPopup>
-              <SelectGroup>
-                {STATUS_VALUES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {STATUS_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectPopup>
-          </Select>
-        </div>
-        {showsGlobalEmpty || showsFilteredEmpty ? (
+          />
+        </DataTableToolbar>
+        {showsGlobalEmpty ? (
           emptyState
         ) : (
           <DataTableView
@@ -352,6 +308,7 @@ const AdminUsers = () => {
             safePage={safePage}
             totalPages={totalPages}
             onPageChange={onPageChange}
+            emptyMessage="No users match your filters."
           />
         )}
       </div>

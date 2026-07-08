@@ -1,13 +1,12 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { cn } from "@better-update/ui/lib/utils";
 import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 
@@ -59,16 +58,15 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
   );
 };
 
-const StatusCell = ({ status }: { status: MemberStatus }) => {
-  const dotClass = status === "active" ? "bg-success" : "bg-warning";
-  const label = status === "active" ? "Active" : "Pending";
-  return (
-    <Badge variant="outline" className="gap-1.5">
-      <span aria-hidden="true" className={cn("size-1.5 rounded-full", dotClass)} />
-      {label}
-    </Badge>
+// Active is the expected state — plain quiet text. Pending is the exception,
+// but stays plain text (warning-colored) so both states share the same left
+// edge — a pill's own padding would misalign the column.
+const StatusCell = ({ status }: { status: MemberStatus }) =>
+  status === "active" ? (
+    <span className="text-muted-foreground text-sm">Active</span>
+  ) : (
+    <span className="text-warning-foreground text-sm font-medium">Pending</span>
   );
-};
 
 const JoinedCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
@@ -130,7 +128,7 @@ const RoleSelect = ({
     <SelectTrigger className="w-32" aria-label={`Change role for ${row.name}`}>
       <SelectValue />
     </SelectTrigger>
-    <SelectPopup>
+    <SelectContent>
       <SelectGroup>
         {ORG_ROLE_VALUES.map((value) => (
           <SelectItem key={value} value={value}>
@@ -138,7 +136,7 @@ const RoleSelect = ({
           </SelectItem>
         ))}
       </SelectGroup>
-    </SelectPopup>
+    </SelectContent>
   </Select>
 );
 
@@ -246,6 +244,7 @@ export const MembersTableView = ({
   pendingInvitationId,
   pendingRoleMemberId,
   countLabel,
+  emptyMessage,
   sorting,
   onSortingChange,
   onRemove,
@@ -261,6 +260,7 @@ export const MembersTableView = ({
   pendingInvitationId?: string | undefined;
   pendingRoleMemberId?: string | undefined;
   countLabel?: string;
+  emptyMessage?: string;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
   onRemove: (memberId: string) => void;
@@ -305,5 +305,12 @@ export const MembersTableView = ({
     getSortedRowModel: getSortedRowModel(),
   });
 
-  return <DataTableView table={table} columnsCount={columns.length} countLabel={countLabel} />;
+  return (
+    <DataTableView
+      table={table}
+      columnsCount={columns.length}
+      countLabel={countLabel}
+      emptyMessage={emptyMessage}
+    />
+  );
 };

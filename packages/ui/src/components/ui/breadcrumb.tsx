@@ -1,109 +1,125 @@
-"use client";
+import * as React from "react"
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
 
-import { mergeProps } from "@base-ui/react/merge-props";
-import { useRender } from "@base-ui/react/use-render";
-import { ChevronRight, MoreHorizontal } from "lucide-react";
-import type * as React from "react";
-import { cn } from "#/lib/utils";
+import { cn } from "#/lib/utils"
+import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
-export function Breadcrumb({
-  ...props
-}: React.ComponentProps<"nav">): React.ReactElement {
-  return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />;
+function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+  return (
+    <nav
+      aria-label="breadcrumb"
+      data-slot="breadcrumb"
+      className={cn(className)}
+      {...props}
+    />
+  )
 }
 
-export function BreadcrumbList({
-  className,
-  ...props
-}: React.ComponentProps<"ol">): React.ReactElement {
+function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
   return (
     <ol
-      className={cn(
-        "wrap-break-word flex flex-wrap items-center gap-1.5 text-muted-foreground text-sm sm:gap-2.5",
-        className,
-      )}
       data-slot="breadcrumb-list"
+      className={cn(
+        "flex flex-wrap items-center gap-1.5 text-sm wrap-break-word text-muted-foreground",
+        className
+      )}
       {...props}
     />
-  );
+  )
 }
 
-export function BreadcrumbItem({
-  className,
-  ...props
-}: React.ComponentProps<"li">): React.ReactElement {
+function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
     <li
-      className={cn("inline-flex items-center gap-1.5", className)}
       data-slot="breadcrumb-item"
+      className={cn("inline-flex items-center gap-1", className)}
       {...props}
     />
-  );
+  )
 }
 
-export function BreadcrumbLink({
+function BreadcrumbLink({
   className,
   render,
   ...props
-}: useRender.ComponentProps<"a">): React.ReactElement {
-  const defaultProps = {
-    className: cn("transition-colors hover:text-foreground", className),
-    "data-slot": "breadcrumb-link",
-  };
-
+}: useRender.ComponentProps<"a">) {
   return useRender({
     defaultTagName: "a",
-    props: mergeProps<"a">(defaultProps, props),
+    props: mergeProps<"a">(
+      {
+        className: cn("transition-colors hover:text-foreground", className),
+      },
+      props
+    ),
     render,
-  });
+    state: {
+      slot: "breadcrumb-link",
+    },
+  })
 }
 
-export function BreadcrumbPage({
-  className,
-  ...props
-}: React.ComponentProps<"span">): React.ReactElement {
+function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
+      data-slot="breadcrumb-page"
+      role="link"
+      aria-disabled="true"
       aria-current="page"
       className={cn("font-normal text-foreground", className)}
-      data-slot="breadcrumb-page"
       {...props}
     />
-  );
+  )
 }
 
-export function BreadcrumbSeparator({
+function BreadcrumbSeparator({
   children,
   className,
   ...props
-}: React.ComponentProps<"li">): React.ReactElement {
+}: React.ComponentProps<"li">) {
   return (
     <li
-      aria-hidden="true"
-      className={cn("opacity-80 [&>svg]:size-4", className)}
       data-slot="breadcrumb-separator"
       role="presentation"
+      aria-hidden="true"
+      className={cn("[&>svg]:size-3.5", className)}
       {...props}
     >
-      {children ?? <ChevronRight />}
+      {children ?? (
+        <ChevronRightIcon />
+      )}
     </li>
-  );
+  )
 }
 
-export function BreadcrumbEllipsis({
+function BreadcrumbEllipsis({
   className,
   ...props
-}: React.ComponentProps<"span">): React.ReactElement {
+}: React.ComponentProps<"span">) {
   return (
     <span
-      aria-hidden="true"
-      className={className}
       data-slot="breadcrumb-ellipsis"
       role="presentation"
+      aria-hidden="true"
+      className={cn(
+        "flex size-5 items-center justify-center [&>svg]:size-4",
+        className
+      )}
       {...props}
     >
-      <MoreHorizontal className="size-4" />
+      <MoreHorizontalIcon
+      />
       <span className="sr-only">More</span>
     </span>
-  );
+  )
+}
+
+export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
 }

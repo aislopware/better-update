@@ -1,6 +1,8 @@
 import { Button } from "@better-update/ui/components/ui/button";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { z } from "zod";
 
 import { BrandWordmark } from "../../components/brand-mark";
@@ -20,36 +22,8 @@ type LoginSearch = z.infer<typeof loginSearchSchema>;
 
 const readRedirectTo = (search: LoginSearch): string => search.redirectTo;
 
-const CheckIcon = ({ className }: { readonly className?: string }) => (
-  <svg
-    viewBox="0 0 16 16"
-    aria-hidden="true"
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 8.5 L6.5 12 L13 4.5" />
-  </svg>
-);
-
-const ArrowIcon = ({ className }: { readonly className?: string }) => (
-  <svg
-    viewBox="0 0 16 16"
-    aria-hidden="true"
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 8 H13 M9 4 L13 8 L9 12" />
-  </svg>
-);
-
+// GitHub/Google are brand marks — Lucide ships no brand icons, so these stay
+// inline SVGs (same approach as the stock shadcn login blocks).
 const GithubIcon = ({ className }: { readonly className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -179,11 +153,14 @@ const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
     size="lg"
     className="relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
-    loading={isPending}
+    disabled={isPending}
   >
-    <GithubIcon className="size-5" />
+    {isPending ? <Spinner className="size-5" /> : <GithubIcon className="size-5" />}
     Continue with GitHub
-    <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100" />
+    <ArrowRightIcon
+      strokeWidth={2}
+      className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100"
+    />
   </Button>
 );
 
@@ -198,11 +175,14 @@ const GoogleButton = ({ onClick, isPending }: GoogleButtonProps) => (
     variant="outline"
     className="relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
-    loading={isPending}
+    disabled={isPending}
   >
-    <GoogleIcon className="size-5" />
+    {isPending ? <Spinner className="size-5" /> : <GoogleIcon className="size-5" />}
     Continue with Google
-    <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100" />
+    <ArrowRightIcon
+      strokeWidth={2}
+      className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100"
+    />
   </Button>
 );
 
@@ -226,7 +206,7 @@ const TrustPoints = () => (
   <ul className="text-muted-foreground flex flex-col gap-2 text-xs leading-relaxed">
     {TRUST_POINTS.map((text) => (
       <li key={text} className="flex items-start gap-2">
-        <CheckIcon className="text-primary mt-0.5 size-3.5 shrink-0" />
+        <CheckIcon strokeWidth={2} className="text-primary mt-0.5 size-3.5 shrink-0" />
         {text}
       </li>
     ))}

@@ -208,7 +208,7 @@ export type UpdateSortColumn = typeof UpdateSortColumnSchema.Type;
 export type UpdateSort = typeof UpdateSortSchema.Type;
 
 export interface UpdatesFilters {
-  readonly branchId?: string;
+  readonly branchId?: readonly string[];
   readonly platform?: PlatformValue;
   readonly runtimeVersion?: string;
   readonly query?: string;

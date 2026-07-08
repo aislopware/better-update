@@ -2,14 +2,14 @@ import { branchesQueryKey, renameBranch } from "@better-update/api-client/react"
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";
 import { useState } from "react";
@@ -34,7 +34,7 @@ export const RenameBranchDialog = ({
   const renameBranchMutation = useApiMutation({
     mutationFn: async (name: string) => renameBranch(branch.id, { name }),
     onSuccess: async () => {
-      toastManager.add({ title: "Branch renamed", type: "success" });
+      toast.success("Branch renamed");
       await queryClient.invalidateQueries({
         queryKey: branchesQueryKey(orgId, projectId),
       });
@@ -62,9 +62,9 @@ export const RenameBranchDialog = ({
         >
           <PencilIcon strokeWidth={2} />
         </TooltipTrigger>
-        <TooltipPopup>Rename branch</TooltipPopup>
+        <TooltipContent>Rename branch</TooltipContent>
       </Tooltip>
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename branch</DialogTitle>
           <DialogDescription>Change the name of this branch.</DialogDescription>
@@ -75,7 +75,7 @@ export const RenameBranchDialog = ({
           submitLabel="Rename"
           onSubmit={async (name) => safeSubmit(renameBranchMutation.mutateAsync(name))}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

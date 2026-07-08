@@ -1,11 +1,10 @@
 import { submissionQueryOptions } from "@better-update/api-client/react";
 import {
   Card,
-  CardFrame,
-  CardFrameDescription,
-  CardFrameHeader,
-  CardFrameTitle,
-  CardPanel,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -14,10 +13,10 @@ import { Suspense } from "react";
 import type { SubmissionItem } from "@better-update/api-client/react";
 
 import { PlatformBadge, SubmissionMetadataBadge } from "../../../../../components/attribute-badges";
+import { PageHeader } from "../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
-import { ProjectSubpageHeader } from "./-project-subpage-header";
 
 const DetailRow = ({
   label,
@@ -43,76 +42,79 @@ const DetailRow = ({
 
 const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
   <>
-    <div className="flex flex-wrap items-center gap-2">
-      <ProjectSubpageHeader title="Submission" />
-      <CopyableId value={submission.id} label="Submission ID" />
-    </div>
-    <CardFrame>
-      <CardFrameHeader className="py-5">
-        <CardFrameTitle className="flex items-center gap-2.5 text-base">
+    <PageHeader
+      size="sub"
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          Submission
+          <CopyableId value={submission.id} label="Submission ID" />
+        </span>
+      }
+    />
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2.5">
           <PlatformBadge platform={submission.platform} />
           <SubmissionMetadataBadge complete={submission.metadataComplete} />
-        </CardFrameTitle>
-        <CardFrameDescription>
+        </CardTitle>
+        <CardDescription>
           Profile <span className="font-mono">{submission.profileName}</span> · created{" "}
           {formatDateTime(submission.createdAt)}
-        </CardFrameDescription>
-      </CardFrameHeader>
-      <Card>
-        <CardPanel className="flex flex-col gap-1.5">
-          <DetailRow label="Archive source" value={submission.archiveSource} />
-          <DetailRow label="Build number" value={submission.buildVersion} />
-          <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
-          <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
-          {submission.iosConfig ? (
-            <>
-              <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
-              <DetailRow
-                label="Bundle identifier"
-                value={submission.iosConfig.bundleIdentifier}
-                copyLabel="Bundle identifier"
-              />
-              <DetailRow
-                label="ASC App ID"
-                value={submission.iosConfig.ascAppId}
-                copyLabel="ASC App ID"
-              />
-              <DetailRow
-                label="Apple team"
-                value={submission.iosConfig.appleTeamId}
-                copyLabel="Apple team"
-              />
-              <DetailRow label="Language" value={submission.iosConfig.language} />
-              <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
-            </>
-          ) : null}
-          {submission.androidConfig ? (
-            <>
-              <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
-              <DetailRow
-                label="Application ID"
-                value={submission.androidConfig.applicationId}
-                copyLabel="Application ID"
-              />
-              <DetailRow label="Track" value={submission.androidConfig.track} />
-              <DetailRow label="Release status" value={submission.androidConfig.releaseStatus} />
-              <DetailRow
-                label="Rollout"
-                value={
-                  submission.androidConfig.rollout === null
-                    ? null
-                    : String(submission.androidConfig.rollout)
-                }
-              />
-              <DetailRow
-                label="Changes not sent for review"
-                value={String(submission.androidConfig.changesNotSentForReview)}
-              />
-            </>
-          ) : null}
-        </CardPanel>
-      </Card>
-    </CardFrame>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-1.5">
+        <DetailRow label="Archive source" value={submission.archiveSource} />
+        <DetailRow label="Build number" value={submission.buildVersion} />
+        <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
+        <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
+        {submission.iosConfig ? (
+          <>
+            <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
+            <DetailRow
+              label="Bundle identifier"
+              value={submission.iosConfig.bundleIdentifier}
+              copyLabel="Bundle identifier"
+            />
+            <DetailRow
+              label="ASC App ID"
+              value={submission.iosConfig.ascAppId}
+              copyLabel="ASC App ID"
+            />
+            <DetailRow
+              label="Apple team"
+              value={submission.iosConfig.appleTeamId}
+              copyLabel="Apple team"
+            />
+            <DetailRow label="Language" value={submission.iosConfig.language} />
+            <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
+          </>
+        ) : null}
+        {submission.androidConfig ? (
+          <>
+            <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
+            <DetailRow
+              label="Application ID"
+              value={submission.androidConfig.applicationId}
+              copyLabel="Application ID"
+            />
+            <DetailRow label="Track" value={submission.androidConfig.track} />
+            <DetailRow label="Release status" value={submission.androidConfig.releaseStatus} />
+            <DetailRow
+              label="Rollout"
+              value={
+                submission.androidConfig.rollout === null
+                  ? null
+                  : String(submission.androidConfig.rollout)
+              }
+            />
+            <DetailRow
+              label="Changes not sent for review"
+              value={String(submission.androidConfig.changesNotSentForReview)}
+            />
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
   </>
 );
 
@@ -129,7 +131,7 @@ const SubmissionDetailContainer = ({
 
 const SubmissionDetailSkeleton = () => (
   <>
-    <ProjectSubpageHeader title="Submission" />
+    <PageHeader size="sub" title="Submission" />
     <DetailCardSkeleton rows={6} columns={1} />
   </>
 );

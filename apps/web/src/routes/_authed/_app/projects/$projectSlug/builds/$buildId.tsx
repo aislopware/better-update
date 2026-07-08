@@ -27,14 +27,19 @@ import { Suspense } from "react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 
-import { BuildCard } from "../-build-card";
 import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
 import { synthesizeBuildChannels } from "../-compatibility-join";
+import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
-import { ProjectSubpageHeader } from "../-project-subpage-header";
-import { ChannelBadge } from "../../../../../../components/attribute-badges";
+import {
+  ChannelBadge,
+  DistributionIndicator,
+  PlatformIndicator,
+} from "../../../../../../components/attribute-badges";
+import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
+import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
@@ -208,28 +213,28 @@ const RelatedChannelsCard = ({
     </CardHeader>
     <CardContent>
       {build.channels.length > 0 ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col">
           {build.channels.map((channel) => (
             <div
               key={`${build.id}:${channel.channelId}`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3"
+              className="border-border/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0"
             >
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <ChannelBadge name={channel.channelName} />
                 {channel.isPaused && <Badge variant="warning">Paused</Badge>}
                 {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
                 <span className="text-muted-foreground text-sm">
                   {channel.updateCount > 0
-                    ? `${channel.updateCount} matching updates`
+                    ? `${channel.updateCount} matching ${pluralize(channel.updateCount, "update")}`
                     : "No matching updates"}
                 </span>
               </div>
               <Link
                 to="/projects/$projectSlug/channels/$channelId"
                 params={{ projectSlug, channelId: channel.channelId }}
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                className="text-muted-foreground hover:text-foreground shrink-0 text-sm transition-colors"
               >
-                Open channel
+                Open →
               </Link>
             </div>
           ))}
@@ -267,6 +272,63 @@ const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   </Card>
 );
 
+/**
+ * Detail-page header block: title + quiet meta line + the build's actions.
+ * Replaces the old PageHeader + hero-card combo that duplicated the title and
+ * the compatible-channels section.
+ */
+const BuildDetailHeader = ({
+  build,
+  orgId,
+  projectId,
+}: {
+  build: BuildWithArtifact;
+  orgId: string;
+  projectId: string;
+}) => (
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <h1 className="truncate text-lg font-semibold tracking-tight">
+        {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
+      </h1>
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <PlatformIndicator platform={build.platform} />
+        <DistributionIndicator distribution={build.distribution} />
+        {build.runtimeVersion ? (
+          <span className="font-mono text-xs">v{build.runtimeVersion}</span>
+        ) : null}
+        {build.appVersion ? (
+          <span className="font-mono text-xs">
+            App {build.appVersion}
+            {build.buildNumber ? ` (#${build.buildNumber})` : ""}
+          </span>
+        ) : null}
+        {build.gitRef ? (
+          <span className="font-mono text-xs">
+            {build.gitRef}
+            {build.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+          </span>
+        ) : null}
+        <RelativeTime value={build.createdAt} />
+      </div>
+    </div>
+    <div className="flex shrink-0 items-center gap-2">
+      {build.artifact ? (
+        <>
+          <InstallLinkDialog build={build} buttonVariant="outline" buttonLabel="Install" />
+          <Button
+            variant="outline"
+            render={<a aria-label="Download artifact" href={`/api/builds/${build.id}/artifact`} />}
+          >
+            Download
+          </Button>
+        </>
+      ) : null}
+      <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />
+    </div>
+  </div>
+);
+
 const BuildDetailContent = () => {
   const { buildId } = Route.useParams();
   const { activeOrg, project } = Route.useRouteContext();
@@ -279,36 +341,25 @@ const BuildDetailContent = () => {
 
   const buildWithChannels = synthesizeBuildChannels(build, compatibilityData);
 
+  if (build.projectId !== projectId) {
+    return <BuildNotFoundState projectSlug={project.slug} />;
+  }
+
   return (
     <>
-      <ProjectSubpageHeader
-        title={(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
-      />
-      {build.projectId === projectId ? (
-        <>
-          <BuildCard
-            build={buildWithChannels}
-            orgId={orgId}
-            projectId={projectId}
-            projectSlug={project.slug}
-            showDetailsLink={false}
-          />
-          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <ArtifactCard build={build} />
-            <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
-          </div>
-          <BuildMetadataCard build={build} projectSlug={project.slug} />
-        </>
-      ) : (
-        <BuildNotFoundState projectSlug={project.slug} />
-      )}
+      <BuildDetailHeader build={build} orgId={orgId} projectId={projectId} />
+      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <ArtifactCard build={build} />
+        <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
+      </div>
+      <BuildMetadataCard build={build} projectSlug={project.slug} />
     </>
   );
 };
 
 const BuildDetailSkeleton = () => (
   <>
-    <ProjectSubpageHeader title="Build" />
+    <PageHeader size="sub" title="Build" />
     <DetailCardSkeleton rows={2} columns={2} />
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <DetailCardSkeleton rows={3} columns={2} />

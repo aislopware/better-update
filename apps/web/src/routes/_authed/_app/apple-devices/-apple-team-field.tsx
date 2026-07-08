@@ -2,9 +2,9 @@ import { appleTeamsQueryOptions } from "@better-update/api-client/react";
 import { Field, FieldDescription, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
@@ -52,10 +52,10 @@ export const AppleTeamField = ({
           onChange(next);
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="No team" />
         </SelectTrigger>
-        <SelectPopup>
+        <SelectContent>
           <SelectGroup>
             <SelectItem value={APPLE_TEAM_NONE}>No team</SelectItem>
             {teams.map((team) => (
@@ -64,7 +64,7 @@ export const AppleTeamField = ({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectPopup>
+        </SelectContent>
       </Select>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
     </Field>

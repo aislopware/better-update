@@ -3,25 +3,25 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon, UserPlusIcon } from "lucide-react";
@@ -102,10 +102,10 @@ const SelectField = ({
         }
       }}
     >
-      <SelectTrigger aria-label={ariaLabel ?? label}>
+      <SelectTrigger className="w-full" aria-label={ariaLabel ?? label}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectPopup>
+      <SelectContent>
         <SelectGroup>
           {Object.entries(items).map(([itemValue, itemLabel]) => (
             <SelectItem key={itemValue} value={itemValue}>
@@ -113,7 +113,7 @@ const SelectField = ({
             </SelectItem>
           ))}
         </SelectGroup>
-      </SelectPopup>
+      </SelectContent>
     </Select>
   </Field>
 );
@@ -151,8 +151,14 @@ const ProjectGrantRow = ({
         }
       }}
     />
-    <Button variant="ghost" size="icon" aria-label="Remove project access" onClick={onRemove}>
-      <Trash2Icon strokeWidth={2} className="text-destructive size-4" />
+    <Button
+      variant="ghost"
+      size="icon"
+      className="text-muted-foreground/70 hover:text-destructive"
+      aria-label="Remove project access"
+      onClick={onRemove}
+    >
+      <Trash2Icon strokeWidth={2} className="size-4" />
     </Button>
   </div>
 );
@@ -239,7 +245,7 @@ const InviteFormContent = ({
   const inviteMutation = useApiMutation({
     mutationFn: async (input: Parameters<typeof createInvitation>[0]) => createInvitation(input),
     onSuccess: async () => {
-      toastManager.add({ title: "Invitation sent", type: "success" });
+      toast.success("Invitation sent");
       await queryClient.invalidateQueries({
         queryKey: invitationsQueryOptions(orgId).queryKey,
       });
@@ -265,7 +271,7 @@ const InviteFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="email"
           validators={{
@@ -278,19 +284,20 @@ const InviteFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
                 <Input
                   id="invite-email"
                   type="email"
                   placeholder="colleague@example.com"
+                  aria-invalid={Boolean(errorMessage) || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -320,14 +327,18 @@ const InviteFormContent = ({
             ? "Admins manage the organization and hold Maintainer access on every project."
             : "Members see only the projects granted here; you can grant more after they join."}
         </p>
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
-              <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Send invitation
             </Button>
           )}
@@ -355,7 +366,7 @@ export const InviteDialog = ({ orgId, isOwner }: { orgId: string; isOwner: boole
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Invite member
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Invite a member</DialogTitle>
           <DialogDescription>Send an invitation to join your organization.</DialogDescription>
@@ -368,7 +379,7 @@ export const InviteDialog = ({ orgId, isOwner }: { orgId: string; isOwner: boole
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };
@@ -385,7 +396,7 @@ export const RemoveDialog = ({
   isRemoving: boolean;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogPopup>
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>Remove member</DialogTitle>
         <DialogDescription>
@@ -394,11 +405,12 @@ export const RemoveDialog = ({
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-        <Button variant="destructive" loading={isRemoving} onClick={onConfirm}>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <Button variant="destructive" disabled={isRemoving} onClick={onConfirm}>
+          {isRemoving && <Spinner data-icon="inline-start" />}
           Remove
         </Button>
       </DialogFooter>
-    </DialogPopup>
+    </DialogContent>
   </Dialog>
 );

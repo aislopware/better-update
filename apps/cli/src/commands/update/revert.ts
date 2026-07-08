@@ -39,7 +39,7 @@ const findPreviousGroupOnBranch = (
 ) =>
   Effect.gen(function* () {
     const updates = yield* drainPages((page) =>
-      api.updates.list({ urlParams: { projectId, branchId, limit: 100, page } }),
+      api.updates.list({ urlParams: { projectId, branchId: [branchId], limit: 100, page } }),
     );
     const filtered =
       platform === "all" ? updates : updates.filter((entry) => entry.platform === platform);

@@ -18,7 +18,7 @@ import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/reac
 import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
-import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
+import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 
 const truncatePrivateKey = (value: string): string => {
   if (value.length <= 16) {
@@ -36,11 +36,11 @@ const GsaTableCard = ({
   emptyLabel: string;
   sa: GoogleServiceAccountKeyItem | null;
 }) => (
-  <CredentialFrame title={title}>
+  <CredentialSection title={title}>
     {sa === null ? (
-      <EmptyBindingPanel message={emptyLabel} />
+      <EmptyBindingMessage message={emptyLabel} />
     ) : (
-      <Table variant="card">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Project ID</TableHead>
@@ -75,7 +75,7 @@ const GsaTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CredentialFrame>
+  </CredentialSection>
 );
 
 export const AndroidServiceCredentialsSection = ({

@@ -5,10 +5,9 @@ import {
   InputGroupText,
 } from "@better-update/ui/components/ui/input-group";
 
-import type { InputProps } from "@better-update/ui/components/ui/input";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
-interface SlugInputProps extends Omit<InputProps, "className"> {
+interface SlugInputProps extends Omit<ComponentProps<typeof InputGroupInput>, "className"> {
   readonly addonStart: ReactNode;
   readonly className?: string;
 }

@@ -28,10 +28,10 @@ import { Suspense, useMemo } from "react";
 
 import type { PlatformValue } from "@better-update/api-client/react";
 
-import { ProjectSubpageHeader } from "../-project-subpage-header";
-import { PlatformBadge } from "../../../../../../components/attribute-badges";
-import { SectionHeader } from "../../../../../../components/page-header";
+import { PlatformIndicator } from "../../../../../../components/attribute-badges";
+import { PageHeader, SectionHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { StatCard } from "../../../../../../components/stat-card";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -71,35 +71,10 @@ const RuntimeSummaryCards = ({
   updatesCount: number;
   latestActivity: string | null;
 }) => (
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Builds</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="font-medium">
-          {buildsCount} {pluralize(buildsCount, "build")}
-        </div>
-      </CardContent>
-    </Card>
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Updates</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="font-medium">
-          {updatesCount} {pluralize(updatesCount, "update")}
-        </div>
-      </CardContent>
-    </Card>
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Latest activity</CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm font-medium">
-        <RelativeTime value={latestActivity} />
-      </CardContent>
-    </Card>
+  <div className="grid gap-4 sm:grid-cols-3">
+    <StatCard label="Builds" value={buildsCount} />
+    <StatCard label="Updates" value={updatesCount} />
+    <StatCard label="Latest activity" value={<RelativeTime value={latestActivity} />} />
   </div>
 );
 
@@ -123,25 +98,29 @@ const UpdateRow = ({
   <Link
     to="/projects/$projectSlug/updates/$updateId"
     params={{ projectSlug, updateId: update.id }}
-    className="hover:bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 transition-colors"
+    className="hover:bg-muted/50 border-border/60 flex items-center justify-between gap-3 border-b px-2 py-2.5 transition-colors first:pt-0 last:border-0 last:pb-0"
   >
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="font-medium">
-        {update.message || `Update ${update.groupId.slice(0, 8)}`}
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="flex items-center gap-2">
+        <span className="truncate text-sm font-medium">
+          {update.message || `Update ${update.groupId.slice(0, 8)}`}
+        </span>
+        {update.rolloutPercentage < 100 ? (
+          <Badge variant="secondary">Rollout {update.rolloutPercentage}%</Badge>
+        ) : null}
       </span>
-      <PlatformBadge platform={update.platform} />
-      {branchName ? (
-        <span className="text-muted-foreground text-sm">{branchName}</span>
-      ) : (
-        <code className="text-muted-foreground font-mono text-xs" title={update.branchId}>
-          {update.branchId.slice(0, 8)}
-        </code>
-      )}
-      {update.rolloutPercentage < 100 ? (
-        <Badge variant="secondary">Rollout {update.rolloutPercentage}%</Badge>
-      ) : null}
+      <span className="text-muted-foreground flex items-center gap-2 text-xs">
+        <PlatformIndicator platform={update.platform} className="gap-1" />
+        {branchName ? (
+          <span className="truncate">{branchName}</span>
+        ) : (
+          <code className="font-mono" title={update.branchId}>
+            {update.branchId.slice(0, 8)}
+          </code>
+        )}
+      </span>
     </div>
-    <RelativeTime value={update.createdAt} className="text-muted-foreground text-xs" />
+    <RelativeTime value={update.createdAt} className="text-muted-foreground shrink-0 text-xs" />
   </Link>
 );
 
@@ -189,13 +168,16 @@ const RuntimeDetailContent = () => {
     data: buildsTableData,
     columns: [...buildColumns],
     enableMultiSort: false,
+    // Match the Builds page defaults — secondary numeric columns stay hidden
+    // so the table fits without horizontal scroll.
+    initialState: { columnVisibility: { buildNumber: false, size: false } },
     getCoreRowModel: getCoreRowModel(),
   });
 
   if (buildsCount === 0 && updatesCount === 0) {
     return (
       <>
-        <ProjectSubpageHeader title={`Runtime v${version}`} />
+        <PageHeader size="sub" title={`Runtime v${version}`} />
         <RuntimeNotFoundState projectSlug={projectSlug} />
       </>
     );
@@ -203,7 +185,7 @@ const RuntimeDetailContent = () => {
 
   return (
     <>
-      <ProjectSubpageHeader title={`Runtime v${version}`} />
+      <PageHeader size="sub" title={`Runtime v${version}`} />
 
       <RuntimeSummaryCards
         buildsCount={buildsCount}
@@ -266,7 +248,7 @@ const RuntimeDetailContent = () => {
               Publish an update with this runtime version to see it here.
             </p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
               {updatesData.items.slice(0, 10).map((update) => (
                 <UpdateRow
                   key={update.id}
@@ -280,7 +262,7 @@ const RuntimeDetailContent = () => {
                   to="/projects/$projectSlug/updates"
                   params={{ projectSlug }}
                   search={{ page: 1, sort: "-createdAt" as const }}
-                  className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  className="text-muted-foreground hover:text-foreground pt-3 text-sm transition-colors"
                 >
                   View all updates →
                 </Link>
@@ -295,7 +277,7 @@ const RuntimeDetailContent = () => {
 
 const RuntimeDetailSkeleton = () => (
   <>
-    <ProjectSubpageHeader title="Runtime" />
+    <PageHeader size="sub" title="Runtime" />
     <SummaryCardsSkeleton count={3} />
     <DetailCardSkeleton rows={3} columns={2} />
     <DetailCardSkeleton rows={3} columns={1} />

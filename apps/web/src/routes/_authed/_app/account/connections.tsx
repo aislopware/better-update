@@ -1,5 +1,15 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@better-update/ui/components/ui/item";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, KeyRoundIcon } from "lucide-react";
@@ -42,7 +52,7 @@ const ConnectionsList = () => {
     mutationFn: async (providerId: string) =>
       rejectOnAuthClientError(authClient.unlinkAccount({ providerId }), "Failed to unlink account"),
     onSuccess: async () => {
-      toastManager.add({ title: "Account unlinked", type: "success" });
+      toast.success("Account unlinked");
       await queryClient.resetQueries({ queryKey: accountsQueryOptions.queryKey });
     },
   });
@@ -65,51 +75,54 @@ const ConnectionsList = () => {
       title="Connections"
       description="Linked sign-in methods. You must keep at least one active."
     >
-      <ul className="-my-3 flex flex-col divide-y">
+      <ItemGroup>
         {PROVIDERS.map((provider) => {
           const linked = accounts.find((account) => account.providerId === provider.id);
           const isLinked = Boolean(linked);
           const isUnlinking = unlinkingProvider === provider.id;
           const canUnlink = isLinked && provider.id !== "credential" && accounts.length > 1;
           return (
-            <li key={provider.id} className="flex items-center gap-3 py-3">
-              <span className="bg-muted/72 flex size-9 shrink-0 items-center justify-center rounded-md border">
-                <provider.icon strokeWidth={2} className="size-4" />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-sm leading-none font-medium">{provider.label}</span>
-                <span className="text-muted-foreground text-xs">{provider.description}</span>
-              </div>
-              {provider.id === "github" && !isLinked ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    linkGithubMutation.mutate();
-                  }}
-                  loading={linkGithubMutation.isPending}
-                >
-                  Connect
-                </Button>
-              ) : null}
-              {canUnlink ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    unlinkMutation.mutate(provider.id);
-                  }}
-                  loading={isUnlinking}
-                  disabled={unlinkMutation.isPending && !isUnlinking}
-                >
-                  Disconnect
-                </Button>
-              ) : null}
-              {isLinked && !canUnlink ? (
-                <span className="text-muted-foreground text-xs">Connected</span>
-              ) : null}
-            </li>
+            <Item key={provider.id} variant="outline" size="sm">
+              <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
+                <provider.icon strokeWidth={2} />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>{provider.label}</ItemTitle>
+                <ItemDescription>{provider.description}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                {provider.id === "github" && !isLinked ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      linkGithubMutation.mutate();
+                    }}
+                    disabled={linkGithubMutation.isPending}
+                  >
+                    {linkGithubMutation.isPending && <Spinner data-icon="inline-start" />}
+                    Connect
+                  </Button>
+                ) : null}
+                {canUnlink ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      unlinkMutation.mutate(provider.id);
+                    }}
+                    disabled={isUnlinking || unlinkMutation.isPending}
+                  >
+                    {isUnlinking && <Spinner data-icon="inline-start" />}
+                    Disconnect
+                  </Button>
+                ) : null}
+                {isLinked && !canUnlink ? (
+                  <span className="text-muted-foreground text-xs">Connected</span>
+                ) : null}
+              </ItemActions>
+            </Item>
           );
         })}
-      </ul>
+      </ItemGroup>
     </SettingCard>
   );
 };

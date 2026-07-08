@@ -1,29 +1,28 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@better-update/ui/components/ui/command";
+import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import {
-  Menu,
-  MenuPopup,
-  MenuGroup,
-  MenuItem,
-  MenuGroupLabel,
-  MenuSeparator,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@better-update/ui/components/ui/popover";
+import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { ChevronsUpDownIcon, FolderIcon, PlusIcon } from "lucide-react";
+import { useDeferredValue, useState } from "react";
 
-import { renderSwitcherIndicator } from "../../components/switcher-indicator";
+import { fireAndForget } from "../../lib/data-table";
 import { EntityAvatar } from "../../lib/entity-avatar";
-import { useApiMutation } from "../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../queries/constants";
 import { CreateProjectFormContent } from "./_app/projects/-create-dialog";
 
@@ -36,59 +35,90 @@ const switcherTrigger = (displayName: string) => (
 
 interface ProjectSwitcherProps {
   readonly orgId: string;
-  readonly currentProjectSlug: string;
+  /** Undefined on org-level pages — the switcher then shows "All Projects". */
+  readonly currentProjectSlug: string | undefined;
 }
 
 export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherProps) => {
   const router = useRouter();
-  // Switcher dropdown is bounded to the most-recent N projects (sorted by
-  // last activity). If the org has more, the user can navigate to /projects
-  // which has full-text search.
-  const { data } = useSuspenseQuery(projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT }));
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim());
   const [createOpen, setCreateOpen] = useState(false);
   const [createResetKey, setCreateResetKey] = useState(0);
 
-  const navigateMutation = useApiMutation({
-    mutationFn: async (projectSlug: string) =>
-      router.navigate({ to: "/projects/$projectSlug", params: { projectSlug } }),
+  // Recent projects power both the trigger label and the default list; typing
+  // switches to a server-side search across the whole org (the recent list is
+  // bounded to the most recently active N).
+  const { data: recent } = useSuspenseQuery(
+    projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
+  const isSearching = deferredSearch.length > 0;
+  const searchResults = useQuery({
+    ...projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT, query: deferredSearch }),
+    enabled: isSearching,
+    placeholderData: keepPreviousData,
   });
-  const navigatingSlug = navigateMutation.isPending ? navigateMutation.variables : undefined;
+  const items = (isSearching ? searchResults.data?.items : recent.items) ?? [];
 
-  const currentProject = data.items.find((project) => project.slug === currentProjectSlug);
-  const displayName = currentProject?.name ?? "Unknown project";
-  const hasMore = data.total > data.items.length;
+  const currentProject = currentProjectSlug
+    ? recent.items.find((project) => project.slug === currentProjectSlug)
+    : undefined;
+  const displayName =
+    currentProject?.name ?? (currentProjectSlug ? "Unknown project" : "All Projects");
 
-  const handleSelect = (projectSlug: string): void => {
-    if (projectSlug === currentProjectSlug || navigateMutation.isPending) {
-      return;
+  const navigateToProject = (projectSlug: string): void => {
+    setOpen(false);
+    if (projectSlug !== currentProjectSlug) {
+      fireAndForget(router.navigate({ to: "/projects/$projectSlug", params: { projectSlug } }));
     }
-    navigateMutation.mutate(projectSlug);
   };
 
   return (
     <>
-      <Menu>
-        <MenuTrigger render={switcherTrigger(displayName)} />
-        <MenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
-          <MenuGroup>
-            <MenuGroupLabel>Projects</MenuGroupLabel>
-            <MenuSeparator />
-            {data.items.length === 0 ? (
-              <MenuGroupLabel className="text-muted-foreground text-xs font-normal">
-                No projects yet
-              </MenuGroupLabel>
-            ) : (
-              data.items.map((project) => {
-                const isNavigating = navigatingSlug === project.slug;
-                const isActive = project.slug === currentProjectSlug;
-                return (
-                  <MenuItem
+      <Popover
+        open={open}
+        onOpenChange={setOpen}
+        onOpenChangeComplete={(next) => {
+          if (!next) {
+            setSearch("");
+          }
+        }}
+      >
+        <PopoverTrigger render={switcherTrigger(displayName)} />
+        <PopoverContent className="w-64 p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Search projects…" value={search} onValueChange={setSearch} />
+            <CommandList>
+              <CommandGroup>
+                <CommandItem
+                  data-checked={!currentProjectSlug}
+                  onSelect={() => {
+                    setOpen(false);
+                    fireAndForget(router.navigate({ to: "/projects" }));
+                  }}
+                >
+                  <FolderIcon strokeWidth={2} className="text-muted-foreground" />
+                  <span>All Projects</span>
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup heading="Projects">
+                {/* CommandEmpty never fires with shouldFilter=false + the
+                    always-present action items, so the empty state is manual. */}
+                {items.length === 0 ? (
+                  <div className="text-muted-foreground py-6 text-center text-sm">
+                    {isSearching && searchResults.isPending ? "Searching…" : "No projects found."}
+                  </div>
+                ) : null}
+                {items.map((project) => (
+                  <CommandItem
                     key={project.id}
-                    onClick={() => {
-                      handleSelect(project.slug);
+                    value={project.slug}
+                    data-checked={project.slug === currentProjectSlug}
+                    onSelect={() => {
+                      navigateToProject(project.slug);
                     }}
-                    data-pending={isNavigating || undefined}
-                    disabled={navigateMutation.isPending && !isNavigating}
                   >
                     <EntityAvatar
                       name={project.name}
@@ -97,30 +127,26 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
                       size="sm"
                       shape="square"
                     />
-                    <span className="flex-1 truncate">{project.name}</span>
-                    {renderSwitcherIndicator(isNavigating, isActive)}
-                  </MenuItem>
-                );
-              })
-            )}
-          </MenuGroup>
-          {hasMore ? (
-            <MenuGroupLabel className="text-muted-foreground text-xs font-normal">
-              Showing {data.items.length} of {data.total}. Open the projects page to search.
-            </MenuGroupLabel>
-          ) : null}
-          <MenuSeparator />
-          <MenuItem
-            onClick={() => {
-              setCreateOpen(true);
-            }}
-            disabled={navigateMutation.isPending}
-          >
-            <PlusIcon strokeWidth={2} className="size-4" />
-            <span>Create project</span>
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
+                    <span className="truncate">{project.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false);
+                    setCreateOpen(true);
+                  }}
+                >
+                  <PlusIcon strokeWidth={2} className="text-muted-foreground" />
+                  <span>Create project</span>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
       <Dialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -130,7 +156,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
           }
         }}
       >
-        <DialogPopup>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create a project</DialogTitle>
             <DialogDescription>
@@ -144,7 +170,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
               setCreateOpen(false);
             }}
           />
-        </DialogPopup>
+        </DialogContent>
       </Dialog>
     </>
   );

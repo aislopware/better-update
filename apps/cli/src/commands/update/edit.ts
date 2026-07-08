@@ -25,7 +25,7 @@ const promptGroupId = (api: ApiClient, projectId: string, branchName: string | u
       urlParams: {
         projectId,
         limit: 50,
-        ...compact({ branchId }),
+        ...compact({ branchId: branchId ? [branchId] : undefined }),
       },
     });
     const groups = new Map<string, { readonly groupId: string; readonly message: string | null }>();

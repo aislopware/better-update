@@ -1,6 +1,14 @@
 import { Schema } from "effect";
 
-import { DateTimeString, DeletedResult, Id, PaginationParams, Platform, sortParam } from "./common";
+import {
+  csvList,
+  DateTimeString,
+  DeletedResult,
+  Id,
+  PaginationParams,
+  Platform,
+  sortParam,
+} from "./common";
 
 export class Update extends Schema.Class<Update>("Update")({
   id: Id,
@@ -39,7 +47,7 @@ export const UpdateSort = sortParam(UpdateSortColumn);
 
 export const ListUpdatesParams = Schema.Struct({
   projectId: Id,
-  branchId: Schema.optional(Id),
+  branchId: Schema.optional(csvList(Id)),
   platform: Schema.optional(Platform),
   runtimeVersion: Schema.optional(Schema.String),
   // Case-insensitive substring match on the publish message or git commit SHA.

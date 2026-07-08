@@ -14,13 +14,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import {
   keepPreviousData,
   useQuery,
@@ -30,31 +25,24 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import {
-  GitBranchIcon,
-  PauseIcon,
-  PlayIcon,
-  SatelliteIcon,
-  SearchIcon,
-  SearchXIcon,
-} from "lucide-react";
+import { GitBranchIcon, PauseIcon, PlayIcon, SatelliteIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { Channel } from "@better-update/api";
 import type { BranchItem, ChannelSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ChangeEvent } from "react";
 
 import { ChannelStatusBadge } from "../-channel-status-badge";
 import { CreateChannelDialog } from "../-create-channel-dialog";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
-import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { invalidateChannels as invalidateChannelsHelper } from "../-update-helpers";
+import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import {
+  DataTableToolbar,
   DataTableView,
   PAGE_SIZE,
   computePagination,
@@ -114,10 +102,7 @@ const PauseToggleButton = ({
     mutationFn: async () =>
       channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
     onSuccess: async () => {
-      toastManager.add({
-        title: channel.isPaused ? "Channel resumed" : "Channel paused",
-        type: "success",
-      });
+      toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
       await invalidateChannelsHelper(queryClient, orgId, projectId);
     },
   });
@@ -125,13 +110,16 @@ const PauseToggleButton = ({
     <Button
       variant="ghost"
       size="icon"
-      loading={togglePauseMutation.isPending}
+      className="text-muted-foreground/70 hover:text-foreground"
+      disabled={togglePauseMutation.isPending}
       onClick={() => {
         togglePauseMutation.mutate();
       }}
       aria-label={channel.isPaused ? "Resume channel" : "Pause channel"}
     >
-      {channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />}
+      {togglePauseMutation.isPending && <Spinner />}
+      {!togglePauseMutation.isPending &&
+        (channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />)}
     </Button>
   );
 };
@@ -204,9 +192,7 @@ const buildColumns = (
 
 const ChannelsSkeleton = () => (
   <>
-    <div className="flex items-center justify-between gap-2">
-      <ProjectSubpageHeader title="Channels" />
-    </div>
+    <PageHeader size="sub" title="Channels" />
     <TableSkeleton columns={5} rows={5} />
   </>
 );
@@ -239,6 +225,16 @@ const ChannelsContent = () => {
       );
     },
   });
+
+  const handleReset = () => {
+    handleSearchChange("");
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, query: "", page: 1 }),
+      }),
+    );
+  };
 
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...channelsQueryOptions(orgId, projectId, {
@@ -277,10 +273,7 @@ const ChannelsContent = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Channels" />
-          {createCta}
-        </div>
+        <PageHeader size="sub" title="Channels" actions={createCta} />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -290,16 +283,12 @@ const ChannelsContent = () => {
     );
   }
 
-  const showsFilteredEmpty = data.total === 0 && urlQuery.length > 0;
   const showsGlobalEmpty = data.total === 0 && urlQuery.length === 0 && searchDraft.length === 0;
 
   if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Channels" />
-          {createCta}
-        </div>
+        <PageHeader size="sub" title="Channels" actions={createCta} />
         <ChannelsEmptyState />
       </div>
     );
@@ -317,60 +306,32 @@ const ChannelsContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <ProjectSubpageHeader title="Channels" />
-        {createCta}
-      </div>
-      <div className="flex flex-col gap-3">
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            aria-label="Search channels"
-            placeholder="Search channels…"
-            type="search"
-            value={searchDraft}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => {
-              handleSearchChange(event.target.value);
-            }}
-          />
-          {isPlaceholderData ? (
-            <InputGroupAddon align="inline-end">
-              <Spinner />
-            </InputGroupAddon>
-          ) : null}
-        </InputGroup>
-        {showsFilteredEmpty ? (
-          <Card>
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <SearchXIcon strokeWidth={1.5} />
-                </EmptyMedia>
-                <EmptyTitle>No channels match your search</EmptyTitle>
-                <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </Card>
-        ) : (
-          <DataTableView
-            table={table}
-            columnsCount={columns.length}
-            isPlaceholderData={isPlaceholderData}
-            countLabel={countLabel}
-            safePage={safePage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            onRowClick={async (channel) => {
-              await routeNavigate({
-                to: "/projects/$projectSlug/channels/$channelId",
-                params: { projectSlug, channelId: channel.id },
-              });
-            }}
-          />
-        )}
-      </div>
+      <PageHeader size="sub" title="Channels" actions={createCta} />
+      <DataTableToolbar
+        search={{
+          value: searchDraft,
+          onChange: handleSearchChange,
+          placeholder: "Search channels…",
+        }}
+        isFiltered={urlQuery.length > 0 || searchDraft.length > 0}
+        onReset={handleReset}
+      />
+      <DataTableView
+        table={table}
+        columnsCount={columns.length}
+        isPlaceholderData={isPlaceholderData}
+        countLabel={countLabel}
+        safePage={safePage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        emptyMessage="No channels match your search."
+        onRowClick={async (channel) => {
+          await routeNavigate({
+            to: "/projects/$projectSlug/channels/$channelId",
+            params: { projectSlug, channelId: channel.id },
+          });
+        }}
+      />
     </div>
   );
 };

@@ -7,10 +7,9 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -23,7 +22,7 @@ import {
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
-  SelectPopup,
+  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -271,10 +270,10 @@ const UpdateSelector = ({
           }
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Choose an update" />
         </SelectTrigger>
-        <SelectPopup>
+        <SelectContent>
           <SelectGroup>
             {options.map((update) => (
               <SelectItem key={update.id} value={update.id}>
@@ -282,7 +281,7 @@ const UpdateSelector = ({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectPopup>
+        </SelectContent>
       </Select>
     </Field>
   );
@@ -363,24 +362,22 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
 
   if (updates.length < 2) {
     return (
-      <DialogPanel>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <GitCompareIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>Not enough updates to compare</EmptyTitle>
-            <EmptyDescription>
-              You need at least two updates in this project before you can compare them.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </DialogPanel>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <GitCompareIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>Not enough updates to compare</EmptyTitle>
+          <EmptyDescription>
+            You need at least two updates in this project before you can compare them.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
   return (
-    <DialogPanel className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
         <UpdateSelector
           label="Update A"
@@ -414,17 +411,15 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
         orgId={orgId}
         projectId={projectId}
       />
-    </DialogPanel>
+    </div>
   );
 };
 
 const CompareBodySkeleton = () => (
-  <DialogPanel>
-    <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
-      <Spinner />
-      <span>Loading updates…</span>
-    </div>
-  </DialogPanel>
+  <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
+    <Spinner />
+    <span>Loading updates…</span>
+  </div>
 );
 
 export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogProps) => {
@@ -452,7 +447,7 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
           }
         }}
       >
-        <DialogPopup className="sm:max-w-3xl">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Compare updates</DialogTitle>
             <DialogDescription>
@@ -462,7 +457,7 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
           <Suspense fallback={<CompareBodySkeleton />}>
             <CompareBody key={resetKey} orgId={orgId} projectId={projectId} />
           </Suspense>
-        </DialogPopup>
+        </DialogContent>
       </Dialog>
     </>
   );

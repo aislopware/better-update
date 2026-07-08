@@ -39,8 +39,8 @@ export interface DeviceRepository {
     readonly order: DeviceSortOrder;
     readonly limit: number;
     readonly offset: number;
-    readonly deviceClass?: DeviceClass | undefined;
-    readonly appleTeamId?: string | undefined;
+    readonly deviceClass?: readonly DeviceClass[] | undefined;
+    readonly appleTeamId?: readonly string[] | undefined;
     /**
      * Binding scope (GITLAB-RBAC-SPEC §1a): restrict to devices of these
      * Apple team rows (team-less devices excluded). `undefined` = no scope
@@ -160,20 +160,20 @@ const teamScopeExpression = (
 const deviceFilter =
   (filters: {
     readonly organizationId: string;
-    readonly deviceClass: DeviceClass | undefined;
-    readonly appleTeamId: string | undefined;
+    readonly deviceClass: readonly DeviceClass[] | undefined;
+    readonly appleTeamId: readonly string[] | undefined;
     readonly appleTeamIdIn: readonly string[] | undefined;
     readonly query: string | undefined;
   }) =>
   (eb: ExpressionBuilder<DB, "devices">): Expression<SqlBool> => {
     const conditions = [
       eb("devices.organization_id", "=", filters.organizationId),
-      filters.deviceClass === undefined
+      filters.deviceClass === undefined || filters.deviceClass.length === 0
         ? null
-        : eb("devices.device_class", "=", filters.deviceClass),
-      filters.appleTeamId === undefined
+        : eb("devices.device_class", "in", [...filters.deviceClass]),
+      filters.appleTeamId === undefined || filters.appleTeamId.length === 0
         ? null
-        : eb("devices.apple_team_id", "=", filters.appleTeamId),
+        : eb("devices.apple_team_id", "in", [...filters.appleTeamId]),
       teamScopeExpression(eb, filters.appleTeamIdIn),
       searchExpression(eb, filters.query),
     ].filter((condition): condition is Expression<SqlBool> => condition !== null);
@@ -277,7 +277,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
             deviceFilter({
               organizationId: params.organizationId,
               deviceClass: undefined,
-              appleTeamId: params.appleTeamId,
+              appleTeamId: params.appleTeamId === undefined ? undefined : [params.appleTeamId],
               appleTeamIdIn: undefined,
               query: undefined,
             }),

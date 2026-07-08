@@ -11,10 +11,9 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -70,7 +69,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
   const isIosInstall = data !== null && data.installUrl !== null;
 
   return (
-    <DialogPanel>
+    <>
       {status === "idle" || status === "pending" ? (
         <div className="flex items-center justify-center gap-2 py-6">
           <Spinner />
@@ -79,7 +78,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
       ) : null}
 
       {status === "error" ? (
-        <Alert variant="error">
+        <Alert variant="destructive">
           <CircleAlertIcon />
           <AlertTitle>Could not generate install link</AlertTitle>
           <AlertDescription>{getApiError(fetchInstallLinkMutation.error)}</AlertDescription>
@@ -131,7 +130,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
           </div>
         </div>
       ) : null}
-    </DialogPanel>
+    </>
   );
 };
 
@@ -140,11 +139,13 @@ export const InstallLinkDialog = ({
   buttonLabel,
   buttonVariant = "ghost",
   buttonSize,
+  buttonClassName,
 }: {
   build: BuildWithArtifact;
   buttonLabel?: string;
   buttonVariant?: ComponentProps<typeof Button>["variant"];
   buttonSize?: ComponentProps<typeof Button>["size"];
+  buttonClassName?: string;
 }) => {
   const effectiveButtonSize = buttonSize ?? (buttonLabel ? undefined : "icon");
   const [open, setOpen] = useState(false);
@@ -155,6 +156,7 @@ export const InstallLinkDialog = ({
       <Button
         variant={buttonVariant}
         size={effectiveButtonSize}
+        className={buttonClassName}
         title={buttonLabel ?? "Install link"}
         onClick={() => {
           setOpen(true);
@@ -172,7 +174,7 @@ export const InstallLinkDialog = ({
           }
         }}
       >
-        <DialogPopup className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Install link</DialogTitle>
             <DialogDescription>
@@ -180,7 +182,7 @@ export const InstallLinkDialog = ({
             </DialogDescription>
           </DialogHeader>
           <InstallLinkBody key={resetKey} buildId={build.id} />
-        </DialogPopup>
+        </DialogContent>
       </Dialog>
     </>
   );

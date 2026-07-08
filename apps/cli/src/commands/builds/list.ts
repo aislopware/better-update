@@ -64,7 +64,7 @@ export const listCommand = defineCommand({
               platform: args.platform,
               profile: args.profile,
               runtimeVersion: args["runtime-version"],
-              distribution: args.distribution,
+              distribution: args.distribution ? [args.distribution] : undefined,
               sort: args.sort,
             }),
           },

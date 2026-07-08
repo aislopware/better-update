@@ -687,8 +687,8 @@ top-level `/roles`):
 
 All list state via TanStack Router `validateSearch` (`feedback_router_search_state`);
 list views use shared `lib/data-table` primitives (`feedback_data_table_primitives`);
-coss canonical components + dialog patterns (`feedback_dialog_*`,
-`project_coss_canonical_names`). Queries via the typed `runApi()` client
+shadcn base-ui components + dialog patterns (`feedback_dialog_*`).
+Queries via the typed `runApi()` client
 (`feedback_typed_api_client`) in `queries/policy.ts`, `queries/group.ts` (replace
 `queries/org.ts` role/grant query options). Credentials/env-var grant UIs from the
 legacy model are removed.

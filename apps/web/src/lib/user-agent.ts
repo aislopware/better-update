@@ -1,4 +1,4 @@
-const parseBrowser = (ua: string): string => {
+const parseBrowser = (ua: string): string | undefined => {
   if (ua.includes("Edg/")) {
     return "Edge";
   }
@@ -11,10 +11,10 @@ const parseBrowser = (ua: string): string => {
   if (ua.includes("Safari/") && ua.includes("Version/")) {
     return "Safari";
   }
-  return "Unknown browser";
+  return undefined;
 };
 
-const parseOS = (ua: string): string => {
+const parseOS = (ua: string): string | undefined => {
   if (ua.includes("Android")) {
     return "Android";
   }
@@ -30,7 +30,16 @@ const parseOS = (ua: string): string => {
   if (ua.includes("Linux")) {
     return "Linux";
   }
-  return "Unknown OS";
+  return undefined;
 };
 
-export const parseUserAgent = (ua: string): string => `${parseBrowser(ua)} on ${parseOS(ua)}`;
+// Degrade gracefully: "Chrome on macOS" → "Chrome" → "macOS" → "Unknown device",
+// never the double-unknown "Unknown browser on Unknown OS".
+export const parseUserAgent = (ua: string): string => {
+  const browser = parseBrowser(ua);
+  const os = parseOS(ua);
+  if (browser && os) {
+    return `${browser} on ${os}`;
+  }
+  return browser ?? os ?? "Unknown device";
+};

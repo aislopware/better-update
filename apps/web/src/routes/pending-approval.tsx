@@ -1,10 +1,11 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Frame,
-  FrameDescription,
-  FramePanel,
-  FrameTitle,
-} from "@better-update/ui/components/ui/frame";
+  Card,
+  CardContent,
+  CardDescription,
+  CardTitle,
+} from "@better-update/ui/components/ui/card";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 import { ClockIcon } from "lucide-react";
@@ -25,31 +26,32 @@ const PendingApproval = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <Frame className="w-full max-w-md">
-        <FramePanel className="flex flex-col items-center gap-4 p-8 text-center">
+      <Card className="w-full max-w-md">
+        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
           <div className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-full">
             <ClockIcon strokeWidth={1.5} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <FrameTitle>Account pending approval</FrameTitle>
-            <FrameDescription>
+            <CardTitle>Account pending approval</CardTitle>
+            <CardDescription>
               Better Update is still in development and access is invite-only. Your account (
               <span className="font-medium">{user.email}</span>) is waiting for a superadmin to
               approve it. You&apos;ll be able to sign in once it&apos;s approved.
-            </FrameDescription>
+            </CardDescription>
           </div>
           <Button
             variant="outline"
             className="mt-2"
-            loading={logoutMutation.isPending}
+            disabled={logoutMutation.isPending}
             onClick={() => {
               logoutMutation.mutate();
             }}
           >
+            {logoutMutation.isPending && <Spinner data-icon="inline-start" />}
             Sign out
           </Button>
-        </FramePanel>
-      </Frame>
+        </CardContent>
+      </Card>
     </div>
   );
 };

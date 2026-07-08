@@ -16,7 +16,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -75,7 +74,7 @@ const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>
   );
 
 const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Recipient</TableHead>
@@ -118,7 +117,7 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
 );
 
 const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
-  <Alert variant="warning">
+  <Alert className="text-warning *:data-[slot=alert-description]:text-warning/90">
     <TriangleAlertIcon />
     <AlertTitle>Rotation required</AlertTitle>
     <AlertDescription>
@@ -131,7 +130,7 @@ const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
 );
 
 const EnvRotationPendingBanner = () => (
-  <Alert variant="warning">
+  <Alert className="text-warning *:data-[slot=alert-description]:text-warning/90">
     <TriangleAlertIcon />
     <AlertTitle>Env rotation required</AlertTitle>
     <AlertDescription>
@@ -191,9 +190,9 @@ const EnvVaultRecipientsSection = ({
         summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's env values`}
       />
       {rows.length > 0 ? (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <RecipientsTable rows={rows} />
-        </Frame>
+        </div>
       ) : (
         <p className="text-muted-foreground text-sm">No env-vault recipients yet.</p>
       )}
@@ -229,9 +228,9 @@ const VaultAccessContent = () => {
           version={vault.vaultVersion}
           summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's credentials`}
         />
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <RecipientsTable rows={rows} />
-        </Frame>
+        </div>
       </section>
       {orgVault !== null && orgVault.envVaultCutoverAt !== null ? (
         <EnvVaultRecipientsSection

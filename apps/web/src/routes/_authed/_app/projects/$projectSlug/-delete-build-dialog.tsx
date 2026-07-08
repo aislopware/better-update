@@ -30,8 +30,13 @@ export const DeleteBuildDialog = ({
         await invalidateBuilds(queryClient, orgId, projectId);
       }}
     >
-      <Button variant="ghost" size="icon" className="size-8" aria-label="Delete build">
-        <Trash2Icon strokeWidth={2} className="text-destructive size-4" />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-muted-foreground/70 hover:text-destructive size-8"
+        aria-label="Delete build"
+      >
+        <Trash2Icon strokeWidth={2} className="size-4" />
       </Button>
     </ConfirmDeleteDialog>
   );

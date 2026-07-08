@@ -1,8 +1,6 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
-import { Checkbox } from "@better-update/ui/components/ui/checkbox";
-import { CheckboxGroup } from "@better-update/ui/components/ui/checkbox-group";
 import {
   Empty,
   EmptyDescription,
@@ -10,23 +8,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import { Label } from "@better-update/ui/components/ui/label";
-import { Popover, PopoverPopup, PopoverTrigger } from "@better-update/ui/components/ui/popover";
-import {
-  Select,
-  SelectGroup,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -34,33 +18,26 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  FilterIcon,
-  FingerprintIcon,
-  LockKeyholeIcon,
-  SearchIcon,
-  SettingsIcon,
-} from "lucide-react";
+import { FingerprintIcon, LockKeyholeIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 
 import type { EnvVar } from "@better-update/api";
 import type { EnvVarsFilters } from "@better-update/api-client/react";
-import type { ChangeEvent } from "react";
 
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
-  enumParam,
+  DataTableFacetedFilter,
+  DataTableToolbar,
+  enumArrayParam,
   freeStringArrayParam,
   queryParam,
   useDebouncedSearch,
 } from "../../../../lib/data-table";
 import { runPasskeyStepUp } from "../../../../lib/env-vault/step-up";
 import { useEnvVault } from "../../../../lib/env-vault/use-env-vault";
-import { pluralize } from "../../../../lib/pluralize";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { EnvVarCreateDialog } from "./-env-var-create-dialog";
 import { EnvVarRow } from "./-env-var-row";
@@ -75,18 +52,18 @@ type Mode =
   | { readonly kind: "project"; readonly orgId: string; readonly projectId: string }
   | { readonly kind: "global"; readonly orgId: string };
 
-const SCOPE_VALUES = ["all", "project", "global"] as const;
+const SCOPE_VALUES = ["project", "global"] as const;
 type ScopeFilter = (typeof SCOPE_VALUES)[number];
 
-const SCOPE_LABELS: Record<ScopeFilter, string> = {
-  all: "All scopes",
-  project: "Project only",
-  global: "Global only",
-};
+// An empty (or full) chip selection means "all scopes".
+const SCOPE_OPTIONS = [
+  { label: "Project only", value: "project" },
+  { label: "Global only", value: "global" },
+] as const;
 
 export const envVarsSearchSchema = z.object({
   query: queryParam(),
-  scope: enumParam(SCOPE_VALUES, "all"),
+  scope: enumArrayParam(SCOPE_VALUES),
   // Any of the org's environments (built-in or user-defined); an empty list means
   // "all environments" (no filter), so it stays valid as custom environments change.
   environments: freeStringArrayParam(),
@@ -115,7 +92,9 @@ const EmptyState = () => (
   </Card>
 );
 
-const EnvFilterPopover = ({
+// Multi-select environment filter — options are the org's environments
+// (built-in + user-defined), so they load via the environments query hook.
+const EnvironmentsFilter = ({
   orgId,
   value,
   onChange,
@@ -125,37 +104,17 @@ const EnvFilterPopover = ({
   onChange: (next: readonly string[]) => void;
 }) => {
   const environmentNames = useEnvironmentNames(orgId);
-  const label =
-    value.length === 0
-      ? "All environments"
-      : `${value.length} ${pluralize(value.length, "environment")}`;
+  const options = useMemo(
+    () => environmentNames.map((env) => ({ value: env, label: formatEnvironmentLabel(env) })),
+    [environmentNames],
+  );
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button variant="outline">
-            <FilterIcon strokeWidth={2} data-icon="inline-start" />
-            {label}
-          </Button>
-        }
-      />
-      <PopoverPopup>
-        <CheckboxGroup
-          className="gap-2 p-2 text-sm"
-          value={[...value]}
-          onValueChange={(next) => {
-            onChange(next);
-          }}
-        >
-          {environmentNames.map((env) => (
-            <Label key={env} className="cursor-pointer gap-2 select-none">
-              <Checkbox name={env} />
-              {formatEnvironmentLabel(env)}
-            </Label>
-          ))}
-        </CheckboxGroup>
-      </PopoverPopup>
-    </Popover>
+    <DataTableFacetedFilter
+      title="Environment"
+      options={options}
+      selected={value}
+      onChange={onChange}
+    />
   );
 };
 
@@ -177,7 +136,7 @@ const VaultToolbarActions = ({
   const reverifyMutation = useApiMutation({
     mutationFn: async () => runPasskeyStepUp(),
     onSuccess: () => {
-      toastManager.add({ title: "Re-verified with your passkey", type: "success" });
+      toast.success("Re-verified with your passkey");
     },
   });
 
@@ -205,12 +164,16 @@ const VaultToolbarActions = ({
       />
       <Button
         variant="outline"
-        loading={reverifyMutation.isPending}
+        disabled={reverifyMutation.isPending}
         onClick={() => {
           reverifyMutation.mutate();
         }}
       >
-        <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+        {reverifyMutation.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+        )}
         Re-verify
       </Button>
       <Button
@@ -234,61 +197,41 @@ const Toolbar = ({
   onScopeChange,
   environments,
   onEnvironmentsChange,
+  isFiltered,
+  onReset,
   vault,
   invalidate,
 }: {
   mode: Mode;
   searchDraft: string;
   onSearchDraftChange: (value: string) => void;
-  scope: ScopeFilter;
-  onScopeChange: (value: ScopeFilter) => void;
+  scope: readonly ScopeFilter[];
+  onScopeChange: (value: readonly ScopeFilter[]) => void;
   environments: readonly string[];
   onEnvironmentsChange: (value: readonly string[]) => void;
+  isFiltered: boolean;
+  onReset: () => void;
   vault: EnvVaultController;
   invalidate: () => Promise<void>;
 }) => (
-  <div className="flex flex-wrap items-center gap-2">
-    <InputGroup className="w-56">
-      <InputGroupAddon>
-        <SearchIcon aria-hidden="true" />
-      </InputGroupAddon>
-      <InputGroupInput
-        aria-label="Search environment variables"
-        placeholder="Search by key"
-        type="search"
-        value={searchDraft}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          onSearchDraftChange(event.target.value);
+  <DataTableToolbar
+    search={{ value: searchDraft, onChange: onSearchDraftChange, placeholder: "Search by key" }}
+    isFiltered={isFiltered}
+    onReset={onReset}
+    actions={<VaultToolbarActions mode={mode} vault={vault} invalidate={invalidate} />}
+  >
+    <EnvironmentsFilter orgId={mode.orgId} value={environments} onChange={onEnvironmentsChange} />
+    {mode.kind === "project" ? (
+      <DataTableFacetedFilter
+        title="Scope"
+        options={SCOPE_OPTIONS}
+        selected={scope}
+        onChange={(next) => {
+          onScopeChange(next.filter(isScopeFilter));
         }}
       />
-    </InputGroup>
-    <EnvFilterPopover orgId={mode.orgId} value={environments} onChange={onEnvironmentsChange} />
-    {mode.kind === "project" ? (
-      <Select
-        items={SCOPE_LABELS}
-        value={scope}
-        onValueChange={(val) => {
-          if (val && isScopeFilter(val)) {
-            onScopeChange(val);
-          }
-        }}
-      >
-        <SelectTrigger className="w-40">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectPopup>
-          <SelectGroup>
-            <SelectItem value="all">All scopes</SelectItem>
-            <SelectItem value="project">Project only</SelectItem>
-            <SelectItem value="global">Global only</SelectItem>
-          </SelectGroup>
-        </SelectPopup>
-      </Select>
     ) : null}
-    <div className="ml-auto flex items-center gap-2">
-      <VaultToolbarActions mode={mode} vault={vault} invalidate={invalidate} />
-    </div>
-  </div>
+  </DataTableToolbar>
 );
 
 const EnvVarsTable = ({
@@ -305,8 +248,8 @@ const EnvVarsTable = ({
   items.length === 0 ? (
     <EmptyState />
   ) : (
-    <Frame>
-      <Table variant="card">
+    <div className="overflow-hidden rounded-md border">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Key</TableHead>
@@ -340,7 +283,7 @@ const EnvVarsTable = ({
           ))}
         </TableBody>
       </Table>
-    </Frame>
+    </div>
   );
 
 export const EnvVarsView = ({
@@ -383,8 +326,10 @@ export const EnvVarsView = ({
 
   const filters = useMemo<EnvVarsFilters>(() => {
     const filteredEnvs = environments.length > 0 ? environments : undefined;
+    // Both scopes selected ≡ no scope filter — the API keeps its tri-state param.
+    const scopeParam = scope.length === 1 ? scope[0] : "all";
     return {
-      ...(mode.kind === "project" ? { scope } : {}),
+      ...(mode.kind === "project" ? { scope: scopeParam } : {}),
       ...(filteredEnvs ? { environments: filteredEnvs } : {}),
       ...(query.trim() ? { search: query.trim() } : {}),
     };
@@ -430,11 +375,16 @@ export const EnvVarsView = ({
         onSearchDraftChange={onSearchDraftChange}
         scope={scope}
         onScopeChange={(next) => {
-          onChangeSearch({ ...search, scope: next });
+          onChangeSearch({ ...search, scope: [...next] });
         }}
         environments={environments}
         onEnvironmentsChange={(next) => {
           onChangeSearch({ ...search, environments: [...next] });
+        }}
+        isFiltered={query.length > 0 || environments.length > 0 || scope.length > 0}
+        onReset={() => {
+          onSearchDraftChange("");
+          onChangeSearch({ query: "", scope: [], environments: [] });
         }}
         vault={vault}
         invalidate={invalidateEnvVars}

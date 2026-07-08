@@ -2,17 +2,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useState } from "react";
 
 import type { ReactElement } from "react";
@@ -59,7 +59,7 @@ export const ConfirmDeleteDialog = ({
   const deleteMutation = useApiMutation({
     mutationFn: onConfirm,
     onSuccess: async () => {
-      toastManager.add({ title: successMessage, type: "success" });
+      toast.success(successMessage);
       await onSuccess?.();
       if (isControlled) {
         onOpenChange?.(false);
@@ -94,38 +94,36 @@ export const ConfirmDeleteDialog = ({
       onOpenChangeComplete={handleOpenChangeComplete}
     >
       {children ? <DialogTrigger render={children} /> : null}
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <DialogPanel>
-          <Field>
-            <FieldLabel htmlFor="confirm-delete">
-              Type <span className="font-mono font-bold">{name}</span> to confirm
-            </FieldLabel>
-            <Input
-              id="confirm-delete"
-              value={confirmText}
-              onChange={(event) => {
-                setConfirmText(event.target.value);
-              }}
-              placeholder={name}
-            />
-          </Field>
-        </DialogPanel>
+        <Field>
+          <FieldLabel htmlFor="confirm-delete">
+            Type <span className="font-mono font-bold">{name}</span> to confirm
+          </FieldLabel>
+          <Input
+            id="confirm-delete"
+            value={confirmText}
+            onChange={(event) => {
+              setConfirmText(event.target.value);
+            }}
+            placeholder={name}
+          />
+        </Field>
         <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
-            disabled={confirmText !== name}
-            loading={deleteMutation.isPending}
+            disabled={confirmText !== name || deleteMutation.isPending}
             onClick={handleDelete}
           >
+            {deleteMutation.isPending && <Spinner data-icon="inline-start" />}
             Delete permanently
           </Button>
         </DialogFooter>
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

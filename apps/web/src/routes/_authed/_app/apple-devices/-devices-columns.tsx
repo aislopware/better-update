@@ -2,13 +2,13 @@ import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Menu,
-  MenuItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
@@ -44,19 +44,24 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => (
 
 // `appleDevicePortalId` is set once the UDID is registered on the Apple Developer
 // Portal (via ASC), so its presence is the source of truth for "synced".
+// "Not synced" is the default state — plain muted text; the synced
+// confirmation is colored text (not a pill, so the column keeps one left edge).
 const AppleSyncCell = ({ portalId }: { portalId: string | null }) =>
   portalId === null ? (
-    <Badge variant="outline" className="text-muted-foreground">
-      Not synced
-    </Badge>
+    <span className="text-muted-foreground text-sm">Not synced</span>
   ) : (
-    <Badge variant="success" title={`Apple device ID: ${portalId}`}>
+    <span className="text-success-foreground text-sm" title={`Apple device ID: ${portalId}`}>
       Synced
-    </Badge>
+    </span>
   );
 
 const actionsTrigger = (
-  <Button variant="ghost" size="icon" aria-label="Device actions">
+  <Button
+    variant="ghost"
+    size="icon"
+    className="text-muted-foreground/70 hover:text-foreground"
+    aria-label="Device actions"
+  >
     <EllipsisVerticalIcon strokeWidth={2} />
   </Button>
 );
@@ -68,45 +73,42 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
   const toggleEnabled = useApiMutation({
     mutationFn: async () => updateDevice(device.id, { enabled: !device.enabled }),
     onSuccess: async () => {
-      toastManager.add({
-        title: device.enabled ? "Device disabled" : "Device enabled",
-        type: "success",
-      });
+      toast.success(device.enabled ? "Device disabled" : "Device enabled");
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
     },
   });
 
   return (
     <>
-      <Menu>
-        <MenuTrigger render={actionsTrigger} />
-        <MenuPopup align="end" className="w-40">
-          <MenuItem
+      <DropdownMenu>
+        <DropdownMenuTrigger render={actionsTrigger} />
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem
             onClick={() => {
               setRenameOpen(true);
             }}
           >
             Rename
-          </MenuItem>
-          <MenuItem
+          </DropdownMenuItem>
+          <DropdownMenuItem
             onClick={() => {
               toggleEnabled.mutate();
             }}
             disabled={toggleEnabled.isPending}
           >
             {device.enabled ? "Disable" : "Enable"}
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             variant="destructive"
             onClick={() => {
               setDeleteOpen(true);
             }}
           >
             Delete
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <RenameDeviceDialog
         orgId={orgId}
         device={device}

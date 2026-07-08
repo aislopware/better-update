@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import {
+  csvList,
   DateTimeString,
   DeletedResult,
   Id,
@@ -154,7 +155,7 @@ export const ListBuildsParams = Schema.Struct({
   platform: Schema.optional(Platform),
   profile: Schema.optional(Schema.String),
   runtimeVersion: Schema.optional(Schema.String),
-  distribution: Schema.optional(Distribution),
+  distribution: Schema.optional(csvList(Distribution)),
   audience: Schema.optional(BuildAudience),
   // Case-insensitive substring match on the build message, git commit SHA or git ref.
   query: Schema.optional(Schema.String),

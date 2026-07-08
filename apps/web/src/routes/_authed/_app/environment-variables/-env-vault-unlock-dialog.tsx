@@ -2,17 +2,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -61,7 +61,8 @@ const PasskeyPrompt = ({
   return (
     <p className="text-muted-foreground text-sm">
       No passkey yet?{" "}
-      <Button variant="link" size="sm" type="button" loading={enrolling} onClick={onAdd}>
+      <Button variant="link" size="sm" type="button" disabled={enrolling} onClick={onAdd}>
+        {enrolling ? <Spinner data-icon="inline-start" /> : null}
         Add a passkey
       </Button>
     </p>
@@ -87,7 +88,7 @@ const UnlockForm = ({
         "Could not add a passkey.",
       ),
     onSuccess: async () => {
-      toastManager.add({ title: "Passkey added. Now verify to unlock.", type: "success" });
+      toast.success("Passkey added. Now verify to unlock.");
       await queryClient.invalidateQueries({ queryKey: passkeysQueryOptions.queryKey });
     },
   });
@@ -98,7 +99,7 @@ const UnlockForm = ({
       return unlockEnvVault(orgId, input.passphrase);
     },
     onSuccess: (vault) => {
-      toastManager.add({ title: "Env vault unlocked", type: "success" });
+      toast.success("Env vault unlocked");
       onUnlocked(vault);
       onSuccess();
     },
@@ -120,7 +121,7 @@ const UnlockForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="passphrase"
           validators={{
@@ -130,21 +131,23 @@ const UnlockForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="env-vault-passphrase">Account passphrase</FieldLabel>
                 <Input
                   id="env-vault-passphrase"
                   type="password"
                   autoComplete="off"
                   placeholder="Your env-vault account passphrase"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -156,13 +159,17 @@ const UnlockForm = ({
             enrollMutation.mutate();
           }}
         />
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
-              <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Verify &amp; unlock
             </Button>
           )}
@@ -203,7 +210,7 @@ export const EnvVaultUnlockDialog = ({
         <LockKeyholeOpenIcon strokeWidth={2} data-icon="inline-start" />
         Unlock env vault
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Unlock the env vault</DialogTitle>
           <DialogDescription>
@@ -219,7 +226,7 @@ export const EnvVaultUnlockDialog = ({
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

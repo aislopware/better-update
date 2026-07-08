@@ -153,7 +153,8 @@ const ADMIN_NAV: OrgNavSection = {
   items: [{ to: "/admin", label: "Users", icon: ShieldUserIcon }],
 };
 
-const PROJECT_NAV: ProjectNavSection[] = [
+// Exported for the ⌘K command palette so both surfaces list the same entries.
+export const PROJECT_NAV: ProjectNavSection[] = [
   {
     label: "Project",
     items: [
@@ -209,11 +210,13 @@ const PROJECT_NAV: ProjectNavSection[] = [
   },
 ];
 
-export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolean }) => {
+// Capability-gated org nav sections, shared by the sidebar and the ⌘K command
+// palette so both surfaces show exactly the same entries.
+export const useOrgNavSections = (isSuperadmin: boolean): OrgNavSection[] => {
   // Progressive reveal: while /api/me is in flight only ungated entries render,
   // so capability-gated entries never flash in and out.
   const { data: me } = useQuery(meQueryOptions());
-  const sections = (isSuperadmin ? [...ORG_NAV, ADMIN_NAV] : ORG_NAV)
+  return (isSuperadmin ? [...ORG_NAV, ADMIN_NAV] : ORG_NAV)
     .map((section) => {
       const items = section.items.filter(
         (item) => item.capability === undefined || me?.[item.capability] === true,
@@ -221,6 +224,10 @@ export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolea
       return { label: section.label, items };
     })
     .filter((section) => section.items.length > 0);
+};
+
+export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolean }) => {
+  const sections = useOrgNavSections(isSuperadmin);
   return (
     <>
       {sections.map((section) => (

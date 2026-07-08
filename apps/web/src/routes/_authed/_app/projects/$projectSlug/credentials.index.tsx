@@ -11,7 +11,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
@@ -33,8 +32,7 @@ import type {
 
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
-import { SectionHeader } from "../../../../../components/page-header";
-import { ProjectSubpageHeader } from "./-project-subpage-header";
+import { PageHeader, SectionHeader } from "../../../../../components/page-header";
 
 interface IosBundleGroup {
   readonly bundleIdentifier: string;
@@ -56,8 +54,8 @@ const groupBundleConfigs = (
 };
 
 const SectionListSkeleton = () => (
-  <Frame>
-    <Table variant="card">
+  <div className="overflow-hidden rounded-md border">
+    <Table>
       <TableBody>
         {[0, 1, 2].map((index) => (
           <TableRow key={index}>
@@ -68,7 +66,7 @@ const SectionListSkeleton = () => (
         ))}
       </TableBody>
     </Table>
-  </Frame>
+  </div>
 );
 
 const AndroidEmpty = () => (
@@ -191,8 +189,8 @@ const AndroidSection = ({
       {items.length === 0 ? (
         <AndroidEmpty />
       ) : (
-        <Frame>
-          <Table variant="card">
+        <div className="overflow-hidden rounded-md border">
+          <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Application identifier</TableHead>
@@ -204,7 +202,7 @@ const AndroidSection = ({
               ))}
             </TableBody>
           </Table>
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -236,8 +234,8 @@ const IosSection = ({
       {groups.length === 0 ? (
         <IosEmpty />
       ) : (
-        <Frame>
-          <Table variant="card">
+        <div className="overflow-hidden rounded-md border">
+          <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Bundle identifier</TableHead>
@@ -253,7 +251,7 @@ const IosSection = ({
               ))}
             </TableBody>
           </Table>
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -264,7 +262,11 @@ const ProjectCredentialsIndex = () => {
   const { projectSlug } = Route.useParams();
   return (
     <div className="flex w-full flex-col gap-8">
-      <ProjectSubpageHeader title="Credentials" />
+      <PageHeader
+        size="sub"
+        title="Credentials"
+        description="App identifiers and their signing credentials for this project. Manage bindings from the CLI."
+      />
       <Suspense fallback={<SectionListSkeleton />}>
         <AndroidSection orgId={activeOrg.id} projectId={project.id} projectSlug={projectSlug} />
       </Suspense>

@@ -3,17 +3,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -35,7 +35,7 @@ export const CreateProjectFormContent = ({
     mutationFn: async (value: { name: string; slug: string }) =>
       createProject({ name: value.name, slug: value.slug }),
     onSuccess: async () => {
-      toastManager.add({ title: "Project created", type: "success" });
+      toast.success("Project created");
       await queryClient.invalidateQueries({
         queryKey: projectsQueryKey(orgId),
       });
@@ -57,7 +57,7 @@ export const CreateProjectFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="name"
           validators={{
@@ -71,11 +71,12 @@ export const CreateProjectFormContent = ({
             const errorMessage = getFieldError(field);
             const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={invalid}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="project-name">Project name</FieldLabel>
                 <Input
                   id="project-name"
                   placeholder="My App"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     const name = event.target.value;
@@ -89,7 +90,7 @@ export const CreateProjectFormContent = ({
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={invalid}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -108,11 +109,12 @@ export const CreateProjectFormContent = ({
             const errorMessage = getFieldError(field);
             const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={invalid}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
                 <Input
                   id="project-slug"
                   placeholder="my-app"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
@@ -124,19 +126,23 @@ export const CreateProjectFormContent = ({
                   Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
                   in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
                 </p>
-                <FieldError match={invalid}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
-              <PlusIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <PlusIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Create project
             </Button>
           )}
@@ -164,7 +170,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create project
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create a project</DialogTitle>
           <DialogDescription>
@@ -178,7 +184,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

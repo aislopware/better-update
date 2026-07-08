@@ -16,7 +16,7 @@ import {
   setAscApiKeyProtection,
   setGoogleServiceAccountKeyProtection,
 } from "@better-update/api-client/react";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { AppleTeamItem, GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
@@ -46,10 +46,7 @@ const ProtectionSwitch = ({
   const protectionMutation = useApiMutation({
     mutationFn: setProtection,
     onSuccess: async (_result, next) => {
-      toastManager.add({
-        title: next ? `${toastLabel} protected` : `${toastLabel} unprotected`,
-        type: "success",
-      });
+      toast.success(next ? `${toastLabel} protected` : `${toastLabel} unprotected`);
       await queryClient.invalidateQueries({ queryKey });
     },
   });

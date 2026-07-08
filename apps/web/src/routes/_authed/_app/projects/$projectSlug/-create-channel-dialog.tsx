@@ -3,24 +3,24 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectPopup,
+  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -49,7 +49,7 @@ const useCreateChannelForm = (onSubmit: (value: CreateChannelFormValues) => Prom
 type CreateChannelFormApi = ReturnType<typeof useCreateChannelForm>;
 
 const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
-  <SelectPopup>
+  <SelectContent>
     <SelectGroup>
       {branches.map((branch) => (
         <SelectItem key={branch.id} value={branch.id}>
@@ -57,7 +57,7 @@ const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectPopup>
+  </SelectContent>
 );
 
 const BranchField = ({
@@ -83,7 +83,7 @@ const BranchField = ({
       {(field) => {
         const errorMessage = getFieldError(field);
         return (
-          <Field invalid={Boolean(errorMessage)}>
+          <Field data-invalid={Boolean(errorMessage)}>
             <FieldLabel>Branch</FieldLabel>
             <Select
               items={branchLabels}
@@ -95,12 +95,12 @@ const BranchField = ({
                 field.handleChange(next);
               }}
             >
-              <SelectTrigger aria-invalid={errorMessage ? true : undefined}>
+              <SelectTrigger className="w-full" aria-invalid={errorMessage ? true : undefined}>
                 <SelectValue placeholder="Select a branch" />
               </SelectTrigger>
               <BranchOptions branches={branches} />
             </Select>
-            <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+            {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
           </Field>
         );
       }}
@@ -125,7 +125,7 @@ const CreateChannelForm = ({
     mutationFn: async (input: { name: string; branchId: string }) =>
       createChannel({ projectId, name: input.name, branchId: input.branchId }),
     onSuccess: async () => {
-      toastManager.add({ title: "Channel created", type: "success" });
+      toast.success("Channel created");
       await invalidateChannels(queryClient, orgId, projectId);
       onSuccess();
     },
@@ -149,7 +149,7 @@ const CreateChannelForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="name"
           validators={{
@@ -162,10 +162,11 @@ const CreateChannelForm = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="channel-name">Name</FieldLabel>
                 <Input
                   id="channel-name"
+                  aria-invalid={Boolean(errorMessage) || undefined}
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(event) => {
@@ -173,21 +174,25 @@ const CreateChannelForm = ({
                   }}
                   placeholder="e.g. production, staging"
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
         </form.Field>
 
         <BranchField form={form} branches={branches} />
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
-              <PlusIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <PlusIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Create channel
             </Button>
           )}
@@ -223,7 +228,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create channel
       </Button>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create a channel</DialogTitle>
           <DialogDescription>
@@ -239,7 +244,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

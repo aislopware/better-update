@@ -15,7 +15,7 @@ operator can do before enabling web env CRUD in prod.
 | P4.5 reveal endpoint (`GET /api/env-vars/:id/value`) + api-client CRUD bindings | **DONE, green**                                                      |
 | P4.6a browser unlock lib + unlock/escrow/step-up bindings                       | **DONE, green (typecheck only)**                                     |
 | P4.6b passkey step-up CEREMONY wiring (browser)                                 | **DONE, green (typecheck+unit; needs on-device)**                    |
-| P4.6c coss UI (unlock dialog, reveal/create/edit/delete)                        | **DONE, green (typecheck+unit; needs on-device)**                    |
+| P4.6c web UI (unlock dialog, reveal/create/edit/delete)                         | **DONE, green (typecheck+unit; needs on-device)**                    |
 | P4.6d vault-origin routing (`/api/*` + web) + `trustedOrigins`                  | **DONE in config (applies on deploy)**                               |
 | P4.6d CSP on the vault origin                                                   | **Report-Only LIVE; flip to enforce at go-live after browser check** |
 | P4.7 go-live                                                                    | **this doc**                                                         |

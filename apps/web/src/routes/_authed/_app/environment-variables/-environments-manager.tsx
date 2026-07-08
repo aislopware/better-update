@@ -6,22 +6,32 @@ import {
   renameEnvironment,
   setEnvironmentProtection,
 } from "@better-update/api-client/react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@better-update/ui/components/ui/alert-dialog";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Frame } from "@better-update/ui/components/ui/frame";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Switch } from "@better-update/ui/components/ui/switch";
 import {
   Table,
@@ -31,7 +41,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
@@ -81,7 +90,7 @@ const EnvironmentNameForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
+      <FieldGroup>
         <form.Field
           name="name"
           validators={{
@@ -93,29 +102,32 @@ const EnvironmentNameForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="environment-name">Environment name</FieldLabel>
                 <Input
                   id="environment-name"
                   placeholder="staging"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               {submitLabel}
             </Button>
           )}
@@ -132,7 +144,7 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
   const createMutation = useApiMutation({
     mutationFn: async (name: string) => createEnvironment({ name }),
     onSuccess: async () => {
-      toastManager.add({ title: "Environment created", type: "success" });
+      toast.success("Environment created");
       await queryClient.invalidateQueries({ queryKey: environmentsQueryKey(orgId) });
       setOpen(false);
     },
@@ -152,7 +164,7 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add environment
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add an environment</DialogTitle>
           <DialogDescription>
@@ -165,7 +177,7 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
           submitLabel="Create environment"
           onSubmit={async (name) => safeSubmit(createMutation.mutateAsync(name))}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };
@@ -186,7 +198,7 @@ const RenameEnvironmentDialog = ({
   const renameMutation = useApiMutation({
     mutationFn: async (name: string) => renameEnvironment(environment.name, { name }),
     onSuccess: async () => {
-      toastManager.add({ title: "Environment renamed", type: "success" });
+      toast.success("Environment renamed");
       await queryClient.invalidateQueries({ queryKey: environmentsQueryKey(orgId) });
       onOpenChange(false);
     },
@@ -202,7 +214,7 @@ const RenameEnvironmentDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename {environment.name}</DialogTitle>
           <DialogDescription>
@@ -215,7 +227,7 @@ const RenameEnvironmentDialog = ({
           submitLabel="Rename environment"
           onSubmit={async (name) => safeSubmit(renameMutation.mutateAsync(name))}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };
@@ -235,35 +247,36 @@ const DeleteEnvironmentDialog = ({
   const deleteMutation = useApiMutation({
     mutationFn: async () => deleteEnvironment(environment.name),
     onSuccess: async () => {
-      toastManager.add({ title: "Environment deleted", type: "success" });
+      toast.success("Environment deleted");
       await queryClient.invalidateQueries({ queryKey: environmentsQueryKey(orgId) });
       onOpenChange(false);
     },
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup>
-        <DialogHeader>
-          <DialogTitle>Delete {environment.name}?</DialogTitle>
-          <DialogDescription>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {environment.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
             This cannot be undone. The environment must have no environment variables bound to it.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
-            loading={deleteMutation.isPending}
+            disabled={deleteMutation.isPending}
             onClick={() => {
               deleteMutation.mutate();
             }}
           >
+            {deleteMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
             Delete environment
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
 
@@ -281,10 +294,7 @@ const ProtectionSwitch = ({
   const protectionMutation = useApiMutation({
     mutationFn: async (next: boolean) => setEnvironmentProtection(environment.name, next),
     onSuccess: async (_result, next) => {
-      toastManager.add({
-        title: next ? "Environment protected" : "Environment unprotected",
-        type: "success",
-      });
+      toast.success(next ? "Environment protected" : "Environment unprotected");
       await queryClient.invalidateQueries({ queryKey: environmentsQueryKey(orgId) });
     },
   });
@@ -311,7 +321,7 @@ const EnvironmentRowActions = ({
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (environment.isBuiltin) {
-    return <Badge variant="secondary">Built-in</Badge>;
+    return null;
   }
 
   return (
@@ -319,24 +329,24 @@ const EnvironmentRowActions = ({
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
+        className="text-muted-foreground/70 hover:text-foreground"
         aria-label={`Rename ${environment.name}`}
         onClick={() => {
           setRenameOpen(true);
         }}
       >
-        <PencilIcon strokeWidth={2} className="size-4" />
+        <PencilIcon strokeWidth={2} />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
+        className="text-muted-foreground/70 hover:text-destructive"
         aria-label={`Delete ${environment.name}`}
         onClick={() => {
           setDeleteOpen(true);
         }}
       >
-        <Trash2Icon strokeWidth={2} className="text-destructive size-4" />
+        <Trash2Icon strokeWidth={2} />
       </Button>
       <RenameEnvironmentDialog
         orgId={orgId}
@@ -365,8 +375,8 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
         description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
         actions={<CreateEnvironmentDialog orgId={orgId} />}
       />
-      <Frame>
-        <Table variant="card">
+      <div className="overflow-hidden rounded-md border">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -378,9 +388,19 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
           <TableBody>
             {items.map((environment) => (
               <TableRow key={environment.name}>
-                <TableCell className="font-medium">{environment.name}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 font-medium">
+                    {environment.name}
+                    {environment.isBuiltin ? (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Built-in
+                      </Badge>
+                    ) : null}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {formatShortDateTime(environment.createdAt)}
+                  {/* Built-ins exist since the org was created; their seeded epoch timestamp is noise. */}
+                  {environment.isBuiltin ? "—" : formatShortDateTime(environment.createdAt)}
                 </TableCell>
                 <TableCell>
                   <ProtectionSwitch orgId={orgId} environment={environment} />
@@ -392,7 +412,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
             ))}
           </TableBody>
         </Table>
-      </Frame>
+      </div>
     </div>
   );
 };

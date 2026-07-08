@@ -28,7 +28,7 @@ export interface AuditLogRepository {
   readonly list: (params: {
     readonly organizationId: string;
     readonly projectId?: string | undefined;
-    readonly resourceType?: AuditLogResourceType | undefined;
+    readonly resourceTypes?: readonly AuditLogResourceType[] | undefined;
     readonly from?: string | undefined;
     readonly to?: string | undefined;
     readonly cursor: Cursor | null;
@@ -102,7 +102,7 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
 
-      const { projectId, resourceType, from, to, cursor } = params;
+      const { projectId, resourceTypes, from, to, cursor } = params;
 
       const rows = yield* Effect.promise(async () =>
         db
@@ -115,11 +115,11 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
             }
             return qb.where("project_id", "=", projectId);
           })
-          .$if(Boolean(resourceType), (qb) => {
-            if (resourceType === undefined) {
+          .$if(Boolean(resourceTypes?.length), (qb) => {
+            if (resourceTypes === undefined || resourceTypes.length === 0) {
               return qb;
             }
-            return qb.where("resource_type", "=", resourceType);
+            return qb.where("resource_type", "in", [...resourceTypes]);
           })
           .$if(Boolean(from), (qb) => {
             if (from === undefined) {

@@ -9,7 +9,6 @@ import {
   googleServiceAccountKeysQueryOptions,
   meQueryOptions,
 } from "@better-update/api-client/react";
-import { Frame } from "@better-update/ui/components/ui/frame";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useMemo } from "react";
@@ -64,14 +63,14 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <DistributionCertificatesEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <DistributionCertificatesTable
             items={data.items}
             orgId={orgId}
             teamsById={teamsById}
             canManageProtection={canManageProtection}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -90,14 +89,14 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PushKeysEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <PushKeysTable
             items={data.items}
             orgId={orgId}
             teamsById={teamsById}
             canManageProtection={canManageProtection}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -116,14 +115,14 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PushCertificatesEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <PushCertificatesTable
             items={data.items}
             orgId={orgId}
             teamsById={teamsById}
             canManageProtection={canManageProtection}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -142,14 +141,14 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PayCertificatesEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <PayCertificatesTable
             items={data.items}
             orgId={orgId}
             teamsById={teamsById}
             canManageProtection={canManageProtection}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -168,14 +167,14 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PassTypeCertificatesEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <PassTypeCertificatesTable
             items={data.items}
             orgId={orgId}
             teamsById={teamsById}
             canManageProtection={canManageProtection}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -193,7 +192,7 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <AscApiKeysEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <AscApiKeysTable
             items={data.items}
             teamsById={teamsById}
@@ -201,7 +200,7 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
             canManageBindings={canManageProtection}
             canManageProtection={canManageProtection}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -222,13 +221,13 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
       {teams.items.length === 0 ? (
         <AppleTeamsEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <AppleTeamsTable
             items={teams.items}
             orgId={orgId}
             canManageProtection={isOrgAdmin(me.orgRole)}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );
@@ -247,13 +246,13 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <GoogleServiceAccountKeysEmptyState />
       ) : (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <GoogleServiceAccountKeysTable
             items={data.items}
             orgId={orgId}
             canManageProtection={isOrgAdmin(me.orgRole)}
           />
-        </Frame>
+        </div>
       )}
     </section>
   );

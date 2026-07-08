@@ -3,9 +3,9 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import type { Channel, Update } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { UpdateActionButtons } from "../-update-action-buttons";
+import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
-import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { EnvironmentBadge, PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -26,7 +26,7 @@ export const buildUpdateColumns = (
     cell: ({ row }) => {
       const environment = readUpdateEnvironment(row.original.extraJson);
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex max-w-80 flex-col gap-0.5">
           <div className="flex items-center gap-1.5 font-medium">
             <span className="truncate">{row.original.message || "—"}</span>
             {row.original.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
@@ -34,15 +34,16 @@ export const buildUpdateColumns = (
               <EnvironmentBadge environment={environment} />
             ) : null}
           </div>
-          <div className="text-muted-foreground flex items-center gap-2 font-mono text-xs">
-            <CopyableId value={row.original.groupId} label="Update group ID" />
+          <span className="text-muted-foreground truncate font-mono text-xs">
             {row.original.gitCommit ? (
-              <span className="shrink-0">
+              <>
                 {row.original.gitCommit.slice(0, 7)}
                 {row.original.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
-              </span>
-            ) : null}
-          </div>
+              </>
+            ) : (
+              `#${row.original.groupId.slice(0, 8)}`
+            )}
+          </span>
         </div>
       );
     },
@@ -51,24 +52,31 @@ export const buildUpdateColumns = (
   {
     id: "branch",
     header: "Branch",
-    cell: ({ row }) =>
-      branchNames.get(row.original.branchId) ?? (
+    cell: ({ row }) => {
+      const branchName = branchNames.get(row.original.branchId);
+      return branchName === undefined ? (
         <CopyableId value={row.original.branchId} label="Branch ID" />
-      ),
+      ) : (
+        <span className="block max-w-40 truncate" title={branchName}>
+          {branchName}
+        </span>
+      );
+    },
     enableSorting: false,
+    enableHiding: true,
   },
   {
     id: "platform",
     accessorKey: "platform",
     header: "Platform",
-    cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+    cell: ({ row }) => <PlatformIndicator platform={row.original.platform} />,
     enableSorting: true,
   },
   {
     id: "runtimeVersion",
     accessorKey: "runtimeVersion",
     header: "Runtime",
-    cell: ({ row }) => `v${row.original.runtimeVersion}`,
+    cell: ({ row }) => <span className="font-mono text-xs">v{row.original.runtimeVersion}</span>,
     enableSorting: true,
   },
   {
@@ -85,6 +93,7 @@ export const buildUpdateColumns = (
     cell: ({ row }) =>
       row.original.totalAssetSize > 0 ? formatBytes(row.original.totalAssetSize) : "—",
     enableSorting: false,
+    enableHiding: true,
     meta: { align: "right", muted: true },
   },
   {
@@ -100,7 +109,7 @@ export const buildUpdateColumns = (
     header: "",
     cell: ({ row }) => (
       <div className="flex justify-end">
-        <UpdateActionButtons
+        <UpdateActionsMenu
           update={row.original}
           channels={channels}
           branchName={branchNames.get(row.original.branchId)}
@@ -111,6 +120,6 @@ export const buildUpdateColumns = (
       </div>
     ),
     enableSorting: false,
-    meta: { align: "right" },
+    meta: { align: "right", stopRowClick: true },
   },
 ];

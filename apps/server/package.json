@@ -20,6 +20,7 @@
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "preview": "vite preview",
+    "seed:dev": "bun scripts/seed-dev.ts",
     "test": "vitest run --project unit --coverage",
     "test:all": "bun run test && bun run test:integrations && bun run test:e2e",
     "test:e2e": "bun run test:e2e-pool && bun run test:e2e-r2",

@@ -18,7 +18,7 @@ Turborepo + bun workspaces (`apps/*`, `packages/*`). Run tasks from root — `bu
 ## Style & UI
 
 - Expressions over statements, data over classes. Errors as values via Effect; Effect `HttpApi`/`HttpApiGroup`/`HttpApiEndpoint` for web handlers.
-- UI primitives = coss (`packages/ui`) only.
+- UI primitives = shadcn base-ui (`packages/ui`, style `base-nova`) only — Base UI primitives, no Radix. Add/update via `bunx --bun shadcn@latest add <name>` in `packages/ui`; toasts via sonner (`components/ui/sonner`), menus = `dropdown-menu`.
 
 ## Lint disables
 

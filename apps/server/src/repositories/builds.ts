@@ -86,7 +86,9 @@ export interface BuildRepository {
     readonly platform?: Platform;
     readonly profile?: string;
     readonly runtimeVersion?: string;
-    readonly distribution?: Distribution;
+    /** User-facing distribution filter (multi-value). */
+    readonly distribution?: readonly Distribution[];
+    /** Audience-resolved distribution set — AND'd with `distribution`. */
     readonly distributions?: readonly Distribution[];
     readonly query?: string;
     readonly sort: BuildSortKey;
@@ -334,7 +336,9 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
               ...(params.platform ? [eb("platform", "=", params.platform)] : []),
               ...(params.profile ? [eb("profile", "=", params.profile)] : []),
               ...(params.runtimeVersion ? [eb("runtime_version", "=", params.runtimeVersion)] : []),
-              ...(params.distribution ? [eb("distribution", "=", params.distribution)] : []),
+              ...(params.distribution && params.distribution.length > 0
+                ? [eb("distribution", "in", [...params.distribution])]
+                : []),
               ...(params.distributions && params.distributions.length > 0
                 ? [eb("distribution", "in", [...params.distributions])]
                 : []),
@@ -364,7 +368,9 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
               ...(params.runtimeVersion
                 ? [eb("b.runtime_version", "=", params.runtimeVersion)]
                 : []),
-              ...(params.distribution ? [eb("b.distribution", "=", params.distribution)] : []),
+              ...(params.distribution && params.distribution.length > 0
+                ? [eb("b.distribution", "in", [...params.distribution])]
+                : []),
               ...(params.distributions && params.distributions.length > 0
                 ? [eb("b.distribution", "in", [...params.distributions])]
                 : []),

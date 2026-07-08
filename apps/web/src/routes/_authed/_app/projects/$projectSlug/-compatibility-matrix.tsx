@@ -7,12 +7,6 @@ import {
   CardTitle,
 } from "@better-update/ui/components/ui/card";
 import {
-  Frame,
-  FrameDescription,
-  FrameHeader,
-  FrameTitle,
-} from "@better-update/ui/components/ui/frame";
-import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +21,12 @@ import type {
   MissingRuntimeVersionBuild,
 } from "@better-update/api";
 
-import { ChannelBadge, PlatformBadge } from "../../../../../components/attribute-badges";
+import {
+  ChannelBadge,
+  PlatformBadge,
+  PlatformIndicator,
+} from "../../../../../components/attribute-badges";
+import { pluralize } from "../../../../../lib/pluralize";
 import { synthesizeBuildChannels } from "./-compatibility-join";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
@@ -54,49 +53,58 @@ const MatrixStatusCell = ({
     return <span className="text-muted-foreground text-xs">No runtime version</span>;
   }
 
-  return (
-    <Badge variant={channel.updateCount > 0 ? "default" : "secondary"} className="w-fit">
-      {channel.updateCount > 0 ? `✓ ${channel.updateCount} updates` : "⚠ No updates"}
+  // Only builds that DO receive updates get color — "no updates" is the quiet default.
+  return channel.updateCount > 0 ? (
+    <Badge variant="success" className="w-fit">
+      {channel.updateCount} {pluralize(channel.updateCount, "update")}
     </Badge>
+  ) : (
+    <span className="text-muted-foreground text-xs">No updates</span>
   );
 };
 
 const MatrixBuildRow = ({ build }: { build: BuildWithSyntheticChannels }) => (
   <TableRow key={build.id}>
-    <TableCell className="whitespace-normal">
-      <div className="flex flex-col gap-1">
-        <span className="font-medium">{buildLabel(build)}</span>
-        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-          <PlatformBadge platform={build.platform} size="sm" />
-          {build.appVersion && <span>App {build.appVersion}</span>}
-          {build.buildNumber && <span>#{build.buildNumber}</span>}
-        </div>
+    <TableCell>
+      <div className="flex max-w-80 flex-col gap-0.5">
+        <span className="truncate font-medium">{buildLabel(build)}</span>
+        <span className="text-muted-foreground flex items-center gap-2 font-mono text-xs">
+          <PlatformIndicator platform={build.platform} className="gap-1" />
+          {build.appVersion ? <span>App {build.appVersion}</span> : null}
+          {build.buildNumber ? <span>#{build.buildNumber}</span> : null}
+        </span>
       </div>
     </TableCell>
-    <TableCell className="whitespace-normal">
+    <TableCell>
       {build.runtimeVersion ? (
-        <span className="font-medium">v{build.runtimeVersion}</span>
+        <span className="font-mono text-xs">v{build.runtimeVersion}</span>
       ) : (
-        <Badge variant="secondary">Missing</Badge>
+        <Badge variant="warning">Missing</Badge>
       )}
     </TableCell>
     {build.channels.map((channel) => (
-      <TableCell key={`${build.id}:${channel.channelId}`} className="whitespace-normal">
+      <TableCell key={`${build.id}:${channel.channelId}`}>
         <div className="flex min-w-36 flex-col gap-1">
           <MatrixStatusCell build={build} channel={channel} />
           {channel.rolloutActive && (
-            <Badge variant="outline" className="w-fit">
+            <Badge variant="info" className="w-fit">
               Rollout active
             </Badge>
           )}
           {channel.latestUpdateMessage && (
-            <span className="text-muted-foreground text-xs">{channel.latestUpdateMessage}</span>
+            <span className="text-muted-foreground max-w-40 truncate text-xs">
+              {channel.latestUpdateMessage}
+            </span>
           )}
         </div>
       </TableCell>
     ))}
   </TableRow>
 );
+
+// The matrix is a glanceable overview above the full builds table — cap its rows
+// so a 50-build page doesn't push the actual list below the fold.
+const MATRIX_ROW_LIMIT = 5;
 
 export const CompatibilityMatrix = ({
   builds,
@@ -107,7 +115,10 @@ export const CompatibilityMatrix = ({
   matrix: typeof BuildCompatibilityMatrixResult.Type;
   missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
 }) => {
-  const synthesized = builds.map((build) => synthesizeBuildChannels(build, matrix));
+  const synthesized = builds
+    .slice(0, MATRIX_ROW_LIMIT)
+    .map((build) => synthesizeBuildChannels(build, matrix));
+  const hiddenCount = builds.length - synthesized.length;
   const { channels } = matrix;
 
   if (synthesized.length === 0 && missingRuntimeVersions.length === 0) {
@@ -135,7 +146,8 @@ export const CompatibilityMatrix = ({
                 <PlatformBadge platform={entry.platform} />
                 <span className="font-medium">v{entry.runtimeVersion}</span>
                 <span className="text-muted-foreground">
-                  {entry.updateCount} updates, latest {entry.latestUpdateMessage}
+                  {entry.updateCount} {pluralize(entry.updateCount, "update")}, latest{" "}
+                  {entry.latestUpdateMessage}
                 </span>
                 {entry.rolloutActive && <Badge variant="outline">Rollout active</Badge>}
               </div>
@@ -145,32 +157,40 @@ export const CompatibilityMatrix = ({
       )}
 
       {synthesized.length > 0 && channels.length > 0 && (
-        <Frame>
-          <FrameHeader className="px-2.5">
-            <FrameTitle>Builds × Channels</FrameTitle>
-            <FrameDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Builds × Channels</CardTitle>
+            <CardDescription>
               Check which builds can receive OTA updates from each channel.
-            </FrameDescription>
-          </FrameHeader>
-          <Table variant="card">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Build</TableHead>
-                <TableHead>Runtime Version</TableHead>
-                {channels.map((channel) => (
-                  <TableHead key={channel.channelId}>
-                    <ChannelBadge name={channel.channelName} />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {synthesized.map((build) => (
-                <MatrixBuildRow key={build.id} build={build} />
-              ))}
-            </TableBody>
-          </Table>
-        </Frame>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <div className="overflow-hidden rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Build</TableHead>
+                    <TableHead>Runtime</TableHead>
+                    {channels.map((channel) => (
+                      <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {synthesized.map((build) => (
+                    <MatrixBuildRow key={build.id} build={build} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {hiddenCount > 0 && (
+              <p className="text-muted-foreground text-xs">
+                Showing the first {MATRIX_ROW_LIMIT} builds of the current view — {hiddenCount} more
+                in the table below.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

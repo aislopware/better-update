@@ -3,11 +3,10 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
@@ -15,18 +14,20 @@ import {
   Field,
   FieldDescription,
   FieldError,
+  FieldGroup,
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectPopup,
+  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -70,7 +71,7 @@ const DEVICE_CLASS_OPTIONS: { value: DeviceClassValue; label: string }[] = [
 ];
 
 const DeviceClassOptions = () => (
-  <SelectPopup>
+  <SelectContent>
     <SelectGroup>
       {DEVICE_CLASS_OPTIONS.map((option) => (
         <SelectItem key={option.value} value={option.value}>
@@ -78,7 +79,7 @@ const DeviceClassOptions = () => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectPopup>
+  </SelectContent>
 );
 
 const DeviceClassField = ({
@@ -97,7 +98,7 @@ const DeviceClassField = ({
       onChange(next);
     }}
   >
-    <SelectTrigger>
+    <SelectTrigger className="w-full">
       <SelectValue placeholder="Select class" />
     </SelectTrigger>
     <DeviceClassOptions />
@@ -133,7 +134,7 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         ...(value.appleTeamId === APPLE_TEAM_NONE ? {} : { appleTeamId: value.appleTeamId }),
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Device registered", type: "success" });
+      toast.success("Device registered");
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
       onSuccess();
     },
@@ -153,7 +154,7 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="identifier"
           validators={{
@@ -165,12 +166,14 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
                 <Input
                   id="device-identifier"
                   placeholder="00008030-001C45663C90802E"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     const next = event.target.value;
@@ -189,7 +192,7 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
                 <FieldDescription>
                   40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
                 </FieldDescription>
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -206,19 +209,21 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="device-name">Name</FieldLabel>
                 <Input
                   id="device-name"
                   placeholder="Alex's iPhone 15 Pro"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -266,14 +271,18 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
             />
           )}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
-              <PlusIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <PlusIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Register device
             </Button>
           )}
@@ -301,7 +310,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add device
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Register a device</DialogTitle>
           <DialogDescription>
@@ -316,7 +325,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

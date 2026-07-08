@@ -9,13 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@better-update/ui/components/ui/breadcrumb";
 import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Card,
-  CardFrame,
-  CardFrameDescription,
-  CardFrameHeader,
-  CardFrameTitle,
-} from "@better-update/ui/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -77,13 +71,13 @@ export const IosDetailHeader = ({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <CardFrame>
-        <CardFrameHeader className="py-5">
-          <CardFrameTitle className="flex items-center gap-2.5 text-base">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2.5">
             <AppleIcon className="size-5" />
             <span className="font-mono">{bundleIdentifier}</span>
-          </CardFrameTitle>
-          <CardFrameDescription>
+          </CardTitle>
+          <CardDescription>
             {configs.length === 0 ? (
               "Bundle Identifier"
             ) : (
@@ -102,9 +96,9 @@ export const IosDetailHeader = ({
                 ))}
               </span>
             )}
-          </CardFrameDescription>
-        </CardFrameHeader>
-      </CardFrame>
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   );
 };

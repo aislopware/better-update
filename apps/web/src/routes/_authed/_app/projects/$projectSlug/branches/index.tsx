@@ -8,31 +8,25 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { GitBranchIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { GitBranchIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { BranchItem, BranchSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ChangeEvent } from "react";
 
 import { CreateBranchDialog } from "../-create-branch-dialog";
 import { DeleteBranchDialog } from "../-delete-branch-dialog";
-import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { RenameBranchDialog } from "../-rename-branch-dialog";
+import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
+  DataTableToolbar,
   DataTableView,
   PAGE_SIZE,
   computePagination,
@@ -85,11 +79,7 @@ const BranchActions = ({
   orgId: string;
   projectId: string;
 }) =>
-  branch.isBuiltin ? (
-    <div className="flex items-center justify-end">
-      <Badge variant="secondary">Built-in</Badge>
-    </div>
-  ) : (
+  branch.isBuiltin ? null : (
     <div className="flex items-center justify-end gap-1">
       <RenameBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
       <DeleteBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
@@ -105,6 +95,11 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
       <div className="flex items-center gap-2 font-medium">
         <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
         {row.original.name}
+        {row.original.isBuiltin ? (
+          <Badge variant="outline" className="text-muted-foreground">
+            Built-in
+          </Badge>
+        ) : null}
       </div>
     ),
     enableSorting: true,
@@ -163,6 +158,16 @@ const BranchesPage = () => {
     },
   });
 
+  const handleReset = () => {
+    handleSearchChange("");
+    fireAndForget(
+      navigate({
+        to: ".",
+        search: (prev) => ({ ...prev, query: "", page: 1 }),
+      }),
+    );
+  };
+
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...branchesQueryOptions(orgId, projectId, {
       page,
@@ -192,10 +197,7 @@ const BranchesPage = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Branches" />
-          {createCta}
-        </div>
+        <PageHeader size="sub" title="Branches" actions={createCta} />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -211,16 +213,12 @@ const BranchesPage = () => {
     page,
   );
 
-  const showsFilteredEmpty = data.total === 0 && urlQuery.length > 0;
   const showsGlobalEmpty = data.total === 0 && urlQuery.length === 0 && searchDraft.length === 0;
 
   if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Branches" />
-          {createCta}
-        </div>
+        <PageHeader size="sub" title="Branches" actions={createCta} />
         <BranchesEmptyState />
       </div>
     );
@@ -232,54 +230,26 @@ const BranchesPage = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <ProjectSubpageHeader title="Branches" />
-        {createCta}
-      </div>
-      <div className="flex flex-col gap-3">
-        <InputGroup>
-          <InputGroupAddon>
-            <SearchIcon aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            aria-label="Search branches"
-            placeholder="Search branches…"
-            type="search"
-            value={searchDraft}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => {
-              handleSearchChange(event.target.value);
-            }}
-          />
-          {isPlaceholderData ? (
-            <InputGroupAddon align="inline-end">
-              <Spinner />
-            </InputGroupAddon>
-          ) : null}
-        </InputGroup>
-        {showsFilteredEmpty ? (
-          <Card>
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <SearchXIcon strokeWidth={1.5} />
-                </EmptyMedia>
-                <EmptyTitle>No branches match your search</EmptyTitle>
-                <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </Card>
-        ) : (
-          <DataTableView
-            table={table}
-            columnsCount={columns.length}
-            isPlaceholderData={isPlaceholderData}
-            countLabel={countLabel}
-            safePage={safePage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-          />
-        )}
-      </div>
+      <PageHeader size="sub" title="Branches" actions={createCta} />
+      <DataTableToolbar
+        search={{
+          value: searchDraft,
+          onChange: handleSearchChange,
+          placeholder: "Search branches…",
+        }}
+        isFiltered={urlQuery.length > 0 || searchDraft.length > 0}
+        onReset={handleReset}
+      />
+      <DataTableView
+        table={table}
+        columnsCount={columns.length}
+        isPlaceholderData={isPlaceholderData}
+        countLabel={countLabel}
+        safePage={safePage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        emptyMessage="No branches match your search."
+      />
     </div>
   );
 };

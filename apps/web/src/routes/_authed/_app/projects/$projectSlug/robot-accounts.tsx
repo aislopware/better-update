@@ -7,7 +7,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { BotIcon, LockIcon } from "lucide-react";
@@ -80,9 +79,9 @@ const ProjectRobotsList = ({ projectId }: { projectId: string }) => {
     return <EmptyRobots />;
   }
   return (
-    <Frame>
+    <div className="overflow-hidden rounded-md border">
       <ProjectRobotsTable projectId={projectId} items={items} />
-    </Frame>
+    </div>
   );
 };
 

@@ -1,6 +1,12 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@better-update/ui/components/ui/menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -30,30 +36,31 @@ const RowActions = ({
   isPending: boolean;
   onEdit: (target: EditTarget) => void;
 }) => (
-  <Menu>
-    <MenuTrigger
+  <DropdownMenu>
+    <DropdownMenuTrigger
       render={
         <Button
           variant="ghost"
           size="icon"
-          loading={isPending}
+          className="text-muted-foreground/70 hover:text-foreground"
+          disabled={isPending}
           aria-label="Robot account actions"
         />
       }
     >
-      <EllipsisVerticalIcon strokeWidth={2} />
-    </MenuTrigger>
-    <MenuPopup align="end">
-      <MenuItem
+      {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem
         onClick={() => {
           onEdit({ id: robot.id, name: robot.name, role: robot.role });
         }}
       >
         <PencilIcon strokeWidth={2} />
         <span>Edit</span>
-      </MenuItem>
-    </MenuPopup>
-  </Menu>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 // Robots are project-scoped (GITLAB-RBAC-SPEC §1b, v2): one robot = one
@@ -71,7 +78,7 @@ export const ProjectRobotsTableView = ({
   pendingRobotId?: string | undefined;
   onEdit: (target: EditTarget) => void;
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Name</TableHead>

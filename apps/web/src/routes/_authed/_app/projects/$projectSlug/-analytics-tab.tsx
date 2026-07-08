@@ -15,7 +15,7 @@ import {
 } from "@better-update/ui/components/ui/card";
 import {
   Select,
-  SelectPopup,
+  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -72,6 +72,10 @@ const COLORS = [
 
 const chartSkeleton = <Skeleton className="h-[300px] w-full rounded-md" />;
 
+// Prefer the human message over an opaque id in the update picker.
+const updateLabel = (updateItem: { readonly id: string; readonly message: string }) =>
+  updateItem.message || truncateId(updateItem.id);
+
 const ChartEmptyState = ({ message }: { message: string }) => (
   <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
     {message}
@@ -96,7 +100,9 @@ const AdoptionChart = ({
   const { data } = useSuspenseQuery(adoptionQueryOptions(orgId, projectId, period));
 
   if (data.updates.length === 0) {
-    return <ChartEmptyState message="No analytics data available yet" />;
+    return (
+      <ChartEmptyState message="No analytics yet — data appears once devices check for updates." />
+    );
   }
 
   const chartData = data.updates.map((entry) => ({
@@ -129,7 +135,9 @@ const PlatformChart = ({
   const { data } = useSuspenseQuery(platformAnalyticsQueryOptions(orgId, projectId, period));
 
   if (data.platforms.length === 0) {
-    return <ChartEmptyState message="No analytics data available yet" />;
+    return (
+      <ChartEmptyState message="No analytics yet — data appears once devices check for updates." />
+    );
   }
 
   const chartData = data.platforms.map((entry, index) => ({
@@ -170,6 +178,12 @@ const ChannelHealthInner = ({
   const { data } = useSuspenseQuery(
     channelAnalyticsQueryOptions(orgId, projectId, channel, period),
   );
+
+  if (data.totalRequests === 0) {
+    return (
+      <ChartEmptyState message="No requests on this channel yet — data appears once devices check for updates." />
+    );
+  }
 
   const chartData = [
     { name: "Manifest", value: data.responseTypeDistribution.manifest },
@@ -236,7 +250,7 @@ const ChannelHealthChart = ({
         <SelectTrigger className="w-48">
           <SelectValue />
         </SelectTrigger>
-        <SelectPopup>
+        <SelectContent>
           <SelectGroup>
             {channels.map((item) => (
               <SelectItem key={item.id} value={item.name}>
@@ -244,7 +258,7 @@ const ChannelHealthChart = ({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectPopup>
+        </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
         <ChannelHealthInner
@@ -272,6 +286,12 @@ const UpdateTrafficInner = ({
   const { data } = useSuspenseQuery(
     updateAnalyticsQueryOptions(orgId, projectId, updateId, period),
   );
+
+  if (data.totalRequests === 0) {
+    return (
+      <ChartEmptyState message="No requests for this update yet — data appears once devices download it." />
+    );
+  }
 
   const chartData = data.timeSeries.map((entry) => ({
     timestamp: formatChartTimestamp(entry.timestamp),
@@ -327,7 +347,7 @@ const UpdateTrafficChart = ({
   const effectiveUpdateId = update && items.some((upd) => upd.id === update) ? update : fallback;
 
   const updateLabels = Object.fromEntries(
-    items.map((updateItem) => [updateItem.id, truncateId(updateItem.id)]),
+    items.map((updateItem) => [updateItem.id, updateLabel(updateItem)]),
   );
 
   return (
@@ -344,15 +364,15 @@ const UpdateTrafficChart = ({
         <SelectTrigger className="w-48">
           <SelectValue />
         </SelectTrigger>
-        <SelectPopup>
+        <SelectContent>
           <SelectGroup>
             {items.map((updateItem) => (
               <SelectItem key={updateItem.id} value={updateItem.id}>
-                {truncateId(updateItem.id)}
+                {updateLabel(updateItem)}
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectPopup>
+        </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
         <UpdateTrafficInner
@@ -392,14 +412,14 @@ export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: Analy
           <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>
-          <SelectPopup>
+          <SelectContent>
             <SelectGroup>
               <SelectItem value="1d">Last 24 hours</SelectItem>
               <SelectItem value="7d">Last 7 days</SelectItem>
               <SelectItem value="30d">Last 30 days</SelectItem>
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectGroup>
-          </SelectPopup>
+          </SelectContent>
         </Select>
       </div>
 

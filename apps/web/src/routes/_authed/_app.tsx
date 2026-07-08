@@ -1,12 +1,15 @@
+import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Menu,
-  MenuPopup,
-  MenuGroup,
-  MenuItem,
-  MenuGroupLabel,
-  MenuSeparator,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
+import { Kbd } from "@better-update/ui/components/ui/kbd";
+import { Separator } from "@better-update/ui/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -18,8 +21,10 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,10 +38,11 @@ import {
 } from "@tanstack/react-router";
 import {
   PlusIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronsUpDownIcon,
   LogOutIcon,
+  SearchIcon,
   UserIcon,
 } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -52,9 +58,11 @@ import { logout } from "../../lib/logout";
 import { useApiMutation } from "../../lib/use-api-mutation";
 import { sessionQueryOptions } from "../../queries/auth";
 import { orgKeyPrefix } from "../../queries/org";
-import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
+import { HeaderBreadcrumbs } from "./-header-breadcrumbs";
+import { ProjectSwitcher } from "./-project-switcher";
 import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
+import { CommandPalette } from "./_app/-command-palette";
 
 const useActiveProjectSlug = (): string | undefined =>
   useChildMatches({
@@ -78,7 +86,7 @@ const renderOrgTrigger = (
       <span className="truncate font-semibold">{name}</span>
       <span className="text-muted-foreground truncate text-xs">{slug}</span>
     </div>
-    <ChevronDownIcon strokeWidth={2} className="ml-auto size-4" />
+    <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground ml-auto size-4" />
   </SidebarMenuButton>
 );
 
@@ -93,6 +101,7 @@ const renderUserTrigger = (
       <span className="truncate font-semibold">{name}</span>
       <span className="text-muted-foreground truncate text-xs">{email}</span>
     </div>
+    <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground ml-auto size-4" />
   </SidebarMenuButton>
 );
 
@@ -135,17 +144,21 @@ const OrgSwitcher = () => {
 
   return (
     <>
-      <Menu>
-        <MenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug, activeOrg.logo)} />
-        <MenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
-          <MenuGroup>
-            <MenuGroupLabel>Organizations</MenuGroupLabel>
-            <MenuSeparator />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={renderOrgTrigger(displayName, activeOrg.slug, activeOrg.logo)}
+        />
+        {/* Default w-(--anchor-width) matches the expanded trigger (canonical
+            team-switcher look); min-w keeps it usable in icon-collapsed mode. */}
+        <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="min-w-56">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+            <DropdownMenuSeparator />
             {orgs.map((org) => {
               const isSwitching = switchingOrgId === org.id;
               const isActive = org.id === activeOrgId;
               return (
-                <MenuItem
+                <DropdownMenuItem
                   key={org.id}
                   onClick={() => {
                     handleOrgSwitch(org.id);
@@ -162,12 +175,12 @@ const OrgSwitcher = () => {
                   />
                   <span className="flex-1 truncate">{org.name}</span>
                   {renderSwitcherIndicator(isSwitching, isActive)}
-                </MenuItem>
+                </DropdownMenuItem>
               );
             })}
-          </MenuGroup>
-          <MenuSeparator />
-          <MenuItem
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             onClick={() => {
               setCreateOrgOpen(true);
             }}
@@ -175,9 +188,9 @@ const OrgSwitcher = () => {
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
     </>
   );
@@ -194,13 +207,22 @@ const UserMenu = () => {
   });
 
   return (
-    <Menu>
-      <MenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
-      <MenuPopup align="start" side="top" sideOffset={4} className="w-56">
-        <MenuGroup>
-          <MenuGroupLabel>{user.name}</MenuGroupLabel>
-          <MenuSeparator />
-          <MenuItem
+    <DropdownMenu>
+      <DropdownMenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
+      <DropdownMenuContent align="start" side="top" sideOffset={4} className="min-w-56">
+        <DropdownMenuGroup>
+          {/* Canonical nav-user label block: avatar + name + email. */}
+          <DropdownMenuLabel className="p-0 font-normal">
+            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <EntityAvatar name={user.name || "U"} image={user.image} className="size-8" />
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="text-foreground truncate font-medium">{user.name}</span>
+                <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+              </div>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             onClick={async () => {
               await router.navigate({ to: "/account/profile" });
             }}
@@ -208,9 +230,9 @@ const UserMenu = () => {
           >
             <UserIcon strokeWidth={2} className="size-4" />
             <span>Account</span>
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             variant="destructive"
             onClick={() => {
               logoutMutation.mutate();
@@ -224,10 +246,10 @@ const UserMenu = () => {
               <LogOutIcon strokeWidth={2} className="size-4" />
             )}
             <span>{logoutMutation.isPending ? "Logging out…" : "Log out"}</span>
-          </MenuItem>
-        </MenuGroup>
-      </MenuPopup>
-    </Menu>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -250,8 +272,11 @@ const AppSidebar = ({
   projectSlug: string | undefined;
   isSuperadmin: boolean;
 }) => (
-  <Sidebar collapsible="icon" variant="inset">
-    <SidebarHeader>
+  <Sidebar collapsible="icon">
+    {/* Fixed to the header height so the org trigger stays middle-aligned with
+        the header row in both expanded (48px button) and collapsed (32px
+        avatar) states, and the nav below starts under the header divider. */}
+    <SidebarHeader className="h-(--header-height) shrink-0 justify-center">
       <SidebarMenu>
         <SidebarMenuItem>
           <OrgSwitcher />
@@ -276,24 +301,66 @@ const AppSidebar = ({
   </Sidebar>
 );
 
+// Vercel-style: while the sidebar is expanded, collapsing happens by clicking
+// the rail divider itself, so the header trigger only appears once the sidebar
+// is collapsed (and always on mobile, where the sidebar is an offcanvas sheet).
+const HeaderSidebarControls = () => {
+  const { state, isMobile } = useSidebar();
+  if (!isMobile && state === "expanded") {
+    return null;
+  }
+  return (
+    <>
+      <SidebarTrigger className="-ml-1" />
+      <Separator orientation="vertical" className="my-auto data-[orientation=vertical]:h-4" />
+    </>
+  );
+};
+
+// Docs-style ⌘K entry point in the site header: icon-only on mobile, a muted
+// pseudo-input with the shortcut hint from `sm` up.
+const HeaderSearchButton = ({ onClick }: { onClick: () => void }) => (
+  <Button
+    variant="outline"
+    aria-label="Search"
+    onClick={onClick}
+    className="text-muted-foreground size-8 justify-center p-0 font-normal shadow-none sm:w-48 sm:justify-start sm:px-2.5"
+  >
+    <SearchIcon strokeWidth={2} />
+    <span className="hidden flex-1 text-left sm:inline">Search…</span>
+    <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
+  </Button>
+);
+
 const AppLayout = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const projectSlug = useActiveProjectSlug();
   const { activeOrg, user } = Route.useRouteContext();
+  const [commandOpen, setCommandOpen] = useState(false);
+  const isSuperadmin = isSuperadminUser(user);
   return (
     <TooltipProvider>
       <DocumentTitle />
       <SidebarProvider>
-        <AppSidebar projectSlug={projectSlug} isSuperadmin={isSuperadminUser(user)} />
-        <SidebarInset className="relative md:border">
-          <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 backdrop-blur md:rounded-t-xl lg:px-6">
-            <AppBreadcrumb
-              orgId={activeOrg.id}
-              orgName={activeOrg.name}
-              projectSlug={projectSlug}
-            />
+        <AppSidebar projectSlug={projectSlug} isSuperadmin={isSuperadmin} />
+        <SidebarInset className="min-w-0">
+          <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center justify-between gap-2 border-b px-4 backdrop-blur lg:px-6">
+            <div className="flex min-w-0 items-center gap-2">
+              <HeaderSidebarControls />
+              <Suspense fallback={<Skeleton className="h-7 w-32 rounded-md" />}>
+                <ProjectSwitcher orgId={activeOrg.id} currentProjectSlug={projectSlug} />
+              </Suspense>
+              <HeaderBreadcrumbs projectSlug={projectSlug} />
+            </div>
+            <div className="flex min-w-0 items-center justify-end">
+              <HeaderSearchButton
+                onClick={() => {
+                  setCommandOpen(true);
+                }}
+              />
+            </div>
           </header>
-          <main className="flex-1 px-4 py-6 lg:px-6 lg:py-8">
+          <main className="min-w-0 flex-1 px-4 py-6 lg:px-6 lg:py-8">
             <ErrorBoundary key={pathname}>
               <Suspense fallback={<DetailCardSkeleton rows={3} columns={2} />}>
                 <Outlet />
@@ -301,6 +368,13 @@ const AppLayout = () => {
             </ErrorBoundary>
           </main>
         </SidebarInset>
+        <CommandPalette
+          open={commandOpen}
+          onOpenChange={setCommandOpen}
+          orgId={activeOrg.id}
+          projectSlug={projectSlug}
+          isSuperadmin={isSuperadmin}
+        />
       </SidebarProvider>
     </TooltipProvider>
   );

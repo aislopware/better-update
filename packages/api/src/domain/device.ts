@@ -1,6 +1,14 @@
 import { Schema } from "effect";
 
-import { DateTimeString, DeletedResult, Id, Name120, PaginationParams, sortParam } from "./common";
+import {
+  csvList,
+  DateTimeString,
+  DeletedResult,
+  Id,
+  Name120,
+  PaginationParams,
+  sortParam,
+} from "./common";
 
 export const DeviceClass = Schema.Literal("IPHONE", "IPAD", "MAC", "UNKNOWN");
 export type DeviceClassValue = typeof DeviceClass.Type;
@@ -82,8 +90,8 @@ export const DeviceSort = sortParam(DeviceSortColumn);
 
 export const ListDevicesParams = Schema.Struct({
   ...PaginationParams.fields,
-  deviceClass: Schema.optional(DeviceClass),
-  appleTeamId: Schema.optional(Id),
+  deviceClass: Schema.optional(csvList(DeviceClass)),
+  appleTeamId: Schema.optional(csvList(Id)),
   query: Schema.optional(Schema.String),
   sort: Schema.optional(DeviceSort),
 });

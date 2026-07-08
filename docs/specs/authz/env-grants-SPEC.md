@@ -47,9 +47,9 @@ ONE exported helper (see §2). Org-global env vars use a named sentinel token
   colocated; `application/` = orchestration; `handlers/` = `HttpApiBuilder.group`
   imperative shell. **No new top-level dir.** Handlers may yield repos + auth +
   domain. No direct `env.DB` outside `repositories/` or `cloudflare/*Live`.
-- **Web** (`apps/web`): `@base-ui/react` + coss components ONLY, never
-  `@radix-ui`. coss canonical names (`Menu*` not `DropdownMenu*`, `Button`
-  `loading` prop, `Spinner`, `InputGroup`, coss `Field` with the `invalid`
+- **Web** (`apps/web`): shadcn base-ui components (`packages/ui`, style
+  `base-nova`) ONLY, never `@radix-ui` (`DropdownMenu*`, `Spinner`,
+  `InputGroup`, `Field` with the `invalid`
   boolean prop). Paginated lists use `lib/data-table` primitives. List/filter
   state goes in TanStack Router `validateSearch`, not `useState`. Data fetching
   uses the typed api-client via `runApi()`, never raw `fetch`. Dialog-with-form:
@@ -1150,7 +1150,7 @@ Content:
 - `const { data: members } = useSuspenseQuery(membersQueryOptions(orgId));`
 - `const { project } = Route.useSearch();` and `const navigate = Route.useNavigate();`
 - `const { data: grants } = useSuspenseQuery(envGrantsQueryOptions(project));`
-- Render a PROJECT SELECTOR (coss `Select`) whose options are `Global` (value
+- Render a PROJECT SELECTOR (shadcn `Select`) whose options are `Global` (value
   `ENV_GRANT_GLOBAL`) plus each project (value = project id, label = project name).
   On change, `navigate({ search: (prev) => ({ ...prev, project: value }) })`.
 - Render the matrix `EnvAccessMatrix` (extract into a sibling file — see §10.4) to
@@ -1177,7 +1177,7 @@ Props: `{ projectScope: string; members: readonly MemberItem[]; grants: readonly
   choosing Deny upserts a deny grant, choosing Inherit deletes BOTH effects on that
   scope.
 - Each row = one member. Columns = `development`, `preview`, `production`. Each cell
-  is a small coss `Select` (or a 3-segment control) with options Inherit / Allow /
+  is a small shadcn `Select` (or a 3-segment control) with options Inherit / Allow /
   Deny.
 - On cell change call the mutation:
   - **Allow** → `upsertEnvGrant({ memberId, projectId, environment, effect: "allow", actions: ENV_VAR_GRANT_ACTIONS })`
@@ -1198,8 +1198,8 @@ Props: `{ projectScope: string; members: readonly MemberItem[]; grants: readonly
   `-grants-table.tsx`).
 - Keep JSX depth ≤ 9: extract the per-cell `Select` into a `MatrixCell` subcomponent
   in the same file if the row JSX approaches the cap.
-- Use coss `Select` (canonical names — `Select`, `SelectTrigger`, `SelectPopup`,
-  `SelectItem` etc. per the coss skill), `Spinner` / `Button loading` for pending,
+- Use the shadcn `Select` (`Select`, `SelectTrigger`, `SelectContent`,
+  `SelectItem` etc. per `packages/ui`), `Spinner` for pending,
   `Empty` when no members.
 
 > This page is a MATRIX, not a paginated `DataTableView` list, so the

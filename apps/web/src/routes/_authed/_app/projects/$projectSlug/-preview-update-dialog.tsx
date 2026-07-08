@@ -3,10 +3,9 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -24,7 +23,7 @@ import {
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { EyeIcon, PackageIcon } from "lucide-react";
+import { PackageIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
@@ -141,7 +140,7 @@ const PreviewBody = ({
   orgId: string;
   projectId: string;
 }) => (
-  <DialogPanel className="flex flex-col gap-4">
+  <div className="flex flex-col gap-4">
     <div className="flex flex-wrap items-center gap-1.5 text-sm">
       <PlatformBadge platform={update.platform} />
       <Badge variant="outline">v{update.runtimeVersion}</Badge>
@@ -171,7 +170,7 @@ const PreviewBody = ({
         />
       </Suspense>
     </div>
-  </DialogPanel>
+  </div>
 );
 
 export const PreviewUpdateDialog = ({
@@ -181,6 +180,8 @@ export const PreviewUpdateDialog = ({
   projectSlug,
   orgId,
   projectId,
+  open,
+  onOpenChange,
 }: {
   update: UpdateItem;
   branchName: string | undefined;
@@ -188,51 +189,40 @@ export const PreviewUpdateDialog = ({
   projectSlug: string;
   orgId: string;
   projectId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) => {
-  const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
   const channelName = channels.find((channel) => channel.branchId === update.branchId)?.name;
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Preview update"
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <EyeIcon strokeWidth={2} />
-      </Button>
-      <Dialog
-        open={open}
-        onOpenChange={setOpen}
-        onOpenChangeComplete={(next) => {
-          if (!next) {
-            setResetKey((prev) => prev + 1);
-          }
-        }}
-      >
-        <DialogPopup className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Preview update</DialogTitle>
-            <DialogDescription>
-              Pick a compatible development build to install this update on a device.
-            </DialogDescription>
-          </DialogHeader>
-          <PreviewBody
-            key={resetKey}
-            update={update}
-            branchName={branchName}
-            channelName={channelName}
-            projectSlug={projectSlug}
-            orgId={orgId}
-            projectId={projectId}
-          />
-        </DialogPopup>
-      </Dialog>
-    </>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Preview update</DialogTitle>
+          <DialogDescription>
+            Pick a compatible development build to install this update on a device.
+          </DialogDescription>
+        </DialogHeader>
+        <PreviewBody
+          key={resetKey}
+          update={update}
+          branchName={branchName}
+          channelName={channelName}
+          projectSlug={projectSlug}
+          orgId={orgId}
+          projectId={projectId}
+        />
+      </DialogContent>
+    </Dialog>
   );
 };

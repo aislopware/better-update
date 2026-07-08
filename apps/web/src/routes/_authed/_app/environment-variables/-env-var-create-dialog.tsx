@@ -4,26 +4,35 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+} from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -67,10 +76,10 @@ const SelectField = ({
         }
       }}
     >
-      <SelectTrigger id={id}>
+      <SelectTrigger id={id} className="w-full">
         <SelectValue />
       </SelectTrigger>
-      <SelectPopup>
+      <SelectContent>
         <SelectGroup>
           {Object.entries(items).map(([itemValue, itemLabel]) => (
             <SelectItem key={itemValue} value={itemValue}>
@@ -78,7 +87,7 @@ const SelectField = ({
             </SelectItem>
           ))}
         </SelectGroup>
-      </SelectPopup>
+      </SelectContent>
     </Select>
   </Field>
 );
@@ -151,7 +160,7 @@ const CreateForm = ({
         return createEnvVar(body);
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Variable created", type: "success" });
+      toast.success("Variable created");
       await invalidate();
       onSuccess();
     },
@@ -180,124 +189,157 @@ const CreateForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
-        <SelectField
-          id="env-var-create-environment"
-          label="Environment"
-          value={environment}
-          items={environmentItems}
-          onChange={setEnvironment}
-        />
-        <form.Field
-          name="key"
-          validators={{
-            onBlur: ({ value }) => {
-              const result = envVarKeySchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
-          }}
-        >
-          {(field) => {
-            const errorMessage = getFieldError(field);
-            return (
-              <Field invalid={Boolean(errorMessage)}>
-                <FieldLabel htmlFor="env-var-create-key">Key</FieldLabel>
-                <Input
-                  id="env-var-create-key"
-                  autoComplete="off"
-                  placeholder="API_TOKEN"
-                  className="font-mono text-sm"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-              </Field>
-            );
-          }}
-        </form.Field>
-        <form.Field
-          name="value"
-          validators={{
-            onBlur: ({ value }) =>
-              requiredStringSchema.safeParse(value).success ? undefined : "A value is required",
-          }}
-        >
-          {(field) => {
-            const errorMessage = getFieldError(field);
-            return (
-              <Field invalid={Boolean(errorMessage)}>
-                <FieldLabel htmlFor="env-var-create-value">Value</FieldLabel>
-                <Textarea
-                  id="env-var-create-value"
-                  rows={3}
-                  autoComplete="off"
-                  className="font-mono text-sm"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-              </Field>
-            );
-          }}
-        </form.Field>
-        <SelectField
-          id="env-var-create-visibility"
-          label="Visibility"
-          value={visibility}
-          items={VISIBILITY_LABELS}
-          onChange={(next) => {
-            setVisibility(next === "plaintext" ? "plaintext" : "sensitive");
-          }}
-        />
-        <form.Field name="label">
-          {(field) => (
-            <Field>
-              <FieldLabel htmlFor="env-var-create-label">Label (optional)</FieldLabel>
-              <Input
-                id="env-var-create-label"
-                autoComplete="off"
-                maxLength={120}
-                placeholder="Payment API base URL"
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                onBlur={field.handleBlur}
-              />
-            </Field>
-          )}
-        </form.Field>
-        <form.Field name="description">
-          {(field) => (
-            <Field>
-              <FieldLabel htmlFor="env-var-create-description">Description (optional)</FieldLabel>
-              <Textarea
-                id="env-var-create-description"
-                rows={2}
-                autoComplete="off"
-                maxLength={500}
-                placeholder="What this value is for, so anyone can update it confidently."
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                onBlur={field.handleBlur}
-              />
-            </Field>
-          )}
-        </form.Field>
-      </DialogPanel>
+      <FieldGroup>
+        <FieldSet>
+          <FieldLegend>Variable</FieldLegend>
+          <FieldDescription>
+            Pick the environment this variable applies to and name its key.
+          </FieldDescription>
+          <FieldGroup>
+            <SelectField
+              id="env-var-create-environment"
+              label="Environment"
+              value={environment}
+              items={environmentItems}
+              onChange={setEnvironment}
+            />
+            <form.Field
+              name="key"
+              validators={{
+                onBlur: ({ value }) => {
+                  const result = envVarKeySchema.safeParse(value);
+                  return result.success ? undefined : result.error.issues[0]?.message;
+                },
+              }}
+            >
+              {(field) => {
+                const errorMessage = getFieldError(field);
+                const invalid = Boolean(errorMessage);
+                return (
+                  <Field data-invalid={invalid}>
+                    <FieldLabel htmlFor="env-var-create-key">Key</FieldLabel>
+                    <Input
+                      id="env-var-create-key"
+                      autoComplete="off"
+                      placeholder="API_TOKEN"
+                      className="font-mono text-sm"
+                      aria-invalid={invalid || undefined}
+                      value={field.state.value}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                      }}
+                      onBlur={field.handleBlur}
+                    />
+                    {invalid ? <FieldError>{errorMessage}</FieldError> : null}
+                  </Field>
+                );
+              }}
+            </form.Field>
+          </FieldGroup>
+        </FieldSet>
+        <FieldSeparator />
+        <FieldSet>
+          <FieldLegend>Value</FieldLegend>
+          <FieldDescription>
+            The value is encrypted before upload; visibility controls how it shows up in logs.
+          </FieldDescription>
+          <FieldGroup>
+            <form.Field
+              name="value"
+              validators={{
+                onBlur: ({ value }) =>
+                  requiredStringSchema.safeParse(value).success ? undefined : "A value is required",
+              }}
+            >
+              {(field) => {
+                const errorMessage = getFieldError(field);
+                const invalid = Boolean(errorMessage);
+                return (
+                  <Field data-invalid={invalid}>
+                    <FieldLabel htmlFor="env-var-create-value">Value</FieldLabel>
+                    <Textarea
+                      id="env-var-create-value"
+                      rows={3}
+                      autoComplete="off"
+                      className="font-mono text-sm"
+                      aria-invalid={invalid || undefined}
+                      value={field.state.value}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                      }}
+                      onBlur={field.handleBlur}
+                    />
+                    {invalid ? <FieldError>{errorMessage}</FieldError> : null}
+                  </Field>
+                );
+              }}
+            </form.Field>
+            <SelectField
+              id="env-var-create-visibility"
+              label="Visibility"
+              value={visibility}
+              items={VISIBILITY_LABELS}
+              onChange={(next) => {
+                setVisibility(next === "plaintext" ? "plaintext" : "sensitive");
+              }}
+            />
+          </FieldGroup>
+        </FieldSet>
+        <FieldSeparator />
+        <FieldSet>
+          <FieldLegend>Documentation</FieldLegend>
+          <FieldDescription>
+            Optional non-secret notes, shared across environments for this key.
+          </FieldDescription>
+          <FieldGroup>
+            <form.Field name="label">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="env-var-create-label">Label (optional)</FieldLabel>
+                  <Input
+                    id="env-var-create-label"
+                    autoComplete="off"
+                    maxLength={120}
+                    placeholder="Payment API base URL"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="description">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="env-var-create-description">
+                    Description (optional)
+                  </FieldLabel>
+                  <Textarea
+                    id="env-var-create-description"
+                    rows={2}
+                    autoComplete="off"
+                    maxLength={500}
+                    placeholder="What this value is for, so anyone can update it confidently."
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                </Field>
+              )}
+            </form.Field>
+          </FieldGroup>
+        </FieldSet>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               Create variable
             </Button>
           )}
@@ -343,7 +385,7 @@ export const EnvVarCreateDialog = ({
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add variable
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add an environment variable</DialogTitle>
           <DialogDescription>
@@ -362,7 +404,7 @@ export const EnvVarCreateDialog = ({
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

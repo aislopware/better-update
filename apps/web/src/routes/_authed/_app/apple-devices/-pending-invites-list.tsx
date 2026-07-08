@@ -1,7 +1,17 @@
 import { registrationRequestsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemSeparator,
+  ItemTitle,
+} from "@better-update/ui/components/ui/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Fragment } from "react";
 
 import type { DeviceRegistrationRequestItem } from "@better-update/api-client/react";
 
@@ -9,27 +19,27 @@ import { CopyButton } from "../../../../lib/copy-button";
 import { formatRelativeFuture } from "../../../../lib/format-relative-time";
 
 const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => (
-  <li className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0">
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <div className="flex items-center gap-2 text-sm font-medium">
+  <Item size="sm" className="px-4">
+    <ItemContent>
+      <ItemTitle>
         {invite.deviceNameHint ?? "Unnamed invite"}
         {invite.deviceClassHint ? (
           <Badge variant="secondary" className="text-xs font-normal">
             {invite.deviceClassHint}
           </Badge>
         ) : null}
-      </div>
-      <code className="text-muted-foreground max-w-[46ch] truncate font-mono text-xs">
+      </ItemTitle>
+      <ItemDescription className="max-w-[46ch] truncate font-mono text-xs">
         {invite.url}
-      </code>
-    </div>
-    <div className="flex shrink-0 items-center gap-3">
+      </ItemDescription>
+    </ItemContent>
+    <ItemActions>
       <span className="text-muted-foreground text-xs">
         Expires {formatRelativeFuture(invite.expiresAt)}
       </span>
       <CopyButton value={invite.url} label="Invite link" variant="outline" size="icon" />
-    </div>
-  </li>
+    </ItemActions>
+  </Item>
 );
 
 export const PendingInvitesList = ({ orgId }: { orgId: string }) => {
@@ -46,11 +56,14 @@ export const PendingInvitesList = ({ orgId }: { orgId: string }) => {
         <Badge variant="secondary">{data.items.length}</Badge>
       </CardHeader>
       <CardContent className="p-0">
-        <ul className="flex flex-col">
-          {data.items.map((invite) => (
-            <InviteRow key={invite.id} invite={invite} />
+        <ItemGroup>
+          {data.items.map((invite, index) => (
+            <Fragment key={invite.id}>
+              {index > 0 ? <ItemSeparator /> : null}
+              <InviteRow invite={invite} />
+            </Fragment>
           ))}
-        </ul>
+        </ItemGroup>
       </CardContent>
     </Card>
   );

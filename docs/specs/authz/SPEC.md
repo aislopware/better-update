@@ -1093,7 +1093,7 @@ NOT the better-auth client methods — those exist as a fallback/parity, our
   Name, Permissions (summary chip count), Actions (`Menu`/`MenuPopup`/`MenuItem`,
   edit + destructive delete via `feedback_dialog_menu_trigger_pattern`).
 - `-role-form-dialog.tsx` (NEW): permissions editor (resource → action
-  checkboxes), coss `Field` with `invalid` prop, `Button loading`. Permission menu
+  checkboxes), `Field` with `invalid` prop, `Spinner` for pending. Permission menu
   derived from a resource/action catalog mirroring the server statement.
 - `channels/$channelId/grants.tsx` + `-grants-table.tsx` + `-grant-form-dialog.tsx`
   (NEW): mirror the SettingCard layout. `useSuspenseQuery(channelGrantsQueryOptions
@@ -1110,8 +1110,8 @@ NOT the better-auth client methods — those exist as a fallback/parity, our
 - `components/settings-layout.tsx` (EDIT): add a "Roles" nav link to
   `/settings/roles`.
 
-All web list/filter state in `validateSearch`; all coss primitives on
-`@base-ui/react` (Menu\*/Button loading/Spinner/InputGroup/Field invalid). Data
+All web list/filter state in `validateSearch`; all UI primitives from shadcn
+base-ui (`packages/ui`: DropdownMenu/Spinner/InputGroup/Field invalid). Data
 tables use `lib/data-table` primitives (`feedback_data_table_primitives`).
 
 ### 10c. CLI

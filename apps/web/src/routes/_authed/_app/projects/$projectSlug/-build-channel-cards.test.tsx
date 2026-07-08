@@ -1,22 +1,8 @@
 import { screen } from "@testing-library/react";
 
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
-import { BuildCard } from "./-build-card";
 import { ChannelBuildsCard } from "./-channel-builds-card";
 import { ChannelRolloutCard } from "./-channel-rollout-card";
-
-const { deleteBuildDialogModule, installLinkDialogModule } = vi.hoisted(() => ({
-  deleteBuildDialogModule: "./-delete-build-dialog",
-  installLinkDialogModule: "./-install-link-dialog",
-}));
-
-vi.mock(deleteBuildDialogModule, () => ({
-  DeleteBuildDialog: () => <div>Delete build dialog</div>,
-}));
-
-vi.mock(installLinkDialogModule, () => ({
-  InstallLinkDialog: () => <div>Install link dialog</div>,
-}));
 
 const productionStatus = {
   channelId: "channel-production",
@@ -118,39 +104,6 @@ const missingRuntimeVersion = {
 };
 
 describe("build and channel cards", () => {
-  it("buildCard renders compatibility statuses from the matrix data", () => {
-    renderWithQuery(
-      <BuildCard build={build} orgId="org-1" projectId="proj-1" projectSlug="my-app" />,
-    );
-
-    expect(screen.getByText("Compatible channels")).toBeInTheDocument();
-    expect(screen.getByText("production")).toBeInTheDocument();
-    expect(screen.getByText("2 updates")).toBeInTheDocument();
-    expect(screen.getByText("Rollout active")).toBeInTheDocument();
-    expect(screen.getByText("latest Canary release")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(
-      "href",
-      "/projects/my-app/builds/build-1",
-    );
-  });
-
-  it("buildCard shows missing runtimeVersion guidance when compatibility cannot be determined", () => {
-    renderWithQuery(
-      <BuildCard
-        build={{ ...build, runtimeVersion: null }}
-        orgId="org-1"
-        projectId="proj-1"
-        projectSlug="my-app"
-      />,
-    );
-
-    expect(
-      screen.getByText(
-        "This build is missing `runtimeVersion`, so OTA compatibility cannot be determined.",
-      ),
-    ).toBeInTheDocument();
-  });
-
   it("channelRolloutCard renders active rollout controls with labeled inputs", () => {
     renderWithQuery(
       <ChannelRolloutCard
@@ -193,11 +146,10 @@ describe("build and channel cards", () => {
     );
 
     expect(screen.getByText("Compatible builds")).toBeInTheDocument();
-    expect(screen.getByText("✓ 2 updates")).toBeInTheDocument();
-    expect(screen.getByText("latest Canary release")).toBeInTheDocument();
+    expect(screen.getByText("2 updates")).toBeInTheDocument();
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("v3.0.0")).toBeInTheDocument();
-    expect(screen.getByText("1 updates but no uploaded build.")).toBeInTheDocument();
+    expect(screen.getByText("1 update but no uploaded build.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Release build" })).toHaveAttribute(
       "href",
       "/projects/my-app/builds/build-1",

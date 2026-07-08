@@ -1,12 +1,4 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Card } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -15,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { BellRingIcon, KeyRoundIcon, ShieldCheckIcon, UsersRoundIcon } from "lucide-react";
 
 import type {
   AppleDistributionCertificateItem,
@@ -24,32 +15,21 @@ import type {
   AscApiKeyItem,
 } from "@better-update/api-client/react";
 
-import { CopyableMono } from "../../../lib/copy-button";
+import { CopyableId, CopyableMono } from "../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatShortDate } from "../../../lib/format-date";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BoundProjectsCell, InheritedProjectsCell } from "./-credential-bindings";
-import { RolesCell, TeamCell } from "./-credential-cells";
+import { CredentialEmptyRow, RolesCell, TeamCell } from "./-credential-cells";
 import { AppleChildProtectionSwitch, AppleTeamProtectionSwitch } from "./-credential-protection";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
 import type { ChildCredentialTableProps } from "./-credentials-utils";
 
 export const DistributionCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <ShieldCheckIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No distribution certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a .p12 certificate to sign iOS builds for the App Store or ad-hoc
-          distribution.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No distribution certificates yet — upload a .p12 from the CLI to sign iOS builds.
+  </CredentialEmptyRow>
 );
 
 export const DistributionCertificatesTable = ({
@@ -60,7 +40,7 @@ export const DistributionCertificatesTable = ({
 }: ChildCredentialTableProps & {
   items: readonly AppleDistributionCertificateItem[];
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Serial</TableHead>
@@ -111,20 +91,9 @@ export const DistributionCertificatesTable = ({
 );
 
 export const PushKeysEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <BellRingIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No push keys</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload an APNs .p8 key to send push notifications from the Apple Push
-          Notification service.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No push keys yet — upload an APNs .p8 key from the CLI to send push notifications.
+  </CredentialEmptyRow>
 );
 
 export const PushKeysTable = ({
@@ -135,7 +104,7 @@ export const PushKeysTable = ({
 }: ChildCredentialTableProps & {
   items: readonly ApplePushKeyItem[];
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Key ID</TableHead>
@@ -173,19 +142,10 @@ export const PushKeysTable = ({
 );
 
 export const AscApiKeysEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <KeyRoundIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No App Store Connect API keys</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload an ASC .p8 key to automate App Store Connect operations.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No App Store Connect API keys yet — upload an ASC .p8 key from the CLI to automate App Store
+    Connect operations.
+  </CredentialEmptyRow>
 );
 
 export const AscApiKeysTable = ({
@@ -198,12 +158,10 @@ export const AscApiKeysTable = ({
   items: readonly AscApiKeyItem[];
   canManageBindings: boolean;
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
-        <TableHead>Identifier</TableHead>
-        <TableHead>Key ID</TableHead>
-        <TableHead>Issuer ID</TableHead>
+        <TableHead>Key</TableHead>
         <TableHead>Team</TableHead>
         <TableHead>Protected</TableHead>
         <TableHead>Roles</TableHead>
@@ -214,12 +172,15 @@ export const AscApiKeysTable = ({
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
-          <TableCell className="font-medium">{key.name}</TableCell>
           <TableCell>
-            <CopyableMono value={key.keyId} label="Key ID" />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={key.issuerId} label="Issuer ID" />
+            <div className="flex max-w-72 flex-col gap-0.5">
+              <span className="truncate font-medium">{key.name}</span>
+              <span className="text-muted-foreground flex items-center gap-1 font-mono text-xs">
+                <CopyableId value={key.keyId} label="Key ID" length={10} />
+                <span aria-hidden>·</span>
+                <CopyableId value={key.issuerId} label="Issuer ID" />
+              </span>
+            </div>
           </TableCell>
           <TableCell>
             <TeamCell
@@ -263,19 +224,10 @@ export const AscApiKeysTable = ({
 );
 
 export const AppleTeamsEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <UsersRoundIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Apple Teams yet</EmptyTitle>
-        <EmptyDescription>
-          Apple Teams are auto-derived from uploaded certificates, push keys, and ASC API keys.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No Apple Teams yet — teams appear automatically when certificates, push keys, or ASC API keys
+    are uploaded.
+  </CredentialEmptyRow>
 );
 
 export const AppleTeamsTable = ({
@@ -287,7 +239,7 @@ export const AppleTeamsTable = ({
   orgId: string;
   canManageProtection: boolean;
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Team</TableHead>

@@ -14,15 +14,14 @@ import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -101,10 +100,7 @@ const BindingsChecklist = ({
         ? bindCredentialToProject({ projectId: input.projectId, resourceType, resourceId })
         : unbindCredentialFromProject({ projectId: input.projectId, resourceType, resourceId }),
     onSuccess: async (_result, { projectId, next }) => {
-      toastManager.add({
-        title: next ? "Credential bound to project" : "Credential unbound from project",
-        type: "success",
-      });
+      toast.success(next ? "Credential bound to project" : "Credential unbound from project");
       await Promise.all([
         ...AFFECTED_LIST_KEYS[resourceType](orgId).map(async (queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
@@ -115,7 +111,7 @@ const BindingsChecklist = ({
   });
 
   return (
-    <DialogPanel className="grid gap-3">
+    <div className="grid gap-3">
       {projects.length === 0 ? (
         <p className="text-muted-foreground text-sm">No projects in this organization yet.</p>
       ) : (
@@ -132,7 +128,7 @@ const BindingsChecklist = ({
           </label>
         ))
       )}
-    </DialogPanel>
+    </div>
   );
 };
 
@@ -182,7 +178,7 @@ export const BoundProjectsCell = ({
           >
             Manage projects
           </DialogTrigger>
-          <DialogPopup>
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Bound projects</DialogTitle>
               <DialogDescription>
@@ -199,9 +195,9 @@ export const BoundProjectsCell = ({
               projects={projects}
             />
             <DialogFooter>
-              <DialogClose render={<Button variant="ghost" />}>Close</DialogClose>
+              <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
             </DialogFooter>
-          </DialogPopup>
+          </DialogContent>
         </Dialog>
       ) : null}
     </div>

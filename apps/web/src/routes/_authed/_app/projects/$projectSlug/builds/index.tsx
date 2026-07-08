@@ -5,22 +5,17 @@ import {
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { PackageIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { PackageIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -29,18 +24,20 @@ import type {
   BuildDistribution,
   BuildSortColumn,
 } from "@better-update/api-client/react";
-import type { ChangeEvent } from "react";
 
 import { CompatibilityMatrix } from "../-compatibility-matrix";
-import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { CliCommandBlock } from "../../../../../../components/cli-command-block";
+import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
-import { TableSkeleton } from "../../../../../../components/skeletons";
+import { FilterBarSkeleton, TableSkeleton } from "../../../../../../components/skeletons";
 import {
+  DataTableToolbar,
   DataTableView,
+  DataTableViewOptions,
   PAGE_SIZE,
   computePagination,
   fireAndForget,
-  optionalEnumParam,
+  enumArrayParam,
   pageParam,
   queryParam,
   sortParam,
@@ -78,9 +75,9 @@ const SEARCH_DEBOUNCE_MS = 300;
 const buildsSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
-  platform: optionalEnumParam(PLATFORMS),
-  distribution: optionalEnumParam(DISTRIBUTIONS),
-  audience: optionalEnumParam(AUDIENCES),
+  platform: enumArrayParam(PLATFORMS),
+  distribution: enumArrayParam(DISTRIBUTIONS),
+  audience: enumArrayParam(AUDIENCES),
   query: queryParam(),
 });
 
@@ -92,18 +89,23 @@ const BuildsEmptyState = () => (
           <PackageIcon strokeWidth={1.5} />
         </EmptyMedia>
         <EmptyTitle>No builds yet</EmptyTitle>
-        <EmptyDescription>Upload your first build using the CLI to get started.</EmptyDescription>
+        <EmptyDescription>
+          Build and upload a binary from your app repo — it shows up here with its runtime
+          compatibility.
+        </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock commands={["better-update build"]} />
+      </EmptyContent>
     </Empty>
   </Card>
 );
 
 const BuildsSkeleton = () => (
   <>
-    <div className="flex items-center justify-between gap-2">
-      <ProjectSubpageHeader title="Builds" />
-    </div>
-    <TableSkeleton columns={9} rows={6} />
+    <PageHeader size="sub" title="Builds" />
+    <FilterBarSkeleton hasSearch selectCount={3} />
+    <TableSkeleton columns={7} rows={6} />
   </>
 );
 
@@ -138,17 +140,17 @@ const BuildsContent = () => {
     },
   });
 
-  const handlePlatformChange = (next: "ios" | "android" | undefined) => {
+  const handlePlatformChange = (next: readonly ("ios" | "android")[]) => {
     fireAndForget(
       routeNavigate({
         to: ".",
-        search: (prev) => ({ ...prev, platform: next, page: 1 }),
+        search: (prev) => ({ ...prev, platform: [...next], page: 1 }),
       }),
     );
   };
 
-  const handleDistributionChange = (value: string | undefined) => {
-    const next = isBuildDistribution(value) ? value : undefined;
+  const handleDistributionChange = (value: readonly string[]) => {
+    const next = value.filter(isBuildDistribution);
     fireAndForget(
       routeNavigate({
         to: ".",
@@ -157,22 +159,41 @@ const BuildsContent = () => {
     );
   };
 
-  const handleAudienceChange = (next: BuildAudience | undefined) => {
+  const handleAudienceChange = (next: readonly BuildAudience[]) => {
     fireAndForget(
       routeNavigate({
         to: ".",
-        search: (prev) => ({ ...prev, audience: next, page: 1 }),
+        search: (prev) => ({ ...prev, audience: [...next], page: 1 }),
       }),
     );
   };
 
+  const handleReset = () => {
+    handleSearchChange("");
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({
+          ...prev,
+          platform: [],
+          distribution: [],
+          audience: [],
+          query: "",
+          page: 1,
+        }),
+      }),
+    );
+  };
+
+  // platform/audience are two-value enums, so "both selected" ≡ no filter and
+  // the API keeps its single-value param; distribution is a true multi filter.
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...buildsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
-      ...(platform ? { platform } : {}),
-      ...(distribution ? { distribution } : {}),
-      ...(audience ? { audience } : {}),
+      ...(platform.length === 1 ? { platform: platform[0] } : {}),
+      ...(distribution.length > 0 ? { distribution } : {}),
+      ...(audience.length === 1 ? { audience: audience[0] } : {}),
       ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
@@ -187,6 +208,9 @@ const BuildsContent = () => {
   const table = useReactTable({
     data: tableData,
     columns: [...columns],
+    // Secondary numeric columns stay opt-in (View options) so the table fits
+    // without horizontal scroll.
+    initialState: { columnVisibility: { buildNumber: false, size: false } },
     state: { sorting },
     onSortingChange,
     manualSorting: true,
@@ -195,43 +219,29 @@ const BuildsContent = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const filterControls = (
-    <BuildsFilterBar
-      platformFilter={platform}
-      distributionFilter={distribution}
-      audienceFilter={audience}
-      onPlatformFilter={handlePlatformChange}
-      onDistributionFilter={handleDistributionChange}
-      onAudienceFilter={handleAudienceChange}
-    />
-  );
-
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Builds" />
-          <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
-        </div>
+        <PageHeader size="sub" title="Builds" />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={9} rows={6} />
+          <>
+            <FilterBarSkeleton hasSearch selectCount={3} />
+            <TableSkeleton columns={7} rows={6} />
+          </>
         )}
       </div>
     );
   }
 
   const filtersActive =
-    Boolean(platform) || Boolean(distribution) || Boolean(audience) || urlQuery.length > 0;
+    platform.length > 0 || distribution.length > 0 || audience.length > 0 || urlQuery.length > 0;
 
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Builds" />
-          <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
-        </div>
+        <PageHeader size="sub" title="Builds" />
         <BuildsEmptyState />
       </div>
     );
@@ -248,63 +258,47 @@ const BuildsContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <ProjectSubpageHeader title="Builds" />
-        <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
-      </div>
+      <PageHeader size="sub" title="Builds" />
       <CompatibilityMatrix
         builds={tableData}
         matrix={matrix}
         missingRuntimeVersions={matrix.missingRuntimeVersions}
       />
-      <InputGroup>
-        <InputGroupAddon>
-          <SearchIcon aria-hidden="true" />
-        </InputGroupAddon>
-        <InputGroupInput
-          aria-label="Search builds"
-          placeholder="Search by message, commit or branch…"
-          type="search"
-          value={searchDraft}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => {
-            handleSearchChange(event.target.value);
-          }}
+      <DataTableToolbar
+        search={{
+          value: searchDraft,
+          onChange: handleSearchChange,
+          placeholder: "Search by message, commit or branch…",
+        }}
+        isFiltered={filtersActive || searchDraft.length > 0}
+        onReset={handleReset}
+        actions={<DataTableViewOptions table={table} />}
+      >
+        <BuildsFilterBar
+          platformFilter={platform}
+          distributionFilter={distribution}
+          audienceFilter={audience}
+          onPlatformFilter={handlePlatformChange}
+          onDistributionFilter={handleDistributionChange}
+          onAudienceFilter={handleAudienceChange}
         />
-        {isPlaceholderData ? (
-          <InputGroupAddon align="inline-end">
-            <Spinner />
-          </InputGroupAddon>
-        ) : null}
-      </InputGroup>
-      {data.total === 0 ? (
-        <Card>
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SearchXIcon strokeWidth={1.5} />
-              </EmptyMedia>
-              <EmptyTitle>No matches</EmptyTitle>
-              <EmptyDescription>No builds match your filters.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </Card>
-      ) : (
-        <DataTableView
-          table={table}
-          columnsCount={columns.length}
-          isPlaceholderData={isPlaceholderData}
-          countLabel={countLabel}
-          safePage={safePage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
-          onRowClick={async (build) => {
-            await routeNavigate({
-              to: "/projects/$projectSlug/builds/$buildId",
-              params: { projectSlug, buildId: build.id },
-            });
-          }}
-        />
-      )}
+      </DataTableToolbar>
+      <DataTableView
+        table={table}
+        columnsCount={columns.length}
+        isPlaceholderData={isPlaceholderData}
+        countLabel={countLabel}
+        safePage={safePage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        emptyMessage="No builds match your filters."
+        onRowClick={async (build) => {
+          await routeNavigate({
+            to: "/projects/$projectSlug/builds/$buildId",
+            params: { projectSlug, buildId: build.id },
+          });
+        }}
+      />
     </div>
   );
 };

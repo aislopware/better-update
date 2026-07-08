@@ -47,7 +47,11 @@ export const listCommand = defineCommand({
           urlParams: {
             projectId,
             limit,
-            ...compact({ branchId, platform: args.platform, page }),
+            ...compact({
+              branchId: branchId ? [branchId] : undefined,
+              platform: args.platform,
+              page,
+            }),
           },
         });
 

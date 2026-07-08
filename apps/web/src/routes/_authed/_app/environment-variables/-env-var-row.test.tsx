@@ -38,8 +38,8 @@ describe("EnvVarRow documentation", () => {
       baseEnvVar({ label: "Payment API URL", description: "Base URL for the payments API" }),
     );
 
-    expect(screen.getByText("Payment API URL")).toBeInTheDocument();
-    expect(screen.getByText("Base URL for the payments API")).toBeInTheDocument();
+    // Label and description are merged into one truncating meta line.
+    expect(screen.getByText("Payment API URL — Base URL for the payments API")).toBeInTheDocument();
   });
 
   it("omits documentation nodes when unset", () => {
@@ -47,6 +47,6 @@ describe("EnvVarRow documentation", () => {
 
     // Only the key text is present; no label/description rows are rendered.
     expect(screen.getByText("API_URL")).toBeInTheDocument();
-    expect(screen.queryByText("Payment API URL")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Payment API URL/u)).not.toBeInTheDocument();
   });
 });

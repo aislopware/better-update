@@ -25,7 +25,8 @@
       "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
       "ignoreDependencies": [
         "@fontsource-variable/geist",
-        "@fontsource-variable/inter",
+        "@fontsource-variable/geist-mono",
+        "shadcn",
         "tailwindcss",
         "tw-animate-css"
       ]

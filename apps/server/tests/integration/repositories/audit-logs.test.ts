@@ -6,6 +6,7 @@ import { AuditLogRepo, AuditLogRepoLive } from "../../../src/repositories/audit-
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 import type { Cursor } from "../../../src/lib/cursor";
+import type { AuditLogResourceType } from "../../../src/models";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ const insertLog = (params: {
 
 const list = (params: {
   readonly projectId?: string;
-  readonly resourceType?: string;
+  readonly resourceTypes?: readonly AuditLogResourceType[];
   readonly from?: string;
   readonly to?: string;
   readonly cursor?: Cursor | null;
@@ -107,12 +108,15 @@ describe("AuditLogRepo — D1 integration (Kysely + session)", () => {
     expect(second.nextCursor).toBeNull();
   });
 
-  it("filters by projectId and resourceType", async () => {
+  it("filters by projectId and resource types (multi-value IN)", async () => {
     const byProject = await list({ projectId: "proj-x" });
     expect(byProject.items.map((item) => item.id)).toEqual(["log-2"]);
 
-    const byResource = await list({ resourceType: "build" });
+    const byResource = await list({ resourceTypes: ["build"] });
     expect(byResource.items.map((item) => item.id)).toEqual(["log-3"]);
+
+    const byResources = await list({ resourceTypes: ["build", "project"] });
+    expect(byResources.items.map((item) => item.id)).toEqual(["log-4", "log-3", "log-2", "log-1"]);
   });
 
   it("filters by the created_at from/to window", async () => {

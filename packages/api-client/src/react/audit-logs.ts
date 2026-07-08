@@ -11,7 +11,7 @@ export const auditLogsQueryKey = (orgId: string, projectId?: string) =>
 
 export interface AuditLogsFilters {
   readonly projectId?: string;
-  readonly resourceType?: AuditLogResourceType;
+  readonly resourceType?: readonly AuditLogResourceType[];
   readonly from?: string;
   readonly to?: string;
   readonly limit?: number;

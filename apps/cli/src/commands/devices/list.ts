@@ -48,8 +48,8 @@ export const listDevicesCommand = defineCommand({
             page,
             limit,
             ...compact({
-              deviceClass: args["device-class"],
-              appleTeamId: args["apple-team-id"],
+              deviceClass: args["device-class"] ? [args["device-class"]] : undefined,
+              appleTeamId: args["apple-team-id"] ? [args["apple-team-id"]] : undefined,
               query: args.query,
             }),
           },

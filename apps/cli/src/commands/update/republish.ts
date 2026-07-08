@@ -104,7 +104,7 @@ const resolveLatestGroupOnBranch = (api: ApiClient, args: SourceArgs) =>
       });
     }
     const { items } = yield* api.updates.list({
-      urlParams: { projectId, branchId: branch.id, limit: 20 },
+      urlParams: { projectId, branchId: [branch.id], limit: 20 },
     });
     const candidates =
       args.platform === undefined ? items : items.filter((item) => item.platform === args.platform);

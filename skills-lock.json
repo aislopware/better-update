@@ -36,18 +36,6 @@
       "skillPath": "skills/cloudflare-email-service/SKILL.md",
       "computedHash": "6274be056fe5211aa220833c97ff6a7d96a1cdfd8854a53ca839ca758d35f356"
     },
-    "coss": {
-      "source": "cosscom/coss",
-      "sourceType": "github",
-      "skillPath": "apps/ui/skills/coss/SKILL.md",
-      "computedHash": "8d06783bce9259bff723026dc7791a7ea0717ba26732a42c229374bc71fdc1e1"
-    },
-    "coss-particles": {
-      "source": "cosscom/coss",
-      "sourceType": "github",
-      "skillPath": "apps/ui/skills/coss-particles/SKILL.md",
-      "computedHash": "44c9d1c501a8f76c5332740795a2fa0f07dc814cd1a2c4a6103a971eb982db79"
-    },
     "create-auth-skill": {
       "source": "better-auth/skills",
       "sourceType": "github",
@@ -86,7 +74,8 @@
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
-      "computedHash": "873c67922d80775a9fdf596db7964b579f0408c30ec6e3d11989f6055bbec89f"
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "d81caa0f86aabab65b25e302d454f23a3328760386ed9078345584c0d5c8058e"
     },
     "svg-animations": {
       "source": "supermemoryai/skills",

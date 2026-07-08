@@ -48,7 +48,7 @@ describe(deriveExpiryStatus, () => {
 
 test("STATUS_BADGE_VARIANT maps every tone to a Badge variant", () => {
   expect(STATUS_BADGE_VARIANT).toStrictEqual({
-    error: "error",
+    error: "destructive",
     muted: "outline",
     success: "success",
     warning: "warning",

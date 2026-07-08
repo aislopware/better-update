@@ -3,17 +3,22 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldDescription, FieldLabel } from "@better-update/ui/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
@@ -49,7 +54,7 @@ const DetailsForm = ({
         description: toNullable(input.description),
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Details saved", type: "success" });
+      toast.success("Details saved");
       await invalidate();
       onSuccess();
     },
@@ -76,7 +81,7 @@ const DetailsForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field name="label">
           {(field) => (
             <Field>
@@ -118,12 +123,13 @@ const DetailsForm = ({
             </Field>
           )}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               Save details
             </Button>
           )}
@@ -163,7 +169,7 @@ export const EnvVarDetailsDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             Edit details for <span className="font-mono">{envVar.key}</span>
@@ -183,7 +189,7 @@ export const EnvVarDetailsDialog = ({
             }}
           />
         ) : null}
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

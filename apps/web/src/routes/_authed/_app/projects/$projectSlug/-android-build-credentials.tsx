@@ -7,15 +7,16 @@ import {
   setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Card, CardPanel } from "@better-update/ui/components/ui/card";
+import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
+  SelectContent,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import {
   Table,
   TableBody,
@@ -24,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon } from "lucide-react";
 import { useState } from "react";
@@ -41,7 +41,7 @@ import { CopyButton } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
-import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
+import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 
 const formatFingerprint = (value: string): string => {
   if (value.length <= 12) {
@@ -74,10 +74,7 @@ const KeystoreProtectionSwitch = ({
   const protectionMutation = useApiMutation({
     mutationFn: async (next: boolean) => setAndroidUploadKeystoreProtection(keystore.id, next),
     onSuccess: async (_result, next) => {
-      toastManager.add({
-        title: next ? "Keystore protected" : "Keystore unprotected",
-        type: "success",
-      });
+      toast.success(next ? "Keystore protected" : "Keystore unprotected");
       await queryClient.invalidateQueries({ queryKey: androidUploadKeystoresQueryKey(orgId) });
     },
   });
@@ -123,11 +120,11 @@ const KeystoreCard = ({
   orgId: string;
   keystore: AndroidUploadKeystoreItem | null;
 }) => (
-  <CredentialFrame title="Android upload keystore">
+  <CredentialSection title="Android upload keystore">
     {keystore === null ? (
-      <EmptyBindingPanel message="No upload keystore bound — bind one with the CLI." />
+      <EmptyBindingMessage message="No upload keystore bound — bind one with the CLI." />
     ) : (
-      <Table variant="card">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Key alias</TableHead>
@@ -168,15 +165,15 @@ const KeystoreCard = ({
         </TableBody>
       </Table>
     )}
-  </CredentialFrame>
+  </CredentialSection>
 );
 
 const GroupOptionLabel = ({ group }: { group: AndroidBuildCredentialsItem }) => (
   <span className="flex items-center gap-2 truncate">
     <span className="truncate">{group.name}</span>
     {group.isDefault ? (
-      <Badge variant="success" className="gap-1">
-        <CheckCircle2Icon strokeWidth={2} className="size-3" />
+      <Badge variant="success">
+        <CheckCircle2Icon strokeWidth={2} data-icon="inline-start" />
         Default
       </Badge>
     ) : null}
@@ -207,25 +204,25 @@ const GroupSwitcher = ({
       <SelectTrigger className="min-w-64">
         <SelectValue>{() => <GroupOptionLabel group={group} />}</SelectValue>
       </SelectTrigger>
-      <SelectPopup>
+      <SelectContent>
         {groups.map((item) => (
           <SelectItem key={item.id} value={item.id}>
             <GroupOptionLabel group={item} />
           </SelectItem>
         ))}
-      </SelectPopup>
+      </SelectContent>
     </Select>
   </Field>
 );
 
 const EmptyGroups = () => (
   <Card>
-    <CardPanel className="py-6">
+    <CardContent className="py-6">
       <p className="text-muted-foreground text-sm">
         No credential groups yet. Use the CLI to add a group and bind an upload keystore and service
         account keys.
       </p>
-    </CardPanel>
+    </CardContent>
   </Card>
 );
 

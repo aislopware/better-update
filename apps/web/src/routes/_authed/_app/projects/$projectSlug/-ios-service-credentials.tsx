@@ -23,7 +23,7 @@ import type {
 import { ProtectedBadgeCell, RolesCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
-import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
+import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 
 const PushKeyTableCard = ({
   pushKey,
@@ -32,11 +32,11 @@ const PushKeyTableCard = ({
   pushKey: ApplePushKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialFrame title="Push notifications key">
+  <CredentialSection title="Push notifications key">
     {pushKey === null ? (
-      <EmptyBindingPanel message="No push key bound — bind one with the CLI." />
+      <EmptyBindingMessage message="No push key bound — bind one with the CLI." />
     ) : (
-      <Table variant="card">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Key ID</TableHead>
@@ -63,7 +63,7 @@ const PushKeyTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CredentialFrame>
+  </CredentialSection>
 );
 
 const AscKeyTableCard = ({
@@ -73,11 +73,11 @@ const AscKeyTableCard = ({
   ascKey: AscApiKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialFrame title="App Store Connect API key">
+  <CredentialSection title="App Store Connect API key">
     {ascKey === null ? (
-      <EmptyBindingPanel message="No App Store Connect API key bound — bind one with the CLI." />
+      <EmptyBindingMessage message="No App Store Connect API key bound — bind one with the CLI." />
     ) : (
-      <Table variant="card">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Label</TableHead>
@@ -114,7 +114,7 @@ const AscKeyTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CredentialFrame>
+  </CredentialSection>
 );
 
 const findPushKey = (

@@ -3,7 +3,7 @@ import {
   removeMember as removeMemberRequest,
   updateMemberRole as updateMemberRoleRequest,
 } from "@better-update/api-client/react";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
@@ -22,7 +22,7 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
     mutationFn: async (memberId: string) => removeMemberRequest(memberId),
     onSuccess: async () => {
       onMemberRemoved();
-      toastManager.add({ title: "Member removed", type: "success" });
+      toast.success("Member removed");
       await queryClient.invalidateQueries({ queryKey: membersQueryOptions(orgId).queryKey });
     },
   });
@@ -34,7 +34,7 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
     mutationFn: async (input: { memberId: string; role: EditableOrgRole }) =>
       updateMemberRoleRequest(input.memberId, input.role),
     onSuccess: async () => {
-      toastManager.add({ title: "Role updated", type: "success" });
+      toast.success("Role updated");
       await queryClient.invalidateQueries({ queryKey: membersQueryOptions(orgId).queryKey });
     },
   });
@@ -42,7 +42,7 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
   const cancelInvitation = useApiMutation({
     mutationFn: async (invitationId: string) => cancelInvitationRequest(invitationId),
     onSuccess: async () => {
-      toastManager.add({ title: "Invitation canceled", type: "success" });
+      toast.success("Invitation canceled");
       await queryClient.invalidateQueries({ queryKey: invitationsQueryOptions(orgId).queryKey });
     },
   });

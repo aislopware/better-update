@@ -7,30 +7,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import {
-  Select,
-  SelectGroup,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { SearchIcon, SearchXIcon, SmartphoneIcon } from "lucide-react";
+import { SmartphoneIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { DeviceClassValue, DeviceSortColumn } from "@better-update/api-client/react";
-import type { ChangeEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { formatAppleTeamLabel, indexAppleTeamsById } from "../-credentials-utils";
 import { PageHeader } from "../../../../components/page-header";
@@ -38,12 +24,15 @@ import { QueryErrorState } from "../../../../components/query-error-state";
 import { FilterBarSkeleton, TableSkeleton } from "../../../../components/skeletons";
 import { assertCapability } from "../../../../lib/access";
 import {
+  DataTableFacetedFilter,
+  DataTableToolbar,
   DataTableView,
+  DataTableViewOptions,
   PAGE_SIZE,
   computePagination,
+  enumArrayParam,
   fireAndForget,
-  optionalEnumParam,
-  optionalStringParam,
+  freeStringArrayParam,
   pageParam,
   queryParam,
   sortParam,
@@ -72,25 +61,25 @@ const devicesSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
   query: queryParam(),
-  deviceClass: optionalEnumParam(DEVICE_CLASSES),
-  appleTeamId: optionalStringParam(),
+  deviceClass: enumArrayParam(DEVICE_CLASSES),
+  appleTeamId: freeStringArrayParam(),
 });
 
-const CLASS_FILTER_LABELS: Record<"ALL" | DeviceClassValue, string> = {
-  ALL: "All classes",
-  IPHONE: "iPhone",
-  IPAD: "iPad",
-  MAC: "Mac",
-  UNKNOWN: "Unknown",
-};
+// Faceted-filter options — an empty selection means "all classes" (deviceClass
+// param unset), so there is no "ALL" pseudo-option.
+const CLASS_FILTER_OPTIONS = [
+  { value: "IPHONE", label: "iPhone" },
+  { value: "IPAD", label: "iPad" },
+  { value: "MAC", label: "Mac" },
+  { value: "UNKNOWN", label: "Unknown" },
+] as const;
 
-const CLASS_FILTER_VALUES: readonly ("ALL" | DeviceClassValue)[] = [
-  "ALL",
-  "IPHONE",
-  "IPAD",
-  "MAC",
-  "UNKNOWN",
-];
+const isDeviceClass = (value: unknown): value is DeviceClassValue =>
+  (DEVICE_CLASSES as readonly unknown[]).includes(value);
+
+// Low-value columns opted into hiding via DataTableViewOptions. Applied here
+// (not in -devices-columns) so the shared column defs stay presentation-neutral.
+const HIDEABLE_COLUMN_IDS = new Set(["appleSync", "model", "createdAt"]);
 
 const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode }) => (
   <Card>
@@ -113,101 +102,9 @@ const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode 
   </Card>
 );
 
-const DevicesFilterBar = ({
-  search,
-  isPlaceholderData,
-  classFilter,
-  teamFilter,
-  teams,
-  onSearchChange,
-  onClassFilter,
-  onTeamFilter,
-}: {
-  search: string;
-  isPlaceholderData: boolean;
-  classFilter: "ALL" | DeviceClassValue;
-  teamFilter: string;
-  teams: readonly { readonly id: string; readonly label: string }[];
-  onSearchChange: (value: string) => void;
-  onClassFilter: (value: "ALL" | DeviceClassValue) => void;
-  onTeamFilter: (value: string) => void;
-}) => (
-  <div className="flex flex-wrap items-center gap-2">
-    <InputGroup className="min-w-[14rem] flex-1">
-      <InputGroupAddon>
-        <SearchIcon aria-hidden="true" />
-      </InputGroupAddon>
-      <InputGroupInput
-        aria-label="Search devices"
-        placeholder="Search by name or UDID…"
-        type="search"
-        value={search}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          onSearchChange(event.target.value);
-        }}
-      />
-      {isPlaceholderData ? (
-        <InputGroupAddon align="inline-end">
-          <Spinner />
-        </InputGroupAddon>
-      ) : null}
-    </InputGroup>
-    <Select
-      items={CLASS_FILTER_LABELS}
-      value={classFilter}
-      onValueChange={(next) => {
-        if (next === null) {
-          return;
-        }
-        onClassFilter(next);
-      }}
-    >
-      <SelectTrigger className="w-40">
-        <SelectValue placeholder="All classes" />
-      </SelectTrigger>
-      <SelectPopup>
-        <SelectGroup>
-          {CLASS_FILTER_VALUES.map((value) => (
-            <SelectItem key={value} value={value}>
-              {CLASS_FILTER_LABELS[value]}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectPopup>
-    </Select>
-    <Select
-      items={{
-        ALL: "All teams",
-        ...Object.fromEntries(teams.map((team) => [team.id, team.label])),
-      }}
-      value={teamFilter}
-      onValueChange={(next) => {
-        if (next === null) {
-          return;
-        }
-        onTeamFilter(next);
-      }}
-    >
-      <SelectTrigger className="w-48">
-        <SelectValue placeholder="All teams" />
-      </SelectTrigger>
-      <SelectPopup>
-        <SelectGroup>
-          <SelectItem value="ALL">All teams</SelectItem>
-          {teams.map((team) => (
-            <SelectItem key={team.id} value={team.id}>
-              {team.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectPopup>
-    </Select>
-  </div>
-);
-
 const DevicesSkeleton = () => (
   <div className="flex flex-col gap-3">
-    <FilterBarSkeleton hasSearch selectCount={2} />
+    <FilterBarSkeleton hasSearch selectCount={3} />
     <TableSkeleton columns={8} rows={5} />
   </div>
 );
@@ -238,28 +135,17 @@ const DevicesContent = () => {
     },
   });
 
-  const handleClassFilter = (value: "ALL" | DeviceClassValue) => {
+  // Single navigate helper for every filter mutation — patches the given search
+  // params and returns to page 1.
+  const applyFilters = (patch: {
+    readonly query?: string;
+    readonly deviceClass?: DeviceClassValue[];
+    readonly appleTeamId?: string[];
+  }): void => {
     fireAndForget(
       routeNavigate({
         to: ".",
-        search: (prev) => ({
-          ...prev,
-          deviceClass: value === "ALL" ? undefined : value,
-          page: 1,
-        }),
-      }),
-    );
-  };
-
-  const handleTeamFilter = (value: string) => {
-    fireAndForget(
-      routeNavigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          appleTeamId: value === "ALL" ? undefined : value,
-          page: 1,
-        }),
+        search: (prev) => ({ ...prev, ...patch, page: 1 }),
       }),
     );
   };
@@ -267,7 +153,7 @@ const DevicesContent = () => {
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
   const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
   const teamOptions = useMemo(
-    () => teams.items.map((team) => ({ id: team.id, label: formatAppleTeamLabel(team) })),
+    () => teams.items.map((team) => ({ value: team.id, label: formatAppleTeamLabel(team) })),
     [teams.items],
   );
 
@@ -275,15 +161,25 @@ const DevicesContent = () => {
     ...devicesQueryOptions(orgId, {
       page,
       limit: PAGE_SIZE,
-      ...(deviceClass ? { deviceClass } : {}),
-      ...(appleTeamId ? { appleTeamId } : {}),
+      ...(deviceClass.length > 0 ? { deviceClass } : {}),
+      ...(appleTeamId.length > 0 ? { appleTeamId } : {}),
       ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
     placeholderData: keepPreviousData,
   });
 
-  const columns = useMemo(() => buildDeviceColumns(orgId, teamsById), [orgId, teamsById]);
+  // buildDeviceColumns returns fresh column objects per call, so assigning the
+  // hideable flag in place is safe (no shared defs are mutated).
+  const columns = useMemo(
+    () =>
+      buildDeviceColumns(orgId, teamsById).map((column) =>
+        column.id !== undefined && HIDEABLE_COLUMN_IDS.has(column.id)
+          ? Object.assign(column, { enableHiding: true })
+          : column,
+      ),
+    [orgId, teamsById],
+  );
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
   const table = useReactTable({
@@ -297,7 +193,7 @@ const DevicesContent = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const filtersActive = Boolean(deviceClass) || Boolean(appleTeamId) || urlQuery.length > 0;
+  const filtersActive = deviceClass.length > 0 || appleTeamId.length > 0 || urlQuery.length > 0;
 
   if (isLoading || data === undefined) {
     if (error) {
@@ -326,40 +222,47 @@ const DevicesContent = () => {
 
   return (
     <div className="flex flex-col gap-3">
-      <DevicesFilterBar
-        search={searchDraft}
-        isPlaceholderData={isPlaceholderData}
-        classFilter={deviceClass ?? "ALL"}
-        teamFilter={appleTeamId ?? "ALL"}
-        teams={teamOptions}
-        onSearchChange={handleSearchChange}
-        onClassFilter={handleClassFilter}
-        onTeamFilter={handleTeamFilter}
-      />
-      <PendingInvitesList orgId={orgId} />
-      {data.total === 0 ? (
-        <Card>
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SearchXIcon strokeWidth={1.5} />
-              </EmptyMedia>
-              <EmptyTitle>No devices match your filters</EmptyTitle>
-              <EmptyDescription>Adjust your filters or clear the search.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </Card>
-      ) : (
-        <DataTableView
-          table={table}
-          columnsCount={columns.length}
-          isPlaceholderData={isPlaceholderData}
-          countLabel={countLabel}
-          safePage={safePage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
+      <DataTableToolbar
+        search={{
+          value: searchDraft,
+          onChange: handleSearchChange,
+          placeholder: "Search by name or UDID…",
+        }}
+        isFiltered={filtersActive}
+        onReset={() => {
+          handleSearchChange("");
+          applyFilters({ query: "", deviceClass: [], appleTeamId: [] });
+        }}
+        actions={<DataTableViewOptions table={table} />}
+      >
+        <DataTableFacetedFilter
+          title="Class"
+          options={CLASS_FILTER_OPTIONS}
+          selected={deviceClass}
+          onChange={(next) => {
+            applyFilters({ deviceClass: next.filter(isDeviceClass) });
+          }}
         />
-      )}
+        <DataTableFacetedFilter
+          title="Team"
+          options={teamOptions}
+          selected={appleTeamId}
+          onChange={(next) => {
+            applyFilters({ appleTeamId: [...next] });
+          }}
+        />
+      </DataTableToolbar>
+      <PendingInvitesList orgId={orgId} />
+      <DataTableView
+        table={table}
+        columnsCount={columns.length}
+        isPlaceholderData={isPlaceholderData}
+        countLabel={countLabel}
+        safePage={safePage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        emptyMessage="No devices match your filters."
+      />
     </div>
   );
 };

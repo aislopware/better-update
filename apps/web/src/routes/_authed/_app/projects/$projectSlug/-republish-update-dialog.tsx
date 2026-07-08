@@ -2,16 +2,16 @@ import { republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
@@ -55,7 +55,7 @@ const RepublishForm = ({
         ...(message.trim().length > 0 ? { message: message.trim() } : {}),
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Update republished", type: "success" });
+      toast.success("Update republished");
       await invalidateUpdates(queryClient, orgId, projectId);
       onSuccess();
     },
@@ -77,7 +77,7 @@ const RepublishForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <Field>
           <FieldLabel>Source update</FieldLabel>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -109,12 +109,16 @@ const RepublishForm = ({
           Republishing creates a new update group on the same branch. Devices receive it as a fresh
           update — useful to reset a stalled rollout or re-issue after a rollback.
         </p>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <Button type="submit" loading={isSubmitting}>
-              <RefreshCwIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RefreshCwIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Republish
             </Button>
           )}
@@ -144,7 +148,7 @@ export const RepublishUpdateDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Republish update</DialogTitle>
           <DialogDescription>
@@ -161,7 +165,7 @@ export const RepublishUpdateDialog = ({
             onOpenChange(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

@@ -1,5 +1,5 @@
 import { projectRobotAccountsQueryKey, updateRobotAccount } from "@better-update/api-client/react";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
@@ -35,7 +35,7 @@ export const useProjectRobotsHandlers = (projectId: string) => {
       updateRobotAccount(input.id, input.changes),
     onSuccess: async () => {
       setEditOpen(false);
-      toastManager.add({ title: "Robot account updated", type: "success" });
+      toast.success("Robot account updated");
       await queryClient.invalidateQueries({ queryKey: projectRobotAccountsQueryKey(projectId) });
     },
   });

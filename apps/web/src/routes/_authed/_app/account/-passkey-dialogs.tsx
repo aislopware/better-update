@@ -1,18 +1,28 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@better-update/ui/components/ui/alert-dialog";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
@@ -35,19 +45,20 @@ const NameField = ({
   onChange: (value: string) => void;
   onBlur: () => void;
 }) => (
-  <Field invalid={Boolean(error)}>
+  <Field data-invalid={Boolean(error)}>
     <FieldLabel htmlFor="passkey-name">Name</FieldLabel>
     <Input
       id="passkey-name"
       autoComplete="off"
       placeholder="e.g. MacBook Touch ID"
+      aria-invalid={Boolean(error) || undefined}
       value={value}
       onChange={(event) => {
         onChange(event.target.value);
       }}
       onBlur={onBlur}
     />
-    <FieldError match={Boolean(error)}>{error}</FieldError>
+    {error ? <FieldError>{error}</FieldError> : null}
   </Field>
 );
 
@@ -70,7 +81,7 @@ const AddPasskeyForm = ({
         "Could not add a passkey.",
       ),
     onSuccess: async () => {
-      toastManager.add({ title: "Passkey added", type: "success" });
+      toast.success("Passkey added");
       await invalidate();
       onSuccess();
     },
@@ -92,7 +103,7 @@ const AddPasskeyForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <div className="grid gap-4">
         <form.Field name="name" validators={nameValidator}>
           {(field) => (
             <NameField
@@ -103,13 +114,17 @@ const AddPasskeyForm = ({
             />
           )}
         </form.Field>
-      </DialogPanel>
+      </div>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
-              <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Add passkey
             </Button>
           )}
@@ -159,7 +174,7 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
         <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
         Add passkey
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a passkey</DialogTitle>
           <DialogDescription>
@@ -174,7 +189,7 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };
@@ -195,7 +210,7 @@ const RenamePasskeyForm = ({
         "Could not rename the passkey.",
       ),
     onSuccess: async () => {
-      toastManager.add({ title: "Passkey renamed", type: "success" });
+      toast.success("Passkey renamed");
       await invalidate();
       onSuccess();
     },
@@ -218,7 +233,7 @@ const RenamePasskeyForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <div className="grid gap-4">
         <form.Field name="name" validators={nameValidator}>
           {(field) => (
             <NameField
@@ -229,12 +244,13 @@ const RenamePasskeyForm = ({
             />
           )}
         </form.Field>
-      </DialogPanel>
+      </div>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
               Save name
             </Button>
           )}
@@ -268,7 +284,7 @@ export const RenamePasskeyDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename passkey</DialogTitle>
           <DialogDescription>Give this passkey a recognizable name.</DialogDescription>
@@ -281,7 +297,7 @@ export const RenamePasskeyDialog = ({
             onOpenChange(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };
@@ -305,7 +321,7 @@ export const DeletePasskeyDialog = ({
         "Could not delete the passkey.",
       ),
     onSuccess: async () => {
-      toastManager.add({ title: "Passkey removed", type: "success" });
+      toast.success("Passkey removed");
       await invalidate();
       onOpenChange(false);
     },
@@ -314,29 +330,30 @@ export const DeletePasskeyDialog = ({
   const label = passkey.name ?? "this passkey";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup>
-        <DialogHeader>
-          <DialogTitle>Remove {label}?</DialogTitle>
-          <DialogDescription>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove {label}?</AlertDialogTitle>
+          <AlertDialogDescription>
             You will no longer be able to verify with this passkey. If it is your only one, you will
             need to add a new passkey before you can unlock the env-vault again. This cannot be
             undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
-            loading={deleteMutation.isPending}
+            disabled={deleteMutation.isPending}
             onClick={() => {
               deleteMutation.mutate();
             }}
           >
+            {deleteMutation.isPending && <Spinner data-icon="inline-start" />}
             Remove passkey
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

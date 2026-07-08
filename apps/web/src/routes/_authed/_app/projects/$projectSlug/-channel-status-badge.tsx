@@ -1,13 +1,13 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
-
 import type { Channel } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
+import { StatusDot } from "../../../../../components/status-dot";
 import { parseRolloutState } from "./-channel-rollout-state";
 
 // Single source for channel status presentation (Paused / rolling out / Live),
-// shared by the channels list and the channel detail page so both surfaces
-// render the same state with the same variant.
+// shared by the channels list, the channel detail page, and the project
+// overview so every surface renders the same state the same way. Geist-style:
+// dot + label, and only the in-progress rollout animates.
 export const ChannelStatusBadge = ({
   channel,
   branches,
@@ -16,7 +16,7 @@ export const ChannelStatusBadge = ({
   branches: readonly BranchItem[];
 }) => {
   if (channel.isPaused) {
-    return <Badge variant="warning">Paused</Badge>;
+    return <StatusDot tone="warning">Paused</StatusDot>;
   }
   const rolloutState = channel.branchMappingJson
     ? parseRolloutState(channel.branchMappingJson)
@@ -24,10 +24,10 @@ export const ChannelStatusBadge = ({
   if (rolloutState) {
     const target = branches.find((branch) => branch.id === rolloutState.targetBranchId);
     return (
-      <Badge variant="secondary">
+      <StatusDot tone="info" pulse>
         Rolling out to {target?.name ?? rolloutState.targetBranchId} {rolloutState.percentage}%
-      </Badge>
+      </StatusDot>
     );
   }
-  return <Badge variant="outline">Live</Badge>;
+  return <StatusDot tone="success">Live</StatusDot>;
 };

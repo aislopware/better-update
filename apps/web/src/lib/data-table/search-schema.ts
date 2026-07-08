@@ -10,9 +10,6 @@ export const queryParam = () => z.string().catch("").default("");
 
 export const optionalStringParam = () => z.string().optional().catch(undefined);
 
-export const optionalEnumParam = <T extends string>(values: readonly [T, ...T[]]) =>
-  z.enum(values).optional().catch(undefined);
-
 export const enumParam = <T extends string>(values: readonly [T, ...T[]], defaultValue: T) =>
   z.enum(values).catch(defaultValue).default(defaultValue);
 
@@ -21,3 +18,17 @@ export const enumParam = <T extends string>(values: readonly [T, ...T[]], defaul
  * dynamic (e.g. user-defined environments); an empty array means "no filter".
  */
 export const freeStringArrayParam = () => z.array(z.string()).catch([]).default([]);
+
+/**
+ * Multi-value enum search param for faceted filters. An empty array means
+ * "no filter"; pass `defaultValue` when the page should start pre-filtered
+ * (e.g. projects default to `["active"]`).
+ */
+export const enumArrayParam = <T extends string>(
+  values: readonly [T, ...T[]],
+  defaultValue: readonly T[] = [],
+) =>
+  z
+    .array(z.enum(values))
+    .catch([...defaultValue])
+    .default([...defaultValue]);

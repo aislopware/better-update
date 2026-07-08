@@ -1,15 +1,16 @@
 import { deleteEnvVar } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPopup,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@better-update/ui/components/ui/alert-dialog";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 
 import type { EnvVar } from "@better-update/api";
 
@@ -37,37 +38,38 @@ export const EnvVarDeleteDialog = ({
     // window lapsed (so the passkey prompt fires inside the gesture) before writing.
     mutationFn: async () => performStepUpGatedWrite(async () => deleteEnvVar(envVar.id)),
     onSuccess: async () => {
-      toastManager.add({ title: "Variable deleted", type: "success" });
+      toast.success("Variable deleted");
       await invalidate();
       onOpenChange(false);
     },
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup>
-        <DialogHeader>
-          <DialogTitle>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
             Delete <span className="font-mono">{envVar.key}</span>?
-          </DialogTitle>
-          <DialogDescription>
+          </AlertDialogTitle>
+          <AlertDialogDescription>
             This permanently removes the variable and all its revisions in the{" "}
             {formatEnvironmentLabel(envVar.environment)} environment. This cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
-            loading={deleteMutation.isPending}
+            disabled={deleteMutation.isPending}
             onClick={() => {
               deleteMutation.mutate();
             }}
           >
+            {deleteMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
             Delete variable
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

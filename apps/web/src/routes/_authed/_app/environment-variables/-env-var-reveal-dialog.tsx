@@ -2,11 +2,10 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -85,7 +84,7 @@ export const EnvVarRevealDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogPopup>
+    <DialogContent className="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>
           Value of <span className="font-mono">{envVar.key}</span>
@@ -94,12 +93,10 @@ export const EnvVarRevealDialog = ({
           Decrypted in your browser. It is never sent to the server in plaintext.
         </DialogDescription>
       </DialogHeader>
-      <DialogPanel>
-        {open ? <RevealBody envVar={envVar} orgId={orgId} vault={vault} /> : null}
-      </DialogPanel>
+      {open ? <RevealBody envVar={envVar} orgId={orgId} vault={vault} /> : null}
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Close</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
       </DialogFooter>
-    </DialogPopup>
+    </DialogContent>
   </Dialog>
 );

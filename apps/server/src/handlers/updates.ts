@@ -219,7 +219,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
 
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
-            ...(urlParams.branchId ? { branchId: urlParams.branchId } : {}),
+            ...(urlParams.branchId?.length ? { branchId: urlParams.branchId } : {}),
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
             ...(urlParams.query ? { query: urlParams.query } : {}),

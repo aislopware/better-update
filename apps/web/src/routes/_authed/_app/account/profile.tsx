@@ -6,7 +6,8 @@ import {
 import { Button } from "@better-update/ui/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -47,7 +48,7 @@ const AvatarSection = () => {
       );
     },
     onSuccess: async () => {
-      toastManager.add({ title: "Avatar updated", type: "success" });
+      toast.success("Avatar updated");
       await refreshSession();
     },
   });
@@ -61,7 +62,7 @@ const AvatarSection = () => {
       );
     },
     onSuccess: async () => {
-      toastManager.add({ title: "Avatar removed", type: "success" });
+      toast.success("Avatar removed");
       await refreshSession();
     },
   });
@@ -76,11 +77,11 @@ const AvatarSection = () => {
       return;
     }
     if (!isAvatarContentType(file.type)) {
-      toastManager.add({ title: "Use a PNG, JPEG, WebP, or SVG image", type: "error" });
+      toast.error("Use a PNG, JPEG, WebP, or SVG image");
       return;
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      toastManager.add({ title: "Avatar must be 2 MB or smaller", type: "error" });
+      toast.error("Avatar must be 2 MB or smaller");
       return;
     }
     uploadMutation.mutate(file);
@@ -96,20 +97,16 @@ const AvatarSection = () => {
             <Button
               variant="ghost"
               disabled={busy}
-              loading={removeMutation.isPending}
               onClick={() => {
                 removeMutation.mutate();
               }}
             >
+              {removeMutation.isPending && <Spinner data-icon="inline-start" />}
               Remove
             </Button>
           ) : null}
-          <Button
-            variant="outline"
-            disabled={busy}
-            loading={uploadMutation.isPending}
-            onClick={() => inputRef.current?.click()}
-          >
+          <Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
+            {uploadMutation.isPending && <Spinner data-icon="inline-start" />}
             {user?.image ? "Replace avatar" : "Upload avatar"}
           </Button>
         </>
@@ -142,7 +139,7 @@ const ProfileForm = () => {
     mutationFn: async (input: { name: string }) =>
       rejectOnAuthClientError(authClient.updateUser(input), "Failed to update profile"),
     onSuccess: async () => {
-      toastManager.add({ title: "Profile updated", type: "success" });
+      toast.success("Profile updated");
       await queryClient.resetQueries({ queryKey: sessionQueryOptions.queryKey });
     },
   });
@@ -171,7 +168,8 @@ const ProfileForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+              <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+                {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
                 Save changes
               </Button>
             )}
@@ -190,17 +188,18 @@ const ProfileForm = () => {
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="profile-name">Name</FieldLabel>
                 <Input
                   id="profile-name"
+                  aria-invalid={Boolean(errorMessage) || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}

@@ -4,17 +4,16 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
@@ -59,7 +58,7 @@ const EditForm = ({
         return updateEnvVar(envVar.id, { value: sealed });
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Value updated", type: "success" });
+      toast.success("Value updated");
       await invalidate();
       onSuccess();
     },
@@ -81,7 +80,7 @@ const EditForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="value"
           validators={{
@@ -91,37 +90,36 @@ const EditForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="env-var-edit-value">Value</FieldLabel>
                 <Textarea
                   id="env-var-edit-value"
                   rows={3}
                   autoComplete="off"
                   className="font-mono text-sm"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting, state.values.value] as const}
         >
           {([canSubmit, isSubmitting, value]) => (
-            <Button
-              type="submit"
-              disabled={!canSubmit || value === initialValue}
-              loading={isSubmitting}
-            >
+            <Button type="submit" disabled={!canSubmit || value === initialValue || isSubmitting}>
+              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               Save new value
             </Button>
           )}
@@ -156,38 +154,32 @@ const EditBody = ({
   if (guarded.kind === "needs-step-up") {
     return (
       <>
-        <DialogPanel>
-          <StepUpGate
-            action="edit"
-            verifying={guarded.verifying}
-            onVerify={() => {
-              guarded.verify();
-            }}
-          />
-        </DialogPanel>
+        <StepUpGate
+          action="edit"
+          verifying={guarded.verifying}
+          onVerify={() => {
+            guarded.verify();
+          }}
+        />
         <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         </DialogFooter>
       </>
     );
   }
   if (guarded.kind === "loading") {
     return (
-      <DialogPanel>
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Spinner /> Decrypting current value…
-        </div>
-      </DialogPanel>
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Spinner /> Decrypting current value…
+      </div>
     );
   }
   if (guarded.kind === "error") {
     return (
       <>
-        <DialogPanel>
-          <p className="text-destructive text-sm">{guarded.message}</p>
-        </DialogPanel>
+        <p className="text-destructive text-sm">{guarded.message}</p>
         <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Close</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
         </DialogFooter>
       </>
     );
@@ -238,7 +230,7 @@ export const EnvVarEditDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             Edit <span className="font-mono">{envVar.key}</span>
@@ -259,7 +251,7 @@ export const EnvVarEditDialog = ({
             }}
           />
         ) : null}
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

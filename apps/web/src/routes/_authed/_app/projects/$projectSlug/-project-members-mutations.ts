@@ -3,7 +3,7 @@ import {
   removeProjectMember,
   updateProjectMemberRole,
 } from "@better-update/api-client/react";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
@@ -31,7 +31,7 @@ export const useProjectMembersHandlers = (projectId: string) => {
         role: input.role,
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Role updated", type: "success" });
+      toast.success("Role updated");
       await queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
     },
   });
@@ -41,7 +41,7 @@ export const useProjectMembersHandlers = (projectId: string) => {
       removeProjectMember(projectId, input.principalId, "member"),
     onSuccess: async () => {
       setRemoveTarget(null);
-      toastManager.add({ title: "Member removed from project", type: "success" });
+      toast.success("Member removed from project");
       await queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
     },
   });

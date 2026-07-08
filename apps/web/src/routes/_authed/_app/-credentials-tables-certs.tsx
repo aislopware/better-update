@@ -1,11 +1,3 @@
-import { Card } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -14,7 +6,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { BellRingIcon, CreditCardIcon, WalletIcon } from "lucide-react";
 
 import type {
   ApplePassTypeCertificateItem,
@@ -25,7 +16,7 @@ import type {
 import { CopyableMono } from "../../../lib/copy-button";
 import { formatShortDate } from "../../../lib/format-date";
 import { RelativeTime } from "../../../lib/relative-time";
-import { TeamCell } from "./-credential-cells";
+import { CredentialEmptyRow, TeamCell } from "./-credential-cells";
 import { AppleChildProtectionSwitch } from "./-credential-protection";
 
 import type { ChildCredentialTableProps } from "./-credentials-utils";
@@ -35,20 +26,10 @@ import type { ChildCredentialTableProps } from "./-credentials-utils";
 // ./-credentials-tables-google).
 
 export const PushCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <BellRingIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No push certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a legacy APNs Push Services .p12 certificate to send push
-          notifications.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No push certificates yet — upload a legacy APNs Push Services .p12 from the CLI if you still
+    need one.
+  </CredentialEmptyRow>
 );
 
 export const PushCertificatesTable = ({
@@ -59,7 +40,7 @@ export const PushCertificatesTable = ({
 }: ChildCredentialTableProps & {
   items: readonly ApplePushCertificateItem[];
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Bundle identifier</TableHead>
@@ -103,20 +84,10 @@ export const PushCertificatesTable = ({
 );
 
 export const PayCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CreditCardIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Apple Pay certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload an Apple Pay payment processing .p12 certificate bound to a Merchant
-          ID.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No Apple Pay certificates yet — upload a payment processing .p12 bound to a Merchant ID from the
+    CLI.
+  </CredentialEmptyRow>
 );
 
 export const PayCertificatesTable = ({
@@ -127,7 +98,7 @@ export const PayCertificatesTable = ({
 }: ChildCredentialTableProps & {
   items: readonly ApplePayCertificateItem[];
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Merchant ID</TableHead>
@@ -171,19 +142,9 @@ export const PayCertificatesTable = ({
 );
 
 export const PassTypeCertificatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <WalletIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Pass Type ID certificates</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a Wallet Pass Type ID .p12 certificate bound to a Pass Type ID.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No Pass Type ID certificates yet — upload a Wallet .p12 bound to a Pass Type ID from the CLI.
+  </CredentialEmptyRow>
 );
 
 export const PassTypeCertificatesTable = ({
@@ -194,7 +155,7 @@ export const PassTypeCertificatesTable = ({
 }: ChildCredentialTableProps & {
   items: readonly ApplePassTypeCertificateItem[];
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Pass Type ID</TableHead>

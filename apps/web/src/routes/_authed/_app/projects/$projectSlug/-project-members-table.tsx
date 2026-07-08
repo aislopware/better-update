@@ -1,14 +1,20 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@better-update/ui/components/ui/menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -77,7 +83,7 @@ const RoleSelect = ({
     <SelectTrigger className="w-36" aria-label={`Change role for ${principalDisplayName(row)}`}>
       <SelectValue />
     </SelectTrigger>
-    <SelectPopup>
+    <SelectContent>
       <SelectGroup>
         {PROJECT_ROLE_VALUES.map((value) => (
           <SelectItem key={value} value={value}>
@@ -85,7 +91,7 @@ const RoleSelect = ({
           </SelectItem>
         ))}
       </SelectGroup>
-    </SelectPopup>
+    </SelectContent>
   </Select>
 );
 
@@ -115,21 +121,22 @@ const RowActions = ({
   isPending: boolean;
   onRemove: (target: RemoveTarget) => void;
 }) => (
-  <Menu>
-    <MenuTrigger
+  <DropdownMenu>
+    <DropdownMenuTrigger
       render={
         <Button
           variant="ghost"
           size="icon"
-          loading={isPending}
+          className="text-muted-foreground/70 hover:text-foreground"
+          disabled={isPending}
           aria-label="Project member actions"
         />
       }
     >
-      <EllipsisVerticalIcon strokeWidth={2} />
-    </MenuTrigger>
-    <MenuPopup align="end">
-      <MenuItem
+      {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem
         variant="destructive"
         onClick={() => {
           onRemove({
@@ -140,9 +147,9 @@ const RowActions = ({
       >
         <UserMinusIcon strokeWidth={2} />
         <span>Remove from project</span>
-      </MenuItem>
-    </MenuPopup>
-  </Menu>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 interface BuildColumnsParams {

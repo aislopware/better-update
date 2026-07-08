@@ -118,7 +118,9 @@ describe(MembersTableView, () => {
       />,
     );
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // Sortable column headers render dropdown buttons, so scope the assertion
+    // to row action menus ("Member actions" / "Invitation actions").
+    expect(screen.queryByRole("button", { name: /actions/i })).not.toBeInTheDocument();
   });
 
   it("an actor with no member-management capability sees NO action dropdowns", () => {
@@ -136,7 +138,7 @@ describe(MembersTableView, () => {
       />,
     );
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /actions/i })).not.toBeInTheDocument();
   });
 
   it("a capable non-owner never sees actions on their own row (no self-remove)", () => {

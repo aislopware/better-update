@@ -14,6 +14,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, PackageIcon } from "lucide-react";
@@ -21,8 +22,8 @@ import { Suspense } from "react";
 
 import type { BuildWithArtifact, Update } from "@better-update/api";
 
-import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton } from "../../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -101,24 +102,31 @@ const FingerprintBuildsCard = ({
       {builds.length === 0 ? (
         <p className="text-muted-foreground text-sm">No builds carry this fingerprint.</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <ItemGroup>
           {builds.map((build) => (
-            <Link
+            <Item
               key={build.id}
-              to="/projects/$projectSlug/builds/$buildId"
-              params={{ projectSlug, buildId: build.id }}
-              className="hover:bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition-colors"
+              variant="outline"
+              size="sm"
+              render={
+                <Link
+                  to="/projects/$projectSlug/builds/$buildId"
+                  params={{ projectSlug, buildId: build.id }}
+                />
+              }
             >
-              <div className="flex flex-wrap items-center gap-2">
+              <ItemContent className="flex-row flex-wrap items-center gap-2">
                 <PlatformBadge platform={build.platform} />
                 <DistributionBadge distribution={build.distribution} />
                 <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
                 <span className="text-muted-foreground text-sm">{build.profile}</span>
-              </div>
-              <RelativeTime value={build.createdAt} className="text-muted-foreground text-xs" />
-            </Link>
+              </ItemContent>
+              <ItemActions>
+                <RelativeTime value={build.createdAt} className="text-muted-foreground text-xs" />
+              </ItemActions>
+            </Item>
           ))}
-        </div>
+        </ItemGroup>
       )}
     </CardContent>
   </Card>
@@ -140,26 +148,33 @@ const FingerprintUpdatesCard = ({
       {updates.length === 0 ? (
         <p className="text-muted-foreground text-sm">No updates carry this fingerprint.</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <ItemGroup>
           {updates.map((update) => (
-            <Link
+            <Item
               key={update.id}
-              to="/projects/$projectSlug/updates/$updateId"
-              params={{ projectSlug, updateId: update.id }}
-              className="hover:bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition-colors"
+              variant="outline"
+              size="sm"
+              render={
+                <Link
+                  to="/projects/$projectSlug/updates/$updateId"
+                  params={{ projectSlug, updateId: update.id }}
+                />
+              }
             >
-              <div className="flex flex-wrap items-center gap-2">
+              <ItemContent className="flex-row flex-wrap items-center gap-2">
                 <PlatformBadge platform={update.platform} />
                 <span className="font-medium">v{update.runtimeVersion}</span>
                 {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
                 <span className="text-muted-foreground line-clamp-1 text-sm">
                   {update.message || `Update ${update.groupId.slice(0, 8)}`}
                 </span>
-              </div>
-              <RelativeTime value={update.createdAt} className="text-muted-foreground text-xs" />
-            </Link>
+              </ItemContent>
+              <ItemActions>
+                <RelativeTime value={update.createdAt} className="text-muted-foreground text-xs" />
+              </ItemActions>
+            </Item>
           ))}
-        </div>
+        </ItemGroup>
       )}
     </CardContent>
   </Card>
@@ -172,7 +187,7 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
   if (data.builds.length === 0 && data.updates.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <ProjectSubpageHeader title="Fingerprint" />
+        <PageHeader size="sub" title="Fingerprint" />
         <FingerprintEmpty />
       </div>
     );
@@ -180,7 +195,7 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <ProjectSubpageHeader title="Fingerprint" />
+      <PageHeader size="sub" title="Fingerprint" />
       <FingerprintHashCard
         hash={data.hash}
         buildCount={data.builds.length}
@@ -194,7 +209,7 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
 
 const FingerprintSkeleton = () => (
   <div className="flex w-full flex-col gap-4">
-    <ProjectSubpageHeader title="Fingerprint" />
+    <PageHeader size="sub" title="Fingerprint" />
     <DetailCardSkeleton rows={2} columns={1} />
     <DetailCardSkeleton rows={3} columns={1} />
     <DetailCardSkeleton rows={3} columns={1} />

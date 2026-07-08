@@ -1,5 +1,6 @@
 import {
   branchesQueryOptions,
+  channelsQueryOptions,
   updateAnalyticsQueryOptions,
   updateAssetsQueryOptions,
   updateGroupQueryOptions,
@@ -13,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, GitBranchIcon } from "lucide-react";
@@ -20,9 +22,10 @@ import { Suspense } from "react";
 
 import type { Update } from "@better-update/api";
 
-import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
@@ -63,7 +66,7 @@ const OverviewCard = ({
             <Link
               to="/projects/$projectSlug/updates"
               params={{ projectSlug }}
-              search={{ page: 1, sort: "-createdAt" as const, branchId: primary.branchId }}
+              search={{ page: 1, sort: "-createdAt" as const, branchId: [primary.branchId] }}
               className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
             >
               <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
@@ -140,13 +143,10 @@ const PlatformVariantAssets = ({
     return <p className="text-muted-foreground text-sm">No asset references recorded.</p>;
   }
   return (
-    <div className="flex flex-col gap-2">
+    <ItemGroup>
       {assets.map((asset) => (
-        <div
-          key={`${asset.hash}:${asset.key}`}
-          className="flex items-center justify-between gap-2 rounded-xl border p-2"
-        >
-          <div className="flex min-w-0 flex-col gap-0.5">
+        <Item key={`${asset.hash}:${asset.key}`} variant="outline" size="sm">
+          <ItemContent className="min-w-0 gap-0.5">
             <div className="flex items-center gap-1">
               <code className="min-w-0 truncate font-mono text-xs">{asset.key}</code>
               <CopyButton value={asset.key} label="Asset key" size="icon-xs" />
@@ -157,11 +157,15 @@ const PlatformVariantAssets = ({
               </code>
               <CopyButton value={asset.hash} label="Asset hash" size="icon-xs" />
             </div>
-          </div>
-          {asset.isLaunch ? <Badge variant="secondary">Launch</Badge> : null}
-        </div>
+          </ItemContent>
+          {asset.isLaunch ? (
+            <ItemActions>
+              <Badge variant="secondary">Launch</Badge>
+            </ItemActions>
+          ) : null}
+        </Item>
       ))}
-    </div>
+    </ItemGroup>
   );
 };
 
@@ -241,7 +245,8 @@ const PlatformVariantCard = ({
 );
 
 const UpdateDetailContent = () => {
-  const { updateId } = Route.useParams();
+  const { updateId, projectSlug } = Route.useParams();
+  const navigate = Route.useNavigate();
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const projectId = project.id;
@@ -252,6 +257,9 @@ const UpdateDetailContent = () => {
   const { data: branchesData } = useSuspenseQuery(
     branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
+  const { data: channelsData } = useSuspenseQuery(
+    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
 
   const primary = group.items.find((entry) => entry.id === updateId) ?? group.items[0] ?? update;
   const title = primary.message || `Update ${update.groupId.slice(0, 8)}`;
@@ -259,12 +267,29 @@ const UpdateDetailContent = () => {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <ProjectSubpageHeader title={title} />
-          {primary.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
-          <CopyableId value={primary.groupId} label="Update group ID" />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">
+            <span className="truncate">{title}</span>
+            {primary.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+          </h1>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <CopyableId value={primary.groupId} label="Update group ID" />
+            <span className="font-mono text-xs">v{primary.runtimeVersion}</span>
+            <RelativeTime value={primary.createdAt} />
+          </div>
         </div>
+        <UpdateActionsMenu
+          update={primary}
+          channels={channelsData.items}
+          branchName={branchName}
+          slug={project.slug}
+          orgId={orgId}
+          projectId={projectId}
+          onDeleted={async () => {
+            await navigate({ to: "/projects/$projectSlug/updates", params: { projectSlug } });
+          }}
+        />
       </div>
       <OverviewCard
         primary={primary}
@@ -289,7 +314,7 @@ const UpdateDetailContent = () => {
 
 const UpdateDetailSkeleton = () => (
   <>
-    <ProjectSubpageHeader title="Update" />
+    <PageHeader size="sub" title="Update" />
     <DetailCardSkeleton rows={4} columns={2} />
     <DetailCardSkeleton rows={2} columns={2} />
   </>

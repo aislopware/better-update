@@ -36,6 +36,14 @@ export const Platform = Schema.Literal("ios", "android");
 /** Non-empty, user-facing resource name capped at 120 chars. */
 export const Name120 = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120));
 
+/**
+ * Comma-separated multi-value filter param (e.g. `?platform=ios,android`).
+ * Decodes the CSV wire string into a validated array of `item`; a single bare
+ * value stays wire-compatible with the scalar params these filters replaced.
+ */
+export const csvList = <Value extends string>(item: Schema.Schema<Value, Value>) =>
+  Schema.compose(Schema.split(","), Schema.Array(item), { strict: false });
+
 export const PaginationParams = Schema.Struct({
   page: Schema.optional(Schema.NumberFromString),
   limit: Schema.optional(Schema.NumberFromString),

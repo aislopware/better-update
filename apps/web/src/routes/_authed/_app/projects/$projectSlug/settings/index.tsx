@@ -13,7 +13,8 @@ import {
 import { Button } from "@better-update/ui/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -25,6 +26,7 @@ import type { ChangeEvent } from "react";
 import { ConfirmActionDialog } from "../-confirm-action-dialog";
 import { ConfirmDeleteDialog } from "../-confirm-delete-dialog";
 import { invalidateProjects } from "../-update-helpers";
+import { PageHeader } from "../../../../../../components/page-header";
 import { SettingCard } from "../../../../../../components/setting-card";
 import { SettingCardSkeleton } from "../../../../../../components/skeletons";
 import { EntityAvatar } from "../../../../../../lib/entity-avatar";
@@ -41,7 +43,7 @@ const LogoSection = ({ project }: { project: ProjectDetail }) => {
   const isArchived = project.archivedAt !== null;
 
   const onSuccess = async (title: string) => {
-    toastManager.add({ title, type: "success" });
+    toast.success(title);
     await invalidateProjects(queryClient, project.organizationId, project.id);
   };
 
@@ -65,11 +67,11 @@ const LogoSection = ({ project }: { project: ProjectDetail }) => {
       return;
     }
     if (!isProjectLogoContentType(file.type)) {
-      toastManager.add({ title: "Use a PNG, JPEG, WebP, or SVG image", type: "error" });
+      toast.error("Use a PNG, JPEG, WebP, or SVG image");
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      toastManager.add({ title: "Logo must be 2 MB or smaller", type: "error" });
+      toast.error("Logo must be 2 MB or smaller");
       return;
     }
     uploadMutation.mutate(file);
@@ -89,20 +91,20 @@ const LogoSection = ({ project }: { project: ProjectDetail }) => {
             <Button
               variant="ghost"
               disabled={isArchived || busy}
-              loading={removeMutation.isPending}
               onClick={() => {
                 removeMutation.mutate();
               }}
             >
+              {removeMutation.isPending && <Spinner data-icon="inline-start" />}
               Remove
             </Button>
           )}
           <Button
             variant="outline"
             disabled={isArchived || busy}
-            loading={uploadMutation.isPending}
             onClick={() => inputRef.current?.click()}
           >
+            {uploadMutation.isPending && <Spinner data-icon="inline-start" />}
             {project.logoUrl === null ? "Upload logo" : "Replace logo"}
           </Button>
         </>
@@ -134,7 +136,7 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
   const renameProjectMutation = useApiMutation({
     mutationFn: async (value: { name: string }) => renameProject(project.id, { name: value.name }),
     onSuccess: async () => {
-      toastManager.add({ title: "Project renamed", type: "success" });
+      toast.success("Project renamed");
       await invalidateProjects(queryClient, project.organizationId, project.id);
     },
   });
@@ -158,11 +160,8 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button
-                type="submit"
-                disabled={!canSubmit || isArchived}
-                loading={Boolean(isSubmitting)}
-              >
+              <Button type="submit" disabled={!canSubmit || isArchived || Boolean(isSubmitting)}>
+                {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
                 Save changes
               </Button>
             )}
@@ -181,18 +180,19 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="project-name">Project name</FieldLabel>
                 <Input
                   id="project-name"
                   value={field.state.value}
                   disabled={isArchived}
+                  aria-invalid={Boolean(errorMessage) || undefined}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -209,7 +209,7 @@ const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
   const unarchiveMutation = useApiMutation({
     mutationFn: async () => unarchiveProject(project.id),
     onSuccess: async () => {
-      toastManager.add({ title: "Project unarchived", type: "success" });
+      toast.success("Project unarchived");
       await invalidateProjects(queryClient, project.organizationId, project.id);
     },
   });
@@ -222,11 +222,12 @@ const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
         footer={
           <Button
             variant="outline"
-            loading={unarchiveMutation.isPending}
+            disabled={unarchiveMutation.isPending}
             onClick={() => {
               unarchiveMutation.mutate();
             }}
           >
+            {unarchiveMutation.isPending && <Spinner data-icon="inline-start" />}
             Unarchive project
           </Button>
         }
@@ -262,7 +263,7 @@ const DeleteSection = ({ project }: { project: ProjectDetail }) => {
 
   return (
     <SettingCard
-      className="border-destructive"
+      destructive
       title="Danger zone"
       description="Permanently delete this project and all of its branches, channels, and updates."
       footer={
@@ -305,6 +306,11 @@ const SettingsContent = () => {
 
 const SettingsPage = () => (
   <div className="flex flex-col gap-6">
+    <PageHeader
+      size="sub"
+      title="Project settings"
+      description="Rename, archive, or permanently delete this project."
+    />
     <Suspense
       fallback={
         <>

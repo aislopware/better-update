@@ -1,11 +1,13 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
-import type { ButtonProps } from "@better-update/ui/components/ui/button";
+import type { ComponentProps } from "react";
 
 import { useCopyToClipboard } from "./use-copy-to-clipboard";
+
+type ButtonProps = ComponentProps<typeof Button>;
 
 const ICON_CLASS_BY_SIZE: Partial<Record<NonNullable<ButtonProps["size"]>, string>> = {
   icon: "size-4",
@@ -35,11 +37,11 @@ export const CopyButton = ({
     // Copying must never also trigger a clickable row's navigation.
     event.stopPropagation();
     const ok = await copy(value);
-    toastManager.add(
-      ok
-        ? { title: `${label} copied`, type: "success" }
-        : { title: "Failed to copy to clipboard", type: "error" },
-    );
+    if (ok) {
+      toast.success(`${label} copied`);
+    } else {
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   const Icon = copied ? CheckIcon : CopyIcon;
@@ -73,7 +75,7 @@ export const CopyableId = ({
 }) => (
   <span className={cn("inline-flex items-center gap-0.5", className)}>
     <code className="font-mono text-xs" title={value}>
-      {value.slice(0, length)}
+      {value.length > length ? `${value.slice(0, length)}…` : value}
     </code>
     <CopyButton value={value} label={label} />
   </span>

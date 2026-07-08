@@ -3,24 +3,24 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -73,7 +73,7 @@ const AddMemberForm = ({
     mutationFn: async (input: { principalId: string; role: ProjectMemberRoleValue }) =>
       addProjectMember(projectId, { principalType: "member", ...input }),
     onSuccess: async () => {
-      toastManager.add({ title: "Member added to project", type: "success" });
+      toast.success("Member added to project");
       await queryClient.invalidateQueries({ queryKey: projectMembersQueryKey(projectId) });
       onSuccess();
     },
@@ -81,14 +81,14 @@ const AddMemberForm = ({
 
   return (
     <>
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <Field>
           <FieldLabel>Member</FieldLabel>
           <Select items={principalItems} value={principalId} onValueChange={setPrincipalId}>
-            <SelectTrigger aria-label="Member">
+            <SelectTrigger aria-label="Member" className="w-full">
               <SelectValue placeholder="Select a member" />
             </SelectTrigger>
-            <SelectPopup>
+            <SelectContent>
               <SelectGroup>
                 {principals.map((principal) => (
                   <SelectItem key={principal.id} value={principal.id}>
@@ -96,7 +96,7 @@ const AddMemberForm = ({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectPopup>
+            </SelectContent>
           </Select>
         </Field>
 
@@ -111,10 +111,10 @@ const AddMemberForm = ({
               }
             }}
           >
-            <SelectTrigger aria-label="Project role">
+            <SelectTrigger aria-label="Project role" className="w-full">
               <SelectValue />
             </SelectTrigger>
-            <SelectPopup>
+            <SelectContent>
               <SelectGroup>
                 {PROJECT_ROLE_VALUES.map((value) => (
                   <SelectItem key={value} value={value}>
@@ -122,25 +122,28 @@ const AddMemberForm = ({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectPopup>
+            </SelectContent>
           </Select>
         </Field>
 
         <p className="text-muted-foreground text-xs">{PROJECT_ROLE_HINTS[role]}</p>
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button
-          disabled={selected === undefined}
-          loading={addMutation.isPending}
+          disabled={selected === undefined || addMutation.isPending}
           onClick={() => {
             if (selected !== undefined) {
               addMutation.mutate({ principalId: selected.id, role });
             }
           }}
         >
-          <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
+          {addMutation.isPending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
+          )}
           Add to project
         </Button>
       </DialogFooter>
@@ -190,7 +193,7 @@ export const AddProjectMemberDialog = ({
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Add member
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add a project member</DialogTitle>
           <DialogDescription>
@@ -205,7 +208,7 @@ export const AddProjectMemberDialog = ({
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

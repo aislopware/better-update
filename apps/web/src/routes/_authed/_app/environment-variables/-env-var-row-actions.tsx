@@ -1,11 +1,11 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Menu,
-  MenuItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
 import { EllipsisVerticalIcon, EyeIcon, PencilIcon, TagIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -48,42 +48,49 @@ export const EnvVarRowActions = ({
 
   return (
     <>
-      <Menu>
-        <MenuTrigger
-          render={<Button variant="ghost" size="icon" aria-label={`Actions for ${envVar.key}`} />}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground/70 hover:text-foreground"
+              aria-label={`Actions for ${envVar.key}`}
+            />
+          }
         >
           <EllipsisVerticalIcon strokeWidth={2} />
-        </MenuTrigger>
-        <MenuPopup align="end">
-          <MenuItem
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
             onClick={() => {
               setOpenDialog("details");
             }}
           >
             <TagIcon strokeWidth={2} />
             <span>Edit details</span>
-          </MenuItem>
+          </DropdownMenuItem>
           {vault ? (
             <>
-              <MenuSeparator />
-              <MenuItem
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 onClick={() => {
                   setOpenDialog("reveal");
                 }}
               >
                 <EyeIcon strokeWidth={2} />
                 <span>Reveal value</span>
-              </MenuItem>
-              <MenuItem
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={() => {
                   setOpenDialog("edit");
                 }}
               >
                 <PencilIcon strokeWidth={2} />
                 <span>Edit value</span>
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 variant="destructive"
                 onClick={() => {
                   setOpenDialog("delete");
@@ -91,11 +98,11 @@ export const EnvVarRowActions = ({
               >
                 <Trash2Icon strokeWidth={2} />
                 <span>Delete</span>
-              </MenuItem>
+              </DropdownMenuItem>
             </>
           ) : null}
-        </MenuPopup>
-      </Menu>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <EnvVarDetailsDialog
         envVar={envVar}
         invalidate={invalidate}

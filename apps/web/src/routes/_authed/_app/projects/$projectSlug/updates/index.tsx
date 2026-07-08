@@ -6,39 +6,36 @@ import {
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { CloudUploadIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { CloudUploadIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { UpdateSortColumn } from "@better-update/api-client/react";
-import type { ChangeEvent } from "react";
 
 import { CompareUpdatesDialog } from "../-compare-updates-dialog";
-import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { CliCommandBlock } from "../../../../../../components/cli-command-block";
+import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
-import { TableSkeleton } from "../../../../../../components/skeletons";
+import { FilterBarSkeleton, TableSkeleton } from "../../../../../../components/skeletons";
 import {
+  DataTableToolbar,
   DataTableView,
+  DataTableViewOptions,
   PAGE_SIZE,
   computePagination,
+  enumArrayParam,
   fireAndForget,
-  optionalEnumParam,
-  optionalStringParam,
+  freeStringArrayParam,
   pageParam,
   queryParam,
   sortParam,
@@ -66,8 +63,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 const updatesSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
-  platform: optionalEnumParam(PLATFORMS),
-  branchId: optionalStringParam(),
+  platform: enumArrayParam(PLATFORMS),
+  branchId: freeStringArrayParam(),
   query: queryParam(),
 });
 
@@ -79,18 +76,25 @@ const UpdatesEmptyState = () => (
           <CloudUploadIcon strokeWidth={1.5} />
         </EmptyMedia>
         <EmptyTitle>No updates yet</EmptyTitle>
-        <EmptyDescription>Publish your first update using the CLI to see it here.</EmptyDescription>
+        <EmptyDescription>
+          Publish from your app repo — updates land on a branch and reach devices through its
+          channel.
+        </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock
+          commands={['better-update update publish --branch main --message "First update"']}
+        />
+      </EmptyContent>
     </Empty>
   </Card>
 );
 
 const UpdatesSkeleton = () => (
   <>
-    <div className="flex items-center justify-between gap-2">
-      <ProjectSubpageHeader title="Updates" />
-    </div>
-    <TableSkeleton columns={8} rows={6} />
+    <PageHeader size="sub" title="Updates" />
+    <FilterBarSkeleton hasSearch selectCount={2} />
+    <TableSkeleton columns={7} rows={6} />
   </>
 );
 
@@ -100,8 +104,8 @@ interface UseUpdatesDataArgs {
   readonly slug: string;
   readonly page: number;
   readonly apiSort: (typeof SORT_COLUMNS)[number] | `-${(typeof SORT_COLUMNS)[number]}`;
-  readonly branchId: string | undefined;
-  readonly platform: "ios" | "android" | undefined;
+  readonly branchId: readonly string[];
+  readonly platform: readonly ("ios" | "android")[];
   readonly query: string;
 }
 
@@ -115,12 +119,16 @@ const useUpdatesData = ({
   platform,
   query,
 }: UseUpdatesDataArgs) => {
+  // Platform is a two-value enum, so "both selected" ≡ no filter and the API
+  // keeps its single-value param; branches are a true multi filter.
+  const platformParam = platform.length === 1 ? platform[0] : undefined;
+
   const updatesQuery = useQuery({
     ...updatesQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
-      ...(branchId ? { branchId } : {}),
-      ...(platform ? { platform } : {}),
+      ...(branchId.length > 0 ? { branchId } : {}),
+      ...(platformParam ? { platform: platformParam } : {}),
       ...(query ? { query } : {}),
       sort: apiSort,
     }),
@@ -174,20 +182,36 @@ const UpdatesContent = () => {
     },
   });
 
-  const handleBranchFilter = (next: string | undefined) => {
+  const handleBranchFilter = (next: readonly string[]) => {
     fireAndForget(
       routeNavigate({
         to: ".",
-        search: (prev) => ({ ...prev, branchId: next, page: 1 }),
+        search: (prev) => ({ ...prev, branchId: [...next], page: 1 }),
       }),
     );
   };
 
-  const handlePlatformFilter = (next: "ios" | "android" | undefined) => {
+  const handlePlatformFilter = (next: readonly ("ios" | "android")[]) => {
     fireAndForget(
       routeNavigate({
         to: ".",
-        search: (prev) => ({ ...prev, platform: next, page: 1 }),
+        search: (prev) => ({ ...prev, platform: [...next], page: 1 }),
+      }),
+    );
+  };
+
+  const handleReset = () => {
+    handleSearchChange("");
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({
+          ...prev,
+          branchId: [],
+          platform: [],
+          query: "",
+          page: 1,
+        }),
       }),
     );
   };
@@ -208,6 +232,8 @@ const UpdatesContent = () => {
   const table = useReactTable({
     data: tableData,
     columns: [...columns],
+    // Size stays opt-in (View options) so the table fits without horizontal scroll.
+    initialState: { columnVisibility: { size: false } },
     state: { sorting },
     onSortingChange,
     manualSorting: true,
@@ -216,52 +242,36 @@ const UpdatesContent = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const branchFilterLabels: Record<string, string> = {
-    all: "All branches",
-    ...Object.fromEntries(branches.map((branch) => [branch.id, branch.name])),
-  };
-  const filterControls = (
-    <UpdatesFilterBar
-      branches={branches}
-      branchFilterLabels={branchFilterLabels}
-      branchFilter={branchId}
-      platformFilter={platform}
-      onBranchFilter={handleBranchFilter}
-      onPlatformFilter={handlePlatformFilter}
+  const header = (
+    <PageHeader
+      size="sub"
+      title="Updates"
+      actions={<CompareUpdatesDialog orgId={orgId} projectId={projectId} />}
     />
   );
 
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Updates" />
-          <div className="flex flex-wrap items-center gap-2">
-            {filterControls}
-            <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
-          </div>
-        </div>
+        {header}
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={8} rows={6} />
+          <>
+            <FilterBarSkeleton hasSearch selectCount={2} />
+            <TableSkeleton columns={7} rows={6} />
+          </>
         )}
       </div>
     );
   }
 
-  const filtersActive = Boolean(branchId) || Boolean(platform) || urlQuery.length > 0;
+  const filtersActive = branchId.length > 0 || platform.length > 0 || urlQuery.length > 0;
 
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <ProjectSubpageHeader title="Updates" />
-          <div className="flex flex-wrap items-center gap-2">
-            {filterControls}
-            <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
-          </div>
-        </div>
+        {header}
         <UpdatesEmptyState />
       </div>
     );
@@ -278,61 +288,41 @@ const UpdatesContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <ProjectSubpageHeader title="Updates" />
-        <div className="flex flex-wrap items-center gap-2">
-          {filterControls}
-          <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
-        </div>
-      </div>
-      <InputGroup>
-        <InputGroupAddon>
-          <SearchIcon aria-hidden="true" />
-        </InputGroupAddon>
-        <InputGroupInput
-          aria-label="Search updates"
-          placeholder="Search by message or commit…"
-          type="search"
-          value={searchDraft}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => {
-            handleSearchChange(event.target.value);
-          }}
+      {header}
+      <DataTableToolbar
+        search={{
+          value: searchDraft,
+          onChange: handleSearchChange,
+          placeholder: "Search by message or commit…",
+        }}
+        isFiltered={filtersActive || searchDraft.length > 0}
+        onReset={handleReset}
+        actions={<DataTableViewOptions table={table} />}
+      >
+        <UpdatesFilterBar
+          branches={branches}
+          branchFilter={branchId}
+          platformFilter={platform}
+          onBranchFilter={handleBranchFilter}
+          onPlatformFilter={handlePlatformFilter}
         />
-        {isPlaceholderData ? (
-          <InputGroupAddon align="inline-end">
-            <Spinner />
-          </InputGroupAddon>
-        ) : null}
-      </InputGroup>
-      {data.total === 0 ? (
-        <Card>
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SearchXIcon strokeWidth={1.5} />
-              </EmptyMedia>
-              <EmptyTitle>No matches</EmptyTitle>
-              <EmptyDescription>No updates match your filters.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </Card>
-      ) : (
-        <DataTableView
-          table={table}
-          columnsCount={columns.length}
-          isPlaceholderData={isPlaceholderData}
-          countLabel={countLabel}
-          safePage={safePage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
-          onRowClick={async (update) => {
-            await routeNavigate({
-              to: "/projects/$projectSlug/updates/$updateId",
-              params: { projectSlug: slug, updateId: update.id },
-            });
-          }}
-        />
-      )}
+      </DataTableToolbar>
+      <DataTableView
+        table={table}
+        columnsCount={columns.length}
+        isPlaceholderData={isPlaceholderData}
+        countLabel={countLabel}
+        safePage={safePage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        emptyMessage="No updates match your filters."
+        onRowClick={async (update) => {
+          await routeNavigate({
+            to: "/projects/$projectSlug/updates/$updateId",
+            params: { projectSlug: slug, updateId: update.id },
+          });
+        }}
+      />
     </div>
   );
 };

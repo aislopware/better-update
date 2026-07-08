@@ -1,11 +1,3 @@
-import { Card } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -14,29 +6,20 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { CloudIcon } from "lucide-react";
 
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
-import { CopyableMono } from "../../../lib/copy-button";
+import { CopyButton, CopyableId } from "../../../lib/copy-button";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BoundProjectsCell } from "./-credential-bindings";
+import { CredentialEmptyRow } from "./-credential-cells";
 import { GsaKeyProtectionSwitch } from "./-credential-protection";
 
 export const GoogleServiceAccountKeysEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CloudIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No Google service account keys</EmptyTitle>
-        <EmptyDescription>
-          Use the CLI to upload a service account .json key for FCM v1 push notifications.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <CredentialEmptyRow>
+    No Google service account keys yet — upload a service account .json from the CLI for FCM v1 push
+    notifications.
+  </CredentialEmptyRow>
 );
 
 export const GoogleServiceAccountKeysTable = ({
@@ -48,12 +31,10 @@ export const GoogleServiceAccountKeysTable = ({
   orgId: string;
   canManageProtection: boolean;
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
-        <TableHead>Project ID</TableHead>
-        <TableHead>Private Key ID</TableHead>
-        <TableHead>Client</TableHead>
+        <TableHead>Service account</TableHead>
         <TableHead>Protected</TableHead>
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
@@ -63,17 +44,19 @@ export const GoogleServiceAccountKeysTable = ({
       {items.map((key) => (
         <TableRow key={key.id}>
           <TableCell>
-            <CopyableMono value={key.googleProjectId} label="Project ID" />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={key.privateKeyId} label="Private key ID" />
-          </TableCell>
-          <TableCell>
-            <div className="flex flex-col gap-0.5">
-              <CopyableMono value={key.clientEmail} label="Client email" />
-              {key.clientId === null ? null : (
-                <span className="text-muted-foreground text-xs">ID: {key.clientId}</span>
-              )}
+            <div className="flex max-w-96 flex-col gap-0.5">
+              <span
+                className="flex items-center gap-1"
+                title={key.clientId === null ? undefined : `Client ID: ${key.clientId}`}
+              >
+                <span className="truncate font-mono text-xs font-medium">{key.clientEmail}</span>
+                <CopyButton value={key.clientEmail} label="Client email" size="icon-xs" />
+              </span>
+              <span className="text-muted-foreground flex items-center gap-1 font-mono text-xs">
+                <CopyableId value={key.googleProjectId} label="Project ID" length={16} />
+                <span aria-hidden>·</span>
+                <CopyableId value={key.privateKeyId} label="Private key ID" />
+              </span>
             </div>
           </TableCell>
           <TableCell>

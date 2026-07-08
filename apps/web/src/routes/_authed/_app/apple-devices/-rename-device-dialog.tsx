@@ -3,17 +3,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -38,7 +38,7 @@ const RenameForm = ({
   const renameMutation = useApiMutation({
     mutationFn: async (value: { name: string }) => updateDevice(device.id, { name: value.name }),
     onSuccess: async () => {
-      toastManager.add({ title: "Device renamed", type: "success" });
+      toast.success("Device renamed");
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
       onSuccess();
     },
@@ -59,7 +59,7 @@ const RenameForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="name"
           validators={{
@@ -71,28 +71,31 @@ const RenameForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="device-rename">Name</FieldLabel>
                 <Input
                   id="device-rename"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               Save
             </Button>
           )}
@@ -139,7 +142,7 @@ export const RenameDeviceDialog = ({
       }}
     >
       {children ? <DialogTrigger render={children} /> : null}
-      <DialogPopup>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename device</DialogTitle>
           <DialogDescription>Give this device a clearer label.</DialogDescription>
@@ -152,7 +155,7 @@ export const RenameDeviceDialog = ({
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

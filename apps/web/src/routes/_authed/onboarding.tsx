@@ -1,14 +1,14 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardPanel } from "@better-update/ui/components/ui/card";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Form } from "@better-update/ui/components/ui/form";
 import {
-  Frame,
-  FrameDescription,
-  FrameHeader,
-  FrameTitle,
-} from "@better-update/ui/components/ui/frame";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@better-update/ui/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
@@ -36,11 +36,12 @@ const SignedInAs = () => {
         variant="link"
         size="sm"
         className="h-auto p-0 align-baseline"
-        loading={logoutMutation.isPending}
+        disabled={logoutMutation.isPending}
         onClick={() => {
           logoutMutation.mutate();
         }}
       >
+        {logoutMutation.isPending && <Spinner data-icon="inline-start" />}
         Log out
       </Button>
     </p>
@@ -74,105 +75,105 @@ const Onboarding = () => {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-16">
-      <Frame className="w-full max-w-md">
-        <FrameHeader>
-          <FrameTitle>Create your organization</FrameTitle>
-          <FrameDescription>
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Create your organization</CardTitle>
+          <CardDescription>
             Organizations are shared workspaces where teams manage projects and API keys together.
-          </FrameDescription>
-        </FrameHeader>
-        <Card>
-          <CardPanel>
-            <Form
-              className="flex w-full flex-col gap-4"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await form.handleSubmit();
-              }}
-            >
-              <div className="grid gap-4">
-                <form.Field
-                  name="name"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = nameSchema.safeParse(value);
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
-                >
-                  {(field) => {
-                    const errorMessage = getFieldError(field);
-                    return (
-                      <Field invalid={Boolean(errorMessage)}>
-                        <FieldLabel htmlFor="name">Organization name</FieldLabel>
-                        <Input
-                          id="name"
-                          placeholder="Acme Inc."
-                          value={field.state.value}
-                          onChange={(event) => {
-                            field.handleChange(event.target.value);
-                            if (!slugEdited.current) {
-                              form.setFieldValue("slug", generateSlug(event.target.value), {
-                                dontUpdateMeta: true,
-                                dontValidate: true,
-                              });
-                            }
-                          }}
-                          onBlur={field.handleBlur}
-                        />
-                        <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                      </Field>
-                    );
-                  }}
-                </form.Field>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="flex w-full flex-col gap-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              await form.handleSubmit();
+            }}
+          >
+            <FieldGroup>
+              <form.Field
+                name="name"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = nameSchema.safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  return (
+                    <Field data-invalid={Boolean(errorMessage)}>
+                      <FieldLabel htmlFor="name">Organization name</FieldLabel>
+                      <Input
+                        id="name"
+                        placeholder="Acme Inc."
+                        aria-invalid={Boolean(errorMessage) || undefined}
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          if (!slugEdited.current) {
+                            form.setFieldValue("slug", generateSlug(event.target.value), {
+                              dontUpdateMeta: true,
+                              dontValidate: true,
+                            });
+                          }
+                        }}
+                        onBlur={field.handleBlur}
+                      />
+                      {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-                <form.Field
-                  name="slug"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = slugSchema.safeParse(value);
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
+              <form.Field
+                name="slug"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = slugSchema.safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  return (
+                    <Field data-invalid={Boolean(errorMessage)}>
+                      <FieldLabel htmlFor="slug">URL slug</FieldLabel>
+                      <Input
+                        id="slug"
+                        placeholder="acme-inc"
+                        aria-invalid={Boolean(errorMessage) || undefined}
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          slugEdited.current = event.target.value !== "";
+                        }}
+                        onBlur={field.handleBlur}
+                      />
+                      {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </FieldGroup>
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+              {([canSubmit, isSubmitting]) => (
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={!canSubmit || Boolean(isSubmitting)}
                 >
-                  {(field) => {
-                    const errorMessage = getFieldError(field);
-                    return (
-                      <Field invalid={Boolean(errorMessage)}>
-                        <FieldLabel htmlFor="slug">URL slug</FieldLabel>
-                        <Input
-                          id="slug"
-                          placeholder="acme-inc"
-                          value={field.state.value}
-                          onChange={(event) => {
-                            field.handleChange(event.target.value);
-                            slugEdited.current = event.target.value !== "";
-                          }}
-                          onBlur={field.handleBlur}
-                        />
-                        <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                      </Field>
-                    );
-                  }}
-                </form.Field>
-              </div>
-              <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-                {([canSubmit, isSubmitting]) => (
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={!canSubmit}
-                    loading={Boolean(isSubmitting)}
-                  >
-                    Create organization
-                  </Button>
-                )}
-              </form.Subscribe>
-            </Form>
-          </CardPanel>
-        </Card>
-      </Frame>
+                  {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
+                  Create organization
+                </Button>
+              )}
+            </form.Subscribe>
+          </form>
+        </CardContent>
+      </Card>
       <SignedInAs />
     </div>
   );

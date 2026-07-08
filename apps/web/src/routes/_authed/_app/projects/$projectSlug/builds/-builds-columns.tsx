@@ -1,5 +1,5 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { DownloadIcon } from "lucide-react";
 
 import type { BuildWithArtifact } from "@better-update/api";
@@ -7,8 +7,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
-import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
-import { CopyableId } from "../../../../../../lib/copy-button";
+import {
+  DistributionIndicator,
+  PlatformIndicator,
+} from "../../../../../../components/attribute-badges";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
@@ -29,13 +31,17 @@ const BuildActions = ({
   <div className="flex items-center justify-end gap-1">
     {build.artifact ? (
       <>
-        <InstallLinkDialog build={build} />
+        <InstallLinkDialog
+          build={build}
+          buttonClassName="text-muted-foreground/70 hover:text-foreground"
+        />
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
                 variant="ghost"
                 size="icon"
+                className="text-muted-foreground/70 hover:text-foreground"
                 aria-label="Download artifact"
                 render={
                   <a
@@ -51,7 +57,7 @@ const BuildActions = ({
           >
             <DownloadIcon strokeWidth={2} />
           </TooltipTrigger>
-          <TooltipPopup>Download artifact</TooltipPopup>
+          <TooltipContent>Download artifact</TooltipContent>
         </Tooltip>
       </>
     ) : null}
@@ -70,20 +76,18 @@ export const buildBuildsColumns = (
       const git =
         row.original.gitRef ?? (row.original.gitCommit ? row.original.gitCommit.slice(0, 7) : null);
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex max-w-96 flex-col gap-0.5">
           <span className="truncate font-medium">{buildLabel(row.original)}</span>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-2 font-mono text-xs">
-            <CopyableId value={row.original.id} label="Build ID" />
-            {row.original.bundleId ? (
-              <span className="truncate">{row.original.bundleId}</span>
-            ) : null}
+          <span className="text-muted-foreground truncate font-mono text-xs">
             {git ? (
-              <span className="shrink-0">
+              <>
                 {git}
                 {row.original.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
-              </span>
-            ) : null}
-          </div>
+              </>
+            ) : (
+              (row.original.bundleId ?? `#${row.original.id.slice(0, 8)}`)
+            )}
+          </span>
         </div>
       );
     },
@@ -93,14 +97,14 @@ export const buildBuildsColumns = (
     id: "platform",
     accessorKey: "platform",
     header: "Platform",
-    cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+    cell: ({ row }) => <PlatformIndicator platform={row.original.platform} />,
     enableSorting: true,
   },
   {
     id: "distribution",
     accessorKey: "distribution",
     header: "Distribution",
-    cell: ({ row }) => <DistributionBadge distribution={row.original.distribution} />,
+    cell: ({ row }) => <DistributionIndicator distribution={row.original.distribution} />,
     enableSorting: true,
   },
   {
@@ -111,7 +115,7 @@ export const buildBuildsColumns = (
       row.original.runtimeVersion === null ? (
         <span className="text-muted-foreground text-xs">—</span>
       ) : (
-        `v${row.original.runtimeVersion}`
+        <span className="font-mono text-xs">v{row.original.runtimeVersion}</span>
       ),
     enableSorting: true,
   },
@@ -123,9 +127,10 @@ export const buildBuildsColumns = (
       row.original.appVersion === null ? (
         <span className="text-muted-foreground text-xs">—</span>
       ) : (
-        row.original.appVersion
+        <span className="font-mono text-xs">{row.original.appVersion}</span>
       ),
     enableSorting: true,
+    enableHiding: true,
   },
   {
     id: "buildNumber",
@@ -138,12 +143,14 @@ export const buildBuildsColumns = (
         <code className="font-mono text-xs">{row.original.buildNumber}</code>
       ),
     enableSorting: false,
+    enableHiding: true,
   },
   {
     id: "size",
     header: "Size",
     cell: ({ row }) => (row.original.artifact ? formatBytes(row.original.artifact.byteSize) : "—"),
     enableSorting: false,
+    enableHiding: true,
     meta: { align: "right", muted: true },
   },
   {

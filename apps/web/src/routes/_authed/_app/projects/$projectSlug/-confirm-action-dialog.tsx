@@ -1,19 +1,20 @@
-import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogPopup,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@better-update/ui/components/ui/alert-dialog";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useState } from "react";
 
-import type { ButtonProps } from "@better-update/ui/components/ui/button";
-import type { ReactElement } from "react";
+import type { Button } from "@better-update/ui/components/ui/button";
+import type { ComponentProps, ReactElement } from "react";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
@@ -25,14 +26,14 @@ interface ConfirmActionDialogProps {
   /** Label for the confirm button. */
   readonly confirmLabel: string;
   /** Confirm button variant — defaults to the primary action style. */
-  readonly confirmVariant?: ButtonProps["variant"];
+  readonly confirmVariant?: ComponentProps<typeof Button>["variant"];
   /** Async action handler — should throw on API error. */
   readonly onConfirm: () => Promise<unknown>;
   /** Toast message shown on success. */
   readonly successMessage: string;
   /** Post-action cleanup (query invalidation, navigation, etc.). */
   readonly onSuccess?: () => Promise<void>;
-  /** Trigger element wrapped as `DialogTrigger`. */
+  /** Trigger element wrapped as `AlertDialogTrigger`. */
   readonly children: ReactElement;
 }
 
@@ -56,33 +57,34 @@ export const ConfirmActionDialog = ({
   const mutation = useApiMutation({
     mutationFn: onConfirm,
     onSuccess: async () => {
-      toastManager.add({ title: successMessage, type: "success" });
+      toast.success(successMessage);
       await onSuccess?.();
       setOpen(false);
     },
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={children} />
-      <DialogPopup>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger render={children} />
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             variant={confirmVariant}
-            loading={mutation.isPending}
+            disabled={mutation.isPending}
             onClick={() => {
               mutation.mutate();
             }}
           >
+            {mutation.isPending && <Spinner data-icon="inline-start" />}
             {confirmLabel}
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

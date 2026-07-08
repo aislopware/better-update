@@ -2,15 +2,15 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -56,7 +56,7 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="name"
           validators={{
@@ -70,11 +70,12 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
             const errorMessage = getFieldError(field);
             const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={invalid}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
                 <Input
                   id="create-org-name"
                   placeholder="Acme Inc."
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
@@ -87,7 +88,7 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
                   }}
                   onBlur={field.handleBlur}
                 />
-                <FieldError match={invalid}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -106,12 +107,13 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
             const errorMessage = getFieldError(field);
             const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={invalid}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
                 <SlugInput
                   addonStart="updates.jmango360.dev/"
                   id="create-org-slug"
                   placeholder="acme-inc"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
@@ -122,18 +124,19 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
                 <p className="text-muted-foreground text-xs">
                   Lowercase letters, numbers and dashes only.
                 </p>
-                <FieldError match={invalid}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+              {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
               Create organization
             </Button>
           )}
@@ -162,7 +165,7 @@ export const CreateOrgDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create organization</DialogTitle>
           <DialogDescription>
@@ -175,7 +178,7 @@ export const CreateOrgDialog = ({
             onOpenChange(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

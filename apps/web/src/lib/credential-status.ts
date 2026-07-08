@@ -28,9 +28,9 @@ export const deriveExpiryStatus = (
 
 export const STATUS_BADGE_VARIANT: Record<
   CredentialStatusTone,
-  "success" | "warning" | "error" | "outline"
+  "destructive" | "outline" | "success" | "warning"
 > = {
-  error: "error",
+  error: "destructive",
   muted: "outline",
   success: "success",
   warning: "warning",

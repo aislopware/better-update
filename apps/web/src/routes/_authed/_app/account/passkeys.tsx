@@ -1,5 +1,14 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@better-update/ui/components/ui/item";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon } from "lucide-react";
@@ -37,42 +46,42 @@ const PasskeysList = () => {
           No passkeys added yet. Add one to unlock the env-vault from your browser.
         </p>
       ) : (
-        <ul className="-my-3 flex flex-col divide-y">
+        <ItemGroup>
           {passkeys.map((passkey) => (
-            <li key={passkey.id} className="flex items-center gap-3 py-3">
-              <span className="bg-muted/72 flex size-9 shrink-0 items-center justify-center rounded-md border">
-                <FingerprintIcon strokeWidth={2} className="size-4" />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm leading-none font-medium">
-                    {passkey.name ?? "Unnamed passkey"}
-                  </span>
+            <Item key={passkey.id} variant="outline" size="sm">
+              <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
+                <FingerprintIcon strokeWidth={2} />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>
+                  {passkey.name ?? "Unnamed passkey"}
                   {passkey.backedUp ? <Badge variant="success">Synced</Badge> : null}
-                </div>
-                <span className="text-muted-foreground truncate text-xs">
+                </ItemTitle>
+                <ItemDescription>
                   Added <RelativeTime value={passkey.createdAt} />
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setActive({ mode: "rename", passkey });
-                }}
-              >
-                Rename
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setActive({ mode: "delete", passkey });
-                }}
-              >
-                Remove
-              </Button>
-            </li>
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setActive({ mode: "rename", passkey });
+                  }}
+                >
+                  Rename
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setActive({ mode: "delete", passkey });
+                  }}
+                >
+                  Remove
+                </Button>
+              </ItemActions>
+            </Item>
           ))}
-        </ul>
+        </ItemGroup>
       )}
       {active?.mode === "rename" ? (
         <RenamePasskeyDialog

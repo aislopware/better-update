@@ -19,8 +19,8 @@ export type DeviceSortColumn = typeof DeviceSortColumnSchema.Type;
 export type DeviceSort = typeof DeviceSortSchema.Type;
 
 export interface DevicesFilters {
-  readonly deviceClass?: DeviceClassValue;
-  readonly appleTeamId?: string;
+  readonly deviceClass?: readonly DeviceClassValue[];
+  readonly appleTeamId?: readonly string[];
   readonly page?: number;
   readonly limit?: number;
   readonly query?: string;

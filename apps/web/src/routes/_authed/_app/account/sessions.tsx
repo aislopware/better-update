@@ -1,6 +1,16 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@better-update/ui/components/ui/item";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { MonitorIcon } from "lucide-react";
@@ -13,6 +23,15 @@ import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { parseUserAgent } from "../../../../lib/user-agent";
 import { sessionQueryOptions, sessionsQueryOptions } from "../../../../queries/auth";
 
+// Local dev and some proxies record an all-zero address — showing it reads as
+// a bug, so treat it as absent.
+const displayIp = (ip: string | null | undefined): string | undefined => {
+  if (!ip) {
+    return undefined;
+  }
+  return /^[0:.]+$/u.test(ip) ? undefined : ip;
+};
+
 const SessionsList = () => {
   const queryClient = useQueryClient();
   const { data: sessions } = useSuspenseQuery(sessionsQueryOptions);
@@ -23,7 +42,7 @@ const SessionsList = () => {
     mutationFn: async (token: string) =>
       rejectOnAuthClientError(authClient.revokeSession({ token }), "Failed to revoke session"),
     onSuccess: async () => {
-      toastManager.add({ title: "Session revoked", type: "success" });
+      toast.success("Session revoked");
       await queryClient.resetQueries({ queryKey: sessionsQueryOptions.queryKey });
     },
   });
@@ -32,7 +51,7 @@ const SessionsList = () => {
     mutationFn: async () =>
       rejectOnAuthClientError(authClient.revokeOtherSessions(), "Failed to revoke sessions"),
     onSuccess: async () => {
-      toastManager.add({ title: "All other sessions revoked", type: "success" });
+      toast.success("All other sessions revoked");
       await queryClient.resetQueries({ queryKey: sessionsQueryOptions.queryKey });
     },
   });
@@ -51,50 +70,51 @@ const SessionsList = () => {
             onClick={() => {
               revokeAllMutation.mutate();
             }}
-            loading={isRevokingAll}
+            disabled={isRevokingAll}
           >
+            {isRevokingAll && <Spinner data-icon="inline-start" />}
             Revoke all others
           </Button>
         ) : null
       }
     >
-      <ul className="-my-3 flex flex-col divide-y">
+      <ItemGroup>
         {sessions.map((session) => {
           const isCurrent = session.token === currentToken;
           const isRevoking = revokingToken === session.token;
           return (
-            <li key={session.id} className="flex items-center gap-3 py-3">
-              <span className="bg-muted/72 flex size-9 shrink-0 items-center justify-center rounded-md border">
-                <MonitorIcon strokeWidth={2} className="size-4" />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm leading-none font-medium">
-                    {session.userAgent ? parseUserAgent(session.userAgent) : "Unknown device"}
-                  </span>
+            <Item key={session.id} variant="outline" size="sm">
+              <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
+                <MonitorIcon strokeWidth={2} />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>
+                  {session.userAgent ? parseUserAgent(session.userAgent) : "Unknown device"}
                   {isCurrent ? <Badge variant="success">This device</Badge> : null}
-                </div>
-                <span className="text-muted-foreground truncate text-xs">
-                  {session.ipAddress ?? "Unknown IP"} · Signed in{" "}
-                  <RelativeTime value={session.createdAt} />
-                </span>
-              </div>
+                </ItemTitle>
+                <ItemDescription>
+                  {displayIp(session.ipAddress) ? `${displayIp(session.ipAddress)} · ` : ""}
+                  Signed in <RelativeTime value={session.createdAt} />
+                </ItemDescription>
+              </ItemContent>
               {isCurrent ? null : (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    revokeMutation.mutate(session.token);
-                  }}
-                  loading={isRevoking}
-                  disabled={isRevokingAll || (revokeMutation.isPending && !isRevoking)}
-                >
-                  Revoke
-                </Button>
+                <ItemActions>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      revokeMutation.mutate(session.token);
+                    }}
+                    disabled={isRevoking || isRevokingAll || revokeMutation.isPending}
+                  >
+                    {isRevoking && <Spinner data-icon="inline-start" />}
+                    Revoke
+                  </Button>
+                </ItemActions>
               )}
-            </li>
+            </Item>
           );
         })}
-      </ul>
+      </ItemGroup>
     </SettingCard>
   );
 };

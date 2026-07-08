@@ -8,17 +8,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -47,7 +47,7 @@ const OrgLogoSection = () => {
   const { activeOrg } = Route.useRouteContext();
 
   const onSuccess = async (title: string) => {
-    toastManager.add({ title, type: "success" });
+    toast.success(title);
     await queryClient.resetQueries({ queryKey: authKeyPrefix });
   };
 
@@ -71,11 +71,11 @@ const OrgLogoSection = () => {
       return;
     }
     if (!isOrganizationLogoContentType(file.type)) {
-      toastManager.add({ title: "Use a PNG, JPEG, WebP, or SVG image", type: "error" });
+      toast.error("Use a PNG, JPEG, WebP, or SVG image");
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      toastManager.add({ title: "Logo must be 2 MB or smaller", type: "error" });
+      toast.error("Logo must be 2 MB or smaller");
       return;
     }
     uploadMutation.mutate(file);
@@ -91,20 +91,16 @@ const OrgLogoSection = () => {
             <Button
               variant="ghost"
               disabled={busy}
-              loading={removeMutation.isPending}
               onClick={() => {
                 removeMutation.mutate();
               }}
             >
+              {removeMutation.isPending && <Spinner data-icon="inline-start" />}
               Remove
             </Button>
           ) : null}
-          <Button
-            variant="outline"
-            disabled={busy}
-            loading={uploadMutation.isPending}
-            onClick={() => inputRef.current?.click()}
-          >
+          <Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
+            {uploadMutation.isPending && <Spinner data-icon="inline-start" />}
             {activeOrg.logo ? "Replace logo" : "Upload logo"}
           </Button>
         </>
@@ -138,7 +134,7 @@ const OrgGeneralForm = () => {
   const updateOrgMutation = useApiMutation({
     mutationFn: async (input: { name: string; slug: string }) => updateOrganization(input),
     onSuccess: async () => {
-      toastManager.add({ title: "Organization updated", type: "success" });
+      toast.success("Organization updated");
       await queryClient.resetQueries({ queryKey: authKeyPrefix });
     },
   });
@@ -167,7 +163,8 @@ const OrgGeneralForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+              <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
+                {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
                 Save changes
               </Button>
             )}
@@ -187,10 +184,11 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field invalid={Boolean(errorMessage)}>
+                <Field data-invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="org-name">Organization name</FieldLabel>
                   <Input
                     id="org-name"
+                    aria-invalid={Boolean(errorMessage) || undefined}
                     value={field.state.value}
                     onChange={(event) => {
                       field.handleChange(event.target.value);
@@ -203,7 +201,7 @@ const OrgGeneralForm = () => {
                     }}
                     onBlur={field.handleBlur}
                   />
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                  {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
                 </Field>
               );
             }}
@@ -221,10 +219,11 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field invalid={Boolean(errorMessage)}>
+                <Field data-invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="org-slug">URL slug</FieldLabel>
                   <Input
                     id="org-slug"
+                    aria-invalid={Boolean(errorMessage) || undefined}
                     value={field.state.value}
                     onChange={(event) => {
                       field.handleChange(event.target.value);
@@ -232,7 +231,7 @@ const OrgGeneralForm = () => {
                     }}
                     onBlur={field.handleBlur}
                   />
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                  {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
                 </Field>
               );
             }}
@@ -255,29 +254,27 @@ const DeleteOrgConfirmForm = ({
   const [confirmText, setConfirmText] = useState("");
   return (
     <>
-      <DialogPanel>
-        <Field>
-          <FieldLabel htmlFor="confirm-delete">
-            Type <span className="font-mono font-bold">{slug}</span> to confirm
-          </FieldLabel>
-          <Input
-            id="confirm-delete"
-            value={confirmText}
-            onChange={(event) => {
-              setConfirmText(event.target.value);
-            }}
-            placeholder={slug}
-          />
-        </Field>
-      </DialogPanel>
+      <Field>
+        <FieldLabel htmlFor="confirm-delete">
+          Type <span className="font-mono font-bold">{slug}</span> to confirm
+        </FieldLabel>
+        <Input
+          id="confirm-delete"
+          value={confirmText}
+          onChange={(event) => {
+            setConfirmText(event.target.value);
+          }}
+          placeholder={slug}
+        />
+      </Field>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button
           variant="destructive"
-          disabled={confirmText !== slug}
-          loading={isPending}
+          disabled={confirmText !== slug || isPending}
           onClick={onConfirm}
         >
+          {isPending && <Spinner data-icon="inline-start" />}
           Delete permanently
         </Button>
       </DialogFooter>
@@ -295,7 +292,7 @@ const DeleteOrgSection = () => {
   const deleteOrgMutation = useDeleteOrgMutation({
     orgId: activeOrg.id,
     onSuccess: async () => {
-      toastManager.add({ title: "Organization deleted", type: "success" });
+      toast.success("Organization deleted");
       // Refresh session + orgs before invalidating routes so the guard redirect
       // (e.g. to /onboarding when the last org is gone) reads warm cache instead
       // of suspending mid-transition (router `undefined` throw).
@@ -309,7 +306,7 @@ const DeleteOrgSection = () => {
 
   return (
     <SettingCard
-      className="border-destructive"
+      destructive
       title="Danger zone"
       description="Permanently delete this organization and all of its data."
       footer={
@@ -323,7 +320,7 @@ const DeleteOrgSection = () => {
           }}
         >
           <DialogTrigger render={deleteOrgTrigger} />
-          <DialogPopup>
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete {activeOrg.name}?</DialogTitle>
               <DialogDescription>
@@ -339,7 +336,7 @@ const DeleteOrgSection = () => {
                 deleteOrgMutation.mutate();
               }}
             />
-          </DialogPopup>
+          </DialogContent>
         </Dialog>
       }
     />

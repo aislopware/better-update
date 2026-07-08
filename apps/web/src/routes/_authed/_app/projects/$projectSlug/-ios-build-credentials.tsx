@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { Tabs, TabsList, TabsPanel, TabsTab } from "@better-update/ui/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment } from "react";
 
@@ -23,13 +23,28 @@ import type {
   AppleTeamItem,
   IosBundleConfigurationItem,
 } from "@better-update/api-client/react";
+import type { ComponentProps } from "react";
 
 import { ProtectedBadgeCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
-import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
+import { deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
-import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
+import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
+
+import type { CredentialStatus, CredentialStatusTone } from "../../../../../lib/credential-status";
+
+const STATUS_BADGE_VARIANT: Record<CredentialStatusTone, ComponentProps<typeof Badge>["variant"]> =
+  {
+    error: "destructive",
+    muted: "outline",
+    success: "success",
+    warning: "warning",
+  };
+
+const StatusBadge = ({ status }: { status: CredentialStatus }) => (
+  <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
+);
 
 const CertRow = ({
   cert,
@@ -56,7 +71,7 @@ const CertRow = ({
       <TableCell>
         <div className="flex items-center gap-2">
           <span>{formatShortDate(cert.validUntil)}</span>
-          <Badge variant={STATUS_BADGE_VARIANT[certStatus.tone]}>{certStatus.label}</Badge>
+          <StatusBadge status={certStatus} />
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">{formatShortDateTime(cert.updatedAt)}</TableCell>
@@ -71,11 +86,11 @@ const CertTableCard = ({
   cert: AppleDistributionCertificateItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialFrame title="Distribution certificate">
+  <CredentialSection title="Distribution certificate">
     {cert === null ? (
-      <EmptyBindingPanel message="No distribution certificate bound — bind one with the CLI." />
+      <EmptyBindingMessage message="No distribution certificate bound — bind one with the CLI." />
     ) : (
-      <Table variant="card">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Serial</TableHead>
@@ -91,7 +106,7 @@ const CertTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CredentialFrame>
+  </CredentialSection>
 );
 
 const ProfileRow = ({
@@ -116,7 +131,7 @@ const ProfileRow = ({
       <TableCell>
         <div className="flex items-center gap-2">
           <span>{profile.validUntil === null ? "—" : formatShortDate(profile.validUntil)}</span>
-          <Badge variant={STATUS_BADGE_VARIANT[profileStatus.tone]}>{profileStatus.label}</Badge>
+          <StatusBadge status={profileStatus} />
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
@@ -133,11 +148,11 @@ const ProfileTableCard = ({
   profile: AppleProvisioningProfileItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialFrame title="Provisioning profile">
+  <CredentialSection title="Provisioning profile">
     {profile === null ? (
-      <EmptyBindingPanel message="No provisioning profile bound — bind one with the CLI." />
+      <EmptyBindingMessage message="No provisioning profile bound — bind one with the CLI." />
     ) : (
-      <Table variant="card">
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
@@ -152,7 +167,7 @@ const ProfileTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CredentialFrame>
+  </CredentialSection>
 );
 
 const findCert = (
@@ -243,21 +258,21 @@ export const IosBuildCredentialsSection = ({
       <Tabs defaultValue={firstConfig.distributionType}>
         <TabsList>
           {configs.map((config) => (
-            <TabsTab key={config.id} value={config.distributionType}>
+            <TabsTrigger key={config.id} value={config.distributionType}>
               {DISTRIBUTION_LABELS[config.distributionType]}
-            </TabsTab>
+            </TabsTrigger>
           ))}
         </TabsList>
         {configs.map((config) => (
           <Fragment key={config.id}>
-            <TabsPanel value={config.distributionType} className="pt-4">
+            <TabsContent value={config.distributionType} className="pt-4">
               <ConfigTabPanel
                 config={config}
                 certs={certsResult.items}
                 profiles={profilesResult.items}
                 teams={teamsResult.items}
               />
-            </TabsPanel>
+            </TabsContent>
           </Fragment>
         ))}
       </Tabs>

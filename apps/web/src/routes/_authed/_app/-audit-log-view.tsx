@@ -6,10 +6,9 @@ import { Card } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Dialog,
+  DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
@@ -20,20 +19,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
-import {
-  Select,
-  SelectPopup,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -46,7 +36,12 @@ import type { DateRange } from "react-day-picker";
 
 import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { CopyButton } from "../../../lib/copy-button";
-import { enumParam, optionalStringParam } from "../../../lib/data-table";
+import {
+  DataTableFacetedFilter,
+  DataTableToolbar,
+  enumArrayParam,
+  optionalStringParam,
+} from "../../../lib/data-table";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
 
@@ -61,7 +56,6 @@ export const AuditLogSkeleton = () => (
 // repository filters with `WHERE resource_type = ?`, so each option must equal a
 // stored value (the old collapsed "credential" alias matched zero rows).
 const RESOURCE_TYPE_VALUES = [
-  "all",
   "project",
   "branch",
   "channel",
@@ -89,7 +83,6 @@ const RESOURCE_TYPE_VALUES = [
 type ResourceTypeValue = (typeof RESOURCE_TYPE_VALUES)[number];
 
 const RESOURCE_TYPE_LABELS: Record<ResourceTypeValue, string> = {
-  all: "All resources",
   project: "Project",
   branch: "Branch",
   channel: "Channel",
@@ -115,7 +108,7 @@ const RESOURCE_TYPE_LABELS: Record<ResourceTypeValue, string> = {
 };
 
 export const auditLogSearchSchema = z.object({
-  resourceType: enumParam(RESOURCE_TYPE_VALUES, "all"),
+  resourceType: enumArrayParam(RESOURCE_TYPE_VALUES),
   from: optionalStringParam(),
   to: optionalStringParam(),
 });
@@ -124,6 +117,12 @@ export type AuditLogSearch = z.infer<typeof auditLogSearchSchema>;
 
 const isResourceType = (value: unknown): value is ResourceTypeValue =>
   (RESOURCE_TYPE_VALUES as readonly unknown[]).includes(value);
+
+// An empty chip selection means "all resources".
+const RESOURCE_FILTER_OPTIONS = RESOURCE_TYPE_VALUES.map((value) => ({
+  value,
+  label: RESOURCE_TYPE_LABELS[value],
+}));
 
 const resourceTypeLabel = (value: string): string =>
   isResourceType(value) ? RESOURCE_TYPE_LABELS[value] : value;
@@ -174,6 +173,25 @@ const parseMetadata = (metadata: string | null): unknown => {
   return safeJsonParse(metadata);
 };
 
+// Audit metadata is free-form JSON, but most events stamp a human identifier
+// under one of a few well-known keys — surface it so the Resource column shows
+// "production" instead of only a UUID.
+const readMetadataName = (parsed: unknown): string | undefined => {
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+  const { name, message, key, email, slug } = parsed as {
+    name?: unknown;
+    message?: unknown;
+    key?: unknown;
+    email?: unknown;
+    slug?: unknown;
+  };
+  return [name, message, key, email, slug].find(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+};
+
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
   <Card>
     <Empty>
@@ -211,46 +229,46 @@ const AuditLogRow = ({
   };
 }) => {
   const parsed = parseMetadata(entry.metadata);
+  const resourceName = readMetadataName(parsed);
 
   return (
     <TableRow>
-      <TableCell className="align-top whitespace-nowrap">
-        <div className="flex flex-col">
-          <span className="text-foreground text-sm leading-5 font-medium">
-            {formatWeekdayShort(entry.createdAt)}
-          </span>
-          <span className="text-muted-foreground/72 text-xs">
-            {formatTimeShort(entry.createdAt)} · {formatRelativeTime(entry.createdAt)}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="align-top">
-        <Badge variant="secondary" className="text-xs" title={entry.action}>
+      <TableCell>
+        <span className="block max-w-96 truncate font-medium" title={entry.action}>
           {actionLabel(entry.action)}
-        </Badge>
+        </span>
       </TableCell>
-      <TableCell className="align-top">
+      <TableCell>
         <div className="flex flex-col gap-0.5">
-          <span className="text-foreground text-sm">{resourceTypeLabel(entry.resourceType)}</span>
-          {entry.resourceId ? (
-            <div className="flex items-center gap-1">
-              <code className="text-muted-foreground/72 min-w-0 font-mono text-xs break-all">
-                {entry.resourceId}
-              </code>
-              <CopyButton value={entry.resourceId} label="Resource ID" size="icon-xs" />
-            </div>
-          ) : null}
+          <span className="max-w-56 truncate" title={resourceName}>
+            {resourceName ?? resourceTypeLabel(entry.resourceType)}
+          </span>
+          <span className="text-muted-foreground flex items-center gap-1 text-xs">
+            {resourceName ? <span>{resourceTypeLabel(entry.resourceType)}</span> : null}
+            {entry.resourceId ? (
+              <>
+                {resourceName ? <span aria-hidden>·</span> : null}
+                <code className="max-w-24 truncate font-mono" title={entry.resourceId}>
+                  {entry.resourceId.slice(0, 8)}
+                </code>
+                <CopyButton value={entry.resourceId} label="Resource ID" size="icon-xs" />
+              </>
+            ) : null}
+          </span>
         </div>
       </TableCell>
-      <TableCell className="align-top">
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-foreground text-sm">{entry.actorEmail}</span>
-          <Badge variant="outline" className="text-[10px]">
-            {entry.source === "robot" ? "Robot" : "Session"}
-          </Badge>
-        </div>
+      <TableCell>
+        <span className="flex items-center gap-1.5">
+          {entry.actorEmail}
+          {entry.source === "robot" ? <Badge variant="secondary">Robot</Badge> : null}
+        </span>
       </TableCell>
-      <TableCell className="text-right align-middle in-data-[variant=card]:last:pe-4">
+      <TableCell className="text-muted-foreground text-right whitespace-nowrap">
+        <span title={`${formatWeekdayShort(entry.createdAt)} ${formatTimeShort(entry.createdAt)}`}>
+          {formatRelativeTime(entry.createdAt)}
+        </span>
+      </TableCell>
+      <TableCell className="text-right last:pe-4">
         {parsed ? <MetadataDialog action={entry.action} parsed={parsed} /> : null}
       </TableCell>
     </TableRow>
@@ -277,19 +295,17 @@ const MetadataDialog = ({
 }) => (
   <Dialog>
     <DialogTrigger render={metadataTrigger} />
-    <DialogPopup className="max-w-2xl">
+    <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>
           <span className="font-mono text-xs tracking-wider uppercase">{action}</span> metadata
         </DialogTitle>
         <DialogDescription>Raw event payload recorded for this audit entry.</DialogDescription>
       </DialogHeader>
-      <DialogPanel>
-        <pre className="bg-muted/40 max-h-[60vh] overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
-          {JSON.stringify(parsed, null, 2)}
-        </pre>
-      </DialogPanel>
-    </DialogPopup>
+      <pre className="bg-muted/40 max-h-[60vh] overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
+        {JSON.stringify(parsed, null, 2)}
+      </pre>
+    </DialogContent>
   </Dialog>
 );
 
@@ -305,7 +321,7 @@ export const AuditLogView = ({
 
   const filters = {
     ...(projectId ? { projectId } : {}),
-    ...(resourceType === "all" ? {} : { resourceType }),
+    ...(resourceType.length > 0 ? { resourceType } : {}),
     ...(from && to ? { from, to } : {}),
   };
 
@@ -315,8 +331,8 @@ export const AuditLogView = ({
 
   const items = data.pages.flatMap((page) => page.items);
 
-  const handleResourceTypeChange = (value: ResourceTypeValue): void => {
-    onChangeSearch({ ...search, resourceType: value });
+  const handleResourceTypeChange = (next: readonly string[]): void => {
+    onChangeSearch({ ...search, resourceType: next.filter(isResourceType) });
   };
 
   const handleDateRangeChange = (range: DateRange | undefined): void => {
@@ -327,76 +343,66 @@ export const AuditLogView = ({
     });
   };
 
+  const isFiltered = resourceType.length > 0 || Boolean(from) || Boolean(to);
+
+  const handleReset = (): void => {
+    onChangeSearch({ resourceType: [], from: undefined, to: undefined });
+  };
+
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          items={RESOURCE_TYPE_LABELS}
-          value={resourceType}
-          onValueChange={(value) => {
-            if (isResourceType(value)) {
-              handleResourceTypeChange(value);
-            }
-          }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All resources" />
-          </SelectTrigger>
-          <SelectPopup>
-            <SelectGroup>
-              {RESOURCE_TYPE_VALUES.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {RESOURCE_TYPE_LABELS[value]}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectPopup>
-        </Select>
+      <DataTableToolbar isFiltered={isFiltered} onReset={handleReset}>
+        <DataTableFacetedFilter
+          title="Resource"
+          options={RESOURCE_FILTER_OPTIONS}
+          selected={resourceType}
+          onChange={handleResourceTypeChange}
+        />
         <DateRangePicker
           value={dateRange}
           onChange={handleDateRangeChange}
-          triggerClassName="max-w-sm"
+          placeholder="Date range"
+          triggerVariant="filter"
         />
-      </div>
+      </DataTableToolbar>
 
       {items.length === 0 ? (
         <EmptyState scopeLabel={scopeLabel} />
       ) : (
-        <Frame>
-          <Table variant="card">
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Resource</TableHead>
-                <TableHead>Actor</TableHead>
-                <TableHead className="w-16 pe-4" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((entry) => (
-                <AuditLogRow key={entry.id} entry={entry} />
-              ))}
-            </TableBody>
-            {hasNextPage ? (
-              <TableFooter>
+        <div className="flex flex-col gap-3">
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    <Button
-                      variant="outline"
-                      loading={isFetchingNextPage}
-                      onClick={async () => {
-                        await fetchNextPage();
-                      }}
-                    >
-                      Load more
-                    </Button>
-                  </TableCell>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Resource</TableHead>
+                  <TableHead>Actor</TableHead>
+                  <TableHead className="text-right">When</TableHead>
+                  <TableHead className="w-16 pe-4" />
                 </TableRow>
-              </TableFooter>
-            ) : null}
-          </Table>
-        </Frame>
+              </TableHeader>
+              <TableBody>
+                {items.map((entry) => (
+                  <AuditLogRow key={entry.id} entry={entry} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {hasNextPage ? (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                disabled={isFetchingNextPage}
+                onClick={async () => {
+                  await fetchNextPage();
+                }}
+              >
+                {isFetchingNextPage && <Spinner data-icon="inline-start" />}
+                Load more
+              </Button>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );

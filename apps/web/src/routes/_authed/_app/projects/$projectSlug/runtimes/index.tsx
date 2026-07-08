@@ -18,7 +18,7 @@ import { z } from "zod";
 import type { RuntimeAggregate } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
@@ -117,9 +117,7 @@ const RuntimesContent = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <ProjectSubpageHeader title="Runtimes" />
-        </div>
+        <PageHeader size="sub" title="Runtimes" />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -132,9 +130,7 @@ const RuntimesContent = () => {
   if (data.total === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <ProjectSubpageHeader title="Runtimes" />
-        </div>
+        <PageHeader size="sub" title="Runtimes" />
         <RuntimesEmptyState />
       </div>
     );
@@ -153,9 +149,7 @@ const RuntimesContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <ProjectSubpageHeader title="Runtimes" />
-      </div>
+      <PageHeader size="sub" title="Runtimes" />
       <DataTableView
         table={table}
         columnsCount={columns.length}

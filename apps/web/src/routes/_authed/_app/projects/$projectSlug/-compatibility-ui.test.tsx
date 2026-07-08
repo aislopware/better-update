@@ -86,7 +86,7 @@ describe("compatibility UI", () => {
     expect(screen.getByText("iOS build")).toBeInTheDocument();
     expect(screen.getByText("Canary release")).toBeInTheDocument();
     expect(screen.getAllByText("Rollout active").length).toBeGreaterThan(0);
-    expect(screen.getByText("1 updates, latest Native change")).toBeInTheDocument();
+    expect(screen.getByText("1 update, latest Native change")).toBeInTheDocument();
   });
 
   it("renders missing matching builds warnings", () => {
@@ -94,6 +94,6 @@ describe("compatibility UI", () => {
 
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("v3.0.0")).toBeInTheDocument();
-    expect(screen.getByText("1 updates but no uploaded build.")).toBeInTheDocument();
+    expect(screen.getByText("1 update but no uploaded build.")).toBeInTheDocument();
   });
 });

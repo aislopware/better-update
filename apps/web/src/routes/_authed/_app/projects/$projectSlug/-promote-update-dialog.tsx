@@ -2,23 +2,23 @@ import { republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
-  SelectPopup,
+  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RocketIcon } from "lucide-react";
@@ -59,10 +59,10 @@ const TargetChannelSelect = ({ value, onChange, channels }: TargetChannelSelectP
         }
       }}
     >
-      <SelectTrigger>
+      <SelectTrigger className="w-full">
         <SelectValue placeholder="Select a channel" />
       </SelectTrigger>
-      <SelectPopup>
+      <SelectContent>
         <SelectGroup>
           {channels.map((channel) => (
             <SelectItem key={channel.id} value={channel.name}>
@@ -70,7 +70,7 @@ const TargetChannelSelect = ({ value, onChange, channels }: TargetChannelSelectP
             </SelectItem>
           ))}
         </SelectGroup>
-      </SelectPopup>
+      </SelectContent>
     </Select>
   );
 };
@@ -97,7 +97,7 @@ const PromoteForm = ({
         destinationChannel: channelName,
       }),
     onSuccess: async () => {
-      toastManager.add({ title: "Update promoted successfully", type: "success" });
+      toast.success("Update promoted successfully");
       await invalidateUpdates(queryClient, orgId, projectId);
       onSuccess();
     },
@@ -119,37 +119,39 @@ const PromoteForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Source update</span>
-            <div className="flex items-center gap-2 text-sm">
-              <span>{update.message}</span>
-              <PlatformBadge platform={update.platform} />
-              <span className="text-muted-foreground">v{update.runtimeVersion}</span>
-            </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Source update</span>
+          <div className="flex items-center gap-2 text-sm">
+            <span>{update.message}</span>
+            <PlatformBadge platform={update.platform} />
+            <span className="text-muted-foreground">v{update.runtimeVersion}</span>
           </div>
-          <form.Field name="targetChannelName">
-            {(field) => (
-              <Field>
-                <FieldLabel>Target channel</FieldLabel>
-                <TargetChannelSelect
-                  value={field.state.value}
-                  onChange={field.handleChange}
-                  channels={channels}
-                />
-              </Field>
-            )}
-          </form.Field>
         </div>
-      </DialogPanel>
+        <form.Field name="targetChannelName">
+          {(field) => (
+            <Field>
+              <FieldLabel>Target channel</FieldLabel>
+              <TargetChannelSelect
+                value={field.state.value}
+                onChange={field.handleChange}
+                channels={channels}
+              />
+            </Field>
+          )}
+        </form.Field>
+      </div>
       <DialogFooter>
         <form.Subscribe
           selector={(state) => [state.values.targetChannelName, state.isSubmitting] as const}
         >
           {([targetChannelName, isSubmitting]) => (
-            <Button type="submit" disabled={!targetChannelName} loading={isSubmitting}>
-              <RocketIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!targetChannelName || isSubmitting}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RocketIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Promote
             </Button>
           )}
@@ -179,7 +181,7 @@ export const PromoteUpdateDialog = ({
         }
       }}
     >
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Promote update</DialogTitle>
           <DialogDescription>
@@ -196,7 +198,7 @@ export const PromoteUpdateDialog = ({
             onOpenChange(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

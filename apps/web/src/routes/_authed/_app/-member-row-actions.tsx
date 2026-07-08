@@ -1,21 +1,30 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Menu,
-  MenuPopup,
-  MenuGroup,
-  MenuItem,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
 
 import type { Row } from "./-members-row";
 
 const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label?: string }) => (
-  <MenuTrigger
-    render={<Button variant="ghost" size="icon" loading={isPending} aria-label={label} />}
+  <DropdownMenuTrigger
+    render={
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-muted-foreground/70 hover:text-foreground"
+        disabled={isPending}
+        aria-label={label}
+      />
+    }
   >
-    <EllipsisVerticalIcon strokeWidth={2} />
-  </MenuTrigger>
+    {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
+  </DropdownMenuTrigger>
 );
 
 const InvitationActions = ({
@@ -27,10 +36,10 @@ const InvitationActions = ({
   isPending: boolean;
   onCancelInvitation: (invitationId: string) => void;
 }) => (
-  <Menu>
+  <DropdownMenu>
     <ActionsTrigger isPending={isPending} label="Invitation actions" />
-    <MenuPopup align="end">
-      <MenuItem
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem
         variant="destructive"
         onClick={() => {
           onCancelInvitation(invitationId);
@@ -38,9 +47,9 @@ const InvitationActions = ({
       >
         <UserMinusIcon strokeWidth={2} />
         <span>Cancel invitation</span>
-      </MenuItem>
-    </MenuPopup>
-  </Menu>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 const ActiveMemberActions = ({
@@ -52,11 +61,11 @@ const ActiveMemberActions = ({
   isPending: boolean;
   onRemove: (memberId: string) => void;
 }) => (
-  <Menu>
+  <DropdownMenu>
     <ActionsTrigger isPending={isPending} label="Member actions" />
-    <MenuPopup align="end">
-      <MenuGroup>
-        <MenuItem
+    <DropdownMenuContent align="end">
+      <DropdownMenuGroup>
+        <DropdownMenuItem
           variant="destructive"
           onClick={() => {
             onRemove(memberId);
@@ -64,10 +73,10 @@ const ActiveMemberActions = ({
         >
           <UserMinusIcon strokeWidth={2} />
           <span>Remove member</span>
-        </MenuItem>
-      </MenuGroup>
-    </MenuPopup>
-  </Menu>
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 export const MemberRowActions = ({

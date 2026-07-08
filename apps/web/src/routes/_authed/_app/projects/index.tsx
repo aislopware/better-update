@@ -8,42 +8,27 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
-import {
-  Select,
-  SelectGroup,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { cn } from "@better-update/ui/lib/utils";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { differenceInDays, parseISO } from "date-fns";
-import { ArchiveIcon, FolderIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { ArchiveIcon, FolderIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { ProjectItem, ProjectSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ChangeEvent } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
+  DataTableFacetedFilter,
+  DataTableToolbar,
   DataTableView,
   PAGE_SIZE,
   computePagination,
-  enumParam,
+  enumArrayParam,
   fireAndForget,
   pageParam,
   queryParam,
@@ -69,46 +54,29 @@ const SORT_COLUMNS = [
 
 const DEFAULT_SORT = "-lastActivityAt" as const;
 
-const STATUS_VALUES = ["active", "archived", "all"] as const;
+const STATUS_VALUES = ["active", "archived"] as const;
 type StatusFilter = (typeof STATUS_VALUES)[number];
-const STATUS_LABELS: Record<StatusFilter, string> = {
-  active: "Active",
-  archived: "Archived",
-  all: "All",
-};
 
-// Contextual empty-state copy for a non-global empty list (a search miss or an
-// empty archived/all filter), keyed off the active filters.
-const emptyStateFor = (
-  query: string,
-  status: StatusFilter,
-): { readonly Icon: typeof FolderIcon; readonly title: string; readonly description: string } => {
-  if (query.length > 0) {
-    return {
-      Icon: SearchXIcon,
-      title: "No projects match your search",
-      description: "Try a different keyword or clear the search.",
-    };
-  }
-  if (status === "archived") {
-    return {
-      Icon: ArchiveIcon,
-      title: "No archived projects",
-      description: "Projects you archive will appear here.",
-    };
-  }
-  return {
-    Icon: FolderIcon,
-    title: "No projects",
-    description: "No projects match the current filter.",
-  };
-};
+// An empty (or full) chip selection means "all"; the URL default stays
+// ["active"] so the page opens on active projects.
+const STATUS_OPTIONS = [
+  { label: "Active", value: "active" },
+  { label: "Archived", value: "archived" },
+] as const;
+
+const DEFAULT_STATUS = ["active"] as const satisfies readonly StatusFilter[];
+
+const isStatusFilter = (value: unknown): value is StatusFilter =>
+  (STATUS_VALUES as readonly unknown[]).includes(value);
+
+const isDefaultStatus = (status: readonly StatusFilter[]): boolean =>
+  status.length === 1 && status[0] === "active";
 
 const projectsSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
   query: queryParam(),
-  status: enumParam(STATUS_VALUES, "active"),
+  status: enumArrayParam(STATUS_VALUES, DEFAULT_STATUS),
 });
 
 const EmptyState = () => (
@@ -124,17 +92,6 @@ const EmptyState = () => (
     </Empty>
   </Card>
 );
-
-const getActivityDotColor = (lastActivityAt: string): string => {
-  const days = differenceInDays(new Date(), parseISO(lastActivityAt));
-  if (days < 7) {
-    return "bg-success";
-  }
-  if (days < 30) {
-    return "bg-warning";
-  }
-  return "bg-muted-foreground/64";
-};
 
 const ProjectNameCell = ({ project }: { project: ProjectItem }) => (
   <Link
@@ -159,15 +116,11 @@ const ProjectNameCell = ({ project }: { project: ProjectItem }) => (
   </Link>
 );
 
+// Ongoing activity is the expected state — plain relative time, no pill.
+// Only the archived exception keeps a badge.
 const ActivityCell = ({ project }: { project: ProjectItem }) =>
   project.archivedAt === null ? (
-    <Badge variant="outline" className="gap-1.5">
-      <span
-        aria-hidden="true"
-        className={cn("size-1.5 rounded-full", getActivityDotColor(project.lastActivityAt))}
-      />
-      Active <RelativeTime value={project.lastActivityAt} />
-    </Badge>
+    <RelativeTime value={project.lastActivityAt} className="text-muted-foreground text-sm" />
   ) : (
     <Badge variant="secondary" className="gap-1.5">
       <ArchiveIcon aria-hidden="true" className="size-3" />
@@ -256,7 +209,8 @@ const Projects = () => {
       limit: PAGE_SIZE,
       ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
-      status,
+      // Both statuses selected ≡ "all" — the API keeps its tri-state param.
+      status: status.length === 1 ? (status[0] ?? "all") : "all",
     }),
     placeholderData: keepPreviousData,
   });
@@ -304,8 +258,7 @@ const Projects = () => {
   // create-your-first-project CTA. An empty archived/all view or empty search
   // keeps the toolbar so the user can change the filter.
   const showsGlobalEmpty =
-    isEmpty && urlQuery.length === 0 && searchDraft.length === 0 && status === "active";
-  const showsFilteredEmpty = isEmpty && !showsGlobalEmpty;
+    isEmpty && urlQuery.length === 0 && searchDraft.length === 0 && isDefaultStatus(status);
 
   if (showsGlobalEmpty) {
     return (
@@ -324,11 +277,32 @@ const Projects = () => {
     urlQuery ? " (filtered)" : ""
   }`;
 
-  const {
-    Icon: EmptyIcon,
-    title: emptyTitle,
-    description: emptyDescription,
-  } = emptyStateFor(urlQuery, status);
+  const isFiltered = urlQuery.length > 0 || !isDefaultStatus(status);
+
+  const handleStatusChange = (next: readonly string[]): void => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({
+          ...prev,
+          status: next.filter(isStatusFilter),
+          page: 1,
+        }),
+        replace: true,
+      }),
+    );
+  };
+
+  const handleReset = (): void => {
+    handleSearchChange("");
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, query: "", status: [...DEFAULT_STATUS], page: 1 }),
+        replace: true,
+      }),
+    );
+  };
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -338,84 +312,38 @@ const Projects = () => {
         actions={createCta}
       />
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <InputGroup className="min-w-48 flex-1">
-            <InputGroupAddon>
-              <SearchIcon aria-hidden="true" />
-            </InputGroupAddon>
-            <InputGroupInput
-              aria-label="Search projects"
-              placeholder="Search projects…"
-              type="search"
-              value={searchDraft}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                handleSearchChange(event.target.value);
-              }}
-            />
-            {isPlaceholderData ? (
-              <InputGroupAddon align="inline-end">
-                <Spinner />
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
-          <Select
-            items={STATUS_LABELS}
-            value={status}
-            onValueChange={(next) => {
-              if (next !== null) {
-                fireAndForget(
-                  routeNavigate({
-                    to: ".",
-                    search: (prev) => ({ ...prev, status: next, page: 1 }),
-                    replace: true,
-                  }),
-                );
-              }
-            }}
-          >
-            <SelectTrigger className="w-36" aria-label="Filter by status">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectPopup>
-              <SelectGroup>
-                {STATUS_VALUES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {STATUS_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectPopup>
-          </Select>
-        </div>
-        {showsFilteredEmpty ? (
-          <Card>
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <EmptyIcon strokeWidth={1.5} />
-                </EmptyMedia>
-                <EmptyTitle>{emptyTitle}</EmptyTitle>
-                <EmptyDescription>{emptyDescription}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </Card>
-        ) : (
-          <DataTableView
-            table={table}
-            columnsCount={columns.length}
-            isPlaceholderData={isPlaceholderData}
-            countLabel={countLabel}
-            safePage={safePage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            onRowClick={async (project) => {
-              await routeNavigate({
-                to: "/projects/$projectSlug",
-                params: { projectSlug: project.slug },
-              });
-            }}
+        <DataTableToolbar
+          search={{
+            value: searchDraft,
+            onChange: handleSearchChange,
+            placeholder: "Search projects…",
+          }}
+          isFiltered={isFiltered}
+          onReset={handleReset}
+        >
+          <DataTableFacetedFilter
+            title="Status"
+            options={STATUS_OPTIONS}
+            selected={status}
+            onChange={handleStatusChange}
           />
-        )}
+        </DataTableToolbar>
+        <DataTableView
+          table={table}
+          columnsCount={columns.length}
+          isPlaceholderData={isPlaceholderData}
+          countLabel={countLabel}
+          safePage={safePage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          emptyMessage="No projects match your filters."
+          onRowClick={async (project) => {
+            await routeNavigate({
+              to: "/projects/$projectSlug",
+              params: { projectSlug: project.slug },
+            });
+          }}
+        />
       </div>
     </div>
   );

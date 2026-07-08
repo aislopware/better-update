@@ -3,10 +3,20 @@ import { Switch } from "@better-update/ui/components/ui/switch";
 import { LockIcon } from "lucide-react";
 
 import type { AppleTeamItem } from "@better-update/api-client/react";
+import type { ReactNode } from "react";
 
 import { formatAppleTeamType } from "./-credentials-utils";
 
 export const EmptyDash = () => <span className="text-muted-foreground">—</span>;
+
+// The credentials page stacks eight sections — an empty section collapses to a
+// single quiet row instead of a full-height Empty card so populated sections
+// stay above the fold.
+export const CredentialEmptyRow = ({ children }: { children: ReactNode }) => (
+  <p className="text-muted-foreground rounded-md border border-dashed px-4 py-3 text-sm">
+    {children}
+  </p>
+);
 
 // Read-only per-row protected indicator (GITLAB-RBAC-SPEC §3b) for
 // project-scoped credential views; the org tables render the toggle instead.

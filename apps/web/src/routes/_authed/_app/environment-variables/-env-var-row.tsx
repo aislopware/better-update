@@ -9,14 +9,9 @@ import { pluralize } from "../../../../lib/pluralize";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
-const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
-  plaintext: "secondary",
-  sensitive: "warning",
-};
-
-const SCOPE_VARIANTS: Record<string, "secondary" | "info"> = {
-  project: "secondary",
-  global: "info",
+const SCOPE_LABELS: Record<string, string> = {
+  project: "Project",
+  global: "Global",
 };
 
 // The value is end-to-end encrypted. Everywhere except the dedicated vault origin
@@ -35,34 +30,36 @@ export const EnvVarRow = ({
 }) => (
   <TableRow>
     <TableCell>
-      <div className="flex flex-col gap-0.5">
+      <div className="flex max-w-96 flex-col gap-0.5">
         <div className="flex items-center gap-1">
           <span className="font-mono text-sm font-medium">{envVar.key}</span>
           <CopyButton value={envVar.key} label="Key" />
         </div>
-        {envVar.label ? (
-          <span className="max-w-md text-sm font-medium break-words">{envVar.label}</span>
-        ) : null}
-        {envVar.description ? (
-          <p className="text-muted-foreground max-w-md text-xs break-words whitespace-normal">
-            {envVar.description}
-          </p>
+        {envVar.label || envVar.description ? (
+          <span
+            className="text-muted-foreground truncate text-xs"
+            title={[envVar.label, envVar.description].filter(Boolean).join(" — ")}
+          >
+            {[envVar.label, envVar.description].filter(Boolean).join(" — ")}
+          </span>
         ) : null}
       </div>
     </TableCell>
+    <TableCell className="text-sm">{formatEnvironmentLabel(envVar.environment)}</TableCell>
     <TableCell>
-      <Badge variant="secondary">{formatEnvironmentLabel(envVar.environment)}</Badge>
-    </TableCell>
-    <TableCell>
-      <div className="flex flex-wrap items-center gap-1">
-        <Badge variant={SCOPE_VARIANTS[envVar.scope] ?? "secondary"}>{envVar.scope}</Badge>
+      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+        {SCOPE_LABELS[envVar.scope] ?? envVar.scope}
         {envVar.overridesGlobal ? <Badge variant="warning">overrides global</Badge> : null}
       </div>
     </TableCell>
     <TableCell>
-      <Badge variant={VISIBILITY_VARIANTS[envVar.visibility] ?? "secondary"}>
-        {envVar.visibility}
-      </Badge>
+      {/* Sensitive is the exception worth color; plaintext is the quiet default.
+          Both stay plain text so the column keeps one left edge. */}
+      {envVar.visibility === "sensitive" ? (
+        <span className="text-warning-foreground text-sm font-medium">Sensitive</span>
+      ) : (
+        <span className="text-muted-foreground text-sm">Plaintext</span>
+      )}
     </TableCell>
     <TableCell className="text-muted-foreground text-sm">
       {envVar.revisionCount} {pluralize(envVar.revisionCount, "revision")}

@@ -6,11 +6,10 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogPopup,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
@@ -18,6 +17,7 @@ import {
   Field,
   FieldDescription,
   FieldError,
+  FieldGroup,
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
@@ -28,12 +28,13 @@ import {
 } from "@better-update/ui/components/ui/input-group";
 import {
   Select,
-  SelectPopup,
+  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkIcon } from "lucide-react";
@@ -69,7 +70,7 @@ const DEVICE_CLASS_OPTIONS: { value: DeviceClassValue | "NONE"; label: string }[
 ];
 
 const DeviceClassOptions = () => (
-  <SelectPopup>
+  <SelectContent>
     <SelectGroup>
       {DEVICE_CLASS_OPTIONS.map((option) => (
         <SelectItem key={option.value} value={option.value}>
@@ -77,11 +78,11 @@ const DeviceClassOptions = () => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectPopup>
+  </SelectContent>
 );
 
 const TtlOptions = () => (
-  <SelectPopup>
+  <SelectContent>
     <SelectGroup>
       {TTL_OPTIONS.map((option) => (
         <SelectItem key={option.value} value={option.value}>
@@ -89,7 +90,7 @@ const TtlOptions = () => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectPopup>
+  </SelectContent>
 );
 
 const DeviceClassHintSelect = ({
@@ -108,7 +109,7 @@ const DeviceClassHintSelect = ({
       onChange(next);
     }}
   >
-    <SelectTrigger>
+    <SelectTrigger className="w-full">
       <SelectValue placeholder="No hint" />
     </SelectTrigger>
     <DeviceClassOptions />
@@ -125,7 +126,7 @@ const TtlSelect = ({ value, onChange }: { value: string; onChange: (next: string
       onChange(next);
     }}
   >
-    <SelectTrigger>
+    <SelectTrigger className="w-full">
       <SelectValue />
     </SelectTrigger>
     <TtlOptions />
@@ -154,25 +155,23 @@ const ShareInvite = ({
   onClose: () => void;
 }) => (
   <>
-    <DialogPanel>
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-center rounded-xl border bg-white p-4">
-          <QRCodeSVG value={invite.url} size={192} marginSize={2} />
-        </div>
-        <Field>
-          <FieldLabel>Invite link</FieldLabel>
-          <InputGroup>
-            <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
-            <InputGroupAddon align="inline-end">
-              <CopyButton value={invite.url} label="Invite link" size="icon-xs" />
-            </InputGroupAddon>
-          </InputGroup>
-          <FieldDescription>
-            Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
-          </FieldDescription>
-        </Field>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-center rounded-xl border bg-white p-4">
+        <QRCodeSVG value={invite.url} size={192} marginSize={2} />
       </div>
-    </DialogPanel>
+      <Field>
+        <FieldLabel>Invite link</FieldLabel>
+        <InputGroup>
+          <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
+          <InputGroupAddon align="inline-end">
+            <CopyButton value={invite.url} label="Invite link" size="icon-xs" />
+          </InputGroupAddon>
+        </InputGroup>
+        <FieldDescription>
+          Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
+        </FieldDescription>
+      </Field>
+    </div>
     <DialogFooter>
       <Button onClick={onClose}>Done</Button>
     </DialogFooter>
@@ -218,7 +217,7 @@ const CreateInviteForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <form.Field
           name="deviceNameHint"
           validators={{
@@ -230,12 +229,14 @@ const CreateInviteForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
             return (
-              <Field invalid={Boolean(errorMessage)}>
+              <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
                 <Input
                   id="invite-name"
                   placeholder="Alex's iPhone"
+                  aria-invalid={invalid || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
@@ -245,7 +246,7 @@ const CreateInviteForm = ({
                 <FieldDescription>
                   Shown on the landing page. Device owner can override.
                 </FieldDescription>
-                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}
@@ -291,13 +292,14 @@ const CreateInviteForm = ({
             </Field>
           )}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               Generate link
             </Button>
           )}
@@ -327,7 +329,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         <LinkIcon strokeWidth={2} data-icon="inline-start" />
         Invite link
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{invite ? "Share invite link" : "Create invite link"}</DialogTitle>
           <DialogDescription>
@@ -347,7 +349,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         ) : (
           <CreateInviteForm key={resetKey} orgId={orgId} onInviteCreated={setInvite} />
         )}
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

@@ -90,8 +90,8 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
     await page.waitForURL(/\/api-keys$/u);
 
     await page.getByRole("button", { name: "Create API key" }).click();
-    // Scope to the dialog popup by slot — base-ui toasts also carry role="dialog".
-    const dialog = page.locator('[data-slot="dialog-popup"]');
+    // Scope to the dialog content by slot to keep lookups unambiguous.
+    const dialog = page.locator('[data-slot="dialog-content"]');
     await dialog.getByRole("heading", { name: "Create an API key" }).waitFor();
     await dialog.getByLabel("Name").fill(apiKeyName);
     await dialog.getByRole("button", { name: "Create key" }).click();
@@ -119,7 +119,7 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
     await row.getByRole("button", { name: "Key actions" }).click();
     await page.getByRole("menuitem", { name: "Revoke key" }).click();
 
-    const dialog = page.locator('[data-slot="dialog-popup"]');
+    const dialog = page.locator('[data-slot="dialog-content"]');
     await dialog.getByRole("heading", { name: "Revoke API key" }).waitFor();
     await dialog.getByRole("button", { name: "Revoke key" }).click();
     await expectToast(page, "API key revoked");
@@ -135,20 +135,24 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
     // The "Audit log" page header is always present once the view loads.
     await page.getByRole("heading", { name: "Audit log" }).waitFor();
 
-    // Filter by Project, then reset — the resource-type Select stays operable.
-    await page.getByRole("combobox").first().click();
+    // Filter by Project via the "Resource" faceted-filter chip (Command popover
+    // with option items; single-select closes on pick), then clear it again.
+    // Anchor the name regex at the start: the chip's accessible name is
+    // "Resource" (plus the selected badge, e.g. "Resource Project"), while the
+    // per-row copy buttons are "Copy Resource ID" and must not match.
+    await page.getByRole("button", { name: /^Resource/u }).click();
     await page.getByRole("option", { name: "Project", exact: true }).click();
     await page.getByRole("heading", { name: "Audit log" }).waitFor();
 
-    await page.getByRole("combobox").first().click();
-    await page.getByRole("option", { name: "All resources", exact: true }).click();
+    await page.getByRole("button", { name: /^Resource/u }).click();
+    await page.getByRole("option", { name: "Clear filters" }).click();
     await page.getByRole("heading", { name: "Audit log" }).waitFor();
   });
 
   it("audit log renders the date-range picker", async () => {
     // The native date inputs were replaced by a DateRangePicker popover
-    // (base-ui Popover + react-day-picker Calendar). With no range selected,
-    // the trigger shows its default "Pick a date range" placeholder.
-    await page.getByRole("button", { name: "Pick a date range" }).waitFor();
+    // (base-ui Popover + react-day-picker Calendar) rendered as a dashed
+    // toolbar filter chip titled "Date range".
+    await page.getByRole("button", { name: "Date range" }).waitFor();
   });
 });

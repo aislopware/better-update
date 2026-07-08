@@ -208,7 +208,7 @@ describe("encryption key kind metadata", () => {
     }
   });
 
-  it("gives recovery, machine, and account recipients a variant distinct from device", () => {
+  it("gives recovery, machine, and account recipients a look distinct from device", () => {
     expect(ENCRYPTION_KEY_KIND_META.device.variant).toBe("secondary");
     expect(ENCRYPTION_KEY_KIND_META.machine.variant).toBe("info");
     expect(ENCRYPTION_KEY_KIND_META.account.variant).toBe("info");

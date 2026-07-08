@@ -488,8 +488,11 @@ better-update analytics platforms [--period <1d|7d|30d|90d>]
 ## audit-logs
 
 ```bash
-better-update audit-logs list [--resource-type <type>] [--from <ISO>] [--to <ISO>] [--limit <n>=100]
+better-update audit-logs list [--resource-type <type>[,<type>...]] [--from <ISO>] [--to <ISO>] [--limit <n>=100]
 ```
+
+`--resource-type` accepts a comma-separated list to match several types at once
+(e.g. `--resource-type build,update`).
 
 ## apple
 

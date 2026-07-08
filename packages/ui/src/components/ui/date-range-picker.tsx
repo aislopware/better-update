@@ -7,15 +7,17 @@ import { useEffect, useId, useState } from "react"
 import type { DateRange } from "react-day-picker"
 import type { ReactNode } from "react"
 
+import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
 import { Calendar } from "#/components/ui/calendar"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import {
   Popover,
-  PopoverPopup,
+  PopoverContent,
   PopoverTrigger,
 } from "#/components/ui/popover"
+import { Separator } from "#/components/ui/separator"
 import { cn } from "#/lib/utils"
 
 export interface DateRangePickerProps {
@@ -25,6 +27,11 @@ export interface DateRangePickerProps {
   numberOfMonths?: number
   className?: string
   triggerClassName?: string
+  /**
+   * "outline" = form-field style trigger showing the value inline;
+   * "filter" = dashed toolbar chip (faceted-filter style) showing the value as a badge.
+   */
+  triggerVariant?: "outline" | "filter"
 }
 
 const formatTime = (date: Date | undefined, fallback: string) =>
@@ -47,6 +54,30 @@ const renderLabel = (
   return `${format(range.from, "LLL dd, y HH:mm")} – ${format(range.to, "LLL dd, y HH:mm")}`
 }
 
+const FilterTriggerContent = ({
+  value,
+  placeholder,
+}: {
+  value: DateRange | undefined
+  placeholder: string
+}) => (
+  <>
+    <CalendarIcon aria-hidden="true" />
+    {placeholder}
+    {value?.from ? (
+      <>
+        <Separator
+          orientation="vertical"
+          className="mx-0.5 my-auto data-[orientation=vertical]:h-4"
+        />
+        <Badge variant="secondary" className="rounded-sm px-1.5 font-normal">
+          {renderLabel(value, placeholder)}
+        </Badge>
+      </>
+    ) : null}
+  </>
+)
+
 const applyTimeToDate = (date: Date, time: string, isEnd: boolean) => {
   const [hStr, mStr] = time.split(":")
   const hours = Number(hStr)
@@ -66,6 +97,7 @@ export function DateRangePicker({
   numberOfMonths = 2,
   className,
   triggerClassName,
+  triggerVariant = "outline",
 }: DateRangePickerProps) {
   const fromTimeId = useId()
   const toTimeId = useId()
@@ -104,17 +136,26 @@ export function DateRangePicker({
       <PopoverTrigger
         render={
           <Button
-            className={cn("justify-start", triggerClassName)}
+            className={cn(
+              triggerVariant === "filter" ? "border-dashed" : "justify-start",
+              triggerClassName,
+            )}
             variant="outline"
           />
         }
       >
-        <CalendarIcon aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-left">
-          {renderLabel(value, placeholder)}
-        </span>
+        {triggerVariant === "filter" ? (
+          <FilterTriggerContent value={value} placeholder={placeholder} />
+        ) : (
+          <>
+            <CalendarIcon aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-left">
+              {renderLabel(value, placeholder)}
+            </span>
+          </>
+        )}
       </PopoverTrigger>
-      <PopoverPopup align="start" className={cn("w-auto p-0", className)}>
+      <PopoverContent align="start" className={cn("w-auto p-0", className)}>
         <Calendar
           mode="range"
           numberOfMonths={numberOfMonths}
@@ -160,7 +201,7 @@ export function DateRangePicker({
             </Button>
           </div>
         </div>
-      </PopoverPopup>
+      </PopoverContent>
     </Popover>
   )
 }

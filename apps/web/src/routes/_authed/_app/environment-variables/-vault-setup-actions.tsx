@@ -3,6 +3,7 @@ import {
   envVaultWrapsQueryOptions,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -39,7 +40,8 @@ export const VaultSetupActions = ({
 
   if (meQuery.isPending || accountKeysQuery.isPending) {
     return (
-      <Button variant="outline" disabled loading>
+      <Button variant="outline" disabled>
+        <Spinner data-icon="inline-start" />
         Checking access…
       </Button>
     );

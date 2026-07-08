@@ -1,15 +1,15 @@
 import { meQueryOptions, projectMembersQueryOptions } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
-import { Card } from "@better-update/ui/components/ui/card";
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPopup,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@better-update/ui/components/ui/alert-dialog";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -17,6 +17,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -61,23 +62,24 @@ const RemoveProjectMemberDialog = ({
   onConfirm: () => void;
   isRemoving: boolean;
 }) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogPopup>
-      <DialogHeader>
-        <DialogTitle>Remove from project</DialogTitle>
-        <DialogDescription>
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Remove from project</AlertDialogTitle>
+        <AlertDialogDescription>
           Remove {name} from this project? They keep their organization membership but lose access
           to this project immediately.
-        </DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-        <Button variant="destructive" loading={isRemoving} onClick={onConfirm}>
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction variant="destructive" disabled={isRemoving} onClick={onConfirm}>
+          {isRemoving && <Spinner data-icon="inline-start" />}
           Remove
-        </Button>
-      </DialogFooter>
-    </DialogPopup>
-  </Dialog>
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 );
 
 const EmptyMembers = ({ actions }: { actions?: ReactNode }) => (

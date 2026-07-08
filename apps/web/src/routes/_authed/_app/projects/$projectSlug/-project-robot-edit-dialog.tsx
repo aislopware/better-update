@@ -2,23 +2,23 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useState } from "react";
 
 import type { RobotAccountRoleValue } from "@better-update/api-client/react";
@@ -52,7 +52,7 @@ const EditForm = ({
 
   return (
     <>
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <Field>
           <FieldLabel>Name</FieldLabel>
           <Input
@@ -73,10 +73,10 @@ const EditForm = ({
               }
             }}
           >
-            <SelectTrigger aria-label="Project role">
+            <SelectTrigger aria-label="Project role" className="w-full">
               <SelectValue />
             </SelectTrigger>
-            <SelectPopup>
+            <SelectContent>
               <SelectGroup>
                 {ROLE_VALUES.map((value) => (
                   <SelectItem key={value} value={value}>
@@ -84,19 +84,19 @@ const EditForm = ({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectPopup>
+            </SelectContent>
           </Select>
         </Field>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button
-          disabled={trimmed.length === 0 || !hasChanges}
-          loading={isPending}
+          disabled={trimmed.length === 0 || !hasChanges || isPending}
           onClick={() => {
             onSubmit(changes);
           }}
         >
+          {isPending && <Spinner data-icon="inline-start" />}
           Save changes
         </Button>
       </DialogFooter>
@@ -133,7 +133,7 @@ export const EditRobotDialog = ({
       }
     }}
   >
-    <DialogPopup>
+    <DialogContent className="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>Edit robot account</DialogTitle>
         <DialogDescription>
@@ -144,6 +144,6 @@ export const EditRobotDialog = ({
       {target === null ? null : (
         <EditForm key={target.id} target={target} isPending={isPending} onSubmit={onSubmit} />
       )}
-    </DialogPopup>
+    </DialogContent>
   </Dialog>
 );

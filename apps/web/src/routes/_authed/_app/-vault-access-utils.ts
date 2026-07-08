@@ -197,9 +197,12 @@ export const joinEnvVaultRecipients = (
   );
 };
 
-type RecipientBadgeVariant = "secondary" | "info" | "warning" | "outline";
+type RecipientBadgeVariant = "secondary" | "outline" | "info" | "warning";
 
-/** Display label + badge variant per recipient kind; recovery/machine/account read distinctly from device. */
+/**
+ * Display label + badge variant per recipient kind; recovery/machine/account read
+ * distinctly from device.
+ */
 export const ENCRYPTION_KEY_KIND_META: Record<
   RecipientKind,
   { readonly label: string; readonly variant: RecipientBadgeVariant }

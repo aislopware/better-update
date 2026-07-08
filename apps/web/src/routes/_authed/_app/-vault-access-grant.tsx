@@ -8,7 +8,7 @@ import {
 import { wrapVaultKey } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Frame } from "@better-update/ui/components/ui/frame";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
@@ -18,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CopyableMono } from "../../../lib/copy-button";
@@ -65,7 +64,7 @@ const GrantButton = ({
       });
     },
     onSuccess: async () => {
-      toastManager.add({ title: "Env access granted", type: "success" });
+      toast.success("Env access granted");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: envVaultWrapsQueryKey(orgId) }),
         queryClient.invalidateQueries({ queryKey: accountKeysQueryKey(orgId) }),
@@ -76,11 +75,12 @@ const GrantButton = ({
   return (
     <Button
       size="sm"
-      loading={grantMutation.isPending}
+      disabled={grantMutation.isPending}
       onClick={() => {
         grantMutation.mutate();
       }}
     >
+      {grantMutation.isPending && <Spinner data-icon="inline-start" />}
       Grant env access
     </Button>
   );
@@ -95,7 +95,7 @@ const PendingGrantsTable = ({
   unlocked: UnlockedEnvVault;
   pending: readonly PendingAccountKey[];
 }) => (
-  <Table variant="card">
+  <Table>
     <TableHeader>
       <TableRow>
         <TableHead>Account key</TableHead>
@@ -187,9 +187,9 @@ export const VaultAccessGrant = ({ orgId }: { orgId: string }) => {
         ) : null}
       </div>
       {vault.unlocked ? (
-        <Frame>
+        <div className="overflow-hidden rounded-md border">
           <PendingGrants orgId={orgId} unlocked={vault.unlocked} />
-        </Frame>
+        </div>
       ) : (
         <div className="flex flex-col items-start gap-2">
           <p className="text-muted-foreground text-sm">

@@ -30,7 +30,7 @@ describe(ConfirmActionDialog, () => {
 
     // Opening the dialog must not fire the action.
     await user.click(screen.getByRole("button", { name: "Archive project" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
@@ -41,7 +41,7 @@ describe(ConfirmActionDialog, () => {
     renderDialog(onConfirm, onSuccess);
 
     await user.click(screen.getByRole("button", { name: "Archive project" }));
-    const dialog = screen.getByRole("dialog");
+    const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Archive project" }));
 
     await waitFor(() => {
@@ -51,7 +51,7 @@ describe(ConfirmActionDialog, () => {
       expect(onSuccess).toHaveBeenCalledTimes(1);
     });
     await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
   });
 
@@ -62,13 +62,13 @@ describe(ConfirmActionDialog, () => {
     renderDialog(onConfirm, onSuccess);
 
     await user.click(screen.getByRole("button", { name: "Archive project" }));
-    const dialog = screen.getByRole("dialog");
+    const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Archive project" }));
 
     await waitFor(() => {
       expect(onConfirm).toHaveBeenCalledTimes(1);
     });
     expect(onSuccess).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
 });

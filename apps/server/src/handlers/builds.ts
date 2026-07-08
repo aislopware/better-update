@@ -424,7 +424,7 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
             ...(urlParams.profile ? { profile: urlParams.profile } : {}),
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
-            ...(urlParams.distribution ? { distribution: urlParams.distribution } : {}),
+            ...(urlParams.distribution?.length ? { distribution: urlParams.distribution } : {}),
             ...(audienceDistributions ? { distributions: audienceDistributions } : {}),
             ...(urlParams.query ? { query: urlParams.query } : {}),
             sort,

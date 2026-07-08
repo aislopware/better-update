@@ -10,7 +10,7 @@ import type { UpdateSortKey, UpdateSortOrder } from "./update-row-mapping";
 
 export interface UpdateListParams {
   readonly projectId: string;
-  readonly branchId?: string;
+  readonly branchId?: readonly string[];
   readonly platform?: Platform;
   readonly runtimeVersion?: string;
   readonly query?: string;
@@ -39,8 +39,8 @@ export const queryUpdatesByProject = (db: Kysely<DB>, params: UpdateListParams) 
       )
       .where((eb) => {
         const conditions: Expression<SqlBool>[] = [];
-        if (params.branchId !== undefined) {
-          conditions.push(eb("updates.branch_id", "=", params.branchId));
+        if (params.branchId !== undefined && params.branchId.length > 0) {
+          conditions.push(eb("updates.branch_id", "in", [...params.branchId]));
         }
         if (params.platform !== undefined) {
           conditions.push(eb("updates.platform", "=", params.platform));

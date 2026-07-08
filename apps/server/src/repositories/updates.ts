@@ -96,7 +96,7 @@ export interface UpdateRepository extends UpdateReaperQueries {
 
   readonly findByProject: (params: {
     readonly projectId: string;
-    readonly branchId?: string;
+    readonly branchId?: readonly string[];
     readonly platform?: Platform;
     readonly runtimeVersion?: string;
     readonly query?: string;

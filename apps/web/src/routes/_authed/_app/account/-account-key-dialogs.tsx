@@ -4,18 +4,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
-  DialogPopup,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon } from "lucide-react";
@@ -24,7 +23,7 @@ import { useState } from "react";
 import { getFieldError, passwordSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
-/** A passphrase input wrapped in a coss Field — extracted to keep the form tree shallow. */
+/** A passphrase input wrapped in a Field — extracted to keep the form tree shallow. */
 const PassphraseField = ({
   id,
   label,
@@ -40,19 +39,20 @@ const PassphraseField = ({
   onChange: (value: string) => void;
   onBlur: () => void;
 }) => (
-  <Field invalid={Boolean(error)}>
+  <Field data-invalid={Boolean(error)}>
     <FieldLabel htmlFor={id}>{label}</FieldLabel>
     <Input
       id={id}
       type="password"
       autoComplete="new-password"
+      aria-invalid={Boolean(error) || undefined}
       value={value}
       onChange={(event) => {
         onChange(event.target.value);
       }}
       onBlur={onBlur}
     />
-    <FieldError match={Boolean(error)}>{error}</FieldError>
+    {error ? <FieldError>{error}</FieldError> : null}
   </Field>
 );
 
@@ -77,10 +77,8 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
       });
     },
     onSuccess: async () => {
-      toastManager.add({
-        title: "Account key enrolled",
+      toast.success("Account key enrolled", {
         description: "An admin must grant it env-vault access before you can unlock here.",
-        type: "success",
       });
       await queryClient.invalidateQueries({ queryKey: accountKeysQueryKey(orgId) });
       onSuccess();
@@ -103,7 +101,7 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
         await form.handleSubmit();
       }}
     >
-      <DialogPanel className="grid gap-4">
+      <FieldGroup>
         <p className="text-muted-foreground text-sm">
           Choose a passphrase that unlocks your env-vault access. It never leaves this browser and
           cannot be recovered — if you forget it you must re-enroll.
@@ -149,15 +147,15 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
             />
           )}
         </form.Field>
-      </DialogPanel>
+      </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <Spinner /> Generating &amp; sealing…
+                  <Spinner data-icon="inline-start" /> Generating &amp; sealing…
                 </>
               ) : (
                 <>
@@ -200,7 +198,7 @@ export const EnrollAccountKeyDialog = ({ orgId }: { orgId: string }) => {
         <KeyRoundIcon strokeWidth={2} data-icon="inline-start" />
         Set up vault access
       </DialogTrigger>
-      <DialogPopup>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Set up env-vault access</DialogTitle>
           <DialogDescription>
@@ -215,7 +213,7 @@ export const EnrollAccountKeyDialog = ({ orgId }: { orgId: string }) => {
             setOpen(false);
           }}
         />
-      </DialogPopup>
+      </DialogContent>
     </Dialog>
   );
 };

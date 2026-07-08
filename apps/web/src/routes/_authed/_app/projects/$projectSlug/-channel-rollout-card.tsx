@@ -23,15 +23,16 @@ import {
 } from "@better-update/ui/components/ui/input-group";
 import {
   Select,
+  SelectContent,
   SelectGroup,
   SelectItem,
-  SelectPopup,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Separator } from "@better-update/ui/components/ui/separator";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { toast } from "@better-update/ui/components/ui/sonner";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, GitBranchIcon, RocketIcon, Undo2Icon } from "lucide-react";
@@ -67,7 +68,7 @@ const ActiveRolloutSection = ({
     mutationFn: async (percentage: number) => updateBranchRollout(channel.id, { percentage }),
     onSuccess: async (_, percentage) => {
       setRolloutDraft(undefined);
-      toastManager.add({ title: `Rollout updated to ${percentage}%`, type: "success" });
+      toast.success(`Rollout updated to ${percentage}%`);
       await invalidateChannels();
     },
   });
@@ -75,10 +76,7 @@ const ActiveRolloutSection = ({
     mutationFn: async () => completeBranchRollout(channel.id),
     onSuccess: async () => {
       setRolloutDraft(undefined);
-      toastManager.add({
-        title: "Rollout completed — channel now serves the new branch",
-        type: "success",
-      });
+      toast.success("Rollout completed — channel now serves the new branch");
       await invalidateChannels();
     },
   });
@@ -86,10 +84,7 @@ const ActiveRolloutSection = ({
     mutationFn: async () => revertBranchRollout(channel.id),
     onSuccess: async () => {
       setRolloutDraft(undefined);
-      toastManager.add({
-        title: "Rollout reverted — channel restored to original branch",
-        type: "success",
-      });
+      toast.success("Rollout reverted — channel restored to original branch");
       await invalidateChannels();
     },
   });
@@ -101,7 +96,7 @@ const ActiveRolloutSection = ({
   const handleUpdateRollout = () => {
     const percentage = Number.parseInt(rolloutInput, 10);
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
-      toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
+      toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
     updateBranchRolloutMutation.mutate(percentage);
@@ -145,10 +140,10 @@ const ActiveRolloutSection = ({
           <Button
             type="button"
             variant="outline"
-            loading={updateBranchRolloutMutation.isPending}
             disabled={isUpdatingRollout || rolloutInput === currentPercentage}
             onClick={handleUpdateRollout}
           >
+            {updateBranchRolloutMutation.isPending && <Spinner data-icon="inline-start" />}
             Apply
           </Button>
         </div>
@@ -159,25 +154,31 @@ const ActiveRolloutSection = ({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
-            loading={completeBranchRolloutMutation.isPending}
             disabled={isUpdatingRollout}
             onClick={() => {
               completeBranchRolloutMutation.mutate();
             }}
           >
-            <CircleCheckIcon strokeWidth={2} data-icon="inline-start" />
+            {completeBranchRolloutMutation.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <CircleCheckIcon strokeWidth={2} data-icon="inline-start" />
+            )}
             Complete rollout
           </Button>
           <Button
             type="button"
             variant="outline"
-            loading={revertBranchRolloutMutation.isPending}
             disabled={isUpdatingRollout}
             onClick={() => {
               revertBranchRolloutMutation.mutate();
             }}
           >
-            <Undo2Icon strokeWidth={2} data-icon="inline-start" />
+            {revertBranchRolloutMutation.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <Undo2Icon strokeWidth={2} data-icon="inline-start" />
+            )}
             Revert
           </Button>
         </div>
@@ -199,10 +200,7 @@ const StartRolloutForm = ({
     mutationFn: async (input: { newBranchId: string; percentage: number }) =>
       createBranchRollout(channel.id, input),
     onSuccess: async (_, input) => {
-      toastManager.add({
-        title: `Branch rollout started at ${input.percentage}%`,
-        type: "success",
-      });
+      toast.success(`Branch rollout started at ${input.percentage}%`);
       await invalidateChannels();
       onDone();
     },
@@ -213,11 +211,11 @@ const StartRolloutForm = ({
     onSubmit: async ({ value }) => {
       const percentage = Number.parseInt(value.percentage, 10);
       if (!value.branchId) {
-        toastManager.add({ title: "Select a target branch", type: "error" });
+        toast.error("Select a target branch");
         return;
       }
       if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
-        toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
+        toast.error("Rollout percentage must be between 1 and 100");
         return;
       }
       await safeSubmit(
@@ -258,7 +256,7 @@ const StartRolloutForm = ({
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a branch" />
                 </SelectTrigger>
-                <SelectPopup>
+                <SelectContent>
                   <SelectGroup>
                     {targetBranches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
@@ -266,7 +264,7 @@ const StartRolloutForm = ({
                       </SelectItem>
                     ))}
                   </SelectGroup>
-                </SelectPopup>
+                </SelectContent>
               </Select>
               <FieldDescription>Branch the rollout shifts clients to.</FieldDescription>
             </Field>
@@ -305,8 +303,12 @@ const StartRolloutForm = ({
           }
         >
           {([branchId, percentage, isSubmitting]) => (
-            <Button type="submit" disabled={!branchId || !percentage} loading={isSubmitting}>
-              <RocketIcon strokeWidth={2} data-icon="inline-start" />
+            <Button type="submit" disabled={!branchId || !percentage || isSubmitting}>
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RocketIcon strokeWidth={2} data-icon="inline-start" />
+              )}
               Start rollout
             </Button>
           )}
@@ -367,7 +369,7 @@ const StartRolloutSection = (props: RolloutSectionProps) => {
               </span>
             }
           />
-          <TooltipPopup>{noTargetsReason ?? "Start a branch rollout"}</TooltipPopup>
+          <TooltipContent>{noTargetsReason ?? "Start a branch rollout"}</TooltipContent>
         </Tooltip>
       )}
     </div>
@@ -402,7 +404,7 @@ export const ChannelRolloutCard = ({
   const updateChannelMutation = useApiMutation({
     mutationFn: async (branchId: string) => updateChannel(channel.id, { branchId }),
     onSuccess: async () => {
-      toastManager.add({ title: "Channel relinked", type: "success" });
+      toast.success("Channel relinked");
       await invalidateChannels();
     },
   });
@@ -432,7 +434,7 @@ export const ChannelRolloutCard = ({
               <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
               <SelectValue>{linkedBranch?.name ?? channel.branchId}</SelectValue>
             </SelectTrigger>
-            <SelectPopup>
+            <SelectContent>
               <SelectGroup>
                 {branches.map((branch) => (
                   <SelectItem key={branch.id} value={branch.id}>
@@ -440,7 +442,7 @@ export const ChannelRolloutCard = ({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectPopup>
+            </SelectContent>
           </Select>
           <FieldDescription>
             {rolloutState

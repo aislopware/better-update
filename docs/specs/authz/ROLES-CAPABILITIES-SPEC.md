@@ -529,8 +529,8 @@ picker>] [role: Maintainer | Developer | Viewer]` + remove. Each role option
 4. **Advanced** (collapsed) — the existing custom-policy attach panel
    (`-policy-attach-panel.tsx`) for real policies.
 
-All mutations via the typed client (`feedback_typed_api_client`), coss
-primitives only, dialog state per `feedback_dialog_key_bump_pattern`.
+All mutations via the typed client (`feedback_typed_api_client`), shadcn
+base-ui primitives only, dialog state per `feedback_dialog_key_bump_pattern`.
 
 ### 9c. Invite dialog (EDIT)
 
