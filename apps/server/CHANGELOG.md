@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.52.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.51.0...%40better-update%2Fserver%400.52.0) (2026-07-09)
+
+### Features
+
+* **debug-symbols:** capture and store dSYMs, R8 mappings, and JS sourcemaps for crash symbolication ([b6135b0](https://github.com/better-update/better-update/commit/b6135b0260f8c12b9d2770e9b304338b8ba1a4ac))
+
 ## [0.51.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.50.0...%40better-update%2Fserver%400.51.0) (2026-07-09)
 
 ### Features

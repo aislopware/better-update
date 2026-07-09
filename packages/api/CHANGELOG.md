@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.42.0...%40better-update%2Fapi%400.43.0) (2026-07-09)
+
+### Features
+
+* **debug-symbols:** capture and store dSYMs, R8 mappings, and JS sourcemaps for crash symbolication ([b6135b0](https://gitlab.jmango360.com/mobile/better-update/commit/b6135b0260f8c12b9d2770e9b304338b8ba1a4ac))
+
 ## [0.42.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.41.0...%40better-update%2Fapi%400.42.0) (2026-07-09)
 
 ### Features

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.32.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.31.0...%40better-update%2Fapi-client%400.32.0) (2026-07-09)
+
+### Features
+
+* **debug-symbols:** capture and store dSYMs, R8 mappings, and JS sourcemaps for crash symbolication ([b6135b0](https://gitlab.jmango360.com/mobile/better-update/commit/b6135b0260f8c12b9d2770e9b304338b8ba1a4ac))
+
 ## [0.31.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.30.0...%40better-update%2Fapi-client%400.31.0) (2026-07-09)
 
 ### Features
