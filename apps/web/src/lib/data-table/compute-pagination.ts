@@ -1,4 +1,4 @@
-export const PAGE_SIZE = 50;
+export const PAGE_SIZE = 20;
 
 export interface Pagination {
   readonly totalPages: number;

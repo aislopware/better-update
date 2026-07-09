@@ -28,6 +28,7 @@ import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/at
 import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
+import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
@@ -139,33 +140,37 @@ const PlatformVariantAssets = ({
   updateId: string;
 }) => {
   const { data: assets } = useSuspenseQuery(updateAssetsQueryOptions(orgId, projectId, updateId));
+  const pagination = useClientPagination(assets, "asset");
   if (assets.length === 0) {
     return <p className="text-muted-foreground text-sm">No asset references recorded.</p>;
   }
   return (
-    <ItemGroup>
-      {assets.map((asset) => (
-        <Item key={`${asset.hash}:${asset.key}`} variant="outline" size="sm">
-          <ItemContent className="min-w-0 gap-0.5">
-            <div className="flex items-center gap-1">
-              <code className="min-w-0 truncate font-mono text-xs">{asset.key}</code>
-              <CopyButton value={asset.key} label="Asset key" size="icon-xs" />
-            </div>
-            <div className="flex items-center gap-1">
-              <code className="text-muted-foreground min-w-0 truncate font-mono text-xs">
-                {asset.hash.slice(0, 16)}
-              </code>
-              <CopyButton value={asset.hash} label="Asset hash" size="icon-xs" />
-            </div>
-          </ItemContent>
-          {asset.isLaunch ? (
-            <ItemActions>
-              <Badge variant="secondary">Launch</Badge>
-            </ItemActions>
-          ) : null}
-        </Item>
-      ))}
-    </ItemGroup>
+    <div className="flex flex-col gap-3">
+      <ItemGroup>
+        {pagination.pageItems.map((asset) => (
+          <Item key={`${asset.hash}:${asset.key}`} variant="outline" size="sm">
+            <ItemContent className="min-w-0 gap-0.5">
+              <div className="flex items-center gap-1">
+                <code className="min-w-0 truncate font-mono text-xs">{asset.key}</code>
+                <CopyButton value={asset.key} label="Asset key" size="icon-xs" />
+              </div>
+              <div className="flex items-center gap-1">
+                <code className="text-muted-foreground min-w-0 truncate font-mono text-xs">
+                  {asset.hash.slice(0, 16)}
+                </code>
+                <CopyButton value={asset.hash} label="Asset hash" size="icon-xs" />
+              </div>
+            </ItemContent>
+            {asset.isLaunch ? (
+              <ItemActions>
+                <Badge variant="secondary">Launch</Badge>
+              </ItemActions>
+            ) : null}
+          </Item>
+        ))}
+      </ItemGroup>
+      <ClientPaginationFooter state={pagination} />
+    </div>
   );
 };
 

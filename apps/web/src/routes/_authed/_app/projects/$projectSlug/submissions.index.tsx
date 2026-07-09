@@ -2,6 +2,7 @@ import { submissionsQueryOptions } from "@better-update/api-client/react";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -22,6 +23,7 @@ import {
   PlatformIndicator,
   SubmissionMetadataBadge,
 } from "../../../../../components/attribute-badges";
+import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { PageHeader } from "../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../components/skeletons";
@@ -131,9 +133,18 @@ const SubmissionsEmpty = () => (
         </EmptyMedia>
         <EmptyTitle>No submissions yet</EmptyTitle>
         <EmptyDescription>
-          Use the CLI `better-update submit` to push a build to App Store Connect or Google Play.
+          Submit from your app repo — builds are pushed to App Store Connect or Google Play and
+          tracked here.
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock
+          commands={[
+            "better-update submit --platform ios",
+            "better-update submit --platform android",
+          ]}
+        />
+      </EmptyContent>
     </Empty>
   </Card>
 );

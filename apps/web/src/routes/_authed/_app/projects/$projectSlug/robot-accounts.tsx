@@ -2,6 +2,7 @@ import { meQueryOptions, projectRobotAccountsQueryOptions } from "@better-update
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -14,6 +15,7 @@ import { Suspense } from "react";
 
 import type { MeResult } from "@better-update/api-client/react";
 
+import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { SectionHeader } from "../../../../../components/page-header";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { ProjectRobotsTable } from "./-project-robots-table";
@@ -25,7 +27,7 @@ import { ProjectRobotsTable } from "./-project-robots-table";
 const canViewProjectRobots = (me: MeResult, projectId: string): boolean =>
   me.orgRole === "owner" || me.orgRole === "admin" || me.projectRoles[projectId] === "maintainer";
 
-const EmptyRobots = () => (
+const EmptyRobots = ({ projectId }: { projectId: string }) => (
   <Card>
     <Empty>
       <EmptyHeader>
@@ -34,13 +36,17 @@ const EmptyRobots = () => (
         </EmptyMedia>
         <EmptyTitle>No robot accounts yet</EmptyTitle>
         <EmptyDescription>
-          Robot accounts are created from the CLI: run{" "}
-          <code className="font-mono text-xs">
-            better-update credentials robot create --project &lt;id&gt; --role &lt;role&gt;
-          </code>{" "}
-          from a maintainer device.
+          Robot accounts are created from the CLI on a maintainer device — one robot per project,
+          minted together with its vault access.
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock
+          commands={[
+            `better-update credentials robot create --project ${projectId} --role developer`,
+          ]}
+        />
+      </EmptyContent>
     </Empty>
   </Card>
 );
@@ -76,13 +82,9 @@ const ProjectRobotsList = ({ projectId }: { projectId: string }) => {
   const { data: items } = useSuspenseQuery(projectRobotAccountsQueryOptions(projectId));
 
   if (items.length === 0) {
-    return <EmptyRobots />;
+    return <EmptyRobots projectId={projectId} />;
   }
-  return (
-    <div className="overflow-hidden rounded-md border">
-      <ProjectRobotsTable projectId={projectId} items={items} />
-    </div>
-  );
+  return <ProjectRobotsTable projectId={projectId} items={items} />;
 };
 
 const ProjectRobotsPage = () => (

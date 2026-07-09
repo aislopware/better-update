@@ -11,6 +11,7 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -29,10 +30,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, TriangleAlertIcon } from "lucide-react";
 import { Suspense } from "react";
 
+import { CliCommandBlock } from "../../../components/cli-command-block";
 import { PageHeader } from "../../../components/page-header";
 import { TableSkeleton } from "../../../components/skeletons";
 import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
+import { ClientPaginationFooter, useClientPagination } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { membersQueryOptions } from "../../../queries/org";
@@ -59,6 +62,9 @@ const VaultAccessEmptyState = () => (
           that can decrypt it appear here.
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock commands={["better-update credentials"]} />
+      </EmptyContent>
     </Empty>
   </Card>
 );
@@ -73,48 +79,56 @@ const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>
     <span className="text-muted-foreground">—</span>
   );
 
-const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Recipient</TableHead>
-        <TableHead>Owner</TableHead>
-        <TableHead>Type</TableHead>
-        <TableHead>Fingerprint</TableHead>
-        <TableHead>Granted</TableHead>
-        <TableHead>Last used</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {rows.map((row) => {
-        const meta = ENCRYPTION_KEY_KIND_META[row.kind];
-        return (
-          <TableRow key={row.recipientId}>
-            <TableCell className="font-medium">{row.label}</TableCell>
-            <TableCell>
-              <OwnerCell owner={row.owner} />
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1.5">
-                <Badge variant={meta.variant}>{meta.label}</Badge>
-                {row.revokedAt ? <Badge variant="destructive">Revoked</Badge> : null}
-              </div>
-            </TableCell>
-            <TableCell>
-              <CopyableMono value={row.fingerprint} label="Fingerprint" />
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              <RelativeTime value={row.grantedAt} />
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              <RelativeTime value={row.lastUsedAt} />
-            </TableCell>
-          </TableRow>
-        );
-      })}
-    </TableBody>
-  </Table>
-);
+const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
+  const pagination = useClientPagination(rows, "recipient");
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="overflow-hidden rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Recipient</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Fingerprint</TableHead>
+              <TableHead>Granted</TableHead>
+              <TableHead>Last used</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pagination.pageItems.map((row) => {
+              const meta = ENCRYPTION_KEY_KIND_META[row.kind];
+              return (
+                <TableRow key={row.recipientId}>
+                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell>
+                    <OwnerCell owner={row.owner} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={meta.variant}>{meta.label}</Badge>
+                      {row.revokedAt ? <Badge variant="destructive">Revoked</Badge> : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <CopyableMono value={row.fingerprint} label="Fingerprint" />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <RelativeTime value={row.grantedAt} />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <RelativeTime value={row.lastUsedAt} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <ClientPaginationFooter state={pagination} />
+    </div>
+  );
+};
 
 const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
   <Alert className="text-warning *:data-[slot=alert-description]:text-warning/90">
@@ -190,9 +204,7 @@ const EnvVaultRecipientsSection = ({
         summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's env values`}
       />
       {rows.length > 0 ? (
-        <div className="overflow-hidden rounded-md border">
-          <RecipientsTable rows={rows} />
-        </div>
+        <RecipientsTable rows={rows} />
       ) : (
         <p className="text-muted-foreground text-sm">No env-vault recipients yet.</p>
       )}
@@ -228,9 +240,7 @@ const VaultAccessContent = () => {
           version={vault.vaultVersion}
           summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's credentials`}
         />
-        <div className="overflow-hidden rounded-md border">
-          <RecipientsTable rows={rows} />
-        </div>
+        <RecipientsTable rows={rows} />
       </section>
       {orgVault !== null && orgVault.envVaultCutoverAt !== null ? (
         <EnvVaultRecipientsSection

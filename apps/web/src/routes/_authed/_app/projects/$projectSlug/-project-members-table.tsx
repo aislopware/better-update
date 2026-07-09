@@ -15,14 +15,19 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
 import { useMemo } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
-import { DataTableView } from "../../../../../lib/data-table";
+import { DataTableView, PAGE_SIZE } from "../../../../../lib/data-table";
 import { EntityAvatar } from "../../../../../lib/entity-avatar";
 import { RelativeTime } from "../../../../../lib/relative-time";
 
@@ -243,12 +248,25 @@ export const ProjectMembersTableView = ({
     data: tableData,
     columns,
     state: { sorting },
+    initialState: { pagination: { pageSize: PAGE_SIZE } },
     onSortingChange,
     enableMultiSort: false,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
-  return <DataTableView table={table} columnsCount={columns.length} countLabel={countLabel} />;
+  return (
+    <DataTableView
+      table={table}
+      columnsCount={columns.length}
+      countLabel={countLabel}
+      safePage={table.getState().pagination.pageIndex + 1}
+      totalPages={Math.max(1, table.getPageCount())}
+      onPageChange={(next) => {
+        table.setPageIndex(next - 1);
+      }}
+    />
+  );
 };

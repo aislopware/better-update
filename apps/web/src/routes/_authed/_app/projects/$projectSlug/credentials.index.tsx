@@ -6,6 +6,7 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -32,6 +33,7 @@ import type {
 
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
+import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { PageHeader, SectionHeader } from "../../../../../components/page-header";
 
 interface IosBundleGroup {
@@ -78,10 +80,13 @@ const AndroidEmpty = () => (
         </EmptyMedia>
         <EmptyTitle>No application identifiers</EmptyTitle>
         <EmptyDescription>
-          Use the CLI to register an Android application identifier and bind upload keystores and
-          Google service account keys for this project.
+          Register an Android application identifier and bind upload keystores and Google service
+          account keys for this project from the CLI.
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock commands={["better-update credentials configure --platform android"]} />
+      </EmptyContent>
     </Empty>
   </Card>
 );
@@ -95,10 +100,13 @@ const IosEmpty = () => (
         </EmptyMedia>
         <EmptyTitle>No bundle identifiers</EmptyTitle>
         <EmptyDescription>
-          Use the CLI to register an iOS bundle identifier and bind distribution certificates,
-          provisioning profiles, push keys, and App Store Connect API keys for this project.
+          Register an iOS bundle identifier and bind distribution certificates, provisioning
+          profiles, push keys, and App Store Connect API keys for this project from the CLI.
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock commands={["better-update credentials configure --platform ios"]} />
+      </EmptyContent>
     </Empty>
   </Card>
 );

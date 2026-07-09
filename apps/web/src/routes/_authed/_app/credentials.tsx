@@ -16,6 +16,7 @@ import { Suspense, useMemo } from "react";
 import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { assertCapability, isOrgAdmin } from "../../../lib/access";
+import { ClientPaginationFooter, useClientPagination } from "../../../lib/data-table";
 import {
   AppleTeamsEmptyState,
   AppleTeamsTable,
@@ -53,6 +54,7 @@ const useAppleChildSection = (orgId: string) => {
 const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  const pagination = useClientPagination(data.items, "certificate");
 
   return (
     <section className="flex flex-col gap-3">
@@ -63,14 +65,17 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <DistributionCertificatesEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <DistributionCertificatesTable
-            items={data.items}
-            orgId={orgId}
-            teamsById={teamsById}
-            canManageProtection={canManageProtection}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <DistributionCertificatesTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              teamsById={teamsById}
+              canManageProtection={canManageProtection}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -79,6 +84,7 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
 const PushKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushKeysQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  const pagination = useClientPagination(data.items, "key");
 
   return (
     <section className="flex flex-col gap-3">
@@ -89,14 +95,17 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PushKeysEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <PushKeysTable
-            items={data.items}
-            orgId={orgId}
-            teamsById={teamsById}
-            canManageProtection={canManageProtection}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <PushKeysTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              teamsById={teamsById}
+              canManageProtection={canManageProtection}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -105,6 +114,7 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
 const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  const pagination = useClientPagination(data.items, "certificate");
 
   return (
     <section className="flex flex-col gap-3">
@@ -115,14 +125,17 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PushCertificatesEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <PushCertificatesTable
-            items={data.items}
-            orgId={orgId}
-            teamsById={teamsById}
-            canManageProtection={canManageProtection}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <PushCertificatesTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              teamsById={teamsById}
+              canManageProtection={canManageProtection}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -131,6 +144,7 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
 const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  const pagination = useClientPagination(data.items, "certificate");
 
   return (
     <section className="flex flex-col gap-3">
@@ -141,14 +155,17 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PayCertificatesEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <PayCertificatesTable
-            items={data.items}
-            orgId={orgId}
-            teamsById={teamsById}
-            canManageProtection={canManageProtection}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <PayCertificatesTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              teamsById={teamsById}
+              canManageProtection={canManageProtection}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -157,6 +174,7 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
 const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  const pagination = useClientPagination(data.items, "certificate");
 
   return (
     <section className="flex flex-col gap-3">
@@ -167,14 +185,17 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PassTypeCertificatesEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <PassTypeCertificatesTable
-            items={data.items}
-            orgId={orgId}
-            teamsById={teamsById}
-            canManageProtection={canManageProtection}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <PassTypeCertificatesTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              teamsById={teamsById}
+              canManageProtection={canManageProtection}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -186,21 +207,26 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
   // as the protection toggles. Team-scoped keys inherit their team's bindings.
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
+  const pagination = useClientPagination(data.items, "key");
+
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader title="App Store Connect API Keys" description=".p8 keys for the ASC API." />
       {data.items.length === 0 ? (
         <AscApiKeysEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <AscApiKeysTable
-            items={data.items}
-            teamsById={teamsById}
-            orgId={orgId}
-            canManageBindings={canManageProtection}
-            canManageProtection={canManageProtection}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <AscApiKeysTable
+              items={pagination.pageItems}
+              teamsById={teamsById}
+              orgId={orgId}
+              canManageBindings={canManageProtection}
+              canManageProtection={canManageProtection}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -211,6 +237,7 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
   // Protection toggles are admin/owner-only (GITLAB-RBAC-SPEC §3b) — everyone
   // else sees the read-only protected state.
   const { data: me } = useSuspenseQuery(meQueryOptions());
+  const pagination = useClientPagination(teams.items, "team");
 
   return (
     <section className="flex flex-col gap-3">
@@ -221,13 +248,16 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
       {teams.items.length === 0 ? (
         <AppleTeamsEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <AppleTeamsTable
-            items={teams.items}
-            orgId={orgId}
-            canManageProtection={isOrgAdmin(me.orgRole)}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <AppleTeamsTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              canManageProtection={isOrgAdmin(me.orgRole)}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -236,6 +266,7 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
 const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(googleServiceAccountKeysQueryOptions(orgId));
   const { data: me } = useSuspenseQuery(meQueryOptions());
+  const pagination = useClientPagination(data.items, "key");
 
   return (
     <section className="flex flex-col gap-3">
@@ -246,13 +277,16 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <GoogleServiceAccountKeysEmptyState />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <GoogleServiceAccountKeysTable
-            items={data.items}
-            orgId={orgId}
-            canManageProtection={isOrgAdmin(me.orgRole)}
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <GoogleServiceAccountKeysTable
+              items={pagination.pageItems}
+              orgId={orgId}
+              canManageProtection={isOrgAdmin(me.orgRole)}
+            />
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );

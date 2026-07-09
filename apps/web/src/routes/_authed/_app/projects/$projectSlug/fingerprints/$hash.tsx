@@ -26,6 +26,7 @@ import { DistributionBadge, PlatformBadge } from "../../../../../../components/a
 import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton } from "../../../../../../lib/copy-button";
+import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 interface RouteParams {
@@ -92,45 +93,49 @@ const FingerprintBuildsCard = ({
 }: {
   projectSlug: string;
   builds: readonly BuildItem[];
-}) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Builds ({builds.length})</CardTitle>
-      <CardDescription>Binaries produced against this fingerprint.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      {builds.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No builds carry this fingerprint.</p>
-      ) : (
-        <ItemGroup>
-          {builds.map((build) => (
-            <Item
-              key={build.id}
-              variant="outline"
-              size="sm"
-              render={
-                <Link
-                  to="/projects/$projectSlug/builds/$buildId"
-                  params={{ projectSlug, buildId: build.id }}
-                />
-              }
-            >
-              <ItemContent className="flex-row flex-wrap items-center gap-2">
-                <PlatformBadge platform={build.platform} />
-                <DistributionBadge distribution={build.distribution} />
-                <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
-                <span className="text-muted-foreground text-sm">{build.profile}</span>
-              </ItemContent>
-              <ItemActions>
-                <RelativeTime value={build.createdAt} className="text-muted-foreground text-xs" />
-              </ItemActions>
-            </Item>
-          ))}
-        </ItemGroup>
-      )}
-    </CardContent>
-  </Card>
-);
+}) => {
+  const pagination = useClientPagination(builds, "build");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Builds ({builds.length})</CardTitle>
+        <CardDescription>Binaries produced against this fingerprint.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {builds.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No builds carry this fingerprint.</p>
+        ) : (
+          <ItemGroup>
+            {pagination.pageItems.map((build) => (
+              <Item
+                key={build.id}
+                variant="outline"
+                size="sm"
+                render={
+                  <Link
+                    to="/projects/$projectSlug/builds/$buildId"
+                    params={{ projectSlug, buildId: build.id }}
+                  />
+                }
+              >
+                <ItemContent className="flex-row flex-wrap items-center gap-2">
+                  <PlatformBadge platform={build.platform} />
+                  <DistributionBadge distribution={build.distribution} />
+                  <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
+                  <span className="text-muted-foreground text-sm">{build.profile}</span>
+                </ItemContent>
+                <ItemActions>
+                  <RelativeTime value={build.createdAt} className="text-muted-foreground text-xs" />
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
+        <ClientPaginationFooter state={pagination} />
+      </CardContent>
+    </Card>
+  );
+};
 
 const FingerprintUpdatesCard = ({
   projectSlug,
@@ -138,47 +143,54 @@ const FingerprintUpdatesCard = ({
 }: {
   projectSlug: string;
   updates: readonly UpdateItem[];
-}) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Updates ({updates.length})</CardTitle>
-      <CardDescription>OTA updates published against this fingerprint.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      {updates.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No updates carry this fingerprint.</p>
-      ) : (
-        <ItemGroup>
-          {updates.map((update) => (
-            <Item
-              key={update.id}
-              variant="outline"
-              size="sm"
-              render={
-                <Link
-                  to="/projects/$projectSlug/updates/$updateId"
-                  params={{ projectSlug, updateId: update.id }}
-                />
-              }
-            >
-              <ItemContent className="flex-row flex-wrap items-center gap-2">
-                <PlatformBadge platform={update.platform} />
-                <span className="font-medium">v{update.runtimeVersion}</span>
-                {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
-                <span className="text-muted-foreground line-clamp-1 text-sm">
-                  {update.message || `Update ${update.groupId.slice(0, 8)}`}
-                </span>
-              </ItemContent>
-              <ItemActions>
-                <RelativeTime value={update.createdAt} className="text-muted-foreground text-xs" />
-              </ItemActions>
-            </Item>
-          ))}
-        </ItemGroup>
-      )}
-    </CardContent>
-  </Card>
-);
+}) => {
+  const pagination = useClientPagination(updates, "update");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Updates ({updates.length})</CardTitle>
+        <CardDescription>OTA updates published against this fingerprint.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {updates.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No updates carry this fingerprint.</p>
+        ) : (
+          <ItemGroup>
+            {pagination.pageItems.map((update) => (
+              <Item
+                key={update.id}
+                variant="outline"
+                size="sm"
+                render={
+                  <Link
+                    to="/projects/$projectSlug/updates/$updateId"
+                    params={{ projectSlug, updateId: update.id }}
+                  />
+                }
+              >
+                <ItemContent className="flex-row flex-wrap items-center gap-2">
+                  <PlatformBadge platform={update.platform} />
+                  <span className="font-medium">v{update.runtimeVersion}</span>
+                  {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
+                  <span className="text-muted-foreground line-clamp-1 text-sm">
+                    {update.message || `Update ${update.groupId.slice(0, 8)}`}
+                  </span>
+                </ItemContent>
+                <ItemActions>
+                  <RelativeTime
+                    value={update.createdAt}
+                    className="text-muted-foreground text-xs"
+                  />
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
+        <ClientPaginationFooter state={pagination} />
+      </CardContent>
+    </Card>
+  );
+};
 
 const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
   const { activeOrg, project } = Route.useRouteContext();

@@ -23,6 +23,8 @@ export {
 } from "./search-schema";
 export { SortIcon, toAriaSort } from "./sort-icon";
 export { normalizeSortParam, sortingStateToSortParam, sortParamToSortingState } from "./sort-param";
+export { ClientPaginationFooter, useClientPagination } from "./use-client-pagination";
+export type { ClientPaginationState } from "./use-client-pagination";
 export { useDataTableSearch } from "./use-data-table-search";
 export { useDebouncedSearch } from "./use-debounced-search";
 export { fireAndForget } from "./use-search-navigate";

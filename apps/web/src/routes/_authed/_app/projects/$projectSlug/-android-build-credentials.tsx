@@ -7,7 +7,15 @@ import {
   setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
@@ -26,7 +34,7 @@ import {
   TableRow,
 } from "@better-update/ui/components/ui/table";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { CheckCircle2Icon } from "lucide-react";
+import { CheckCircle2Icon, KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -36,6 +44,7 @@ import type {
 
 import { BoundProjectsCell } from "../../-credential-bindings";
 import { ProtectionCell } from "../../-credential-cells";
+import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { isOrgAdmin } from "../../../../../lib/access";
 import { CopyButton } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
@@ -217,12 +226,21 @@ const GroupSwitcher = ({
 
 const EmptyGroups = () => (
   <Card>
-    <CardContent className="py-6">
-      <p className="text-muted-foreground text-sm">
-        No credential groups yet. Use the CLI to add a group and bind an upload keystore and service
-        account keys.
-      </p>
-    </CardContent>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <KeyRoundIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No credential groups yet</EmptyTitle>
+        <EmptyDescription>
+          Add a group from the CLI to bind an upload keystore and service account keys for this
+          identifier.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock commands={["better-update credentials configure --platform android"]} />
+      </EmptyContent>
+    </Empty>
   </Card>
 );
 

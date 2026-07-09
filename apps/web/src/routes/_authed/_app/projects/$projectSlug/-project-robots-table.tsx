@@ -21,6 +21,7 @@ import type { RobotAccountItem } from "@better-update/api-client/react";
 
 import { PROJECT_ROLE_LABELS } from "../../-invite-dialog";
 import { CopyableId } from "../../../../../lib/copy-button";
+import { ClientPaginationFooter, useClientPagination } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { EditRobotDialog } from "./-project-robot-edit-dialog";
 import { useProjectRobotsHandlers } from "./-project-robots-mutations";
@@ -119,14 +120,18 @@ export const ProjectRobotsTable = ({
   items: readonly RobotAccountItem[];
 }) => {
   const handlers = useProjectRobotsHandlers(projectId);
+  const pagination = useClientPagination(items, "robot account");
 
   return (
-    <>
-      <ProjectRobotsTableView
-        items={items}
-        pendingRobotId={handlers.isEditing ? handlers.editTarget?.id : undefined}
-        onEdit={handlers.handleEditRequest}
-      />
+    <div className="flex flex-col gap-3">
+      <div className="overflow-hidden rounded-md border">
+        <ProjectRobotsTableView
+          items={pagination.pageItems}
+          pendingRobotId={handlers.isEditing ? handlers.editTarget?.id : undefined}
+          onEdit={handlers.handleEditRequest}
+        />
+      </div>
+      <ClientPaginationFooter state={pagination} />
       <EditRobotDialog
         target={handlers.editTarget}
         open={handlers.editOpen}
@@ -135,6 +140,6 @@ export const ProjectRobotsTable = ({
         onClosed={handlers.handleEditClosed}
         onSubmit={handlers.handleEditSubmit}
       />
-    </>
+    </div>
   );
 };

@@ -3,6 +3,7 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -26,14 +27,17 @@ import { z } from "zod";
 import type { EnvVar } from "@better-update/api";
 import type { EnvVarsFilters } from "@better-update/api-client/react";
 
+import { CliCommandBlock } from "../../../../components/cli-command-block";
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
+  ClientPaginationFooter,
   DataTableFacetedFilter,
   DataTableToolbar,
   enumArrayParam,
   freeStringArrayParam,
   queryParam,
+  useClientPagination,
   useDebouncedSearch,
 } from "../../../../lib/data-table";
 import { runPasskeyStepUp } from "../../../../lib/env-vault/step-up";
@@ -85,9 +89,13 @@ const EmptyState = () => (
         </EmptyMedia>
         <EmptyTitle>No environment variables</EmptyTitle>
         <EmptyDescription>
-          Set variables from the CLI with <code>better-update env set</code>.
+          Set variables from the CLI — values are end-to-end encrypted and versioned per
+          environment.
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <CliCommandBlock commands={["better-update env set API_URL=https://api.example.com"]} />
+      </EmptyContent>
     </Empty>
   </Card>
 );
@@ -244,47 +252,53 @@ const EnvVarsTable = ({
   orgId: string;
   vault: EnvVaultController;
   invalidate: () => Promise<void>;
-}) =>
-  items.length === 0 ? (
-    <EmptyState />
-  ) : (
-    <div className="overflow-hidden rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Key</TableHead>
-            <TableHead>Environment</TableHead>
-            <TableHead>Scope</TableHead>
-            <TableHead>Visibility</TableHead>
-            <TableHead>Revisions</TableHead>
-            <TableHead>Updated</TableHead>
-            <TableHead>
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((envVar) => (
-            <EnvVarRow
-              key={envVar.id}
-              envVar={envVar}
-              hasActions
-              actions={
-                // Editing the label/description needs no vault, so the row menu is
-                // always available; value actions inside it unlock with the vault.
-                <EnvVarRowActions
-                  envVar={envVar}
-                  orgId={orgId}
-                  vault={vault.unlocked}
-                  invalidate={invalidate}
-                />
-              }
-            />
-          ))}
-        </TableBody>
-      </Table>
+}) => {
+  const pagination = useClientPagination(items, "variable");
+  if (items.length === 0) {
+    return <EmptyState />;
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="overflow-hidden rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Key</TableHead>
+              <TableHead>Environment</TableHead>
+              <TableHead>Scope</TableHead>
+              <TableHead>Visibility</TableHead>
+              <TableHead>Revisions</TableHead>
+              <TableHead>Updated</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pagination.pageItems.map((envVar) => (
+              <EnvVarRow
+                key={envVar.id}
+                envVar={envVar}
+                hasActions
+                actions={
+                  // Editing the label/description needs no vault, so the row menu is
+                  // always available; value actions inside it unlock with the vault.
+                  <EnvVarRowActions
+                    envVar={envVar}
+                    orgId={orgId}
+                    vault={vault.unlocked}
+                    invalidate={invalidate}
+                  />
+                }
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <ClientPaginationFooter state={pagination} />
     </div>
   );
+};
 
 export const EnvVarsView = ({
   mode,
@@ -359,6 +373,9 @@ export const EnvVarsView = ({
     }
     return (
       <EnvVarsTable
+        // Filter identity as key: a search/scope/environment change remounts the
+        // table so client pagination resets to page 1.
+        key={JSON.stringify(filters)}
         items={data.items}
         orgId={mode.orgId}
         vault={vault}
