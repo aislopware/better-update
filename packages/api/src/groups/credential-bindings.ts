@@ -9,6 +9,7 @@ import {
   CredentialBindingList,
   CredentialBindingPlan,
   CredentialBindingType,
+  OrgCredentialBinding,
 } from "../domain/credential-binding";
 import { BadRequest, Conflict } from "../domain/errors";
 
@@ -61,6 +62,32 @@ export class CredentialBindingsGroup extends HttpApiGroup.make("credential-bindi
           title: "Unbind credential from project",
           description:
             "Remove a credential's binding — the project's members (and its robot) lose access to it. Requires org admin.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.put(
+      "bindAllProjects",
+    )`/api/credential-bindings/all-projects/${resourceTypeParam}/${resourceIdParam}`
+      .addSuccess(OrgCredentialBinding, { status: 201 })
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Bind credential to all projects",
+          description:
+            "Make an org credential usable in EVERY project of the org — including projects created later (no per-project fan-out). Idempotent. `appleTeam` bindings cover every child credential and the team's devices; `ascApiKey` is for team-less keys only. Requires org admin.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del(
+      "unbindAllProjects",
+    )`/api/credential-bindings/all-projects/${resourceTypeParam}/${resourceIdParam}`
+      .addSuccess(DeletedResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unbind credential from all projects",
+          description:
+            "Remove a credential's org-wide binding — access falls back to its explicit per-project bindings (if any). Requires org admin.",
         }),
       ),
   )

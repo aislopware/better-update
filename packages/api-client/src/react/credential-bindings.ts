@@ -54,3 +54,25 @@ export const unbindCredentialFromProject = async (params: {
       },
     }),
   );
+
+// Org-wide ("all projects") binding: the credential is usable in EVERY
+// project of the org, including projects created later.
+export const bindCredentialToAllProjects = async (params: {
+  readonly resourceType: CredentialBindingTypeValue;
+  readonly resourceId: string;
+}) =>
+  runApi((api) =>
+    api["credential-bindings"].bindAllProjects({
+      path: { resourceType: params.resourceType, resourceId: params.resourceId },
+    }),
+  );
+
+export const unbindCredentialFromAllProjects = async (params: {
+  readonly resourceType: CredentialBindingTypeValue;
+  readonly resourceId: string;
+}) =>
+  runApi((api) =>
+    api["credential-bindings"].unbindAllProjects({
+      path: { resourceType: params.resourceType, resourceId: params.resourceId },
+    }),
+  );

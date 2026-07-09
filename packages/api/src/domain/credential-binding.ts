@@ -23,11 +23,33 @@ export class CredentialBinding extends Schema.Class<CredentialBinding>("Credenti
   resourceType: CredentialBindingType,
   resourceId: Id,
   createdAt: DateTimeString,
+  /**
+   * True when this entry comes from the resource's ORG-WIDE binding (bound to
+   * every project, present and future) rather than an explicit per-project
+   * row. Remove it with the all-projects unbind route, not the per-project one.
+   */
+  allProjects: Schema.optionalWith(Schema.Boolean, { default: () => false }),
 }) {}
 
 export const CredentialBindingList = Schema.Struct({
   items: Schema.Array(CredentialBinding),
 });
+
+/**
+ * An org-wide ("all projects") binding: the resource is usable in EVERY
+ * project of the org — including projects created later, with no per-project
+ * fan-out. `appleTeam` rows cascade to every child credential and the team's
+ * devices, exactly like per-project bindings.
+ */
+export class OrgCredentialBinding extends Schema.Class<OrgCredentialBinding>(
+  "OrgCredentialBinding",
+)({
+  id: Id,
+  organizationId: Id,
+  resourceType: CredentialBindingType,
+  resourceId: Id,
+  createdAt: DateTimeString,
+}) {}
 
 /**
  * One binding an existing project config relies on (derived from iOS bundle
@@ -57,6 +79,12 @@ export const CredentialBindingPlan = Schema.Struct({
  */
 export const boundProjectIdsField = {
   boundProjectIds: Schema.Array(Id),
+  /**
+   * True when the credential (or, for team-scoped rows, its Apple team) is
+   * bound org-wide — `boundProjectIds` then already contains every project id,
+   * and projects created later are covered automatically.
+   */
+  boundToAllProjects: Schema.optionalWith(Schema.Boolean, { default: () => false }),
 } as const;
 
 /**

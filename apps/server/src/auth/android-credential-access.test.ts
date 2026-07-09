@@ -39,9 +39,13 @@ const BINDINGS: Readonly<Record<string, readonly string[]>> = {
 const stubBindingRepo: ProjectCredentialBindingRepository = {
   boundProjectIds: ({ resourceId }) => Effect.succeed(BINDINGS[resourceId] ?? []),
   boundProjectIdsByResource: () => Effect.succeed(BINDINGS),
+  allProjectsResourceIds: () => Effect.succeed([]),
   listByProject: () => Effect.die(new Error("not stubbed")),
   bind: () => Effect.die(new Error("not stubbed")),
   unbind: () => Effect.die(new Error("not stubbed")),
+  bindAllProjects: () => Effect.die(new Error("not stubbed")),
+  unbindAllProjects: () => Effect.die(new Error("not stubbed")),
+  findAllProjectsBinding: () => Effect.succeed(null),
   removeAllForResource: () => Effect.die(new Error("not stubbed")),
 };
 

@@ -90,9 +90,11 @@ export {
   uploadGoogleServiceAccountKey,
 } from "./react/credentials";
 export {
+  bindCredentialToAllProjects,
   bindCredentialToProject,
   credentialBindingsQueryKey,
   credentialBindingsQueryOptions,
+  unbindCredentialFromAllProjects,
   unbindCredentialFromProject,
 } from "./react/credential-bindings";
 export type { CredentialBindingItem } from "./react/credential-bindings";

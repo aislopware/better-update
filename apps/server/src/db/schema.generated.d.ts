@@ -434,6 +434,14 @@ export interface Organization {
   slug: string;
 }
 
+export interface OrgCredentialBinding {
+  created_at: Generated<string>;
+  id: string;
+  organization_id: string;
+  resource_id: string;
+  resource_type: string;
+}
+
 export interface OrgEnvVaultKeyWraps {
   created_at: Generated<string>;
   env_vault_version: number;
@@ -693,6 +701,7 @@ export interface DB {
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
+  org_credential_binding: OrgCredentialBinding;
   org_env_vault_key_wraps: OrgEnvVaultKeyWraps;
   org_vault_key_wraps: OrgVaultKeyWraps;
   org_vaults: OrgVaults;

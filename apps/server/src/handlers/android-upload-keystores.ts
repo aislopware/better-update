@@ -57,16 +57,18 @@ const setProtectionEffect = (id: string, isProtected: boolean) =>
         resourceId: id,
         metadata: { keyAlias: existing.keyAlias },
       });
-      const bound = yield* ProjectCredentialBindingRepo.pipe(
-        Effect.flatMap((bindings) =>
-          bindings.boundProjectIds({
-            organizationId: ctx.organizationId,
-            resourceType: "androidUploadKeystore",
-            resourceId: id,
-          }),
-        ),
-      );
-      return toApiAndroidUploadKeystore({ ...existing, isProtected }, bound);
+      const bindings = yield* ProjectCredentialBindingRepo;
+      const bound = yield* bindings.boundProjectIds({
+        organizationId: ctx.organizationId,
+        resourceType: "androidUploadKeystore",
+        resourceId: id,
+      });
+      const orgWide = yield* bindings.findAllProjectsBinding({
+        organizationId: ctx.organizationId,
+        resourceType: "androidUploadKeystore",
+        resourceId: id,
+      });
+      return toApiAndroidUploadKeystore({ ...existing, isProtected }, bound, orgWide !== null);
     }),
   );
 
@@ -88,17 +90,20 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
               "androidUploadKeystore",
               (item) => ({ id: item.id, isProtected: item.isProtected }),
             );
-            const bindings = yield* ProjectCredentialBindingRepo.pipe(
-              Effect.flatMap((repo_) =>
-                repo_.boundProjectIdsByResource({
-                  organizationId: ctx.organizationId,
-                  resourceType: "androidUploadKeystore",
-                }),
-              ),
+            const bindingsRepo = yield* ProjectCredentialBindingRepo;
+            const bindings = yield* bindingsRepo.boundProjectIdsByResource({
+              organizationId: ctx.organizationId,
+              resourceType: "androidUploadKeystore",
+            });
+            const orgWide = new Set(
+              yield* bindingsRepo.allProjectsResourceIds({
+                organizationId: ctx.organizationId,
+                resourceType: "androidUploadKeystore",
+              }),
             );
             return {
               items: visible.map((item) =>
-                toApiAndroidUploadKeystore(item, bindings[item.id] ?? []),
+                toApiAndroidUploadKeystore(item, bindings[item.id] ?? [], orgWide.has(item.id)),
               ),
             };
           }),

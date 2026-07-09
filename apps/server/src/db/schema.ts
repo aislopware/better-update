@@ -110,6 +110,9 @@ export type Organization = WithNonNullId<Gen.Organization>;
 export type OrgEnvVaultKeyWraps = WithNonNullId<
   Narrow<Gen.OrgEnvVaultKeyWraps, { recipient_kind: EnvVaultRecipientKind }>
 >;
+export type OrgCredentialBinding = WithNonNullId<
+  Narrow<Gen.OrgCredentialBinding, { resource_type: CredentialBindingType }>
+>;
 export type OrgVaultKeyWraps = WithNonNullId<Gen.OrgVaultKeyWraps>;
 export type OrgVaults = WithNonNullId<Gen.OrgVaults>;
 export type Passkey = WithNonNullId<Gen.Passkey>;
@@ -177,6 +180,7 @@ export interface DB {
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
+  org_credential_binding: OrgCredentialBinding;
   org_env_vault_key_wraps: OrgEnvVaultKeyWraps;
   org_vault_key_wraps: OrgVaultKeyWraps;
   org_vaults: OrgVaults;

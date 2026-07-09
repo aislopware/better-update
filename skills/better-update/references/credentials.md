@@ -66,11 +66,21 @@ better-update credentials bindings list [--project <id>]
 better-update credentials bindings plan [--apply]
 better-update credentials bindings add appleTeam <team-uuid> [--project <id>]
 better-update credentials bindings remove androidUploadKeystore <keystore-id> [--project <id>]
+better-update credentials bindings add appleTeam <team-uuid> --all-projects
+better-update credentials bindings remove appleTeam <team-uuid> --all-projects
 ```
 
 Resource types: `appleTeam` (cascades to every child credential and the team's registered devices),
 `ascApiKey` (team-less keys only), `googleServiceAccountKey`, `androidUploadKeystore`. `--project`
 defaults to the linked project. Full access model: `references/access-control.md`.
+
+**Bind to all projects**: `--all-projects` creates an **org-wide** binding — the credential is
+usable in every project of the org, **including projects created later** (no re-binding needed when
+a new project appears). `bindings list` shows these with scope `all projects`; the dashboard shows
+an "All projects" chip and offers the same toggle in the credential's "Manage projects" dialog.
+`remove --all-projects` only drops the org-wide binding — explicit per-project bindings (if any)
+keep applying. An org-wide-bound `appleTeam` covers all of its child credentials and devices in
+every project, exactly like per-project bindings.
 
 **Bulk re-bind with `plan`**: `bindings plan` derives, from the org's existing iOS bundle
 configurations and Android build-credential groups, which bindings those configs rely on, and shows

@@ -117,6 +117,7 @@ const KeystoreBindingsCell = ({
       resourceId={keystore.id}
       resourceLabel={`the ${keystore.keyAlias} keystore`}
       boundProjectIds={keystore.boundProjectIds}
+      boundToAllProjects={keystore.boundToAllProjects}
       canManage={isOrgAdmin(me.orgRole)}
     />
   );

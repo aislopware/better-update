@@ -57,16 +57,18 @@ const setProtectionEffect = (id: string, isProtected: boolean) =>
         resourceId: id,
         metadata: { privateKeyId: existing.privateKeyId },
       });
-      const bound = yield* ProjectCredentialBindingRepo.pipe(
-        Effect.flatMap((bindings) =>
-          bindings.boundProjectIds({
-            organizationId: ctx.organizationId,
-            resourceType: "googleServiceAccountKey",
-            resourceId: id,
-          }),
-        ),
-      );
-      return toApiGoogleServiceAccountKey({ ...existing, isProtected }, bound);
+      const bindings = yield* ProjectCredentialBindingRepo;
+      const bound = yield* bindings.boundProjectIds({
+        organizationId: ctx.organizationId,
+        resourceType: "googleServiceAccountKey",
+        resourceId: id,
+      });
+      const orgWide = yield* bindings.findAllProjectsBinding({
+        organizationId: ctx.organizationId,
+        resourceType: "googleServiceAccountKey",
+        resourceId: id,
+      });
+      return toApiGoogleServiceAccountKey({ ...existing, isProtected }, bound, orgWide !== null);
     }),
   );
 
@@ -88,17 +90,20 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
               "googleServiceAccountKey",
               (item) => ({ id: item.id, isProtected: item.isProtected }),
             );
-            const bindings = yield* ProjectCredentialBindingRepo.pipe(
-              Effect.flatMap((repo_) =>
-                repo_.boundProjectIdsByResource({
-                  organizationId: ctx.organizationId,
-                  resourceType: "googleServiceAccountKey",
-                }),
-              ),
+            const bindingsRepo = yield* ProjectCredentialBindingRepo;
+            const bindings = yield* bindingsRepo.boundProjectIdsByResource({
+              organizationId: ctx.organizationId,
+              resourceType: "googleServiceAccountKey",
+            });
+            const orgWide = new Set(
+              yield* bindingsRepo.allProjectsResourceIds({
+                organizationId: ctx.organizationId,
+                resourceType: "googleServiceAccountKey",
+              }),
             );
             return {
               items: visible.map((item) =>
-                toApiGoogleServiceAccountKey(item, bindings[item.id] ?? []),
+                toApiGoogleServiceAccountKey(item, bindings[item.id] ?? [], orgWide.has(item.id)),
               ),
             };
           }),

@@ -2,13 +2,15 @@ import {
   appleTeamsQueryKey,
   androidUploadKeystoresQueryKey,
   ascApiKeysQueryKey,
+  bindCredentialToAllProjects,
   bindCredentialToProject,
   credentialBindingsQueryKey,
   googleServiceAccountKeysQueryKey,
   projectsQueryOptions,
+  unbindCredentialFromAllProjects,
   unbindCredentialFromProject,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge, badgeVariants } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import {
@@ -21,7 +23,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@better-update/ui/components/ui/popover";
 import { toast } from "@better-update/ui/components/ui/sonner";
+import { Switch } from "@better-update/ui/components/ui/switch";
+import { cn } from "@better-update/ui/lib/utils";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -34,6 +45,8 @@ import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 // usable in a project only when bound to it — unbound means org-admins-only.
 // `appleTeam` bindings cascade to every child credential and the team's
 // devices, so team-scoped rows surface their team's projects read-only.
+// An ORG-WIDE binding ("All projects") covers every project, present and
+// future — no per-project rows needed.
 
 interface ProjectOption {
   readonly id: string;
@@ -61,24 +74,118 @@ const AFFECTED_LIST_KEYS: Record<
   androidUploadKeystore: (orgId) => [androidUploadKeystoresQueryKey(orgId)],
 };
 
+// Keep the Projects column compact: a handful of chips, the rest in a popover.
+const MAX_VISIBLE_PROJECT_CHIPS = 3;
+
 export const BoundProjectChips = ({
   boundProjectIds,
+  boundToAllProjects,
   projects,
 }: {
   boundProjectIds: readonly string[];
+  boundToAllProjects: boolean;
   projects: readonly ProjectOption[];
-}) =>
-  boundProjectIds.length === 0 ? (
-    <span className="text-muted-foreground text-xs">Not bound to any project</span>
-  ) : (
-    <div className="flex flex-wrap gap-1">
-      {boundProjectIds.map((projectId) => (
-        <Badge key={projectId} variant="secondary">
-          {projects.find((project) => project.id === projectId)?.name ?? "Unknown project"}
+}) => {
+  if (boundToAllProjects) {
+    return <Badge variant="secondary">All projects</Badge>;
+  }
+  if (boundProjectIds.length === 0) {
+    return <span className="text-muted-foreground text-xs">Not bound to any project</span>;
+  }
+  const named = boundProjectIds.map((projectId) => ({
+    id: projectId,
+    name: projects.find((project) => project.id === projectId)?.name ?? "Unknown project",
+  }));
+  const visible = named.slice(0, MAX_VISIBLE_PROJECT_CHIPS);
+  const overflowCount = named.length - visible.length;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {visible.map((project) => (
+        <Badge key={project.id} variant="secondary">
+          {project.name}
         </Badge>
       ))}
+      {overflowCount > 0 ? (
+        <Popover>
+          <PopoverTrigger
+            className={cn(badgeVariants({ variant: "outline" }), "cursor-pointer")}
+            aria-label={`Show all ${named.length} bound projects`}
+          >
+            +{overflowCount}
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64">
+            <PopoverHeader>
+              <PopoverTitle>Bound projects</PopoverTitle>
+            </PopoverHeader>
+            <ul className="max-h-64 overflow-y-auto">
+              {named
+                .toSorted((left, right) => left.name.localeCompare(right.name))
+                .map((project) => (
+                  <li key={project.id} className="rounded-sm px-1.5 py-1 text-sm">
+                    {project.name}
+                  </li>
+                ))}
+            </ul>
+          </PopoverContent>
+        </Popover>
+      ) : null}
     </div>
   );
+};
+
+// Org-wide toggle: bound to EVERY project, including ones created later —
+// the answer to "stop ticking each project by hand".
+const AllProjectsToggle = ({
+  orgId,
+  resourceType,
+  resourceId,
+  boundToAllProjects,
+}: {
+  orgId: string;
+  resourceType: CredentialBindingTypeValue;
+  resourceId: string;
+  boundToAllProjects: boolean;
+}) => {
+  const queryClient = useQueryClient();
+  const toggleMutation = useApiMutation({
+    mutationFn: async (next: boolean) =>
+      next
+        ? bindCredentialToAllProjects({ resourceType, resourceId })
+        : unbindCredentialFromAllProjects({ resourceType, resourceId }),
+    onSuccess: async (_result, next) => {
+      toast.success(
+        next
+          ? "Credential bound to all projects"
+          : "All-projects binding removed — explicit per-project bindings still apply",
+      );
+      await Promise.all(
+        AFFECTED_LIST_KEYS[resourceType](orgId).map(async (queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      );
+    },
+  });
+
+  const switchId = `all-projects-${resourceType}-${resourceId}`;
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+      <label htmlFor={switchId} className="grid gap-0.5">
+        <span className="text-sm font-medium">All projects</span>
+        <span className="text-muted-foreground text-xs">
+          Usable in every project, including projects created later.
+        </span>
+      </label>
+      <Switch
+        id={switchId}
+        checked={boundToAllProjects}
+        disabled={toggleMutation.isPending}
+        onCheckedChange={(next) => {
+          toggleMutation.mutate(next);
+        }}
+      />
+    </div>
+  );
+};
 
 const BindingsChecklist = ({
   orgId,
@@ -86,12 +193,14 @@ const BindingsChecklist = ({
   resourceId,
   boundProjectIds,
   projects,
+  disabled,
 }: {
   orgId: string;
   resourceType: CredentialBindingTypeValue;
   resourceId: string;
   boundProjectIds: readonly string[];
   projects: readonly ProjectOption[];
+  disabled: boolean;
 }) => {
   const queryClient = useQueryClient();
   const toggleMutation = useApiMutation({
@@ -116,10 +225,13 @@ const BindingsChecklist = ({
         <p className="text-muted-foreground text-sm">No projects in this organization yet.</p>
       ) : (
         projects.map((project) => (
-          <label key={project.id} className="flex items-center gap-2 text-sm">
+          <label
+            key={project.id}
+            className={cn("flex items-center gap-2 text-sm", disabled && "opacity-50")}
+          >
             <Checkbox
               checked={boundProjectIds.includes(project.id)}
-              disabled={toggleMutation.isPending}
+              disabled={disabled || toggleMutation.isPending}
               onCheckedChange={(next) => {
                 toggleMutation.mutate({ projectId: project.id, next });
               }}
@@ -132,15 +244,18 @@ const BindingsChecklist = ({
   );
 };
 
-// Chips + (for org admins) a dialog to bind/unbind the credential per project.
-// Parent owns the dialog open state; the checklist is keyed so its mutation
-// state resets after the close animation (onOpenChangeComplete key bump).
+// Chips + (for org admins) a dialog to bind/unbind the credential — org-wide
+// via the All-projects switch, or per project via the checklist (disabled
+// while org-wide is on: every project is already covered). Parent owns the
+// dialog open state; the body is keyed so its mutation state resets after the
+// close animation (onOpenChangeComplete key bump).
 export const BoundProjectsCell = ({
   orgId,
   resourceType,
   resourceId,
   resourceLabel,
   boundProjectIds,
+  boundToAllProjects,
   canManage,
 }: {
   orgId: string;
@@ -148,6 +263,7 @@ export const BoundProjectsCell = ({
   resourceId: string;
   resourceLabel: string;
   boundProjectIds: readonly string[];
+  boundToAllProjects: boolean;
   canManage: boolean;
 }) => {
   const projects = useOrgProjects(orgId);
@@ -156,7 +272,11 @@ export const BoundProjectsCell = ({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <BoundProjectChips boundProjectIds={boundProjectIds} projects={projects} />
+      <BoundProjectChips
+        boundProjectIds={boundProjectIds}
+        boundToAllProjects={boundToAllProjects}
+        projects={projects}
+      />
       {canManage ? (
         <Dialog
           open={open}
@@ -186,14 +306,22 @@ export const BoundProjectsCell = ({
                 org admins only.
               </DialogDescription>
             </DialogHeader>
-            <BindingsChecklist
-              key={resetKey}
-              orgId={orgId}
-              resourceType={resourceType}
-              resourceId={resourceId}
-              boundProjectIds={boundProjectIds}
-              projects={projects}
-            />
+            <div key={resetKey} className="grid gap-4">
+              <AllProjectsToggle
+                orgId={orgId}
+                resourceType={resourceType}
+                resourceId={resourceId}
+                boundToAllProjects={boundToAllProjects}
+              />
+              <BindingsChecklist
+                orgId={orgId}
+                resourceType={resourceType}
+                resourceId={resourceId}
+                boundProjectIds={boundProjectIds}
+                projects={projects}
+                disabled={boundToAllProjects}
+              />
+            </div>
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
             </DialogFooter>
@@ -209,15 +337,21 @@ export const BoundProjectsCell = ({
 export const InheritedProjectsCell = ({
   orgId,
   boundProjectIds,
+  boundToAllProjects,
 }: {
   orgId: string;
   boundProjectIds: readonly string[];
+  boundToAllProjects: boolean;
 }) => {
   const projects = useOrgProjects(orgId);
   return (
     <div className="flex flex-col items-start gap-1">
-      <BoundProjectChips boundProjectIds={boundProjectIds} projects={projects} />
-      {boundProjectIds.length === 0 ? null : (
+      <BoundProjectChips
+        boundProjectIds={boundProjectIds}
+        boundToAllProjects={boundToAllProjects}
+        projects={projects}
+      />
+      {boundProjectIds.length === 0 && !boundToAllProjects ? null : (
         <span className="text-muted-foreground text-xs">Inherited from team</span>
       )}
     </div>

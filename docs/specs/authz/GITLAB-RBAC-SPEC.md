@@ -105,6 +105,23 @@ bound/missing (`credentials bindings plan --apply` binds the missing ones).
 Config writes validate referenced credential ids exist in the org
 (NotFound otherwise); binding state itself is only enforced at resolve.
 
+ORG-WIDE ("all projects") bindings (mig 0095): a row in
+`org_credential_binding(organization_id, resource_type, resource_id)` binds
+the resource to EVERY project of the org — present AND future. Resolution is
+query-time: the binding repo expands an org-wide row into the org's full
+project-id set inside `boundProjectIds`/`boundProjectIdsByResource`, so every
+downstream gate keeps its "target project ∈ bound set" shape and a newly
+created project is covered with zero writes. Same resource kinds, same
+cascade (an org-wide-bound `appleTeam` covers all children + devices
+everywhere), same admin-only management (`PUT/DELETE
+/api/credential-bindings/all-projects/:resourceType/:resourceId`, CLI
+`credentials bindings add|remove --all-projects`). Audit rows carry
+`metadata.allProjects: true`. Unbinding org-wide falls back to whatever
+explicit per-project rows remain. Credential list responses expose
+`boundToAllProjects` (team-scoped ASC keys inherit their team's flag);
+`bindings list` entries synthesized from the org-wide row carry
+`allProjects: true` and shadow an explicit row for the same resource.
+
 The v1 `anywhereRank` helper survives for exactly ONE rule: org-global env-var
 reads (`envVar:read` on the `global` sentinel) stay at ≥D-anywhere — global
 env vars are org config shared by design, not credentials.

@@ -208,10 +208,15 @@ export const AscApiKeysTable = ({
                 resourceId={key.id}
                 resourceLabel={key.name}
                 boundProjectIds={key.boundProjectIds}
+                boundToAllProjects={key.boundToAllProjects}
                 canManage={canManageBindings}
               />
             ) : (
-              <InheritedProjectsCell orgId={orgId} boundProjectIds={key.boundProjectIds} />
+              <InheritedProjectsCell
+                orgId={orgId}
+                boundProjectIds={key.boundProjectIds}
+                boundToAllProjects={key.boundToAllProjects}
+              />
             )}
           </TableCell>
           <TableCell className="text-muted-foreground">
@@ -270,6 +275,7 @@ export const AppleTeamsTable = ({
               resourceId={team.id}
               resourceLabel={formatAppleTeamLabel(team)}
               boundProjectIds={team.boundProjectIds}
+              boundToAllProjects={team.boundToAllProjects}
               canManage={canManageProtection}
             />
           </TableCell>

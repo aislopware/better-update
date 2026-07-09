@@ -1,4 +1,8 @@
-import { CredentialBinding, CredentialBindingPlanItem } from "@better-update/api";
+import {
+  CredentialBinding,
+  CredentialBindingPlanItem,
+  OrgCredentialBinding,
+} from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -158,6 +162,68 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
               return yield* Effect.die(new Error("Binding vanished right after upsert"));
             }
             return new CredentialBinding(bound);
+          }),
+        ),
+      )
+      .handle("bindAllProjects", ({ path }) =>
+        toApiCrudEffect(
+          Effect.gen(function* () {
+            yield* assertAccess("credentialBinding", "create");
+            yield* assertResourceBindable(path.resourceType, path.resourceId);
+            const ctx = yield* CurrentActor;
+            const repo = yield* ProjectCredentialBindingRepo;
+
+            const inserted = yield* repo.bindAllProjects({
+              id: crypto.randomUUID(),
+              organizationId: ctx.organizationId,
+              resourceType: path.resourceType,
+              resourceId: path.resourceId,
+              now: new Date().toISOString(),
+            });
+            // Idempotent re-PUT of an existing org-wide binding is not an event.
+            if (inserted) {
+              yield* logAudit({
+                action: "credentialBinding.create",
+                resourceType: "credentialBinding",
+                resourceId: path.resourceId,
+                metadata: { bindingType: path.resourceType, allProjects: true },
+              });
+            }
+
+            // Re-read for the canonical row (idempotent upsert semantics).
+            const bound = yield* repo.findAllProjectsBinding({
+              organizationId: ctx.organizationId,
+              resourceType: path.resourceType,
+              resourceId: path.resourceId,
+            });
+            if (bound === null) {
+              return yield* Effect.die(new Error("Org-wide binding vanished right after upsert"));
+            }
+            return new OrgCredentialBinding(bound);
+          }),
+        ),
+      )
+      .handle("unbindAllProjects", ({ path }) =>
+        toApiCrudEffect(
+          Effect.gen(function* () {
+            yield* assertAccess("credentialBinding", "delete");
+            const ctx = yield* CurrentActor;
+            const repo = yield* ProjectCredentialBindingRepo;
+            const removed = yield* repo.unbindAllProjects({
+              organizationId: ctx.organizationId,
+              resourceType: path.resourceType,
+              resourceId: path.resourceId,
+            });
+            if (!removed) {
+              return yield* new NotFound({ message: "Binding not found" });
+            }
+            yield* logAudit({
+              action: "credentialBinding.delete",
+              resourceType: "credentialBinding",
+              resourceId: path.resourceId,
+              metadata: { bindingType: path.resourceType, allProjects: true },
+            });
+            return { deleted: 1 };
           }),
         ),
       )

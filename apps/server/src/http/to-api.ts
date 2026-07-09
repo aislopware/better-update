@@ -261,9 +261,11 @@ export {
 export const toApiGoogleServiceAccountKey = (
   model: GoogleServiceAccountKeyModel,
   boundProjectIds: readonly string[],
+  boundToAllProjects = false,
 ): GoogleServiceAccountKey =>
   new GoogleServiceAccountKey({
     boundProjectIds,
+    boundToAllProjects,
     id: model.id,
     organizationId: model.organizationId,
     clientEmail: model.clientEmail,
@@ -310,9 +312,11 @@ export const toApiAndroidApplicationIdentifier = (
 export const toApiAndroidUploadKeystore = (
   model: AndroidUploadKeystoreModel,
   boundProjectIds: readonly string[],
+  boundToAllProjects = false,
 ): AndroidUploadKeystore =>
   new AndroidUploadKeystore({
     boundProjectIds,
+    boundToAllProjects,
     id: model.id,
     organizationId: model.organizationId,
     name: model.name,

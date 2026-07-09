@@ -59,25 +59,22 @@ const setProtectionEffect = (id: string, isProtected: boolean) =>
         metadata: { keyId: existing.keyId, name: existing.name },
       });
       // Response bindings mirror `list`: a team-scoped key surfaces its
-      // team's bound projects (cascade); a team-less key its own.
-      const bound = yield* ProjectCredentialBindingRepo.pipe(
-        Effect.flatMap((bindings) =>
-          bindings.boundProjectIds(
-            existing.appleTeamId === null
-              ? {
-                  organizationId: ctx.organizationId,
-                  resourceType: "ascApiKey",
-                  resourceId: existing.id,
-                }
-              : {
-                  organizationId: ctx.organizationId,
-                  resourceType: "appleTeam",
-                  resourceId: existing.appleTeamId,
-                },
-          ),
-        ),
-      );
-      return toApiAscApiKey({ ...existing, isProtected }, bound);
+      // team's bound projects AND org-wide flag (cascade); a team-less key
+      // its own.
+      const bindings = yield* ProjectCredentialBindingRepo;
+      const bindingRef =
+        existing.appleTeamId === null
+          ? { resourceType: "ascApiKey" as const, resourceId: existing.id }
+          : { resourceType: "appleTeam" as const, resourceId: existing.appleTeamId };
+      const bound = yield* bindings.boundProjectIds({
+        organizationId: ctx.organizationId,
+        ...bindingRef,
+      });
+      const orgWide = yield* bindings.findAllProjectsBinding({
+        organizationId: ctx.organizationId,
+        ...bindingRef,
+      });
+      return toApiAscApiKey({ ...existing, isProtected }, bound, orgWide !== null);
     }),
   );
 
@@ -97,7 +94,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
             { teamlessBindingIdOf: (item) => item.id },
           );
           // Response bindings: a team-scoped key surfaces its TEAM's bound
-          // projects (cascade); a team-less key its own.
+          // projects and org-wide flag (cascade); a team-less key its own.
           const bindingsRepo = yield* ProjectCredentialBindingRepo;
           const teamBindings = yield* bindingsRepo.boundProjectIdsByResource({
             organizationId: ctx.organizationId,
@@ -107,6 +104,18 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
             organizationId: ctx.organizationId,
             resourceType: "ascApiKey",
           });
+          const orgWideTeams = new Set(
+            yield* bindingsRepo.allProjectsResourceIds({
+              organizationId: ctx.organizationId,
+              resourceType: "appleTeam",
+            }),
+          );
+          const orgWideKeys = new Set(
+            yield* bindingsRepo.allProjectsResourceIds({
+              organizationId: ctx.organizationId,
+              resourceType: "ascApiKey",
+            }),
+          );
           return {
             items: visible.map((item) =>
               toApiAscApiKey(
@@ -114,6 +123,9 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
                 item.appleTeamId === null
                   ? (keyBindings[item.id] ?? [])
                   : (teamBindings[item.appleTeamId] ?? []),
+                item.appleTeamId === null
+                  ? orgWideKeys.has(item.id)
+                  : orgWideTeams.has(item.appleTeamId),
               ),
             ),
           };

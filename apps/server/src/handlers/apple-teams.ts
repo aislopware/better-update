@@ -41,16 +41,18 @@ const setProtectionEffect = (id: string, isProtected: boolean) =>
       if (updated === undefined) {
         return yield* Effect.die(new Error("Apple team vanished during protection toggle"));
       }
-      const bound = yield* ProjectCredentialBindingRepo.pipe(
-        Effect.flatMap((bindings) =>
-          bindings.boundProjectIds({
-            organizationId: ctx.organizationId,
-            resourceType: "appleTeam",
-            resourceId: id,
-          }),
-        ),
-      );
-      return toApiAppleTeamWithCounts(updated, bound);
+      const bindings = yield* ProjectCredentialBindingRepo;
+      const bound = yield* bindings.boundProjectIds({
+        organizationId: ctx.organizationId,
+        resourceType: "appleTeam",
+        resourceId: id,
+      });
+      const orgWide = yield* bindings.findAllProjectsBinding({
+        organizationId: ctx.organizationId,
+        resourceType: "appleTeam",
+        resourceId: id,
+      });
+      return toApiAppleTeamWithCounts(updated, bound, orgWide !== null);
     }),
   );
 
@@ -66,19 +68,24 @@ export const AppleTeamsGroupLive = HttpApiBuilder.group(ManagementApi, "appleTea
           const ctx = yield* CurrentActor;
           const repo = yield* AppleTeamRepo;
           const teams = yield* repo.listWithCounts({ organizationId: ctx.organizationId });
-          const bindings = yield* ProjectCredentialBindingRepo.pipe(
-            Effect.flatMap((repo_) =>
-              repo_.boundProjectIdsByResource({
-                organizationId: ctx.organizationId,
-                resourceType: "appleTeam",
-              }),
-            ),
+          const bindingsRepo = yield* ProjectCredentialBindingRepo;
+          const bindings = yield* bindingsRepo.boundProjectIdsByResource({
+            organizationId: ctx.organizationId,
+            resourceType: "appleTeam",
+          });
+          const orgWide = new Set(
+            yield* bindingsRepo.allProjectsResourceIds({
+              organizationId: ctx.organizationId,
+              resourceType: "appleTeam",
+            }),
           );
           const visible = teams.filter((team) =>
             canReadAppleTeamCredentials(ctx, team, bindings[team.id] ?? []),
           );
           return {
-            items: visible.map((team) => toApiAppleTeamWithCounts(team, bindings[team.id] ?? [])),
+            items: visible.map((team) =>
+              toApiAppleTeamWithCounts(team, bindings[team.id] ?? [], orgWide.has(team.id)),
+            ),
           };
         }),
       ),

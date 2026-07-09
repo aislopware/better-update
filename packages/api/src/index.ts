@@ -349,6 +349,7 @@ export {
   CredentialBindingPlanItem,
   CredentialBindingType,
   credentialCreateBindingField,
+  OrgCredentialBinding,
 } from "./domain/credential-binding";
 export type { CredentialBindingTypeValue } from "./domain/credential-binding";
 export {

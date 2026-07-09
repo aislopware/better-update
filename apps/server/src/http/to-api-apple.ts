@@ -28,9 +28,11 @@ import type { AppleTeamWithCounts } from "../repositories/apple-teams";
 export const toApiAppleTeamWithCounts = (
   team: AppleTeamWithCounts,
   boundProjectIds: readonly string[],
+  boundToAllProjects = false,
 ): AppleTeam =>
   new AppleTeam({
     boundProjectIds,
+    boundToAllProjects,
     id: team.id,
     organizationId: team.organizationId,
     appleTeamId: team.appleTeamId,
@@ -128,9 +130,12 @@ const parseRoles = (roles: string): readonly string[] => {
 export const toApiAscApiKey = (
   model: AscApiKeyModel,
   boundProjectIds: readonly string[],
+  // Team-scoped keys inherit their TEAM's org-wide flag (cascade, spec §1a).
+  boundToAllProjects = false,
 ): AscApiKey =>
   new AscApiKey({
     boundProjectIds,
+    boundToAllProjects,
     id: model.id,
     organizationId: model.organizationId,
     appleTeamId: model.appleTeamId,

@@ -69,6 +69,7 @@ export const GoogleServiceAccountKeysTable = ({
               resourceId={key.id}
               resourceLabel={key.clientEmail}
               boundProjectIds={key.boundProjectIds}
+              boundToAllProjects={key.boundToAllProjects}
               canManage={canManageProtection}
             />
           </TableCell>

@@ -66,6 +66,12 @@ const resourceArgs = {
     description: "Credential id (internal UUID, e.g. from `credentials list` / the dashboard)",
   },
   ...projectArg,
+  "all-projects": {
+    type: "boolean",
+    default: false,
+    description:
+      "Bind org-wide: every project of the org, including projects created later (ignores --project)",
+  },
 } as const;
 
 const listCommand = defineCommand({
@@ -81,8 +87,13 @@ const listCommand = defineCommand({
         const projectId = yield* resolveProjectId(args.project);
         const { items } = yield* api["credential-bindings"].list({ path: { id: projectId } });
         yield* printHumanList(
-          ["Resource type", "Resource id", "Bound at"],
-          items.map((binding) => [binding.resourceType, binding.resourceId, binding.createdAt]),
+          ["Resource type", "Resource id", "Scope", "Bound at"],
+          items.map((binding) => [
+            binding.resourceType,
+            binding.resourceId,
+            binding.allProjects ? "all projects" : "this project",
+            binding.createdAt,
+          ]),
           "No credentials bound to this project — bind one with `better-update credentials bindings add <resourceType> <resourceId>`.",
         );
         return { projectId, items };
@@ -103,16 +114,25 @@ const addCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const resourceType = yield* parseBindingType(args.resourceType);
+        const teamHint =
+          resourceType === "appleTeam"
+            ? " The binding covers every credential and device under this team."
+            : "";
+        if (args["all-projects"]) {
+          const binding = yield* api["credential-bindings"].bindAllProjects({
+            path: { resourceType, resourceId: args.resourceId },
+          });
+          yield* printHuman(
+            `✓ Bound ${resourceType} ${args.resourceId} to ALL projects — including projects created later.${teamHint}`,
+          );
+          return { binding };
+        }
         const projectId = yield* resolveProjectId(args.project);
         const binding = yield* api["credential-bindings"].bind({
           path: { id: projectId, resourceType, resourceId: args.resourceId },
         });
         yield* printHuman(
-          `✓ Bound ${resourceType} ${args.resourceId} to project ${projectId}.${
-            resourceType === "appleTeam"
-              ? " The binding covers every credential and device under this team."
-              : ""
-          }`,
+          `✓ Bound ${resourceType} ${args.resourceId} to project ${projectId}.${teamHint}`,
         );
         return { binding };
       }),
@@ -192,6 +212,15 @@ const removeCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const resourceType = yield* parseBindingType(args.resourceType);
+        if (args["all-projects"]) {
+          yield* api["credential-bindings"].unbindAllProjects({
+            path: { resourceType, resourceId: args.resourceId },
+          });
+          yield* printHuman(
+            `✓ Removed the all-projects binding of ${resourceType} ${args.resourceId} — explicit per-project bindings still apply.`,
+          );
+          return { removed: true, allProjects: true, resourceType, resourceId: args.resourceId };
+        }
         const projectId = yield* resolveProjectId(args.project);
         yield* api["credential-bindings"].unbind({
           path: { id: projectId, resourceType, resourceId: args.resourceId },
