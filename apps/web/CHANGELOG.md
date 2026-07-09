@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.62.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.61.0...%40better-update%2Fweb%400.62.0) (2026-07-09)
+
+### Features
+
+* **web:** paginate long lists at 20 per page and render CLI commands in empty states ([60aa286](https://github.com/better-update/better-update/commit/60aa286813f686e8653493af15d7482ea6598b66))
+
 ## [0.61.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.60.0...%40better-update%2Fweb%400.61.0) (2026-07-08)
 
 ### Features
