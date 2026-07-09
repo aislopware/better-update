@@ -3,6 +3,7 @@ import { defineCommand } from "citty";
 import { compatibilityMatrixCommand } from "./compatibility-matrix";
 import { deleteCommand } from "./delete";
 import { downloadCommand } from "./download";
+import { downloadSymbolsCommand } from "./download-symbols";
 import { getCommand } from "./get";
 import { installLinkCommand } from "./install-link";
 import { listCommand } from "./list";
@@ -17,6 +18,7 @@ export const buildsCommand = defineCommand({
     get: getCommand,
     delete: deleteCommand,
     download: downloadCommand,
+    "download-symbols": downloadSymbolsCommand,
     run: runCommand,
     "install-link": installLinkCommand,
     "compatibility-matrix": compatibilityMatrixCommand,

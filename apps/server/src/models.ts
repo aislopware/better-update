@@ -402,6 +402,9 @@ export interface BuildWithArtifactModel extends BuildModel {
   readonly artifact: BuildArtifactModel | null;
 }
 
+// Debug artifact (crash-symbolication) models live in ./debug-artifact-models
+// (kept out of this file for the max-lines budget), mirroring ./env-var-models.
+
 export interface BuildCompatibilityChannelModel {
   readonly channelId: string;
   readonly updateCount: number;

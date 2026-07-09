@@ -5,7 +5,6 @@ import {
   isOtaInstallableDistribution,
   STORE_DISTRIBUTIONS,
 } from "@better-update/api";
-import { fromHex, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
@@ -25,7 +24,21 @@ import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
-import { BuildRepo, CompatibilityRepo, ProjectRepo } from "../repositories";
+import { BuildRepo, CompatibilityRepo, DebugArtifactRepo, ProjectRepo } from "../repositories";
+import {
+  handleCompleteDebugArtifact,
+  handleGetDebugArtifactDownload,
+  handleListDebugArtifacts,
+  handleReserveDebugArtifact,
+} from "./build-debug-artifacts";
+import {
+  completionMatchesReservation,
+  KV_RESERVATION_TTL,
+  parseReservation,
+  sha256HexToBase64,
+  UPLOAD_EXPIRY_SECONDS,
+  uploadExpiresAtIso,
+} from "./upload-reservation";
 
 import type { BuildSortKey, BuildSortOrder } from "../repositories/builds";
 
@@ -47,9 +60,6 @@ const parseBuildSort = (
     }
   }
 };
-
-const UPLOAD_EXPIRY_SECONDS = 7200;
-const KV_RESERVATION_TTL = 10_800;
 
 const FORMAT_CONTENT_TYPES: Record<string, string> = {
   ipa: "application/octet-stream",
@@ -75,12 +85,6 @@ const resolveAudience = (
   return undefined;
 };
 
-const sha256HexToBase64 = (sha256: string) =>
-  Effect.try({
-    try: () => toBase64(fromHex(sha256)),
-    catch: () => new BadRequest({ message: "Build SHA-256 must be valid hex" }),
-  });
-
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
   projectId: Schema.String,
@@ -104,21 +108,6 @@ const ReservationSchema = Schema.Struct({
   r2Key: Schema.String,
   organizationId: Schema.String,
 });
-
-const decodeReservation = Schema.decodeUnknown(ReservationSchema);
-
-const parseReservation = (json: string) =>
-  Effect.gen(function* () {
-    const raw = yield* Effect.try({
-      try: () => JSON.parse(json) as unknown,
-      catch: () => new BadRequest({ message: "Build reservation payload is not valid JSON" }),
-    });
-    return yield* decodeReservation(raw).pipe(
-      Effect.mapError(
-        () => new BadRequest({ message: "Build reservation payload failed schema decode" }),
-      ),
-    );
-  });
 
 const cleanupBuildObject = (key: string) =>
   Effect.gen(function* () {
@@ -150,7 +139,7 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         artifactFormat: payload.artifactFormat,
       });
       const contentType = formatForContentType(payload.artifactFormat);
-      const checksumSha256Base64 = yield* sha256HexToBase64(payload.sha256);
+      const checksumSha256Base64 = yield* sha256HexToBase64(payload.sha256, "Build");
       const uploadUrl = yield* runtime.createUploadUrl({
         key: r2Key,
         expiresIn: UPLOAD_EXPIRY_SECONDS,
@@ -158,7 +147,7 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         checksumSha256Base64,
       });
 
-      const uploadExpiresAt = new Date(Date.now() + UPLOAD_EXPIRY_SECONDS * 1000).toISOString();
+      const uploadExpiresAt = uploadExpiresAtIso();
       const uploadHeaders = createDirectUploadHeaders({
         checksumSha256Base64,
         contentType,
@@ -228,7 +217,11 @@ const handleComplete = ({
         return yield* new NotFound({ message: "Build reservation not found or expired" });
       }
 
-      const reservation = yield* parseReservation(reservationJson);
+      const reservation = yield* parseReservation(
+        reservationJson,
+        ReservationSchema,
+        "Build reservation payload",
+      );
 
       yield* assertProjectOwnership(reservation.projectId);
       yield* assertAccess("build", "create", {
@@ -237,10 +230,7 @@ const handleComplete = ({
         buildId: path.id,
       });
 
-      if (
-        payload.sha256.toLowerCase() !== reservation.sha256 ||
-        payload.byteSize !== reservation.byteSize
-      ) {
+      if (!completionMatchesReservation(payload, reservation)) {
         return yield* new BadRequest({
           message: "Build completion payload does not match the reserved artifact metadata",
         });
@@ -345,11 +335,17 @@ const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
         buildId: path.id,
       });
 
+      // Collect debug-artifact keys BEFORE the delete — the rows cascade away
+      // with the build.
+      const debugRepo = yield* DebugArtifactRepo;
+      const debugKeys = yield* debugRepo.listR2KeysByBuildIds({ buildIds: [path.id] });
+
       const { r2Key } = yield* repo.deleteById({ id: path.id });
 
-      if (r2Key) {
+      const keysToDelete = [...(r2Key ? [r2Key] : []), ...debugKeys];
+      if (keysToDelete.length > 0) {
         const runtime = yield* BuildRuntime;
-        yield* runtime.deleteObjects({ keys: [r2Key] });
+        yield* runtime.deleteObjects({ keys: keysToDelete });
       }
 
       yield* logAudit({
@@ -440,5 +436,9 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
     .handle("get", handleGet)
     .handle("compatibilityMatrix", handleCompatibilityMatrix)
     .handle("delete", handleDelete)
-    .handle("getInstallLink", handleGetInstallLink),
+    .handle("getInstallLink", handleGetInstallLink)
+    .handle("reserveDebugArtifact", handleReserveDebugArtifact)
+    .handle("completeDebugArtifact", handleCompleteDebugArtifact)
+    .handle("listDebugArtifacts", handleListDebugArtifacts)
+    .handle("getDebugArtifactDownload", handleGetDebugArtifactDownload),
 );

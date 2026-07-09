@@ -4,8 +4,10 @@ import { Effect, Layer } from "effect";
 
 import { reapPatches, reapUpdates } from "../../src/application/ota-reaper";
 import { computeCutoff } from "../../src/domain/gc-utils";
+import { BuildStorageRepoLive } from "../../src/repositories/build-storage";
 import { BundleRepoLive } from "../../src/repositories/bundle";
 import { ChannelRepoLive } from "../../src/repositories/channels";
+import { DebugArtifactRepoLive } from "../../src/repositories/debug-artifacts";
 import { ProjectRepoLive } from "../../src/repositories/projects";
 import { UpdateRepoLive } from "../../src/repositories/updates";
 import { runWithLayerAndEnv } from "../helpers/runtime";
@@ -25,6 +27,8 @@ const ReaperLayer = Layer.mergeAll(
   ChannelRepoLive,
   UpdateRepoLive,
   BundleRepoLive,
+  DebugArtifactRepoLive,
+  BuildStorageRepoLive,
 );
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, never>) =>

@@ -90,6 +90,23 @@ export const findIosArtifact = ({
     return picked.path;
   });
 
+/**
+ * Optional variant of the finders above: newest file with `extension` under
+ * `root`, or `null` when nothing (recent enough) is there. Used for
+ * best-effort debug-artifact capture, where a missing output is normal
+ * (e.g. no ProGuard mapping when minification is off).
+ */
+export const findNewestFileUnder = (params: {
+  readonly root: string;
+  readonly extension: string;
+  readonly minMtimeMs?: number;
+}): Effect.Effect<string | null, PlatformError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const files = yield* walkAndFind(params.root, params.extension);
+    const picked = newest(files, params.minMtimeMs);
+    return picked ? picked.path : null;
+  });
+
 export interface FindArtifactByGlobOptions {
   readonly baseDir: string;
   /** A literal relative path, or a simple glob like `app/build/**\/*.aab` / `build/*.ipa`. */

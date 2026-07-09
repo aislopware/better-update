@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
@@ -7,7 +6,7 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError, UploadFailedError } from "../../lib/exit-codes";
-import { formatCause } from "../../lib/format-error";
+import { fetchBytes } from "../../lib/fetch-bytes";
 import {
   extractTarGz,
   extractZip,
@@ -35,26 +34,6 @@ const RUN_EXIT_EXTRAS = {
   NativeRunError: 6,
   InvalidArgumentError: 2,
 } as const;
-
-const fetchArtifact = (url: string): Effect.Effect<Buffer, UploadFailedError> =>
-  Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: async () => fetch(url),
-      catch: (cause) =>
-        new UploadFailedError({ message: `Failed to request artifact: ${formatCause(cause)}` }),
-    });
-    if (!response.ok) {
-      return yield* new UploadFailedError({
-        message: `HTTP ${String(response.status)} ${response.statusText}`,
-      });
-    }
-    const buffer = yield* Effect.tryPromise({
-      try: async () => response.arrayBuffer(),
-      catch: (cause) =>
-        new UploadFailedError({ message: `Failed to read artifact body: ${formatCause(cause)}` }),
-    });
-    return Buffer.from(buffer);
-  });
 
 const resolveBuild = (params: {
   readonly api: ApiClient;
@@ -279,7 +258,7 @@ export const runCommand = defineCommand({
           yield* printHuman(
             `Downloading ${artifact.format} artifact (${String(artifact.byteSize)} bytes)...`,
           );
-          const bytes = yield* fetchArtifact(link.artifactUrl);
+          const bytes = yield* fetchBytes(link.artifactUrl, "artifact");
           const fs = yield* FileSystem.FileSystem;
           yield* fs.writeFile(artifactPath, bytes);
 

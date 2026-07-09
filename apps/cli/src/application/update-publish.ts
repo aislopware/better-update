@@ -51,6 +51,7 @@ import type { BsdiffService } from "../services/bsdiff";
 import type { IdentityStore } from "../services/identity-store";
 import type { PatchUploader } from "../services/patch-uploader";
 import type { PresignedDownloadClient } from "../services/presigned-download";
+import type { PresignedUploadClient } from "../services/presigned-upload";
 import type { UpdateAssetUploader } from "../services/update-asset-uploader";
 import type { CodeSigningInput, PublishedPlatformResult } from "./update-publish-platform";
 
@@ -185,6 +186,7 @@ export const runUpdatePublish = (
   | BsdiffService
   | PatchUploader
   | PresignedDownloadClient
+  | PresignedUploadClient
   | ConfigStore
   | OutputMode
 > =>

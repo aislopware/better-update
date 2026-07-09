@@ -86,9 +86,15 @@ export const publishCommand = defineCommand({
       type: "boolean",
       description: "Disable Hermes bytecode compilation (emit raw JS)",
     },
+    // Positive flag with default on, so citty's built-in `--no-<flag>`
+    // negation wires up `--no-source-maps`. On Expo CLIs whose export command
+    // predates --source-maps the flag is auto-skipped with a warning (probe in
+    // lib/expo-export.ts) instead of failing the publish.
     "source-maps": {
       type: "boolean",
-      description: "Emit JavaScript source maps alongside bundles",
+      default: true,
+      description:
+        "Emit JavaScript source maps and store them with the update for crash symbolication (--no-source-maps to skip)",
     },
     "private-key-path": {
       type: "string",
@@ -155,7 +161,7 @@ export const publishCommand = defineCommand({
           skipBundler: args["skip-bundler"] ?? false,
           emitMetadata: args["emit-metadata"] ?? false,
           noBytecode: args["no-bytecode"] ?? false,
-          sourceMaps: args["source-maps"] ?? false,
+          sourceMaps: args["source-maps"],
           manifestBodyFile: args["manifest-body-file"],
           signatureFile: args["signature-file"],
           certificateChainFile: args["certificate-chain-file"],
@@ -173,7 +179,15 @@ export const publishCommand = defineCommand({
         yield* printHuman(`Published update group ${result.groupId} to branch "${result.branch}".`);
         yield* printHuman("");
         yield* printHumanTable(
-          ["Platform", "Update ID", "Runtime Version", "Uploaded", "Reused", "Patches"],
+          [
+            "Platform",
+            "Update ID",
+            "Runtime Version",
+            "Uploaded",
+            "Reused",
+            "Patches",
+            "Sourcemap",
+          ],
           result.results.map((entry) => [
             entry.platform,
             entry.updateId,
@@ -181,6 +195,7 @@ export const publishCommand = defineCommand({
             String(entry.uploadedAssets),
             String(entry.deduplicatedAssets),
             formatPatchesCell(entry.patches),
+            entry.sourcemapStored ? "stored" : "—",
           ]),
         );
         return result;

@@ -9,16 +9,20 @@ import { applyAndroidVersion } from "../../lib/android-version-sync";
 import { findAndroidArtifact, findArtifactByGlob } from "../../lib/artifact-finder";
 import { runBuildHook } from "../../lib/build-hooks";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
+import { collectAndroidDebugArtifacts } from "../../lib/debug-artifacts";
 import { BuildFailedError } from "../../lib/exit-codes";
+import { formatCause } from "../../lib/format-error";
 import { loadLocalAndroidCredentials } from "../../lib/local-credentials";
 import { sha256File } from "../../lib/sha256";
 import { capitalize } from "../../lib/string-utils";
 import { setAndroidUpdateChannel } from "../../lib/update-channel-native";
+import { printWarn } from "../../lib/warning-style";
 import { CliRuntime } from "../../services/cli-runtime";
 import { runStep } from "./run-step";
 
 import type { AndroidProfile, CredentialsSource } from "../../lib/build-profile";
 import type { AndroidBuildStrategy } from "../../lib/build-strategy";
+import type { CapturedDebugArtifact } from "../../lib/debug-artifacts";
 import type { CustomCommandSpec } from "../../lib/eas-config";
 import type { PackageManager } from "../../lib/project-staging";
 import type { ApiClient } from "../../services/api-client";
@@ -193,7 +197,20 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
     });
 
     const { sha256, byteSize } = yield* sha256File(artifactPath);
-    return { artifactPath, byteSize, sha256 };
+    // Best-effort: R8 mapping, RN sourcemap and NDK symbols only exist for
+    // some configurations — a capture failure never fails the build.
+    const debugArtifacts = yield* collectAndroidDebugArtifacts({
+      projectRoot: input.projectRoot,
+      module: moduleName,
+      minMtimeMs: buildStartMs,
+    }).pipe(
+      Effect.catchAll((cause) =>
+        printWarn(`Debug symbol capture skipped: ${formatCause(cause)}`).pipe(
+          Effect.as([] as readonly CapturedDebugArtifact[]),
+        ),
+      ),
+    );
+    return { artifactPath, byteSize, sha256, debugArtifacts };
   });
 
 /**
@@ -250,7 +267,12 @@ const runAndroidCustom = (input: RunAndroidBuildInput, commandEnv: Record<string
       minMtimeMs: buildStartMs,
     });
     const { sha256, byteSize } = yield* sha256File(artifactPath);
-    return { artifactPath, byteSize, sha256 };
+    return {
+      artifactPath,
+      byteSize,
+      sha256,
+      debugArtifacts: [] as readonly CapturedDebugArtifact[],
+    };
   });
 
 export const runAndroidBuild = (input: RunAndroidBuildInput) =>

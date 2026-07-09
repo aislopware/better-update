@@ -17,6 +17,7 @@
 // Pure type-only module: zero runtime, so it stays lint-clean (unlike the
 // generated `.d.ts`, which lint ignores by extension).
 
+import type { DebugArtifactType } from "../debug-artifact-models";
 import type {
   ArtifactFormat,
   AppleTeamType,
@@ -79,6 +80,9 @@ export type AuditLogs = WithNonNullId<
 >;
 export type Branches = WithNonNullId<Gen.Branches>;
 export type BuildArtifacts = WithNonNullId<Narrow<Gen.BuildArtifacts, { format: ArtifactFormat }>>;
+export type BuildDebugArtifacts = WithNonNullId<
+  Narrow<Gen.BuildDebugArtifacts, { type: DebugArtifactType }>
+>;
 export type Builds = WithNonNullId<
   Narrow<Gen.Builds, { distribution: Distribution; platform: Platform }>
 >;
@@ -136,6 +140,7 @@ export type Submissions = WithNonNullId<
 >;
 export type UpdateAssets = WithNonNullId<Gen.UpdateAssets>;
 export type Updates = WithNonNullId<Narrow<Gen.Updates, { platform: Platform }>>;
+export type UpdateSourcemaps = WithNonNullId<Gen.UpdateSourcemaps>;
 export type User = WithNonNullId<Gen.User>;
 export type UserEncryptionKeys = WithNonNullId<
   Narrow<Gen.UserEncryptionKeys, { kind: EncryptionKeyKind }>
@@ -165,6 +170,7 @@ export interface DB {
   audit_logs: AuditLogs;
   branches: Branches;
   build_artifacts: BuildArtifacts;
+  build_debug_artifacts: BuildDebugArtifacts;
   builds: Builds;
   channels: Channels;
   device_registration_requests: DeviceRegistrationRequests;
@@ -197,6 +203,7 @@ export interface DB {
   session: Session;
   submissions: Submissions;
   update_assets: UpdateAssets;
+  update_sourcemaps: UpdateSourcemaps;
   updates: Updates;
   user: User;
   user_encryption_keys: UserEncryptionKeys;

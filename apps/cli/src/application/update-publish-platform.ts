@@ -1,22 +1,19 @@
 import { randomUUID } from "node:crypto";
 
-import { fromHex, toBase64Url } from "@better-update/encoding";
 import { deriveScopeKey } from "@better-update/expo-protocol";
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { uniqBy } from "es-toolkit";
 
 import type { ManifestAssetData } from "@better-update/expo-protocol";
 import type { CommandExecutor, FileSystem } from "@effect/platform";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { UpdatePublishError } from "../lib/exit-codes";
-import { readExpoExportAssets, runExpoExport } from "../lib/expo-export";
+import { runExpoExportWithSourcemapProbe } from "../lib/expo-export";
 import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { printHuman } from "../lib/output";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
-import { sha256File, sha256Namespaced } from "../lib/sha256";
 import {
   assertSignedManifestBundleUrl,
   buildSignedPayloadFromRender,
@@ -25,6 +22,12 @@ import { apiClient } from "../services/api-client";
 import { ConfigStore } from "../services/config-store";
 import { UpdateAssetUploader } from "../services/update-asset-uploader";
 import { runPatchPhase } from "./update-patch-phase";
+import {
+  dedupeAssetsByHash,
+  dedupeAssetsByKey,
+  preparePlatformAssets,
+} from "./update-publish-assets";
+import { storeSourcemapBestEffort } from "./update-sourcemap-upload";
 
 import type { Platform } from "../lib/build-profile";
 import type {
@@ -42,6 +45,7 @@ import type { BsdiffService } from "../services/bsdiff";
 import type { CliRuntime } from "../services/cli-runtime";
 import type { PatchUploader } from "../services/patch-uploader";
 import type { PresignedDownloadClient } from "../services/presigned-download";
+import type { PresignedUploadClient } from "../services/presigned-upload";
 import type { PatchPhaseResult } from "./update-patch-phase";
 
 export interface PublishedPlatformResult {
@@ -57,17 +61,12 @@ export interface PublishedPlatformResult {
    * are visible rather than silently discarded.
    */
   readonly patches: PatchPhaseResult | null;
-}
-
-interface PreparedAsset {
-  readonly path: string;
-  readonly key: string;
-  readonly hash: string;
-  readonly contentChecksum: string;
-  readonly byteSize: number;
-  readonly contentType: string;
-  readonly fileExt: string;
-  readonly isLaunch: boolean;
+  /**
+   * Whether the launch bundle's sourcemap was stored with the update for
+   * later crash symbolication. `false` when `--source-maps=false`, the export
+   * produced no map, or the (best-effort) upload failed.
+   */
+  readonly sourcemapStored: boolean;
 }
 
 // `scopeKey` is appended LAST and omitted (via compact) when undefined so the
@@ -117,17 +116,6 @@ export const gitCreateFields = (
   ...compact({ gitCommit: git.commit }),
 });
 
-const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
-  uniqBy(assets, (asset) => asset.hash);
-
-// The create body is keyed server-side by `(update_id, asset_key)`. Expo names
-// exported assets by content hash, so a metadata entry repeated across the export
-// produces the same basename `key` twice; sending both would trip that primary
-// key and fail the publish. Dedupe by key (not hash) so distinct keys sharing one
-// content-addressed hash are preserved.
-const dedupeAssetsByKey = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
-  uniqBy(assets, (asset) => asset.key);
-
 /**
  * Record the per-platform fingerprint (matching EAS) so `fingerprint:compare`
  * lines up with the per-platform `fingerprint`-policy RTV. Best-effort: the hash
@@ -146,34 +134,6 @@ const resolvePlatformFingerprintHash = (
     Effect.map((result) => result.hash),
     Effect.orElseSucceed(() => undefined),
   );
-
-const preparePlatformAssets = ({
-  exportDir,
-  platform,
-}: {
-  readonly exportDir: string;
-  readonly platform: Platform;
-}): Effect.Effect<
-  readonly PreparedAsset[],
-  UpdatePublishError | BuildFailedError,
-  FileSystem.FileSystem
-> =>
-  Effect.gen(function* () {
-    const exportedAssets = yield* readExpoExportAssets({ exportDir, platform });
-    return yield* Effect.forEach(
-      exportedAssets,
-      (asset) =>
-        sha256File(asset.path).pipe(
-          Effect.map(({ sha256: contentSha256Hex, byteSize }) => ({
-            ...asset,
-            hash: sha256Namespaced(asset.contentType, contentSha256Hex),
-            contentChecksum: toBase64Url(fromHex(contentSha256Hex)),
-            byteSize,
-          })),
-        ),
-      { concurrency: 4 },
-    );
-  });
 
 /**
  * Code-signing input for the render+sign publish path. Carries the developer's
@@ -240,6 +200,7 @@ export const publishPlatform = (
   | BsdiffService
   | PatchUploader
   | PresignedDownloadClient
+  | PresignedUploadClient
   | ConfigStore
   | OutputMode
 > =>
@@ -267,7 +228,7 @@ export const publishPlatform = (
     );
 
     if (!params.skipBundler) {
-      yield* runExpoExport({
+      yield* runExpoExportWithSourcemapProbe({
         projectRoot: params.projectRoot,
         exportDir: params.exportDir,
         platform: params.platform,
@@ -457,29 +418,40 @@ export const publishPlatform = (
       );
 
     const launchAsset = preparedAssets.find((asset) => asset.isLaunch);
-    // Best-effort: bsdiff patches are an optimization. The full bundle is always
-    // served on a patch miss, so a patch failure must never fail the publish
-    // (mirrors runFingerprintFull). Errors are logged + swallowed → result null.
-    const patches =
-      params.noPatches || !launchAsset
-        ? null
-        : yield* runPatchPhase({
-            projectId: params.projectId,
-            branch: params.branch,
-            runtimeVersion,
-            platform: params.platform,
-            newUpdateId: update.id,
-            newLaunchPath: launchAsset.path,
-            workDir: params.patchWorkDir,
-            baseWindow: params.patchBaseWindow,
-            concurrency: 2,
-          }).pipe(
-            Effect.catchAll((cause) =>
-              printHuman(
-                `Patch generation skipped for ${params.platform}: ${formatCause(cause)}`,
-              ).pipe(Effect.as(null)),
+    // Both post-create phases are best-effort: the sourcemap is a debugging
+    // aid and bsdiff patches are an optimization (the full bundle is always
+    // served on a patch miss), so neither may fail the publish. Errors are
+    // logged + swallowed → false / null.
+    const [sourcemapStored, patches] = yield* Effect.all(
+      [
+        storeSourcemapBestEffort(api, {
+          enabled: params.sourceMaps,
+          platform: params.platform,
+          updateId: update.id,
+          bundlePath: launchAsset?.path,
+        }),
+        params.noPatches || !launchAsset
+          ? Effect.succeed<PatchPhaseResult | null>(null)
+          : runPatchPhase({
+              projectId: params.projectId,
+              branch: params.branch,
+              runtimeVersion,
+              platform: params.platform,
+              newUpdateId: update.id,
+              newLaunchPath: launchAsset.path,
+              workDir: params.patchWorkDir,
+              baseWindow: params.patchBaseWindow,
+              concurrency: 2,
+            }).pipe(
+              Effect.catchAll((cause) =>
+                printHuman(
+                  `Patch generation skipped for ${params.platform}: ${formatCause(cause)}`,
+                ).pipe(Effect.as(null)),
+              ),
             ),
-          );
+      ],
+      { concurrency: 2 },
+    );
 
     return {
       platform: params.platform,
@@ -488,5 +460,6 @@ export const publishPlatform = (
       uploadedAssets: assetRegistration.uploaded.length,
       deduplicatedAssets: assetRegistration.deduplicated.length,
       patches,
+      sourcemapStored,
     } as const satisfies PublishedPlatformResult;
   });

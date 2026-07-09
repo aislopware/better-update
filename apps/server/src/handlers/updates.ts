@@ -18,12 +18,19 @@ import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effe
 import { toApiPatchBaseCandidate } from "../http/to-api-patch";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
-import { BranchRepo, BundleRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
+import { BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
+import { handleDeleteGroup } from "./update-delete";
 import {
   prepareRepublishUpdates,
   resolveRepublishDestination,
   resolveRepublishSource,
 } from "./update-republish";
+import {
+  handleCompleteSourcemap,
+  handleGetSourcemap,
+  handleGetSourcemapDownload,
+  handleReserveSourcemap,
+} from "./update-sourcemaps";
 import { clampPatchBaseLimit, parseUpdateSort } from "./updates-helpers";
 import { assertAssetsExist, resolvePatchBaseBranchId } from "./updates-read-scope";
 
@@ -334,65 +341,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }),
       ),
     )
-    .handle("deleteGroup", ({ path }) =>
-      toApiBadRequestReadEffect(
-        Effect.gen(function* () {
-          const updateRepo = yield* UpdateRepo;
-          const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
-          if (updates.length === 0) {
-            return yield* new NotFound({ message: "Update group not found" });
-          }
-
-          // Verify ownership via branch -> project
-          const branchRepo = yield* BranchRepo;
-          const [firstUpdate] = updates;
-          if (!firstUpdate) {
-            return yield* new NotFound({ message: "Update group not found" });
-          }
-          const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
-          yield* assertProjectOwnership(branch.projectId);
-          // The branch name is the environment segment (per-env grants + the
-          // protected-env guard apply to destructive update removal).
-          yield* assertAccess("update", "delete", {
-            kind: "environment",
-            projectId: branch.projectId,
-            environment: branch.name,
-          });
-
-          // Route manual delete through the same orphan-aware asset cleanup the
-          // OTA reaper uses, so the two paths never diverge (the plain deleteGroup
-          // left assets/{hash} on R2). Only assets with zero surviving referrers
-          // are removed; shared assets are kept. Record referenced hashes BEFORE
-          // deleting update_assets, then test for orphans AFTER (a remaining
-          // referrer is then a genuine survivor).
-          const updateIds = updates.map((update) => update.id);
-          const referencedHashes = yield* updateRepo.findAssetHashesForUpdates({ updateIds });
-          const { updatesDeleted } = yield* updateRepo.deleteUpdateRows({ updateIds });
-
-          const orphanHashes = yield* updateRepo.findUnreferencedAssetHashes({
-            hashes: referencedHashes,
-          });
-          const orphanKeys = yield* updateRepo.findAssetR2KeysByHashes({ hashes: orphanHashes });
-
-          const bundleRepo = yield* BundleRepo;
-          yield* bundleRepo.deleteObjects({ keys: orphanKeys });
-          yield* updateRepo.deleteAssetRows({ hashes: orphanHashes });
-          const result = { deleted: updatesDeleted };
-
-          const channelRepo = yield* ChannelRepo;
-          yield* channelRepo.bumpCacheVersionByBranch({ branchId: firstUpdate.branchId });
-
-          yield* logAudit({
-            action: "update.delete",
-            resourceType: "update",
-            resourceId: path.groupId,
-            projectId: branch.projectId,
-          });
-
-          return result;
-        }),
-      ),
-    )
+    .handle("deleteGroup", handleDeleteGroup)
     .handle("republish", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
@@ -465,5 +414,9 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     )
     .handle("revertRollout", ({ path }) =>
       toApiBadRequestReadEffect(updateRolloutPercentage(path.id, 0)),
-    ),
+    )
+    .handle("reserveSourcemap", handleReserveSourcemap)
+    .handle("completeSourcemap", handleCompleteSourcemap)
+    .handle("getSourcemap", handleGetSourcemap)
+    .handle("getSourcemapDownload", handleGetSourcemapDownload),
 );

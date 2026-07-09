@@ -242,6 +242,16 @@ export interface BuildArtifacts {
   sha256: string;
 }
 
+export interface BuildDebugArtifacts {
+  build_id: string;
+  byte_size: number;
+  content_type: Generated<string>;
+  created_at: Generated<string>;
+  r2_key: string;
+  sha256: string;
+  type: string;
+}
+
 export interface Builds {
   app_version: string | null;
   build_number: string | null;
@@ -618,6 +628,14 @@ export interface Updates {
   signature: string | null;
 }
 
+export interface UpdateSourcemaps {
+  byte_size: number;
+  created_at: Generated<string>;
+  r2_key: string;
+  sha256: string;
+  update_id: string;
+}
+
 export interface User {
   approved: Generated<number>;
   ban_expires: string | null;
@@ -686,6 +704,7 @@ export interface DB {
   audit_logs: AuditLogs;
   branches: Branches;
   build_artifacts: BuildArtifacts;
+  build_debug_artifacts: BuildDebugArtifacts;
   builds: Builds;
   channels: Channels;
   device_registration_requests: DeviceRegistrationRequests;
@@ -718,6 +737,7 @@ export interface DB {
   session: Session;
   submissions: Submissions;
   update_assets: UpdateAssets;
+  update_sourcemaps: UpdateSourcemaps;
   updates: Updates;
   user: User;
   user_encryption_keys: UserEncryptionKeys;

@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -14,7 +14,18 @@ import {
 } from "../domain/build";
 import { BuildCompatibilityMatrixResult } from "../domain/build-compatibility";
 import { Id, idParam, pageResult } from "../domain/common";
+import {
+  BuildDebugArtifact,
+  CompleteDebugArtifactBody,
+  DebugArtifactType,
+  DebugDownloadResult,
+  DebugUploadReservation,
+  ListDebugArtifactsResult,
+  ReserveDebugArtifactBody,
+} from "../domain/debug-artifact";
 import { BadRequest, Conflict } from "../domain/errors";
+
+const debugTypeParam = HttpApiSchema.param("type", DebugArtifactType);
 
 export class BuildsGroup extends HttpApiGroup.make("builds")
   .add(
@@ -93,6 +104,51 @@ export class BuildsGroup extends HttpApiGroup.make("builds")
         OpenApi.annotations({
           title: "Get install link",
           description: "Generate a signed install link for a build artifact",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("reserveDebugArtifact")`/api/builds/${idParam}/debug-artifacts`
+      .setPayload(ReserveDebugArtifactBody)
+      .addSuccess(DebugUploadReservation, { status: 201 })
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Reserve debug artifact",
+          description:
+            "Get a presigned upload URL for a crash-symbolication artifact (dSYM, sourcemap, mapping) of a build",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("completeDebugArtifact")`/api/builds/${idParam}/debug-artifacts/complete`
+      .setPayload(CompleteDebugArtifactBody)
+      .addSuccess(BuildDebugArtifact)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Complete debug artifact",
+          description: "Finalize a debug artifact after upload",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("listDebugArtifacts")`/api/builds/${idParam}/debug-artifacts`
+      .addSuccess(ListDebugArtifactsResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List debug artifacts",
+          description: "List the crash-symbolication artifacts stored for a build",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get(
+      "getDebugArtifactDownload",
+    )`/api/builds/${idParam}/debug-artifacts/${debugTypeParam}/download`
+      .addSuccess(DebugDownloadResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download debug artifact",
+          description: "Get a short-lived presigned download URL for a debug artifact",
         }),
       ),
   )

@@ -126,6 +126,7 @@ better-update builds list [--platform <ios|android>] [--profile <name>] [--runti
                           [--sort <createdAt|platform|distribution|runtimeVersion|appVersion>] [--limit <n>=10]
 better-update builds get <id>
 better-update builds download <id> [--output <path>]          # download artifact; default ./<id>.<ext>
+better-update builds download-symbols <id> [--type <t>] [--output <dir>]  # download stored debug symbols
 better-update builds run [<id>] [--latest --platform <ios|android>] [--simulator <name|udid>] \
                          [--device-id <udid>] [--device] [--emulator <serial>] [--package <name>]
 better-update builds delete <id>
@@ -136,6 +137,15 @@ better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]
 ```
 
 - `builds list --sort` accepts a `-` prefix for descending (`-createdAt`).
+- `builds download-symbols` fetches the crash-symbolication files captured at build time. Types:
+  `dsym` (iOS debug symbols, zipped), `js-sourcemap` (sourcemap of the JS bundle embedded in the
+  binary), `proguard-mapping` (Android R8 `mapping.txt`), `native-symbols` (Android NDK
+  `native-debug-symbols.zip`). Without `--type` all stored types are downloaded as
+  `<build-id>-<type>.<ext>` into `--output` (default: current directory). Capture is automatic and
+  best-effort during `build` — a missing symbol file never fails a build; what was stored is shown
+  in the build summary (`Debug artifacts:` line) and on the dashboard build detail page. If the
+  build profile env sets `SOURCEMAP_FILE` (e.g. for a Sentry upload phase), the CLI respects it and
+  captures the embedded-bundle sourcemap from that path instead of overriding it.
 - `builds run` downloads the artifact and installs + launches it on a simulator/emulator or a real
   device. With no `<id>`, pass `--latest --platform <p>`. `--device` forces a real-device iOS install.
 - `builds install-link` returns `artifactUrl`, an iOS `installUrl` (an `itms-services://` manifest),

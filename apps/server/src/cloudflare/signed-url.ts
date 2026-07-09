@@ -50,6 +50,13 @@ export const generateDownloadUrl = async (
     readonly bucketName: string;
     readonly key: string;
     readonly expiresIn?: number;
+    /** Signed into the URL as `response-content-disposition` (R2 response override). */
+    readonly contentDisposition?: string;
   },
 ) =>
-  makeS3Client(env, params.bucketName).getPresignedUrl("GET", params.key, params.expiresIn ?? 900);
+  makeS3Client(env, params.bucketName).getPresignedUrl(
+    "GET",
+    params.key,
+    params.expiresIn ?? 900,
+    params.contentDisposition ? { "response-content-disposition": params.contentDisposition } : {},
+  );

@@ -4,6 +4,13 @@ import { Schema } from "effect";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { idParam, pageResult, UpdateRolloutBody } from "../domain/common";
+import {
+  CompleteSourcemapBody,
+  DebugDownloadResult,
+  DebugUploadReservation,
+  ReserveSourcemapBody,
+  UpdateSourcemap,
+} from "../domain/debug-artifact";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
@@ -123,6 +130,48 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
         OpenApi.annotations({
           title: "Complete per-update rollout",
           description: "End rollout — make update available to all devices",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("reserveSourcemap")`/api/updates/${idParam}/sourcemap`
+      .setPayload(ReserveSourcemapBody)
+      .addSuccess(DebugUploadReservation, { status: 201 })
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Reserve update sourcemap",
+          description: "Get a presigned upload URL for the JS bundle sourcemap of an update",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("completeSourcemap")`/api/updates/${idParam}/sourcemap/complete`
+      .setPayload(CompleteSourcemapBody)
+      .addSuccess(UpdateSourcemap)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Complete update sourcemap",
+          description: "Finalize an update sourcemap after upload",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("getSourcemap")`/api/updates/${idParam}/sourcemap`
+      .addSuccess(Schema.NullOr(UpdateSourcemap))
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Get update sourcemap",
+          description: "Fetch the stored sourcemap metadata for an update (null when absent)",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("getSourcemapDownload")`/api/updates/${idParam}/sourcemap/download`
+      .addSuccess(DebugDownloadResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download update sourcemap",
+          description: "Get a short-lived presigned download URL for an update sourcemap",
         }),
       ),
   )

@@ -5,6 +5,7 @@ import type {
   BuildAudience as BuildAudienceSchema,
   BuildSort as BuildSortSchema,
   BuildSortColumn as BuildSortColumnSchema,
+  DebugArtifactType as DebugArtifactTypeSchema,
   Distribution as DistributionSchema,
 } from "@better-update/api";
 
@@ -86,3 +87,20 @@ export const deleteBuild = async (id: string) =>
 
 export const fetchInstallLink = async (buildId: string) =>
   runApi((api) => api.builds.getInstallLink({ path: { id: buildId } }));
+
+export const buildDebugArtifactsQueryKey = (orgId: string, buildId: string) =>
+  ["org", orgId, "build", buildId, "debug-artifacts"] as const;
+
+export const buildDebugArtifactsQueryOptions = (orgId: string, buildId: string) =>
+  queryOptions({
+    queryKey: buildDebugArtifactsQueryKey(orgId, buildId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.builds.listDebugArtifacts({ path: { id: buildId } }), signal),
+    staleTime: 30_000,
+  });
+
+/** Short-lived presigned download URL for a stored debug artifact. */
+export const fetchDebugArtifactDownload = async (
+  buildId: string,
+  type: typeof DebugArtifactTypeSchema.Type,
+) => runApi((api) => api.builds.getDebugArtifactDownload({ path: { id: buildId, type } }));

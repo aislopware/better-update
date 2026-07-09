@@ -29,6 +29,8 @@ export interface BuildRuntimeService {
   readonly createDownloadUrl: (params: {
     readonly key: string;
     readonly expiresIn: number;
+    /** Force `attachment; filename=…` downloads for browser-opened URLs. */
+    readonly contentDisposition?: string;
   }) => Effect.Effect<string>;
   readonly putReservation: (params: {
     readonly id: string;
@@ -92,6 +94,7 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
           bucketName: env.BUILD_BUCKET_NAME,
           key: params.key,
           expiresIn: params.expiresIn,
+          ...(params.contentDisposition ? { contentDisposition: params.contentDisposition } : {}),
         }),
       );
     }),

@@ -13,6 +13,7 @@ import { revertCommand } from "./revert";
 import { revertRolloutCommand } from "./revert-rollout";
 import { rollbackCommand, rollBackToEmbeddedCommand } from "./rollback";
 import { rolloutCommand } from "./rollout";
+import { sourcemapCommand } from "./sourcemap";
 import { viewCommand } from "./view";
 
 export const updateCommand = defineCommand({
@@ -33,5 +34,6 @@ export const updateCommand = defineCommand({
     rollout: rolloutCommand,
     "revert-rollout": revertRolloutCommand,
     insights: insightsCommand,
+    sourcemap: sourcemapCommand,
   },
 });

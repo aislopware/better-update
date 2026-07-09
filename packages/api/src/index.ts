@@ -260,6 +260,18 @@ export {
   MissingRuntimeVersionBuild,
 } from "./domain/build-compatibility";
 export {
+  BuildDebugArtifact,
+  CompleteDebugArtifactBody,
+  CompleteSourcemapBody,
+  DebugArtifactType,
+  DebugDownloadResult,
+  DebugUploadReservation,
+  ListDebugArtifactsResult,
+  ReserveDebugArtifactBody,
+  ReserveSourcemapBody,
+  UpdateSourcemap,
+} from "./domain/debug-artifact";
+export {
   AdoptionParams,
   AdoptionResult,
   ChannelAnalyticsParams,

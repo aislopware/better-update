@@ -5,14 +5,22 @@ import { chunk, sum } from "es-toolkit";
 import { GC_BATCH_SIZE } from "../domain/gc-utils";
 import { isPatchReapEligible } from "../domain/ota-reaper";
 import { parsePatchKey } from "../lib/patch-key";
-import { BundleRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
+import {
+  BuildStorageRepo,
+  BundleRepo,
+  ChannelRepo,
+  DebugArtifactRepo,
+  ProjectRepo,
+  UpdateRepo,
+} from "../repositories";
 
 // OTA retention GC — multi-repo orchestration (Effect.gen, yields repositories/
 // ports only; no cloudflare/ concrete adapters, no env.* direct access). Two
 // composable programs the scheduled handler runs in sequence.
 //
-//   reapUpdates  — delete update rows + their orphaned R2 assets beyond the
-//                  UPDATE_RETENTION window, honoring the safety invariant.
+//   reapUpdates  — delete update rows + their orphaned R2 assets + their
+//                  private-bucket sourcemaps beyond the UPDATE_RETENTION
+//                  window, honoring the safety invariant.
 //   reapPatches  — sweep ASSETS_BUCKET `patches/` for orphaned/stale bsdiff
 //                  blobs (no D1 row) beyond the PATCH_RETENTION window.
 //
@@ -200,7 +208,15 @@ const reapOneBatch = (
     // Record the asset hashes these updates reference BEFORE deleting their
     // update_assets rows, so the post-loop orphan reconciliation can test them.
     const batchHashes = yield* updateRepo.findAssetHashesForUpdates({ updateIds: reapIds });
+    // Sourcemap keys must also be read BEFORE the delete (update_sourcemaps
+    // rows cascade away with the updates). The objects are per-update in the
+    // private builds bucket — never shared — so unlike assets they can be
+    // deleted right after the rows, with no orphan reconciliation.
+    const debugRepo = yield* DebugArtifactRepo;
+    const sourcemapKeys = yield* debugRepo.listSourcemapR2KeysByUpdateIds({ updateIds: reapIds });
     const { updatesDeleted } = yield* updateRepo.deleteUpdateRows({ updateIds: reapIds });
+    const buildStorageRepo = yield* BuildStorageRepo;
+    yield* buildStorageRepo.deleteObjects({ keys: sourcemapKeys });
 
     return {
       // Keep looping only if this batch fully consumed the candidate page; a

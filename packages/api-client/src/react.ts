@@ -6,11 +6,14 @@ export type { AuditLogsFilters } from "./react/audit-logs";
 export {
   buildCompatibilityMatrixQueryKey,
   buildCompatibilityMatrixQueryOptions,
+  buildDebugArtifactsQueryKey,
+  buildDebugArtifactsQueryOptions,
   buildQueryKey,
   buildQueryOptions,
   buildsQueryKey,
   buildsQueryOptions,
   deleteBuild,
+  fetchDebugArtifactDownload,
   fetchInstallLink,
 } from "./react/builds";
 export type {

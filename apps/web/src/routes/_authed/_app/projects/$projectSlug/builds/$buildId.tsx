@@ -1,6 +1,8 @@
 import {
   buildCompatibilityMatrixQueryOptions,
+  buildDebugArtifactsQueryOptions,
   buildQueryOptions,
+  fetchDebugArtifactDownload,
 } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/ui/badge";
@@ -20,12 +22,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { PackageXIcon } from "lucide-react";
 import { Suspense } from "react";
 
-import type { BuildWithArtifact } from "@better-update/api";
+import type { BuildDebugArtifact, BuildWithArtifact } from "@better-update/api";
 
 import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
 import { synthesizeBuildChannels } from "../-compatibility-join";
@@ -41,6 +43,7 @@ import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
 
@@ -197,6 +200,85 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
   </Card>
 );
 
+const DEBUG_ARTIFACT_LABELS: Record<BuildDebugArtifact["type"], string> = {
+  dsym: "iOS debug symbols (dSYM)",
+  "js-sourcemap": "JS bundle sourcemap",
+  "proguard-mapping": "R8/ProGuard mapping",
+  "native-symbols": "Android native symbols",
+};
+
+const DebugArtifactRow = ({
+  buildId,
+  artifact,
+}: {
+  buildId: string;
+  artifact: BuildDebugArtifact;
+}) => {
+  const download = useApiMutation({
+    mutationFn: async () => fetchDebugArtifactDownload(buildId, artifact.type),
+    onSuccess: ({ url }) => {
+      // Same-tab navigation: the presigned URL is signed with an attachment
+      // content-disposition, so this saves the file without leaving the page.
+      // (window.open here would run outside the click's user-gesture stack —
+      // after the await — and get popup-blocked on Safari by default.)
+      globalThis.location.assign(url);
+    },
+  });
+  return (
+    <div className="border-border/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="text-sm font-medium">{DEBUG_ARTIFACT_LABELS[artifact.type]}</span>
+        <Badge variant="secondary">{formatBytes(artifact.byteSize)}</Badge>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={download.isPending}
+        onClick={() => {
+          download.mutate();
+        }}
+      >
+        Download
+      </Button>
+    </div>
+  );
+};
+
+const DebugSymbolsCard = ({
+  buildId,
+  artifacts,
+}: {
+  buildId: string;
+  artifacts: readonly BuildDebugArtifact[];
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Debug symbols</CardTitle>
+      <CardDescription>
+        Crash-symbolication files captured at build time (downloads expire after 15 minutes).
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      {artifacts.length > 0 ? (
+        <div className="flex flex-col">
+          {artifacts.map((artifact) => (
+            <DebugArtifactRow
+              key={`${buildId}:${artifact.type}`}
+              buildId={buildId}
+              artifact={artifact}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          No debug symbols were stored for this build. Builds made with a current CLI capture dSYMs,
+          JS sourcemaps, and R8 mappings automatically.
+        </p>
+      )}
+    </CardContent>
+  </Card>
+);
+
 const RelatedChannelsCard = ({
   projectSlug,
   build,
@@ -334,10 +416,16 @@ const BuildDetailContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const projectId = project.id;
-  const { data: build } = useSuspenseQuery(buildQueryOptions(orgId, buildId));
-  const { data: compatibilityData } = useSuspenseQuery(
-    buildCompatibilityMatrixQueryOptions(orgId, projectId),
-  );
+  // One useSuspenseQueries call so all three requests start in parallel —
+  // sequential useSuspenseQuery hooks suspend one at a time and waterfall.
+  const [{ data: build }, { data: compatibilityData }, { data: debugArtifacts }] =
+    useSuspenseQueries({
+      queries: [
+        buildQueryOptions(orgId, buildId),
+        buildCompatibilityMatrixQueryOptions(orgId, projectId),
+        buildDebugArtifactsQueryOptions(orgId, buildId),
+      ],
+    });
 
   const buildWithChannels = synthesizeBuildChannels(build, compatibilityData);
 
@@ -352,6 +440,7 @@ const BuildDetailContent = () => {
         <ArtifactCard build={build} />
         <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
       </div>
+      <DebugSymbolsCard buildId={build.id} artifacts={debugArtifacts.items} />
       <BuildMetadataCard build={build} projectSlug={project.slug} />
     </>
   );

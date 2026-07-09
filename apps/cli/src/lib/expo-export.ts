@@ -8,8 +8,10 @@ import type { CommandExecutor } from "@effect/platform";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { BuildFailedError, UpdatePublishError } from "./exit-codes";
+import { printWarn } from "./warning-style";
 
 import type { Platform } from "./build-profile";
+import type { OutputMode } from "./output-mode";
 
 export interface ExportedUpdateAssetFile {
   readonly path: string;
@@ -211,6 +213,92 @@ export const runExpoExport = ({
       makeBunxCommand(...args).pipe(Command.workingDirectory(projectRoot), Command.env(commandEnv)),
       `expo export ${platform}`,
     );
+  });
+
+/**
+ * `--source-maps` only exists on newer @expo/cli versions, so probe `expo
+ * export --help` before passing the flag: sourcemap capture is best-effort by
+ * contract and must degrade to a skip on older SDKs instead of failing the
+ * whole publish on an unknown flag. An unreadable --help resolves to
+ * "supported" (the modern common case) — a real problem then surfaces from
+ * the export itself.
+ */
+const detectExpoExportSourceMapSupport = ({
+  projectRoot,
+  envVars,
+}: ReadExpoPublicConfigOptions): Effect.Effect<
+  boolean,
+  never,
+  CliRuntime | CommandExecutor.CommandExecutor
+> =>
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const commandEnv = yield* runtime.commandEnvironment(envVars);
+    const helpText = yield* Command.string(
+      makeBunxCommand("expo", "export", "--help").pipe(
+        Command.workingDirectory(projectRoot),
+        Command.env(commandEnv),
+      ),
+    ).pipe(Effect.orElseSucceed(() => null));
+    return helpText === null || helpText.includes("--source-maps");
+  });
+
+/**
+ * `runExpoExport`, but with the sourcemap flag downgraded (with a warning)
+ * when the project's Expo CLI does not know `--source-maps`. The publish path
+ * must use this variant — `--source-maps` defaults ON there, and an older SDK
+ * must lose the sourcemap, not the publish.
+ */
+export const runExpoExportWithSourcemapProbe = (
+  options: RunExpoExportOptions,
+): Effect.Effect<
+  void,
+  BuildFailedError,
+  CliRuntime | CommandExecutor.CommandExecutor | OutputMode
+> =>
+  Effect.gen(function* () {
+    const sourceMaps =
+      options.sourceMaps === true &&
+      (yield* detectExpoExportSourceMapSupport({
+        projectRoot: options.projectRoot,
+        envVars: options.envVars,
+      }));
+    if (options.sourceMaps === true && !sourceMaps) {
+      yield* printWarn(
+        `This project's expo export does not support --source-maps; skipping sourcemap capture for ${options.platform}.`,
+      );
+    }
+    yield* runExpoExport({ ...options, sourceMaps });
+  });
+
+/**
+ * Locate the sourcemap `expo export --source-maps` wrote for the launch
+ * bundle. Metro names it after the bundle (`<bundle>.map` or the bundle path
+ * with its extension swapped for `.map`), so exactly those two candidates are
+ * tried — a looser "any .map in the directory" fallback could silently pick a
+ * stale map from a reused export dir and poison later symbolication. Returns
+ * `null` when the export produced no map (flag off, older CLI) — capture is
+ * best-effort.
+ */
+export const findExportedSourcemap = ({
+  bundlePath,
+}: {
+  readonly bundlePath: string;
+}): Effect.Effect<string | null, never, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const exists = (candidate: string) =>
+      fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
+
+    const appended = `${bundlePath}.map`;
+    if (yield* exists(appended)) {
+      return appended;
+    }
+    const swapped = bundlePath.replace(/\.[^./]+$/u, ".map");
+    if (swapped !== bundlePath && (yield* exists(swapped))) {
+      return swapped;
+    }
+    return null;
   });
 
 export const readExpoExportAssets = ({

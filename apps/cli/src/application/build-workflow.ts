@@ -6,6 +6,7 @@ import { Effect, Either } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { runStep } from "../commands/build/run-step";
+import { uploadDebugArtifacts } from "../commands/build/upload-debug-artifacts";
 import { applyAutoIncrement } from "../lib/auto-increment";
 import { runBuildHook } from "../lib/build-hooks";
 import { readBuildProfile } from "../lib/build-profile";
@@ -458,6 +459,17 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         }),
       });
 
+      // Best-effort: attach the captured crash-symbolication files (dSYM,
+      // JS sourcemap, R8 mapping, NDK symbols) to the build record so a
+      // future crash can be symbolicated by downloading them again.
+      const storedDebugArtifacts =
+        build.debugArtifacts.length === 0
+          ? []
+          : yield* uploadDebugArtifacts(api, {
+              buildId: result.id,
+              artifacts: build.debugArtifacts,
+            });
+
       yield* printHuman("");
       yield* printKeyValue([
         ["Build ID", result.id],
@@ -468,6 +480,10 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         ["Artifact", build.artifactPath],
         ["SHA-256", build.sha256],
         ["Bytes", String(build.byteSize)],
+        [
+          "Debug artifacts",
+          storedDebugArtifacts.length === 0 ? "none" : storedDebugArtifacts.join(", "),
+        ],
       ]);
 
       if (options.autoSubmit === true) {

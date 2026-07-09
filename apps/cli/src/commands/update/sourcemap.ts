@@ -13,16 +13,16 @@ import { CliRuntime } from "../../services/cli-runtime";
 
 const EXIT_EXTRAS = { UploadFailedError: 7 } as const;
 
-export const downloadCommand = defineCommand({
+export const sourcemapCommand = defineCommand({
   meta: {
-    name: "download",
-    description: "Download the artifact for a build (.ipa/.apk/.aab) to a local path",
+    name: "sourcemap",
+    description: "Download the stored JS bundle sourcemap of an update for crash symbolication",
   },
   args: {
-    id: { type: "positional", required: true, description: "Build ID" },
+    id: { type: "positional", required: true, description: "Update ID" },
     output: {
       type: "string",
-      description: "Output path (default: ./<id>.<ext> inferred from artifact format)",
+      description: "Output path (default: ./<update-id>.map)",
     },
   },
   run: async ({ args }) =>
@@ -33,24 +33,24 @@ export const downloadCommand = defineCommand({
         const runtime = yield* CliRuntime;
         const cwd = yield* runtime.cwd;
 
-        const build = yield* api.builds.get({ path: { id: args.id } });
-        const { artifact } = build;
-        if (!artifact) {
-          return yield* new UploadFailedError({
-            message: `Build ${args.id} has no artifact yet.`,
-          });
-        }
-
-        const link = yield* api.builds.getInstallLink({ path: { id: args.id } });
-        const ext = artifact.format;
-        const outputPath = args.output ?? path.join(cwd, `${args.id}.${ext}`);
-
-        const bytes = yield* fetchBytes(link.artifactUrl, "artifact");
+        // The download endpoint's NotFound already covers both "no such
+        // update" and "update has no sourcemap" — no need for a separate
+        // existence pre-check round trip.
+        const download = yield* api.updates.getSourcemapDownload({ path: { id: args.id } }).pipe(
+          Effect.catchTag(
+            "NotFound",
+            () =>
+              new UploadFailedError({
+                message: `Update ${args.id} was not found or has no stored sourcemap. Publish with --source-maps (on by default in current CLIs) to capture one.`,
+              }),
+          ),
+        );
+        const bytes = yield* fetchBytes(download.url, "sourcemap");
+        const outputPath = path.resolve(cwd, args.output ?? `${args.id}.map`);
         yield* fs.writeFile(outputPath, bytes);
 
         yield* printKeyValue([
           ["Path", outputPath],
-          ["Format", ext],
           ["Size", `${String(bytes.byteLength)} bytes`],
         ]);
       }),

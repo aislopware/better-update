@@ -18,12 +18,14 @@ import { sha256File } from "../../lib/sha256";
 import { discoverSignedTargets, pickMainTarget } from "../../lib/xcode-targets";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
+import { collectIosDebugArtifacts } from "./ios-debug-artifacts";
 import { findAppDirectory, prepareIosNative, resolveXcodeContainer } from "./ios-prepare";
 import { runStep, runStepFormatted } from "./run-step";
 
 import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
 import type { IosBuildStrategy } from "../../lib/build-strategy";
 import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials-downloader";
+import type { CapturedDebugArtifact } from "../../lib/debug-artifacts";
 import type { CustomCommandSpec } from "../../lib/eas-config";
 import type { TargetVersionSettings } from "../../lib/ios-codesign-pbxproj";
 import type { PackageManager } from "../../lib/project-staging";
@@ -130,7 +132,12 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
     );
 
     const { sha256, byteSize } = yield* sha256File(archivePath);
-    return { artifactPath: archivePath, byteSize, sha256 };
+    return {
+      artifactPath: archivePath,
+      byteSize,
+      sha256,
+      debugArtifacts: [] as readonly CapturedDebugArtifact[],
+    };
   });
 
 // ── multi-target credentials + signing helpers ────────────────────
@@ -303,6 +310,14 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     yield* applyTargetSigning({ iosDir, entries: signingEntries });
 
     const archivePath = path.join(tempDir, "build.xcarchive");
+    // The RN/Expo "Bundle React Native code and images" build phase honours
+    // SOURCEMAP_FILE from the xcodebuild environment: it emits the sourcemap
+    // of the JS bundle embedded in the binary. Non-RN projects ignore it.
+    // A user-configured SOURCEMAP_FILE (e.g. a Sentry symbol-upload phase
+    // reads it from the profile env) wins — capture then reads from THEIR
+    // path instead of clobbering it with a CLI temp path.
+    const embeddedSourcemapPath =
+      commandEnv["SOURCEMAP_FILE"] ?? path.join(tempDir, "main.jsbundle.map");
     const archiveCmd: RunStepCommand = {
       command: "xcodebuild",
       args: [
@@ -317,7 +332,7 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
         "archive",
       ],
       cwd: iosDir,
-      env: commandEnv,
+      env: { ...commandEnv, SOURCEMAP_FILE: embeddedSourcemapPath },
     };
 
     const formatter = input.rawOutput ? undefined : createXcodebuildFormatter(projectRoot);
@@ -382,7 +397,14 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     const artifactPath = yield* findIosArtifact({ exportPath });
     const { sha256, byteSize } = yield* sha256File(artifactPath);
 
-    return { artifactPath, byteSize, sha256 };
+    const debugArtifacts = yield* collectIosDebugArtifacts({
+      archivePath,
+      tempDir,
+      embeddedSourcemapPath,
+      commandEnv,
+    });
+
+    return { artifactPath, byteSize, sha256, debugArtifacts };
   });
 
 /**
@@ -444,7 +466,12 @@ const runIosCustom = (input: RunIosBuildInput) =>
       minMtimeMs: buildStartMs,
     });
     const { sha256, byteSize } = yield* sha256File(artifactPath);
-    return { artifactPath, byteSize, sha256 };
+    return {
+      artifactPath,
+      byteSize,
+      sha256,
+      debugArtifacts: [] as readonly CapturedDebugArtifact[],
+    };
   });
 
 export const runIosBuild = (input: RunIosBuildInput) => {

@@ -35,30 +35,30 @@ Typical output:
 
 ## All `update publish` flags
 
-| Flag                                    | Default      | Notes                                                                                                                                          |
-| --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--branch <name>`                       | —            | Target branch. Must already exist.                                                                                                             |
-| `--channel <name>`                      | —            | Route via a channel name (resolves to its branch) instead of `--branch`.                                                                       |
-| `--platform <ios\|android\|all>`        | `all`        | Restrict the publish to one platform.                                                                                                          |
-| `--message <text>`                      | —            | Free-form description. Shows in the console + audit log.                                                                                       |
-| `--environment <name>`                  | `production` | Which env-var environment to inject during export (default from `--profile`).                                                                  |
-| `--profile <name>`                      | —            | eas.json build profile: its `environment` picks the scope and its `env` block overlays the server vars (profile wins) — same merge as `build`. |
-| `--auto`                                | off          | Skip all interactive prompts (use in CI).                                                                                                      |
-| `--clear`                               | off          | Drop existing assets before upload (full re-upload).                                                                                           |
-| `--rollout-percentage <1-100>`          | —            | Initial update-level rollout. Omit for 100%.                                                                                                   |
-| `--input-dir <path>`                    | —            | Publish a pre-built `expo export` dir (pair with `--skip-bundler`).                                                                            |
-| `--skip-bundler`                        | off          | Don't run `expo export`; requires `--input-dir`.                                                                                               |
-| `--emit-metadata`                       | off          | Write `eas-update-metadata.json` after publishing.                                                                                             |
-| `--no-bytecode`                         | off          | Disable Hermes bytecode (emit raw JS).                                                                                                         |
-| `--source-maps`                         | off          | Emit JS source maps.                                                                                                                           |
-| `--private-key-path <path>`             | —            | RSA PEM to code-sign the rendered manifest (reads the cert from `app.json`).                                                                   |
-| `--allow-dirty`                         | off          | Proceed with uncommitted git changes.                                                                                                          |
-| `--patch-base-window <n>`               | `10`         | Max recent updates to bsdiff-patch against (`0` = embedded baseline only).                                                                     |
-| `--no-patches`                          | off          | Skip bsdiff patch generation (on by default).                                                                                                  |
-| `--manifest-body-file <path>`           | —            | Pre-built signed manifest body (both platforms).                                                                                               |
-| `--signature-file <path>`               | —            | Pre-built signature for the manifest body.                                                                                                     |
-| `--certificate-chain-file <path>`       | —            | Cert chain that signed it.                                                                                                                     |
-| `--manifest-body-file-ios` / `-android` | —            | Per-platform override (same trio of `*-file-{ios,android}`).                                                                                   |
+| Flag                                    | Default      | Notes                                                                                                                                                                                                       |
+| --------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--branch <name>`                       | —            | Target branch. Must already exist.                                                                                                                                                                          |
+| `--channel <name>`                      | —            | Route via a channel name (resolves to its branch) instead of `--branch`.                                                                                                                                    |
+| `--platform <ios\|android\|all>`        | `all`        | Restrict the publish to one platform.                                                                                                                                                                       |
+| `--message <text>`                      | —            | Free-form description. Shows in the console + audit log.                                                                                                                                                    |
+| `--environment <name>`                  | `production` | Which env-var environment to inject during export (default from `--profile`).                                                                                                                               |
+| `--profile <name>`                      | —            | eas.json build profile: its `environment` picks the scope and its `env` block overlays the server vars (profile wins) — same merge as `build`.                                                              |
+| `--auto`                                | off          | Skip all interactive prompts (use in CI).                                                                                                                                                                   |
+| `--clear`                               | off          | Drop existing assets before upload (full re-upload).                                                                                                                                                        |
+| `--rollout-percentage <1-100>`          | —            | Initial update-level rollout. Omit for 100%.                                                                                                                                                                |
+| `--input-dir <path>`                    | —            | Publish a pre-built `expo export` dir (pair with `--skip-bundler`).                                                                                                                                         |
+| `--skip-bundler`                        | off          | Don't run `expo export`; requires `--input-dir`.                                                                                                                                                            |
+| `--emit-metadata`                       | off          | Write `eas-update-metadata.json` after publishing.                                                                                                                                                          |
+| `--no-bytecode`                         | off          | Disable Hermes bytecode (emit raw JS).                                                                                                                                                                      |
+| `--source-maps`                         | **on**       | Emit JS source maps and store the launch bundle's map with the update for crash symbolication (`--no-source-maps` to skip). Auto-skipped with a warning on Expo CLIs whose `expo export` predates the flag. |
+| `--private-key-path <path>`             | —            | RSA PEM to code-sign the rendered manifest (reads the cert from `app.json`).                                                                                                                                |
+| `--allow-dirty`                         | off          | Proceed with uncommitted git changes.                                                                                                                                                                       |
+| `--patch-base-window <n>`               | `10`         | Max recent updates to bsdiff-patch against (`0` = embedded baseline only).                                                                                                                                  |
+| `--no-patches`                          | off          | Skip bsdiff patch generation (on by default).                                                                                                                                                               |
+| `--manifest-body-file <path>`           | —            | Pre-built signed manifest body (both platforms).                                                                                                                                                            |
+| `--signature-file <path>`               | —            | Pre-built signature for the manifest body.                                                                                                                                                                  |
+| `--certificate-chain-file <path>`       | —            | Cert chain that signed it.                                                                                                                                                                                  |
+| `--manifest-body-file-ios` / `-android` | —            | Per-platform override (same trio of `*-file-{ios,android}`).                                                                                                                                                |
 
 The `*-file-{ios,android}` variants exist when you want a different signed payload per platform.
 
@@ -107,7 +107,12 @@ signed payload.
 better-update update list --branch main --platform ios --limit 20 --offset 1   # paginated list
 better-update update view <updateId>                                           # one update: branch, platform, runtime, rollout %, rollback?, message
 better-update update edit [groupId] --rollout-percentage 50                     # set the rollout % for a whole group (interactive picker if no id)
+better-update update sourcemap <updateId> [--output <path>]                     # download the stored JS sourcemap (default ./<updateId>.map)
 ```
+
+`update sourcemap` downloads the sourcemap stored at publish time (see `--source-maps`, on by
+default) so a crash from an OTA-updated app can be symbolicated. Storage is best-effort: a publish
+made with `--no-source-maps` (or an older CLI) has none.
 
 `update list` shows size, R2 keys, signing status, and (where wired) install counts. The web console
 mirror is **Project → Updates**.

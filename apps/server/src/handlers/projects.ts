@@ -8,6 +8,7 @@ import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { assertAccess } from "../auth/policy";
 import { AssetStorage } from "../cloudflare/asset-storage";
+import { BuildRuntime } from "../cloudflare/build-runtime";
 import { cloudflareEnv } from "../cloudflare/context";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { BadRequest, Forbidden } from "../errors";
@@ -113,6 +114,34 @@ const setLogoEffect = (id: string) =>
       return toApiProject({ ...project, logoUrl });
     }),
   );
+
+// The private builds bucket holds per-project objects whose D1 rows cascade
+// away with the project (build artifacts + debug symbols under builds/…,
+// update sourcemaps under sourcemaps/…). Their keys embed org + project ids,
+// so sweep the two prefixes BEFORE the row delete — afterwards no remaining
+// GC can rediscover them and the objects would leak forever.
+const purgeProjectBuildStorage = (organizationId: string, projectId: string) =>
+  Effect.gen(function* () {
+    const runtime = yield* BuildRuntime;
+    yield* Effect.forEach(
+      [`builds/${organizationId}/${projectId}/`, `sourcemaps/${organizationId}/${projectId}/`],
+      (prefix) =>
+        Effect.iterate(true, {
+          while: (hasMore) => hasMore,
+          // Deleting invalidates list cursors, so re-list from the start of
+          // the prefix each round until a non-truncated page is reached.
+          body: () =>
+            Effect.gen(function* () {
+              const listed = yield* runtime.listObjects({ prefix });
+              yield* runtime.deleteObjects({
+                keys: listed.objects.map((object) => object.key),
+              });
+              return listed.truncated;
+            }),
+        }),
+      { concurrency: 1 },
+    );
+  });
 
 const removeLogoEffect = (id: string) =>
   toApiCrudEffect(
@@ -356,6 +385,9 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           const project = yield* projectRepo.findById({ id: path.id });
           yield* assertOrgOwnership(project.organizationId);
           yield* assertAccess("project", "delete", { kind: "project", projectId: path.id });
+          yield* purgeProjectBuildStorage(project.organizationId, path.id);
+          const storage = yield* AssetStorage;
+          yield* storage.deleteObjects({ keys: [logoR2Key(path.id)] });
           yield* projectRepo.delete({ id: path.id });
 
           yield* logAudit({
