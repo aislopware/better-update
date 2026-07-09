@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.42.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.41.0...%40better-update%2Fapi%400.42.0) (2026-07-09)
+
+### Features
+
+* **credentials:** org-wide all-projects bindings and compact project chips ([4ee6da8](https://gitlab.jmango360.com/mobile/better-update/commit/4ee6da8fa08dd47181c4dd44c47c1bc4f8356eba))
+
 ## [0.41.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.40.1...%40better-update%2Fapi%400.41.0) (2026-07-08)
 
 ### Features

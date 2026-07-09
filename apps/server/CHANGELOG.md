@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.51.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.50.0...%40better-update%2Fserver%400.51.0) (2026-07-09)
+
+### Features
+
+* **credentials:** org-wide all-projects bindings and compact project chips ([4ee6da8](https://github.com/better-update/better-update/commit/4ee6da8fa08dd47181c4dd44c47c1bc4f8356eba))
+
 ## [0.50.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.49.1...%40better-update%2Fserver%400.50.0) (2026-07-08)
 
 ### Features
