@@ -1,3 +1,7 @@
+/* @vitest-environment jsdom */
+// A successful unlock caches the vault key in `sessionStorage`. The `unit` project
+// runs in the Node/Bun runtime (no DOM globals), so opt this file into jsdom for a
+// real `sessionStorage` — see `step-up.test.ts` for the same fix.
 import {
   generateAccountKey,
   generateIdentity,
