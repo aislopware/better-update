@@ -254,9 +254,7 @@ const DebugSymbolsCard = ({
   <Card>
     <CardHeader>
       <CardTitle>Debug symbols</CardTitle>
-      <CardDescription>
-        Crash-symbolication files captured at build time (downloads expire after 15 minutes).
-      </CardDescription>
+      <CardDescription>Files captured during the build to help diagnose crashes.</CardDescription>
     </CardHeader>
     <CardContent>
       {artifacts.length > 0 ? (
