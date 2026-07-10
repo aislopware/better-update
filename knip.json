@@ -8,9 +8,7 @@
         "@tanstack/eslint-plugin-router",
         "@tanstack/react-query",
         "@tanstack/react-router",
-        "@typescript/native-preview",
         "conventional-changelog-conventionalcommits",
-        "eslint-plugin-functional",
         "oxlint-plugin-eslint",
         "type-fest"
       ]

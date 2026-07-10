@@ -6,7 +6,8 @@
   "exports": {
     "./base": "./src/base.ts",
     "./cli": "./src/cli.ts",
-    "./react": "./src/react.ts"
+    "./react": "./src/react.ts",
+    "./functional-plugin": "./src/functional-plugin.mjs"
   },
   "peerDependencies": {
     "oxlint": "^1.73.0"

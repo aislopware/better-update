@@ -11,7 +11,12 @@ export default defineConfig({
     nursery: "warn",
   },
   plugins: ["typescript", "unicorn", "oxc", "import", "vitest", "jsdoc", "node", "promise"],
-  jsPlugins: ["eslint-plugin-functional", { name: "eslint-js", specifier: "oxlint-plugin-eslint" }],
+  jsPlugins: [
+    // In-house port of the eslint-plugin-functional rules (see functional-plugin.mjs):
+    // upstream needs the TS 5/6 compiler API, which no longer exists under TypeScript 7.
+    "@better-update/oxlint-config/functional-plugin",
+    { name: "eslint-js", specifier: "oxlint-plugin-eslint" },
+  ],
   rules: {
     "eslint-js/no-restricted-syntax": [
       "error",
@@ -65,7 +70,6 @@ export default defineConfig({
     "promise/spec-only": "off",
     "promise/valid-params": "off",
 
-    "functional/immutable-data": "off",
     "functional/no-let": "warn",
     "functional/no-loop-statements": "warn",
     "functional/no-promise-reject": "warn",
