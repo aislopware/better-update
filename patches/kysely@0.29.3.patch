@@ -1,5 +1,5 @@
 diff --git a/dist/index.js b/dist/index.js
-index 702f0e272d665fdc6cd1dd2c98f4c06cf9506f76..ed3585c72b783f475607e9da3d457177aaf1e701 100644
+index 702f0e272d665fdc6cd1dd2c98f4c06cf9506f76..62c1be99124a72c3dc6e111956f3b19de4bc85b0 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -198,3 +198,8 @@ export * from './util/compilable.js';
@@ -7,7 +7,7 @@ index 702f0e272d665fdc6cd1dd2c98f4c06cf9506f76..ed3585c72b783f475607e9da3d457177
  export { logOnce } from './util/log-once.js';
  export { createQueryId } from './util/query-id.js';
 +// PATCH: kysely 0.29 dropped these two named re-exports from the barrel, but
-+// @better-auth/kysely-adapter@1.6.14 still imports them by name, so the worker
++// @better-auth/kysely-adapter still imports them by name, so the worker
 +// bundle (wrangler/esbuild) fails to resolve them. Restore the re-export from
 +// kysely's own migrator module (canonical values, unchanged since 0.28).
 +export { DEFAULT_MIGRATION_TABLE, DEFAULT_MIGRATION_LOCK_TABLE } from './migration/migrator.js';
