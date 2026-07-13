@@ -13,6 +13,16 @@ import { routeTree } from "./routeTree.gen";
 const apiBaseUrl: string = import.meta.env.VITE_API_URL ?? "";
 configureApiBaseUrl(apiBaseUrl);
 
+if (typeof document !== "undefined") {
+  // A tab opened before a deploy can request route chunks the new deploy
+  // deleted; reload to pick up the current build instead of surfacing a
+  // chunk-load error.
+  globalThis.addEventListener("vite:preloadError", (event) => {
+    event.preventDefault();
+    globalThis.location.reload();
+  });
+}
+
 const formatError = (error: unknown): string => {
   if (error instanceof Error) {
     return error.stack ?? `${error.name}: ${error.message}`;

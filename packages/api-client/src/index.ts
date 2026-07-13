@@ -37,7 +37,18 @@ export const runApi = async <Success, Failure>(
       Effect.scoped,
     ),
     signal ? { signal } : undefined,
-  );
+  )
+    // Rejections must always be real Errors: a falsy reject (e.g. an aborted
+    // fetch racing a route transition) slips past truthy `if (error)` checks
+    // in TanStack Router/Query and blanks the page. FiberFailure is an Error,
+    // so typed API failures pass through untouched for getTypedApiError.
+    // eslint-disable-next-line promise/prefer-await-to-then -- runApi is the Promise boundary for TanStack Query; .catch keeps the expression form
+    .catch((error: unknown) => {
+      // eslint-disable-next-line functional/no-throw-statements -- rejection is TanStack Query's error channel; coerce non-Error rejects so CatchBoundary's truthy check renders
+      throw error instanceof Error
+        ? error
+        : new Error("API request failed with a non-Error value", { cause: error });
+    });
 
 /**
  * Extracts a typed API error from an Effect FiberFailure.

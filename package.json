@@ -66,6 +66,7 @@
   },
   "packageManager": "bun@1.3.13",
   "patchedDependencies": {
-    "kysely@0.29.2": "patches/kysely@0.29.2.patch"
+    "kysely@0.29.2": "patches/kysely@0.29.2.patch",
+    "@tanstack/react-router@1.170.17": "patches/@tanstack%2Freact-router@1.170.17.patch"
   }
 }
