@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.64.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.64.0...%40better-update%2Fweb%400.64.1) (2026-07-13)
+
+### Bug Fixes
+
+* **web:** clarify debug symbols description ([87745a0](https://github.com/better-update/better-update/commit/87745a0539bea47fb6239f49e42f951a93fac9a2))
+* **web:** recover from TanStack Router undefined-throw white pages ([9159aab](https://github.com/better-update/better-update/commit/9159aab900979286c009cfcc40d8971c744719bb)), references [TanStack/router#7741](https://github.com/TanStack/router/issues/7741)
+
 ## [0.64.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.63.0...%40better-update%2Fweb%400.64.0) (2026-07-09)
 
 ### Features

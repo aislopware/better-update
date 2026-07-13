@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.32.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.32.0...%40better-update%2Fapi-client%400.32.1) (2026-07-13)
+
+### Bug Fixes
+
+* **web:** recover from TanStack Router undefined-throw white pages ([9159aab](https://gitlab.jmango360.com/mobile/better-update/commit/9159aab900979286c009cfcc40d8971c744719bb)), references [TanStack/router#7741](https://gitlab.jmango360.com/TanStack/router/issues/7741)
+
 ## [0.32.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.31.0...%40better-update%2Fapi-client%400.32.0) (2026-07-09)
 
 ### Features
