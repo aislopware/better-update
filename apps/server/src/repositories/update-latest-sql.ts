@@ -48,6 +48,7 @@ export const queryLatestLaunchAssetHash = (
         .where("updates.platform", "=", params.platform)
         .where("updates.runtime_version", "=", params.runtimeVersion)
         .where("updates.is_rollback", "=", 0)
+        .where("updates.is_embedded", "=", 0)
         .orderBy("updates.created_at", "desc")
         .orderBy("updates.id", "desc")
         .limit(1)
@@ -75,6 +76,9 @@ export const queryLatestServedRow = (
         .where("branch_id", "=", params.branchId)
         .where("platform", "=", params.platform)
         .where("runtime_version", "=", params.runtimeVersion)
+        // Embedded baselines are never served, so they must not anchor the
+        // clock-skew guard either.
+        .where("is_embedded", "=", 0)
         .orderBy("created_at", "desc")
         .orderBy("id", "desc")
         .limit(1)

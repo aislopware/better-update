@@ -167,6 +167,7 @@ const update = {
   fingerprintHash: null,
   gitCommit: null,
   gitDirty: false,
+  isEmbedded: false,
   totalAssetSize: 0,
   createdAt: "2026-01-02T00:00:00Z",
 } satisfies Update;

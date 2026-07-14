@@ -32,6 +32,9 @@ export class Update extends Schema.Class<Update>("Update")({
   // flags an uncommitted working tree (false when clean or unknown).
   gitCommit: Schema.NullOr(Schema.String),
   gitDirty: Schema.Boolean,
+  // True for embedded-baseline registrations (bsdiff patch bases baked into a
+  // native build) — never served as OTA updates and excluded from plain lists.
+  isEmbedded: Schema.Boolean,
   totalAssetSize: Schema.Number,
   createdAt: DateTimeString,
 }) {}
@@ -52,6 +55,8 @@ export const ListUpdatesParams = Schema.Struct({
   runtimeVersion: Schema.optional(Schema.String),
   // Case-insensitive substring match on the publish message or git commit SHA.
   query: Schema.optional(Schema.String),
+  // Omitted/false = published updates only; true = embedded baselines only.
+  isEmbedded: Schema.optional(Schema.BooleanFromString),
   ...PaginationParams.fields,
   sort: Schema.optional(UpdateSort),
 });

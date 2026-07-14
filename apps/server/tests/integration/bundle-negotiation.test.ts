@@ -510,4 +510,62 @@ describe("manifest still serves a full bundle through the worker route", () => {
     expect(bundleResponse.headers.get("im")).toBeNull();
     expect(new Uint8Array(await bundleResponse.arrayBuffer())).toEqual(FULL_BUNDLE_BYTES);
   });
+
+  it("a freshly registered embedded baseline never hijacks the served manifest", async () => {
+    // Regression for resolveUpdates' is_embedded exclusion. A dedicated runtime
+    // version keeps this tuple out of the manifest cache primed by the previous
+    // test, so the assertion exercises a real D1 resolution. The baseline row is
+    // the NEWEST row for the tuple (created_at = now vs the published update's
+    // 2024 timestamp); without the exclusion it would be served as the latest.
+    const hijackRuntime = "13.1.0";
+    const publishedId = `ffffffff-1111-0000-0000-${suffix}00000000`;
+    await insertUpdate({
+      id: publishedId,
+      branchId,
+      runtimeVersion: hijackRuntime,
+      platform: "ios",
+    });
+    await linkLaunchAsset(publishedId, launchHash);
+
+    await runUpdates(
+      Effect.gen(function* () {
+        const repo = yield* UpdateRepo;
+        yield* repo.insert({
+          branchId,
+          runtimeVersion: hijackRuntime,
+          platform: "ios",
+          message: "embedded baseline",
+          metadataJson: "{}",
+          extraJson: null,
+          groupId: `group-emb-mc-${suffix}`,
+          rolloutPercentage: 100,
+          isRollback: false,
+          signature: null,
+          certificateChain: null,
+          manifestBody: null,
+          directiveBody: null,
+          fingerprintHash: null,
+          gitCommit: null,
+          gitDirty: false,
+          isEmbedded: true,
+          assets: [{ key: "bundle", hash: launchHash, isLaunch: true }],
+        });
+      }),
+    );
+
+    const manifestResponse = await dispatch(`/manifest/${projectId}`, {
+      "expo-protocol-version": "1",
+      "expo-platform": "ios",
+      "expo-runtime-version": hijackRuntime,
+      "expo-channel-name": "production",
+      accept: "multipart/mixed",
+    });
+    expect(manifestResponse.status).toBe(200);
+    const launchUrl = parseMultipartLaunchUrl(
+      manifestResponse.headers.get("content-type") ?? "",
+      await manifestResponse.text(),
+    );
+    // Still the published update's bundle route — not the baseline row's.
+    expect(launchUrl).toContain(`/manifest/${projectId}/bundle/${publishedId}/${launchHash}`);
+  });
 });

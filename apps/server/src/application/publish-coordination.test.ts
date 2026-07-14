@@ -26,6 +26,7 @@ const baseUpdate: UpdateModel = {
   fingerprintHash: null,
   gitCommit: null,
   gitDirty: false,
+  isEmbedded: false,
   totalAssetSize: 0,
   createdAt: "2026-01-01T00:00:00.000Z",
 };

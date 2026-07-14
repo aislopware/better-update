@@ -150,6 +150,10 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
           .where("branch_id", "=", params.branchId)
           .where("platform", "=", params.platform)
           .where("runtime_version", "=", params.runtimeVersion)
+          // Embedded-baseline rows are bsdiff patch-base registrations, never
+          // servable updates — without this filter a freshly registered
+          // baseline would hijack the manifest as the "newest" row.
+          .where("is_embedded", "=", 0)
           .orderBy("created_at", "desc")
           .orderBy("id", "desc")
           .limit(2)
@@ -169,6 +173,7 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
           .where("platform", "=", params.platform)
           .where("runtime_version", "=", params.runtimeVersion)
           .where("rollout_percentage", "=", 100)
+          .where("is_embedded", "=", 0)
           .orderBy("created_at", "desc")
           .orderBy("id", "desc")
           .limit(1)

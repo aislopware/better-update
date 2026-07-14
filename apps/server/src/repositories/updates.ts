@@ -100,6 +100,8 @@ export interface UpdateRepository extends UpdateReaperQueries {
     readonly platform?: Platform;
     readonly runtimeVersion?: string;
     readonly query?: string;
+    // Omitted/false = published updates only; true = embedded baselines only.
+    readonly isEmbedded?: boolean;
     readonly sort: UpdateSortKey;
     readonly order: UpdateSortOrder;
     readonly limit: number;
@@ -440,6 +442,9 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           .where("branch_id", "=", params.branchId)
           .where("platform", "=", params.platform)
           .where("runtime_version", "=", params.runtimeVersion)
+          // An embedded-baseline registration must not mask (or fake) an
+          // in-flight rollout of the newest REAL update.
+          .where("is_embedded", "=", 0)
           .orderBy("created_at", "desc")
           .orderBy("id", "desc")
           .limit(1)

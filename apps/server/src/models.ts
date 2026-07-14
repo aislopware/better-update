@@ -22,8 +22,7 @@ export type EnvVarVisibility = "plaintext" | "sensitive";
 export type EnvVarScope = "project" | "global";
 
 // An env var's environment is any of the org's environments (built-in or
-// user-defined), validated against the environments set at write time — no
-// longer a fixed enum.
+// user-defined), validated against the environments set at write time.
 export type EnvVarEnvironment = string;
 
 // Derived from the contract's `AuditLogResourceType` literal so the server
@@ -122,6 +121,7 @@ export interface UpdateModel {
   readonly fingerprintHash: string | null;
   readonly gitCommit: string | null;
   readonly gitDirty: boolean;
+  readonly isEmbedded: boolean;
   readonly totalAssetSize: number;
   readonly createdAt: string;
 }

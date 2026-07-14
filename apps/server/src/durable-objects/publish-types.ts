@@ -35,6 +35,7 @@ export interface SerializedUpdate {
   readonly fingerprintHash: string | null;
   readonly gitCommit: string | null;
   readonly gitDirty: boolean;
+  readonly isEmbedded: boolean;
   readonly totalAssetSize: number;
   readonly createdAt: string;
 }

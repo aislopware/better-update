@@ -45,6 +45,7 @@ export interface UpdateRow {
   fingerprint_hash: string | null;
   git_commit: string | null;
   git_dirty: number;
+  is_embedded: number;
   // A correlated scalar subselect (COALESCE(SUM(...), 0)); Kysely types every
   // scalar subquery as nullable, so this mirrors the inferred row shape.
   total_asset_size: number | null;
@@ -78,6 +79,7 @@ export const selectUpdateRow = <Output>(qb: SelectQueryBuilder<DB, "updates", Ou
       "updates.fingerprint_hash",
       "updates.git_commit",
       "updates.git_dirty",
+      "updates.is_embedded",
       "updates.created_at",
     ])
     .select((eb) => eb.ref("updates.platform").$castTo<Platform>().as("platform"))
@@ -216,6 +218,7 @@ export const toUpdate = (row: UpdateRow) =>
     fingerprintHash: row.fingerprint_hash,
     gitCommit: row.git_commit,
     gitDirty: row.git_dirty === 1,
+    isEmbedded: row.is_embedded === 1,
     // SQL COALESCEs the SUM to 0, so the runtime value is always a number; the
     // `?? 0` only reconciles Kysely's defensively-nullable scalar-subquery type.
     totalAssetSize: row.total_asset_size ?? 0,

@@ -14,6 +14,10 @@ export interface UpdateListParams {
   readonly platform?: Platform;
   readonly runtimeVersion?: string;
   readonly query?: string;
+  // Embedded-baseline rows (is_embedded = 1) are registration records for
+  // bsdiff patch bases, not published updates: they are EXCLUDED unless the
+  // caller asks for them explicitly (isEmbedded: true lists ONLY baselines).
+  readonly isEmbedded?: boolean;
   readonly sort: UpdateSortKey;
   readonly order: UpdateSortOrder;
   readonly limit: number;
@@ -38,7 +42,9 @@ export const queryUpdatesByProject = (db: Kysely<DB>, params: UpdateListParams) 
           .where("branches.project_id", "=", params.projectId),
       )
       .where((eb) => {
-        const conditions: Expression<SqlBool>[] = [];
+        const conditions: Expression<SqlBool>[] = [
+          eb("updates.is_embedded", "=", params.isEmbedded === true ? 1 : 0),
+        ];
         if (params.branchId !== undefined && params.branchId.length > 0) {
           conditions.push(eb("updates.branch_id", "in", [...params.branchId]));
         }

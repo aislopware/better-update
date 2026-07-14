@@ -111,6 +111,7 @@ export const toApiUpdate = (update: UpdateModel) =>
     fingerprintHash: update.fingerprintHash,
     gitCommit: update.gitCommit,
     gitDirty: update.gitDirty,
+    isEmbedded: update.isEmbedded,
     totalAssetSize: update.totalAssetSize,
     createdAt: update.createdAt,
   });
