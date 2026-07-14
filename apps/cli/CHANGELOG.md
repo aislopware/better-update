@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.66.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.65.0...%40better-update%2Fcli%400.66.0) (2026-07-14)
+
+### Features
+
+* **cli:** build --platform all runs ios + android in parallel ([03ce165](https://github.com/better-update/better-update/commit/03ce1658df340a54a5932b03f7a5a5618b49b64b))
+
 ## [0.65.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.64.1...%40better-update%2Fcli%400.65.0) (2026-07-14)
 
 ### Features
