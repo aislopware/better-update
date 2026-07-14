@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.64.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.64.1...%40better-update%2Fweb%400.64.2) (2026-07-14)
+
+### Bug Fixes
+
+* **server:** never serve embedded baselines as OTA updates ([cfb655c](https://github.com/better-update/better-update/commit/cfb655c91f6b67b28cf0234c86b60b4af1a34fd9))
+
 ## [0.64.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.64.0...%40better-update%2Fweb%400.64.1) (2026-07-13)
 
 ### Bug Fixes

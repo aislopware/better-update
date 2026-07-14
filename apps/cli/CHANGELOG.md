@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.65.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.64.1...%40better-update%2Fcli%400.65.0) (2026-07-14)
+
+### Features
+
+* **cli:** close eas-cli v20/v21 update-parity gaps ([1705856](https://github.com/better-update/better-update/commit/170585627d873b165bd522f6a14f06558e219152)), references [#3891](https://github.com/better-update/better-update/issues/3891) [#3825](https://github.com/better-update/better-update/issues/3825)
+* **cli:** multi-account Apple login with session switching ([66f39e7](https://github.com/better-update/better-update/commit/66f39e7f160954919fc9f78fb067850ede88ffc5))
+
 ## [0.64.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.64.0...%40better-update%2Fcli%400.64.1) (2026-07-13)
 
 **Note:** Version bump only for package @better-update/cli

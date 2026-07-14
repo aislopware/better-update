@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.2](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.43.1...%40better-update%2Fapi%400.43.2) (2026-07-14)
+
+### Bug Fixes
+
+* **server:** never serve embedded baselines as OTA updates ([cfb655c](https://gitlab.jmango360.com/mobile/better-update/commit/cfb655c91f6b67b28cf0234c86b60b4af1a34fd9))
+
 ## [0.43.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.43.0...%40better-update%2Fapi%400.43.1) (2026-07-13)
 
 **Note:** Version bump only for package @better-update/api

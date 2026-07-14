@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.53.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.52.2...%40better-update%2Fserver%400.53.0) (2026-07-14)
+
+### Features
+
+* **cli:** multi-account Apple login with session switching ([66f39e7](https://github.com/better-update/better-update/commit/66f39e7f160954919fc9f78fb067850ede88ffc5))
+
+### Bug Fixes
+
+* **server:** never serve embedded baselines as OTA updates ([cfb655c](https://github.com/better-update/better-update/commit/cfb655c91f6b67b28cf0234c86b60b4af1a34fd9))
+
 ## [0.52.2](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.52.1...%40better-update%2Fserver%400.52.2) (2026-07-13)
 
 **Note:** Version bump only for package @better-update/server
