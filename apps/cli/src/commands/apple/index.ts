@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 
+import { appleAccountsCommand } from "./accounts";
 import { appleAscKeyCommand } from "./asc-key";
 import { appleBuildsCommand } from "./builds";
 import { appleLoginCommand } from "./login";
@@ -18,6 +19,7 @@ export const appleCommand = defineCommand({
     login: appleLoginCommand,
     logout: appleLogoutCommand,
     whoami: appleWhoamiCommand,
+    accounts: appleAccountsCommand,
     builds: appleBuildsCommand,
     users: appleUsersCommand,
     "asc-key": appleAscKeyCommand,

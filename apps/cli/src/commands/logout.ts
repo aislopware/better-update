@@ -11,7 +11,7 @@ export const logoutCommand = defineCommand({
   args: {
     all: {
       type: "boolean",
-      description: "Also clear cached Apple Developer session (cookies)",
+      description: "Also clear all cached Apple Developer sessions (cookies)",
     },
   },
   run: async ({ args }) =>
@@ -23,8 +23,8 @@ export const logoutCommand = defineCommand({
         const clearedApple = args.all ?? false;
         if (clearedApple) {
           const appleStore = yield* AppleSessionStore;
-          yield* appleStore.clearSession;
-          yield* printHuman("Cleared Apple Developer session.");
+          yield* appleStore.clearAllSessions;
+          yield* printHuman("Cleared Apple Developer sessions.");
         }
         return { loggedOut: true, clearedAppleSession: clearedApple };
       }),

@@ -19,7 +19,8 @@ export const appleLoginCommand = defineCommand({
   args: {
     username: {
       type: "string",
-      description: "Pre-fill the Apple ID prompt (defaults to last-used Apple ID)",
+      description:
+        "Apple ID to log in as — restores its cached session when present, otherwise pre-fills the prompt",
     },
   },
   run: async ({ args }) =>

@@ -63,8 +63,14 @@ export interface AppleAuthSession {
 }
 
 interface EnsureLoggedInOptions {
-  /** Pre-fill the Apple ID prompt; falls back to last cached username. */
+  /**
+   * Target Apple ID: restore that account's cached session (and make it the
+   * active account) when present; otherwise pre-fill the login prompt with it.
+   * Omitted → the active account.
+   */
   readonly username?: string;
+  /** Skip cached-session restore and force an interactive login (add another account). */
+  readonly freshLogin?: boolean;
 }
 
 export class AppleAuth extends Context.Tag("cli/AppleAuth")<
@@ -77,7 +83,10 @@ export class AppleAuth extends Context.Tag("cli/AppleAuth")<
       AppleAuthError | InteractiveProhibitedError,
       InteractiveMode | CliRuntime
     >;
+    /** Log out the active account; other cached accounts stay usable. */
     readonly logout: Effect.Effect<void>;
+    /** Log out every cached Apple account. */
+    readonly logoutAll: Effect.Effect<void>;
     readonly whoami: Effect.Effect<AppleAuthSession | null>;
     readonly buildRequestContext: (session: AppleAuthSession) => RequestContext;
   }
@@ -248,13 +257,16 @@ const interactiveLogin = (
 const tryRestore = (
   appleUtils: AppleUtilsContract,
   store: Context.Tag.Service<AppleSessionStore>,
+  username: string | undefined,
 ): Effect.Effect<
   AppleAuthSession | null,
   AppleAuthError | InteractiveProhibitedError,
   InteractiveMode | CliRuntime
 > =>
   Effect.gen(function* () {
-    const stored = yield* store.loadSession;
+    const stored = yield* username === undefined
+      ? store.loadSession
+      : store.loadSessionFor(username);
     if (stored === null) {
       return null;
     }
@@ -275,9 +287,15 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
       return {
         ensureLoggedIn: (options: EnsureLoggedInOptions = {}) =>
           Effect.gen(function* () {
-            const restored = yield* tryRestore(appleUtils, store);
-            if (restored !== null) {
-              return restored;
+            if (!options.freshLogin) {
+              const restored = yield* tryRestore(appleUtils, store, options.username);
+              if (restored !== null) {
+                if (options.username !== undefined) {
+                  // An explicitly-targeted restore is an account switch.
+                  yield* store.setActiveAccount(restored.username);
+                }
+                return restored;
+              }
             }
             const cachedUsername = yield* store.loadLastUsername;
             return yield* interactiveLogin(appleUtils, options, cachedUsername).pipe(
@@ -285,6 +303,14 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
             );
           }),
         logout: store.clearSession.pipe(
+          Effect.flatMap(() =>
+            Effect.tryPromise({
+              try: async () => appleUtils.Auth.logoutAsync(),
+              catch: (cause) => new AppleAuthError({ message: formatCause(cause) }),
+            }).pipe(Effect.catchAll(() => Effect.void)),
+          ),
+        ),
+        logoutAll: store.clearAllSessions.pipe(
           Effect.flatMap(() =>
             Effect.tryPromise({
               try: async () => appleUtils.Auth.logoutAsync(),

@@ -506,16 +506,19 @@ better-update audit-logs list [--resource-type <type>[,<type>...]] [--from <ISO>
 
 Manages the Apple Developer **session** (cookie-based, used to issue iOS credentials). Distinct from
 the top-level `login`/`logout`/`whoami` (which are for better-update itself). The `builds` and `users`
-subgroups are **headless / CI-safe** (stored ASC API key, not the cookie session). The cookie session
-is stored in the **OS keychain** (macOS Keychain / Windows Credential Manager / Linux libsecret, same
-store as the vault-key cache); machines without a usable keychain fall back to
-`~/.better-update/apple-session.json` (0600), and a legacy plaintext session is auto-migrated into the
-keychain on first use.
+subgroups are **headless / CI-safe** (stored ASC API key, not the cookie session). **Multiple Apple
+accounts** can be cached at once — one OS-keychain entry per Apple ID (macOS Keychain / Windows
+Credential Manager / Linux libsecret, same store as the vault-key cache), with the account roster +
+active account tracked in `~/.better-update/apple-accounts.json`. Machines without a usable keychain
+fall back to `~/.better-update/apple-sessions.json` (0600); legacy single-account storage (keychain
+entry or plaintext `apple-session.json`) is auto-migrated on first use.
 
 ```bash
-better-update apple login [--username <appleId>]    # defaults to last-used Apple ID; 2FA interactive
-better-update apple logout                          # clear the cached Apple session (ASC API keys unaffected)
-better-update apple whoami                          # show the cached Apple ID + team
+better-update apple login [--username <appleId>]    # cached session for that Apple ID restored if present; else 2FA interactive login
+better-update apple logout [--all]                  # log out the ACTIVE account (ASC API keys + other cached accounts unaffected); --all clears every account
+better-update apple whoami                          # show the active Apple ID + team (+ cached-account count)
+better-update apple accounts list                   # cached Apple accounts; `*` marks the active one
+better-update apple accounts switch [<appleId>]     # switch active account without re-auth; prompts with cached accounts + "log in with a different Apple ID" when omitted
 
 # ASC pre-release builds (CI-safe; shares the ASC resolution below)
 better-update apple builds list [--limit 50]                                   # uploaded builds, newest first

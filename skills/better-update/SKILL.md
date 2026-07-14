@@ -92,7 +92,7 @@ better-update
 ├── fingerprint               generate · compare (runtime-compatibility hashes)
 ├── analytics                 adoption · updates · channels · platforms
 ├── audit-logs                list (every mutation, with actor + timestamp)
-├── apple                     login · logout · whoami; builds · users (CI-safe); asc-key · sandbox (Apple ID login)
+├── apple                     login · logout · whoami · accounts (multi-account switch); builds · users (CI-safe); asc-key · sandbox (Apple ID login)
 ├── submit                    Submit a build to App Store Connect / Google Play
 ├── testflight                group · tester · review · build — full TestFlight beta lifecycle (CI-safe)
 ├── app-store                 version · submit/cancel/status/release/reject · rollout · review-detail · info · categories · age-rating · privacy · apps (list + create) · pricing · availability (show + set) · territories · config (pull/push) (CI-safe; apps create needs Apple ID login)

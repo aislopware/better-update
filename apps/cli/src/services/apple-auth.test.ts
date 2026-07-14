@@ -67,32 +67,69 @@ const makeAuthState = (
 };
 
 interface SessionStoreState {
-  session: SerializedAppleSession | null;
+  sessions: Map<string, SerializedAppleSession>;
+  active: string | null;
   lastUsername: string | null;
   saveCalls: SerializedAppleSession[];
   clearCalls: number;
+  clearAllCalls: number;
+  activeSets: string[];
   usernameSaves: string[];
 }
 
-const makeSessionStoreLayer = (initial: Partial<SessionStoreState> = {}) => {
+const normalize = (username: string) => username.trim().toLowerCase();
+
+const makeSessionStoreLayer = (
+  initial: Partial<{
+    session: SerializedAppleSession | null;
+    sessions: readonly SerializedAppleSession[];
+    lastUsername: string | null;
+  }> = {},
+) => {
+  const seeded = [...(initial.session ? [initial.session] : []), ...(initial.sessions ?? [])];
   const state: SessionStoreState = {
-    session: initial.session ?? null,
+    sessions: new Map(seeded.map((session) => [normalize(session.username), session])),
+    active: seeded[0] === undefined ? null : normalize(seeded[0].username),
     lastUsername: initial.lastUsername ?? null,
     saveCalls: [],
     clearCalls: 0,
+    clearAllCalls: 0,
+    activeSets: [],
     usernameSaves: [],
   };
   const layer = Layer.succeed(AppleSessionStore, {
-    loadSession: Effect.sync(() => state.session),
+    loadSession: Effect.sync(() =>
+      state.active === null ? null : (state.sessions.get(state.active) ?? null),
+    ),
+    loadSessionFor: (username) =>
+      Effect.sync(() => state.sessions.get(normalize(username)) ?? null),
     saveSession: (session) =>
       Effect.sync(() => {
         state.saveCalls.push(session);
-        state.session = session;
+        state.sessions.set(normalize(session.username), session);
+        state.active = normalize(session.username);
       }),
     clearSession: Effect.sync(() => {
       state.clearCalls += 1;
-      state.session = null;
+      if (state.active !== null) {
+        state.sessions.delete(state.active);
+      }
+      state.active = null;
     }),
+    clearAllSessions: Effect.sync(() => {
+      state.clearAllCalls += 1;
+      state.sessions.clear();
+      state.active = null;
+    }),
+    listAccounts: Effect.sync(() => ({
+      active: state.active,
+      accounts: [...state.sessions.keys()],
+    })),
+    setActiveAccount: (username) =>
+      Effect.sync(() => {
+        state.activeSets.push(normalize(username));
+        state.active = normalize(username);
+      }),
     loadLastUsername: Effect.sync(() => state.lastUsername),
     saveLastUsername: (username) =>
       Effect.sync(() => {
@@ -303,6 +340,103 @@ describe("AppleAuth.ensureLoggedIn", () => {
     ),
   );
 
+  it.effect("username option restores that account's cached session and activates it", () => {
+    const sessionA: SerializedAppleSession = {
+      cookies: COOKIES_FIXTURE,
+      username: "a@example.com",
+    };
+    const sessionB: SerializedAppleSession = {
+      cookies: COOKIES_FIXTURE,
+      username: "b@example.com",
+    };
+    const { layer, state } = makeSessionStoreLayer({ sessions: [sessionA, sessionB] });
+    const restoredFor: string[] = [];
+    const appleUtils = makeAppleUtilsStub({
+      loginWithCookies: async () => {
+        restoredFor.push("call");
+        return makeAuthState({ username: "b@example.com" });
+      },
+    });
+    return Effect.gen(function* () {
+      const auth = yield* AppleAuth;
+      // Active account is a@example.com; explicitly target the other one.
+      const session = yield* auth.ensureLoggedIn({ username: "B@Example.com" });
+      expect(session.username).toBe("b@example.com");
+      expect(restoredFor).toHaveLength(1);
+      expect(state.activeSets).toStrictEqual(["b@example.com"]);
+      expect(state.active).toBe("b@example.com");
+      // No fresh credentials login happened — nothing re-saved.
+      expect(state.saveCalls).toHaveLength(0);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+          layer,
+          InteractiveModeLive,
+          cliRuntimeStub(),
+        ),
+      ),
+    );
+  });
+
+  it.effect("freshLogin skips the cached session and goes straight to interactive login", () => {
+    const { layer } = makeSessionStoreLayer({
+      session: { cookies: COOKIES_FIXTURE, username: "cong@example.com" },
+    });
+    const restoreCalls: string[] = [];
+    const appleUtils = makeAppleUtilsStub({
+      loginWithCookies: async () => {
+        restoreCalls.push("call");
+        return makeAuthState();
+      },
+    });
+    return Effect.gen(function* () {
+      const auth = yield* AppleAuth;
+      const exit = yield* Effect.exit(auth.ensureLoggedIn({ freshLogin: true }));
+      // Interactive is disabled, so a forced fresh login must fail — proving the
+      // valid cached session was never consulted.
+      expect(Exit.isFailure(exit)).toBe(true);
+      expect(restoreCalls).toHaveLength(0);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+          layer,
+          makeInteractiveModeLayer(false),
+          cliRuntimeStub(),
+        ),
+      ),
+    );
+  });
+
+  it.effect("username option without a cached session falls through to interactive login", () => {
+    const { layer } = makeSessionStoreLayer({
+      session: { cookies: COOKIES_FIXTURE, username: "a@example.com" },
+    });
+    const appleUtils = makeAppleUtilsStub({
+      loginWithCookies: async () => makeAuthState({ username: "a@example.com" }),
+    });
+    return Effect.gen(function* () {
+      const auth = yield* AppleAuth;
+      const exit = yield* Effect.exit(auth.ensureLoggedIn({ username: "new@example.com" }));
+      // The active account must NOT be silently returned for a different target.
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
+        expect(err).toBeInstanceOf(InteractiveProhibitedError);
+      }
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+          layer,
+          makeInteractiveModeLayer(false),
+          cliRuntimeStub(),
+        ),
+      ),
+    );
+  });
+
   it.effect("falls through to interactive login when cookie restore throws", () =>
     Effect.gen(function* () {
       const auth = yield* AppleAuth;
@@ -438,7 +572,41 @@ describe("AppleAuth.logout", () => {
       yield* auth.logout;
       expect(state.clearCalls).toBe(1);
       expect(logoutCalls).toHaveLength(1);
-      expect(state.session).toBeNull();
+      expect(state.active).toBeNull();
+      expect(state.sessions.size).toBe(0);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+          layer,
+          InteractiveModeLive,
+        ),
+      ),
+    );
+  });
+});
+
+describe("AppleAuth.logoutAll", () => {
+  it.effect("clears every cached account and calls Apple logout", () => {
+    const { layer, state } = makeSessionStoreLayer({
+      sessions: [
+        { cookies: COOKIES_FIXTURE, username: "a@example.com" },
+        { cookies: COOKIES_FIXTURE, username: "b@example.com" },
+      ],
+    });
+    const logoutCalls: string[] = [];
+    const appleUtils = makeAppleUtilsStub({
+      logout: async () => {
+        logoutCalls.push("call");
+      },
+    });
+    return Effect.gen(function* () {
+      const auth = yield* AppleAuth;
+      yield* auth.logoutAll;
+      expect(state.clearAllCalls).toBe(1);
+      expect(state.sessions.size).toBe(0);
+      expect(state.active).toBeNull();
+      expect(logoutCalls).toHaveLength(1);
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
