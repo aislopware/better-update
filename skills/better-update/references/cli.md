@@ -36,7 +36,8 @@ better-update
 ├── branches                       list · view · create · rename · delete
 ├── update                         publish · list · view · edit · delete · promote · republish ·
 │                                  rollback · roll-back-to-embedded · revert · revert-rollout ·
-│                                  rollout (set/complete/revert) · configure · embedded:upload · insights
+│                                  rollout (set/complete/revert) · configure · insights ·
+│                                  embedded:upload · embedded:list · embedded:view · embedded:delete
 ├── channels                       list · view · create · update · pause · resume · delete ·
 │                                  insights · rollout (create/update/complete/revert)
 ├── build [+ configure]            Local native build; configure scaffolds eas.json profiles
@@ -150,27 +151,27 @@ better-update branches delete <id>
 better-update update publish [flags]
 ```
 
-| Flag                                                                     | Default      | Notes                                                                                                                                                                 |
-| ------------------------------------------------------------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--branch <name>`                                                        | —            | Target branch.                                                                                                                                                        |
-| `--channel <name>`                                                       | —            | Route via a channel name (resolves to its branch) instead of `--branch`.                                                                                              |
-| `--platform <ios\|android\|all>`                                         | `all`        | Restrict to one platform.                                                                                                                                             |
-| `--message <text>`                                                       | —            | Free-form description.                                                                                                                                                |
-| `--environment <name>`                                                   | `production` | Env-var environment to inject during export (default comes from `--profile` when given).                                                                              |
-| `--profile <name>`                                                       | —            | eas.json build profile: its `environment` picks the env scope and its `env` block overlays the server vars (profile wins) — same merge as `build`.                    |
-| `--auto`                                                                 | off          | Skip prompts (CI mode).                                                                                                                                               |
-| `--clear`                                                                | off          | Drop existing assets before upload.                                                                                                                                   |
-| `--rollout-percentage <1-100>`                                           | —            | Initial rollout percentage. Omit for 100%.                                                                                                                            |
-| `--input-dir <path>`                                                     | —            | Use a pre-bundled `expo export` dir (with `--skip-bundler`).                                                                                                          |
-| `--skip-bundler`                                                         | off          | Skip running `expo export`; requires `--input-dir`.                                                                                                                   |
-| `--emit-metadata`                                                        | off          | Write `eas-update-metadata.json` after publish.                                                                                                                       |
-| `--no-bytecode`                                                          | off          | Disable Hermes bytecode, emit raw JS.                                                                                                                                 |
-| `--source-maps`                                                          | **on**       | Emit JS source maps and store the launch bundle map with the update for crash symbolication (`--no-source-maps` to skip; auto-skipped on Expo CLIs without the flag). |
-| `--private-key-path <path>`                                              | —            | RSA PEM to code-sign the rendered manifest (reads cert from app.json).                                                                                                |
-| `--allow-dirty`                                                          | off          | Proceed with uncommitted git changes.                                                                                                                                 |
-| `--patch-base-window <n>`                                                | `10`         | Max recent updates to bsdiff against (0 = embedded baseline only).                                                                                                    |
-| `--no-patches`                                                           | off          | Skip bsdiff patch generation (the `patches` step is on by default).                                                                                                   |
-| `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` | —            | Pre-built signed payload; `*-ios` / `*-android` variants for per-platform.                                                                                            |
+| Flag                                                                     | Default      | Notes                                                                                                                                                                                             |
+| ------------------------------------------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--branch <name>`                                                        | —            | Target branch.                                                                                                                                                                                    |
+| `--channel <name>`                                                       | —            | Route via a channel name (resolves to its branch) instead of `--branch`. A channel that doesn't exist yet is auto-created on first publish, linked to a new branch of the same name (EAS parity). |
+| `--platform <ios\|android\|all>`                                         | `all`        | Restrict to one platform.                                                                                                                                                                         |
+| `--message <text>`                                                       | —            | Free-form description.                                                                                                                                                                            |
+| `--environment <name>`                                                   | `production` | Env-var environment to inject during export (default comes from `--profile` when given).                                                                                                          |
+| `--profile <name>`                                                       | —            | eas.json build profile: its `environment` picks the env scope and its `env` block overlays the server vars (profile wins) — same merge as `build`.                                                |
+| `--auto`                                                                 | off          | Skip prompts (CI mode).                                                                                                                                                                           |
+| `--clear`                                                                | off          | Drop existing assets before upload.                                                                                                                                                               |
+| `--rollout-percentage <1-100>`                                           | —            | Initial rollout percentage. Omit for 100%.                                                                                                                                                        |
+| `--input-dir <path>`                                                     | —            | Use a pre-bundled `expo export` dir (with `--skip-bundler`).                                                                                                                                      |
+| `--skip-bundler`                                                         | off          | Skip running `expo export`; requires `--input-dir`.                                                                                                                                               |
+| `--emit-metadata`                                                        | off          | Write `eas-update-metadata.json` after publish.                                                                                                                                                   |
+| `--no-bytecode`                                                          | off          | Disable Hermes bytecode, emit raw JS.                                                                                                                                                             |
+| `--source-maps`                                                          | **on**       | Emit JS source maps and store the launch bundle map with the update for crash symbolication (`--no-source-maps` to skip; auto-skipped on Expo CLIs without the flag).                             |
+| `--private-key-path <path>`                                              | —            | RSA PEM to code-sign the rendered manifest (reads cert from app.json).                                                                                                                            |
+| `--allow-dirty`                                                          | off          | Proceed with uncommitted git changes.                                                                                                                                                             |
+| `--patch-base-window <n>`                                                | `10`         | Max recent updates to bsdiff against (0 = embedded baseline only).                                                                                                                                |
+| `--no-patches`                                                           | off          | Skip bsdiff patch generation (the `patches` step is on by default).                                                                                                                               |
+| `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` | —            | Pre-built signed payload; `*-ios` / `*-android` variants for per-platform.                                                                                                                        |
 
 Calls `expo export` internally unless `--skip-bundler` — you do NOT need to export first.
 
@@ -191,6 +192,7 @@ better-update update rollback --branch <name> [--platform <ios|android|all>=all]
                               [--directive-body-file …] [--signature-file …] [--certificate-chain-file …] [--private-key-path <path>]
 better-update update roll-back-to-embedded …                 # EAS-parity alias of `update rollback` (same flags)
 better-update update revert [--branch <name>] [--platform <ios|android|all>=all] [--type <published|embedded>] [--message <text>] [--environment <name>=production]
+better-update update revert --group <groupId> [--platform …] [--message …]   # non-interactive; group must be the LATEST for its branch+runtime (EAS update:rollback parity)
 better-update update revert-rollout <groupId>                # revert the in-progress rollout for EVERY update in a group
 better-update update rollout set <updateId> <percentage>     # percentage 1–100, positional
 better-update update rollout complete <updateId>             # → 100%
@@ -200,6 +202,9 @@ better-update update configure [--runtime-policy <p>] [--check-automatically <v>
                                [--request-header KEY=VALUE …] [--force]   # write expo-updates config into the Expo config
 better-update update embedded:upload --platform <ios|android> --bundle <path> --embedded-id <uuid> \
                                [--branch <name>] [--channel <name>] [--runtime-version <v>] [--message <text>] [--environment <name>=production] [--auto]
+better-update update embedded:list [--branch <name>] [--platform <ios|android>] [--runtime-version <v>] [--limit <n>=20]
+better-update update embedded:view <embeddedId>              # details for one registered baseline
+better-update update embedded:delete <embeddedId>            # unregister a baseline (existing bsdiff patches keep serving)
 better-update update insights <groupId> [--period <1d|7d|30d|90d>]   # traffic/adoption per update in a group
 ```
 

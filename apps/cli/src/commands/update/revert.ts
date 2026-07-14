@@ -57,6 +57,35 @@ const findPreviousGroupOnBranch = (
     return orderedGroups[1];
   });
 
+const republishGroup = (
+  api: ApiClient,
+  sourceGroupId: string,
+  branchId: string,
+  branchName: string,
+  message: string | undefined,
+) =>
+  Effect.gen(function* () {
+    yield* printHuman(`Republishing previous group ${sourceGroupId} onto branch "${branchName}".`);
+    const result = yield* api.updates.republish({
+      payload: {
+        sourceGroupId,
+        destinationBranchId: branchId,
+        ...compact({ message }),
+      },
+    });
+    yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);
+    yield* printHumanTable(
+      ["ID", "Platform", "Runtime version", "Group ID"],
+      result.updates.map((update) => [
+        update.id,
+        update.platform,
+        update.runtimeVersion,
+        update.groupId,
+      ]),
+    );
+    return { type: "published" as const, ...result };
+  });
+
 const revertToPublished = (
   api: ApiClient,
   projectId: string,
@@ -79,25 +108,7 @@ const revertToPublished = (
         message: `Branch "${branchName}" does not have a previous update group to revert to. Use --type embedded to publish a rollback-to-embedded directive instead.`,
       });
     }
-    yield* printHuman(`Republishing previous group ${previousGroup} onto branch "${branchName}".`);
-    const result = yield* api.updates.republish({
-      payload: {
-        sourceGroupId: previousGroup,
-        destinationBranchId: branchId,
-        ...compact({ message }),
-      },
-    });
-    yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);
-    yield* printHumanTable(
-      ["ID", "Platform", "Runtime version", "Group ID"],
-      result.updates.map((update) => [
-        update.id,
-        update.platform,
-        update.runtimeVersion,
-        update.groupId,
-      ]),
-    );
-    return { type: "published" as const, ...result };
+    return yield* republishGroup(api, previousGroup, branchId, branchName, message);
   });
 
 const revertToEmbedded = (
@@ -129,6 +140,88 @@ const revertToEmbedded = (
     return { type: "embedded" as const, ...result };
   });
 
+/**
+ * Non-interactive revert addressed by update group id (EAS `update:rollback
+ * [GROUP_ID]` parity). The group must be the LATEST group for its
+ * (branch, runtime version); the revert then republishes the group before it,
+ * or falls back to a rollback-to-embedded directive when the group is the only
+ * one on that runtime.
+ */
+const revertByGroup = (options: {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly groupId: string;
+  readonly platform: "ios" | "android" | "all";
+  readonly environment: string;
+  readonly message: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    const { api, projectId, groupId, platform, environment, message } = options;
+    const group = yield* api.updates.getGroup({ path: { groupId } });
+    const [sample] = group.items;
+    if (!sample) {
+      return yield* new UpdateCommandError({
+        message: `Update group "${groupId}" not found.`,
+      });
+    }
+    const branches = yield* drainPages((page) =>
+      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+    );
+    const branch = branches.find((entry) => entry.id === sample.branchId);
+    if (!branch) {
+      return yield* new UpdateCommandError({
+        message: `Update group "${groupId}" belongs to a branch (${sample.branchId}) not in this project.`,
+      });
+    }
+    const updates = yield* drainPages((page) =>
+      api.updates.list({
+        urlParams: {
+          projectId,
+          branchId: [branch.id],
+          runtimeVersion: sample.runtimeVersion,
+          limit: 100,
+          page,
+          ...compact({ platform: platform === "all" ? undefined : platform }),
+        },
+      }),
+    );
+    const orderedGroups: (typeof updates)[number][] = [];
+    const seen = new Set<string>();
+    for (const update of updates) {
+      if (!seen.has(update.groupId)) {
+        seen.add(update.groupId);
+        orderedGroups.push(update);
+      }
+    }
+    const [latest, previous] = orderedGroups;
+    if (latest === undefined || latest.groupId !== groupId) {
+      return yield* new UpdateCommandError({
+        message: `Update group "${groupId}" is not the latest update on branch "${branch.name}" for runtime version "${sample.runtimeVersion}"${
+          latest === undefined ? "" : ` (the latest is "${latest.groupId}")`
+        }. Only the latest update can be reverted.`,
+      });
+    }
+    if (previous === undefined) {
+      yield* printHuman(
+        `No previous update group on branch "${branch.name}" for runtime version "${sample.runtimeVersion}"; publishing a rollback-to-embedded directive instead.`,
+      );
+      return yield* revertToEmbedded(
+        branch.name,
+        platform,
+        environment,
+        message ?? "Roll back to embedded",
+      );
+    }
+    const defaultMessage = `Roll back to "${previous.message}" (group: ${previous.groupId})`;
+    return yield* republishGroup(
+      api,
+      previous.groupId,
+      branch.id,
+      branch.name,
+      message ?? defaultMessage,
+    );
+  });
+
 const isRevertChoice = (value: string): value is RevertChoice =>
   value === "published" || value === "embedded";
 
@@ -140,6 +233,11 @@ export const revertCommand = defineCommand({
   },
   args: {
     branch: { type: "string", description: "Branch to revert" },
+    group: {
+      type: "string",
+      description:
+        "Update group ID to revert (non-interactive; must be the latest group for its branch + runtime version)",
+    },
     platform: {
       type: "enum",
       options: ["ios", "android", "all"],
@@ -163,6 +261,22 @@ export const revertCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const projectId = yield* readProjectId;
+        if (args.group !== undefined && args.group.length > 0) {
+          if ((args.branch !== undefined && args.branch.length > 0) || args.type !== undefined) {
+            return yield* new UpdateCommandError({
+              message:
+                "--group cannot be combined with --branch or --type; the branch and revert target are derived from the group.",
+            });
+          }
+          return yield* revertByGroup({
+            api,
+            projectId,
+            groupId: args.group,
+            platform: args.platform,
+            environment: args.environment,
+            message: args.message,
+          });
+        }
         const branchName =
           args.branch !== undefined && args.branch.length > 0
             ? args.branch

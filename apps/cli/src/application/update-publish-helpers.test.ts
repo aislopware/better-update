@@ -29,18 +29,27 @@ const git = (overrides: Partial<GitContext> = {}): GitContext => ({
 
 // A stub client whose channel/branch lists let resolveChannelToBranch resolve a
 // channel name to a branch. The git-derivation tests never reach it (branch is
-// already set), so an unconfigured channel just yields an empty list.
+// already set), so an unconfigured channel just yields an empty list. Lists are
+// served page-by-page so the drainPages-based resolution is exercised for real.
+const paged =
+  <Item>(all: readonly Item[]) =>
+  ({ urlParams }: { urlParams: { page?: number; limit: number } }) => {
+    const page = urlParams.page ?? 1;
+    return Effect.succeed({
+      items: all.slice((page - 1) * urlParams.limit, page * urlParams.limit),
+      total: all.length,
+      page,
+      limit: urlParams.limit,
+    });
+  };
+
 const makeApi = (
   channels: readonly { name: string; branchId: string }[] = [],
   branches: readonly { id: string; name: string }[] = [],
 ): ApiClient =>
   ({
-    channels: {
-      list: () => Effect.succeed({ items: channels }),
-    },
-    branches: {
-      list: () => Effect.succeed({ items: branches }),
-    },
+    channels: { list: paged(channels) },
+    branches: { list: paged(branches) },
   }) as unknown as ApiClient;
 
 const baseInput = (
@@ -141,6 +150,59 @@ describe(resolveBranchAndMessage, () => {
         }),
       );
       expect(resolved.branch).toBe("main");
+    }),
+  );
+
+  it.effect("resolves a channel whose rows sit beyond the first list page", () =>
+    Effect.gen(function* () {
+      // Regression: the channel→branch lookup used a single limit:100 page, so a
+      // channel or branch past row 100 was reported as missing. Both lists must
+      // be drained.
+      const channels = [
+        ...Array.from({ length: 150 }, (_, index) => ({
+          name: `filler-channel-${index}`,
+          branchId: `br_filler_${index}`,
+        })),
+        { name: "production", branchId: "br_real" },
+      ];
+      const branches = [
+        ...Array.from({ length: 150 }, (_, index) => ({
+          id: `br_filler_${index}`,
+          name: `filler-branch-${index}`,
+        })),
+        { id: "br_real", name: "main" },
+      ];
+      const resolved = yield* resolve(
+        baseInput({ channelArg: "production", client: makeApi(channels, branches) }),
+      );
+      expect(resolved.branch).toBe("main");
+    }),
+  );
+
+  it.effect("a missing channel falls through to a branch of the same name (EAS parity)", () =>
+    Effect.gen(function* () {
+      // eas-cli auto-provisions a branch named after a nonexistent --channel and
+      // links them on first publish; our server does the same via
+      // ensureBranchChannel when it sees the branch name. The resolver must pass
+      // the channel name through instead of failing.
+      const resolved = yield* resolve(baseInput({ channelArg: "canary", client: makeApi() }));
+      expect(resolved.branch).toBe("canary");
+    }),
+  );
+
+  it.effect("still fails when an existing channel points at a branch missing from the list", () =>
+    Effect.gen(function* () {
+      const exit = yield* resolve(
+        baseInput({
+          channelArg: "production",
+          client: makeApi([{ name: "production", branchId: "br_ghost" }], []),
+        }),
+      ).pipe(Effect.exit);
+
+      expect(Exit.isFailure(exit)).toBe(true);
+      const err = failureError(exit);
+      expect(err).toBeInstanceOf(UpdatePublishError);
+      expect((err as UpdatePublishError).message).toContain("maps to a branch");
     }),
   );
 });

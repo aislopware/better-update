@@ -102,14 +102,14 @@ const fetchServedManifest = async (): Promise<ServedManifest> => {
   return { id: manifest.id, launchHash: manifest.launchAsset.url.split("/").at(-1) ?? "" };
 };
 
-const publishGroupPattern = /Published update group (?<groupId>[0-9a-f-]+) to branch "main"\./;
+const publishGroupPattern = /Published update group (?<groupId>[0-9a-f-]+) to branch/;
 
-const publishIos = (message?: string): string => {
+const publishIos = (message?: string, branch = "main"): string => {
   const result = cli.runCli(
     "update",
     "publish",
     "--branch",
-    "main",
+    branch,
     "--platform",
     "ios",
     ...(message === undefined ? [] : ["--message", message]),
@@ -126,6 +126,7 @@ const publishIos = (message?: string): string => {
 const state = {
   v1GroupId: "",
   v2GroupId: "",
+  rollbackGroupId: "",
   v1: { id: "", launchHash: "" } as ServedManifest,
   v2: { id: "", launchHash: "" } as ServedManifest,
 };
@@ -191,6 +192,9 @@ describe("update revert router: --type published (republish previous) vs --type 
     );
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Created rollback group");
+    state.rollbackGroupId =
+      /Created rollback group (?<groupId>[0-9a-f-]+)/.exec(result.stdout)?.[1] ?? "";
+    expect(state.rollbackGroupId).not.toBe("");
 
     const response = await cli.get(`/manifest/${cli.getProjectId()}`, manifestHeaders());
     expect(response.status).toBe(200);
@@ -233,5 +237,63 @@ describe("update revert router: --type published (republish previous) vs --type 
     );
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr + result.stdout).toContain("does not have a previous update group");
+  });
+});
+
+// EAS `update:rollback [GROUP_ID]` parity: address the revert by update group
+// id, enforce the "must be the latest group for its branch + runtime version"
+// invariant, and auto-pick republish-previous vs rollback-to-embedded.
+describe("update revert --group (non-interactive by group id)", () => {
+  it("refuses --group combined with --branch or --type", () => {
+    const result = cli.runCli("update", "revert", "--group", state.v1GroupId, "--branch", "main");
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr + result.stdout).toContain("--group cannot be combined");
+  });
+
+  it("refuses a group that is not the latest for its branch + runtime version", () => {
+    const result = cli.runCli("update", "revert", "--group", state.v1GroupId, "--platform", "ios");
+    expect(result.exitCode).not.toBe(0);
+    const output = result.stderr + result.stdout;
+    expect(output).toContain(`Update group "${state.v1GroupId}" is not the latest update`);
+    expect(output).toContain("Only the latest update can be reverted.");
+  });
+
+  it("reverts the latest group by republishing the group before it", async () => {
+    // After the router tests, the branch's group history (newest first) is:
+    // rollback directive → republished-v1 → v2 → v1. Reverting the latest
+    // (the rollback group) must republish the group before it, whose bundle
+    // content is v1's.
+    const result = cli.runCli(
+      "update",
+      "revert",
+      "--group",
+      state.rollbackGroupId,
+      "--platform",
+      "ios",
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Republishing previous group");
+    expect(result.stdout).toContain("Republished 1 update(s).");
+
+    const served = await fetchServedManifest();
+    expect(served.launchHash).toBe(state.v1.launchHash);
+  });
+
+  it("falls back to a rollback-to-embedded directive when the group is the only one", async () => {
+    const soloGroupId = publishIos("solo update", "revert-solo");
+    const result = cli.runCli("update", "revert", "--group", soloGroupId, "--platform", "ios");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("publishing a rollback-to-embedded directive");
+    expect(result.stdout).toContain("Created rollback group");
+
+    const response = await cli.get(
+      `/manifest/${cli.getProjectId()}`,
+      manifestHeaders({ "expo-channel-name": "revert-solo" }),
+    );
+    expect(response.status).toBe(200);
+    const parts = parseMultipart(response.headers.get("content-type") ?? "", await response.text());
+    const directivePart = findPart(parts, "directive");
+    expect(directivePart).toBeDefined();
+    expect((JSON.parse(directivePart!.body) as { type: string }).type).toBe("rollBackToEmbedded");
   });
 });

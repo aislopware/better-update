@@ -26,7 +26,9 @@ export const resolveChannelToBranch = (
   channelName: string,
 ) =>
   Effect.gen(function* () {
-    const channels = yield* client.channels.list({ urlParams: { projectId, limit: 100 } }).pipe(
+    const channels = yield* drainPages((page) =>
+      client.channels.list({ urlParams: { projectId, limit: 100, page } }),
+    ).pipe(
       Effect.mapError(
         (cause) =>
           new UpdatePublishError({
@@ -34,13 +36,19 @@ export const resolveChannelToBranch = (
           }),
       ),
     );
-    const match = channels.items.find((channel) => channel.name === channelName);
+    const match = channels.find((channel) => channel.name === channelName);
     if (!match) {
-      return yield* new UpdatePublishError({
-        message: `Channel "${channelName}" not found.`,
-      });
+      // EAS parity: a missing channel is provisioned on first publish. Falling
+      // through with the channel's name lets the server create a branch of the
+      // same name and link the channel to it atomically.
+      yield* Console.log(
+        `Channel "${channelName}" does not exist yet; it will be created and linked to a new branch "${channelName}".`,
+      );
+      return channelName;
     }
-    const branches = yield* client.branches.list({ urlParams: { projectId, limit: 100 } }).pipe(
+    const branches = yield* drainPages((page) =>
+      client.branches.list({ urlParams: { projectId, limit: 100, page } }),
+    ).pipe(
       Effect.mapError(
         (cause) =>
           new UpdatePublishError({
@@ -48,7 +56,7 @@ export const resolveChannelToBranch = (
           }),
       ),
     );
-    const branch = branches.items.find((entry) => entry.id === match.branchId);
+    const branch = branches.find((entry) => entry.id === match.branchId);
     if (!branch) {
       return yield* new UpdatePublishError({
         message: `Channel "${channelName}" maps to a branch (${match.branchId}) not in the project's branch list.`,
