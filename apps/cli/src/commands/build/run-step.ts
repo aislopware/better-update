@@ -3,6 +3,7 @@ import process from "node:process";
 import { Effect } from "effect";
 
 import { BuildFailedError } from "../../lib/exit-codes";
+import { currentLogPrefix, prefixLine } from "../../lib/log-prefix";
 import { OutputMode } from "../../lib/output-mode";
 import { runInPty } from "../../lib/pty-runner";
 import { isWarningLine, styleWarningLine } from "../../lib/warning-style";
@@ -64,6 +65,9 @@ export const runStepFormatted = (
     // build log is redirected to stderr (acceptable chrome for a stdout-only
     // JSON consumer), mirroring the live-tee redirect in pty-runner.ts.
     const mode = yield* OutputMode;
+    // Parallel platform builds tag every formatted line with the fiber's
+    // platform prefix (unset outside `--platform all`).
+    const prefix = yield* currentLogPrefix;
     const logStream = mode.json ? process.stderr : process.stdout;
     // Hold raw lines back from the live tee — instead, pump them through the
     // formatter and write only what xcpretty decides to keep.
@@ -77,9 +81,9 @@ export const runStepFormatted = (
         const formatted = formatter.pipe(line);
         for (const output of formatted) {
           if (isWarningLine(output)) {
-            logStream.write(`${styleWarningLine(output)}\n`);
+            logStream.write(`${prefixLine(prefix, styleWarningLine(output))}\n`);
           } else {
-            logStream.write(`${output}\n`);
+            logStream.write(`${prefixLine(prefix, output)}\n`);
           }
         }
         return undefined;
@@ -89,7 +93,11 @@ export const runStepFormatted = (
     if (code !== 0) {
       const summary = formatter.getBuildSummary();
       if (summary.length > 0) {
-        process.stderr.write(`${summary}\n`);
+        const tagged = summary
+          .split("\n")
+          .map((line) => prefixLine(prefix, line))
+          .join("\n");
+        process.stderr.write(`${tagged}\n`);
       }
       return yield* buildFailed(step, code, `${step} exited with code ${code}`);
     }

@@ -13,20 +13,20 @@ import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { warnIfDevClientMissing } from "../lib/dev-client-check";
-import { listBuildProfileNames, readEasProjectType } from "../lib/eas-json";
+import { readEasProjectType } from "../lib/eas-json";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
-import { InteractiveMode } from "../lib/interactive-mode";
+import { withOptionalPermit } from "../lib/optional-mutex";
 import { printHuman, printKeyValue } from "../lib/output";
 import { detectPlatform, detectPlatformGeneric } from "../lib/platform-detect";
 import { readProjectId } from "../lib/project-link";
 import { prepareStagingProject } from "../lib/project-staging";
-import { promptSelect } from "../lib/prompts";
 import { ensureRepoClean } from "../lib/repo-clean";
+import { resolveProfileName } from "../lib/resolve-profile-name";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { printWarn } from "../lib/warning-style";
@@ -54,6 +54,12 @@ export interface RunBuildWorkflowOptions {
   readonly autoSubmit?: boolean;
   readonly autoSubmitProfile?: string;
   readonly whatToTest?: string;
+  /**
+   * Set by the `--platform all` orchestrator: serializes the sections two
+   * parallel platform-build fibers must not enter together (app.json
+   * autoIncrement writes, interactive credential setup, auto-submit).
+   */
+  readonly mutex?: Effect.Semaphore;
 }
 
 const dirExists = (root: string, name: string) =>
@@ -176,25 +182,6 @@ const runExpoDoctor = (params: {
     ),
   );
 
-const resolveProfileName = (projectRoot: string, requested: string) =>
-  Effect.gen(function* () {
-    const available = yield* listBuildProfileNames(projectRoot);
-    if (available.includes(requested)) {
-      return requested;
-    }
-    const mode = yield* InteractiveMode;
-    if (!mode.allow || available.length === 0) {
-      // Let readBuildProfile fail with its existing "not found" message,
-      // or with the missing-eas.json / empty-build-section message.
-      return requested;
-    }
-    yield* printHuman(`Build profile "${requested}" not found in eas.json.`);
-    return yield* promptSelect<string>(
-      "Pick a build profile:",
-      available.map((name) => ({ value: name, label: name })),
-    );
-  });
-
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
     // eslint-disable-next-line eslint/max-statements -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload → optional submit); splitting further fragments the pipeline
@@ -290,7 +277,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       // runtimeVersion. Non-Expo reads native files / profile overrides and has
       // no runtimeVersion (no eas-updates).
       const { appMeta, runtimeVersion }: BuildMeta = isExpo
-        ? yield* resolveExpoBuildMeta({ userCwd, platform, profile, envVars: envWithBuildId })
+        ? yield* resolveExpoBuildMeta({ userCwd, platform, profile, envVars: envWithBuildId }).pipe(
+            // autoIncrement is a read-modify-write of the user's app.json —
+            // parallel platform builds must not interleave it.
+            withOptionalPermit(options.mutex),
+          )
         : {
             appMeta: yield* resolveAppMeta({
               projectType,
@@ -331,6 +322,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         tempDir,
         envVars: buildEnvVars,
         projectType,
+        ...compact({ copyMutex: options.mutex }),
       });
       const buildEnv = { ...buildEnvVars, BETTER_UPDATE_BUILD_WORKINGDIR: staging.stagingRoot };
 
@@ -367,6 +359,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           updateChannel,
           freezeCredentials: options.freezeCredentials ?? false,
           rawOutput: options.rawOutput,
+          ...compact({ mutex: options.mutex }),
         }),
       );
 
@@ -494,7 +487,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           platform,
           profileName: options.autoSubmitProfile ?? profile.name,
           ...compact({ whatToTest: options.whatToTest }),
-        });
+        }).pipe(
+          // Submits can prompt (ASC key picker, Apple login) — serialize them
+          // across parallel platform builds.
+          withOptionalPermit(options.mutex),
+        );
       }
     }),
   );

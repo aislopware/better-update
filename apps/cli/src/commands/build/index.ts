@@ -2,6 +2,7 @@ import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 
 import { runBuildWorkflow } from "../../application/build-workflow";
+import { runBuildWorkflowAll } from "../../application/build-workflow-all";
 import { runEffect } from "../../lib/citty-effect";
 import { configureBuildCommand } from "./configure";
 
@@ -30,8 +31,9 @@ export const buildCommand = defineCommand({
   args: {
     platform: {
       type: "enum",
-      options: ["ios", "android"],
-      description: "Target platform (auto-detected from app.json when omitted)",
+      options: ["ios", "android", "all"],
+      description:
+        'Target platform; "all" builds ios and android in parallel (auto-detected from app.json when omitted)',
     },
     profile: { type: "string", default: "production", description: "Build profile name" },
     message: { type: "string", description: "Optional build message" },
@@ -72,24 +74,24 @@ export const buildCommand = defineCommand({
       description: "iOS-only TestFlight changelog when auto-submitting",
     },
   },
-  run: async ({ args }) =>
-    runEffect(
-      runBuildWorkflow({
-        platform: args.platform,
-        profileName: args.profile,
-        message: args.message,
-        noUpload: !args.upload,
-        rawOutput: args["raw-output"] ?? false,
-        clearCache: args["clear-cache"] ?? false,
-        freezeCredentials: args["freeze-credentials"] ?? false,
-        allowDirty: args["allow-dirty"] ?? false,
-        ...compact({
-          output: args.output,
-          autoSubmit: args["auto-submit-with-profile"] === undefined ? args["auto-submit"] : true,
-          autoSubmitProfile: args["auto-submit-with-profile"],
-          whatToTest: args["what-to-test"],
-        }),
+  run: async ({ args }) => {
+    const options = {
+      profileName: args.profile,
+      message: args.message,
+      noUpload: !args.upload,
+      rawOutput: args["raw-output"] ?? false,
+      clearCache: args["clear-cache"] ?? false,
+      freezeCredentials: args["freeze-credentials"] ?? false,
+      allowDirty: args["allow-dirty"] ?? false,
+      ...compact({
+        output: args.output,
+        autoSubmit: args["auto-submit-with-profile"] === undefined ? args["auto-submit"] : true,
+        autoSubmitProfile: args["auto-submit-with-profile"],
+        whatToTest: args["what-to-test"],
       }),
-      BUILD_EXIT_EXTRAS,
-    ),
+    };
+    return args.platform === "all"
+      ? runEffect(runBuildWorkflowAll(options), BUILD_EXIT_EXTRAS)
+      : runEffect(runBuildWorkflow({ ...options, platform: args.platform }), BUILD_EXIT_EXTRAS);
+  },
 });

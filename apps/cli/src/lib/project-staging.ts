@@ -14,6 +14,7 @@ import { CliRuntime } from "../services/cli-runtime";
 import { runBuildHook } from "./build-hooks";
 import { StagingError } from "./exit-codes";
 import { formatCause } from "./format-error";
+import { withOptionalPermit } from "./optional-mutex";
 import { printHuman } from "./output";
 
 import type { ProjectType } from "./detect-project-type";
@@ -416,6 +417,12 @@ export interface PrepareStagingProjectInput {
    * JS package manifest (pure-native / KMP). Defaults to Expo behavior.
    */
   readonly projectType?: ProjectType;
+  /**
+   * Serializes the source-tree copy against the other platform fiber's
+   * user-tree writes (app.json autoIncrement) during parallel `--platform all`
+   * builds, so the snapshot never catches a file mid-write.
+   */
+  readonly copyMutex?: Effect.Semaphore;
 }
 
 /**
@@ -450,7 +457,9 @@ export const prepareStagingProject = (
       includeNativeSource,
       appRelPath: relAppPath,
     });
-    yield* copyProjectTree({ source: workspaceRoot, dest: stagingRoot, ig });
+    yield* copyProjectTree({ source: workspaceRoot, dest: stagingRoot, ig }).pipe(
+      withOptionalPermit(input.copyMutex),
+    );
     yield* initGitRepo(stagingRoot);
 
     // Skip `<pm> install` for projects with no JS manifest (pure-native / KMP) —

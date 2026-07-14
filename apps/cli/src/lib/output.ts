@@ -2,6 +2,7 @@ import { Console, Effect } from "effect";
 
 import { resolveActiveCommandName } from "./command-output";
 import { makeSuccessEnvelope, serializeEnvelope } from "./envelope";
+import { currentLogPrefix, prefixLine } from "./log-prefix";
 import { OutputMode } from "./output-mode";
 
 /**
@@ -68,9 +69,10 @@ export const printKeyValue = (
       return;
     }
     const maxKeyLen = Math.max(...pairs.map(([key]) => key.length));
+    const prefix = yield* currentLogPrefix;
 
     for (const [key, value] of pairs) {
-      yield* Console.log(`${key.padEnd(maxKeyLen)}  ${value}`);
+      yield* Console.log(prefixLine(prefix, `${key.padEnd(maxKeyLen)}  ${value}`));
     }
   });
 
@@ -100,7 +102,7 @@ export const printHuman = (message: string): Effect.Effect<void, never, OutputMo
     if (mode.json) {
       return;
     }
-    yield* Console.log(message);
+    yield* Console.log(prefixLine(yield* currentLogPrefix, message));
   });
 
 /**

@@ -17,6 +17,7 @@ Signing material (keystores, certs, profiles, APNs/ASC keys) and the E2E vault l
 ```bash
 better-update build                          # platform auto-detected from app.json
 better-update build --platform ios --profile production
+better-update build --platform all           # ios + android in parallel ([ios]/[android]-tagged output)
 ```
 
 What it does:
@@ -81,20 +82,20 @@ credentials, and store submission have no such requirement.
 
 ### Flags
 
-| Flag                                | Default      | Notes                                                                      |
-| ----------------------------------- | ------------ | -------------------------------------------------------------------------- |
-| `--platform <ios\|android>`         | auto         | **Optional** — auto-detected from `app.json` when omitted.                 |
-| `--profile <name>`                  | `production` | Build profile (matches `eas.json` profile names).                          |
-| `--message <text>`                  | —            | Free-form description, stored on the build record.                         |
-| `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                      |
-| `--output <path>`                   | —            | Copy the built artifact to this local path.                                |
-| `--raw-output`                      | off          | Stream raw Gradle/Xcode output instead of the formatted spinner.           |
-| `--clear-cache`                     | off          | Clear project-scoped build caches before building.                         |
-| `--freeze-credentials`              | off          | Fail fast if credentials are missing instead of prompting (CI).            |
-| `--allow-dirty`                     | off          | Proceed even with uncommitted git changes.                                 |
-| `--auto-submit`, `-s`               | off          | After upload, submit using the `eas.json` submit profile of the same name. |
-| `--auto-submit-with-profile <name>` | —            | After upload, submit using a specific submit profile.                      |
-| `--what-to-test <text>`             | —            | iOS-only TestFlight changelog when auto-submitting.                        |
+| Flag                                | Default      | Notes                                                                                                    |
+| ----------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------- |
+| `--platform <ios\|android\|all>`    | auto         | **Optional** — auto-detected when omitted; `all` builds both in parallel (not with `--json`/`--output`). |
+| `--profile <name>`                  | `production` | Build profile (matches `eas.json` profile names).                                                        |
+| `--message <text>`                  | —            | Free-form description, stored on the build record.                                                       |
+| `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                                                    |
+| `--output <path>`                   | —            | Copy the built artifact to this local path.                                                              |
+| `--raw-output`                      | off          | Stream raw Gradle/Xcode output instead of the formatted spinner.                                         |
+| `--clear-cache`                     | off          | Clear project-scoped build caches before building.                                                       |
+| `--freeze-credentials`              | off          | Fail fast if credentials are missing instead of prompting (CI).                                          |
+| `--allow-dirty`                     | off          | Proceed even with uncommitted git changes.                                                               |
+| `--auto-submit`, `-s`               | off          | After upload, submit using the `eas.json` submit profile of the same name.                               |
+| `--auto-submit-with-profile <name>` | —            | After upload, submit using a specific submit profile.                                                    |
+| `--what-to-test <text>`             | —            | iOS-only TestFlight changelog when auto-submitting.                                                      |
 
 ### Scaffold build profiles
 

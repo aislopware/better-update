@@ -7,6 +7,7 @@ import { resolveAndroidStrategy, resolveIosStrategy } from "../lib/build-strateg
 import { materializeEnvFile } from "../lib/env-materialize";
 import { BuildProfileError } from "../lib/exit-codes";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
+import { withOptionalPermit } from "../lib/optional-mutex";
 import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
 
 import type { BuildTarget } from "../commands/build/reserve-and-upload";
@@ -42,6 +43,11 @@ export interface PlatformBuildInput {
   readonly updateChannel: string | undefined;
   readonly freezeCredentials: boolean;
   readonly rawOutput: boolean | undefined;
+  /**
+   * Serializes interactive credential setup across parallel `--platform all`
+   * builds so two fibers never prompt on the same terminal at once.
+   */
+  readonly mutex?: Effect.Semaphore;
 }
 
 const runIosPlatformBuild = (input: PlatformBuildInput) =>
@@ -73,7 +79,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
           distribution: iosProfile.distribution,
         },
         { freezeCredentials: input.freezeCredentials },
-      );
+      ).pipe(withOptionalPermit(input.mutex));
     }
     // Non-Expo projects don't regenerate native files, so an explicit eas.json
     // version override would otherwise never reach the binary. Materialize it
@@ -142,7 +148,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
         api,
         { projectId, applicationIdentifier },
         { freezeCredentials: input.freezeCredentials },
-      );
+      ).pipe(withOptionalPermit(input.mutex));
     }
     // Mirror the iOS path: a non-Expo project never regenerates android/, so an
     // explicit eas.json version override is materialized into build.gradle / .env

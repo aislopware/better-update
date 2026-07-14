@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { Console, Effect } from "effect";
 
+import { currentLogPrefix, prefixLine } from "./log-prefix";
 import { OutputMode } from "./output-mode";
 
 // Match ANSI escapes (CSI / OSC introduced by ESC or 8-bit CSI). Mirrors the
@@ -52,5 +53,5 @@ export const printWarn = (message: string): Effect.Effect<void, never, OutputMod
     if (mode.json) {
       return;
     }
-    yield* Console.warn(chalk.yellow(`⚠ warning: ${message}`));
+    yield* Console.warn(prefixLine(yield* currentLogPrefix, chalk.yellow(`⚠ warning: ${message}`)));
   });

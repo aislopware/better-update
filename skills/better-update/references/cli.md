@@ -243,15 +243,17 @@ better-update channels rollout revert <channelId>
 ## build
 
 ```bash
-better-update build [--platform <ios|android>] [flags]
+better-update build [--platform <ios|android|all>] [flags]
 better-update build configure [--force]      # scaffold/top-up eas.json default profiles (--force overwrites)
 ```
 
-`--platform` is **optional** — auto-detected from `app.json` when omitted.
+`--platform` is **optional** — auto-detected from `app.json` when omitted. `--platform all` builds
+ios and android **in parallel** (output lines are tagged `[ios]` / `[android]`); not combinable with
+`--json` or `--output`.
 
 | Flag                                | Default      | Notes                                                                    |
 | ----------------------------------- | ------------ | ------------------------------------------------------------------------ |
-| `--platform <ios\|android>`         | auto         | Auto-detected from app.json when omitted.                                |
+| `--platform <ios\|android\|all>`    | auto         | Auto-detected when omitted; `all` = both platforms in parallel.          |
 | `--profile <name>`                  | `production` | Build profile (matches `eas.json` profile names).                        |
 | `--message <text>`                  | —            | Free-form description on the build record.                               |
 | `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                    |

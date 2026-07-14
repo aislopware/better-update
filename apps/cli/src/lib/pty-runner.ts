@@ -8,6 +8,7 @@ import { spawn } from "node-pty";
 
 import type { IPty } from "node-pty";
 
+import { currentLogPrefix, finalCarriageSegment } from "./log-prefix";
 import { OutputMode } from "./output-mode";
 
 export interface PtyRunInput {
@@ -15,6 +16,12 @@ export interface PtyRunInput {
   readonly args: readonly string[];
   readonly cwd: string;
   readonly env: Readonly<Record<string, string>>;
+  /**
+   * Terminal name the subprocess sees as `TERM` (node-pty overwrites `env.TERM`
+   * with this). Defaults to `xterm-256color`; prefixed line mode passes `dumb`
+   * so tools fall back to sequential output instead of cursor-movement redraws.
+   */
+  readonly terminalName?: string;
   /**
    * When true, raw subprocess output bytes are NOT forwarded to
    * `process.stdout` — only `onLine` callbacks decide what to print. Use when
@@ -94,7 +101,7 @@ const trySpawn = (input: PtyRunInput): IPty | Error => {
   const { cols, rows } = ptyDimensions();
   try {
     return spawn(input.command, [...input.args], {
-      name: "xterm-256color",
+      name: input.terminalName ?? "xterm-256color",
       cols,
       rows,
       cwd: input.cwd,
@@ -124,11 +131,36 @@ const trySpawn = (input: PtyRunInput): IPty | Error => {
 export const runInPty = (input: PtyRunInput): Effect.Effect<number, never, OutputMode> =>
   Effect.gen(function* () {
     const mode = yield* OutputMode;
+    const prefix = yield* currentLogPrefix;
     // JSON mode: the success/error envelope is the WHOLE stdout payload, so the
     // raw native build log goes to stderr instead of polluting it.
     const logStream = mode.json ? process.stderr : process.stdout;
-    return yield* runInPtyWithStream(input, logStream);
+    // Parallel platform builds: rewrite the live tee into prefixed line mode so
+    // the two subprocess streams interleave whole, attributable lines. Formatter
+    // callers (`silent: true`) own their writes and prefix at the write site.
+    const effective =
+      prefix === undefined || input.silent === true ? input : withLinePrefix(input, prefix);
+    return yield* runInPtyWithStream(effective, logStream);
   });
+
+/**
+ * Rewrite a live-tee input for prefixed line mode: raw chunk forwarding is
+ * disabled and every completed line is re-emitted with the fiber's platform
+ * tag. The subprocess sees `TERM=dumb` — cursor-movement redraws can't be
+ * replayed line-by-line — and CR-only spinner frames collapse to their final
+ * rendered state.
+ */
+const withLinePrefix = (input: PtyRunInput, prefix: string): PtyRunInput => ({
+  ...input,
+  silent: true,
+  terminalName: "dumb",
+  onLine: (line) => {
+    const rendered = finalCarriageSegment(line);
+    const annotation = input.onLine?.(rendered);
+    const tagged = `${prefix}${rendered}`;
+    return annotation === undefined ? tagged : `${tagged}\n${prefix}${annotation}`;
+  },
+});
 
 const runInPtyWithStream = (
   input: PtyRunInput,
