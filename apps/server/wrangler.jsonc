@@ -101,7 +101,7 @@
     // version and everything older are blocked). "0.0.0" blocks nothing (default).
     // 0.64.1: retire CLI 0.64.1 and older — only versions strictly newer may run
     // (multi-account Apple session storage migrates the single legacy entry).
-    "REQUIRE_CLI_VERSION_ABOVE": "0.64.1",
+    "REQUIRE_CLI_VERSION_ABOVE": "0.66.0",
     "ENVIRONMENT": "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
