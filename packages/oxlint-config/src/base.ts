@@ -247,6 +247,9 @@ export default defineConfig({
 
         "vitest/require-test-timeout": "off",
         "vitest/prefer-importing-vitest-globals": "off",
+        // oxlint 1.74 hardcodes @effect/vitest as a vitest-globals source (oxc#24196, no
+        // allowlist option), but `import { it } from "@effect/vitest"` is required for it.effect.
+        "vitest/no-importing-vitest-globals": "off",
         "vitest/valid-title": "off",
         "vitest/prefer-expect-assertions": "off",
         "vitest/max-expects": "off",

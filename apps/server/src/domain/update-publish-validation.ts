@@ -43,7 +43,10 @@ const expectRecord = (
 
 const readRecordField = (record: Record<string, unknown>, key: string): unknown => record[key];
 
-const expectNonEmptyString = (value: unknown, message: string): Effect.Effect<string, BadRequest> =>
+const expectNonEmptyString = (
+  value: unknown,
+  message: string,
+): Effect.Effect<string, BadRequest> =>
   typeof value === "string" && value.length > 0
     ? Effect.succeed(value)
     : Effect.fail(fail(message));

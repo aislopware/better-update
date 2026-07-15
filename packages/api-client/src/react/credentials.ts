@@ -318,7 +318,10 @@ export const setAppleTeamProtection = async (id: string, isProtected: boolean) =
     ? runApi((api) => api.appleTeams.protect({ path: { id } }))
     : runApi((api) => api.appleTeams.unprotect({ path: { id } }));
 
-export const setAppleDistributionCertificateProtection = async (id: string, isProtected: boolean) =>
+export const setAppleDistributionCertificateProtection = async (
+  id: string,
+  isProtected: boolean,
+) =>
   isProtected
     ? runApi((api) => api.appleDistributionCertificates.protect({ path: { id } }))
     : runApi((api) => api.appleDistributionCertificates.unprotect({ path: { id } }));
