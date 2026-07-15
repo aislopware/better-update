@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.54.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.53.1...%40better-update%2Fserver%400.54.0) (2026-07-15)
+
+### Features
+
+* **server:** serve full bundles and /api/config from Workers Cache ([c6dfc0f](https://github.com/better-update/better-update/commit/c6dfc0f53cea9f6217be7c11ed857e103cdecf7f))
+
 ## [0.53.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.53.0...%40better-update%2Fserver%400.53.1) (2026-07-15)
 
 **Note:** Version bump only for package @better-update/server

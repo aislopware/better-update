@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.64.3](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.64.2...%40better-update%2Fweb%400.64.3) (2026-07-15)
+
+**Note:** Version bump only for package @better-update/web
+
 ## [0.64.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.64.1...%40better-update%2Fweb%400.64.2) (2026-07-14)
 
 ### Bug Fixes
