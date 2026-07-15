@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.67.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.66.0...%40better-update%2Fcli%400.67.0) (2026-07-15)
+
+### Features
+
+* **cli:** ask shared interactive questions once across multi-item loops ([f5743b1](https://github.com/better-update/better-update/commit/f5743b1321e1d97c6e7f63d20f360b7591d56762))
+
 ## [0.66.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.65.0...%40better-update%2Fcli%400.66.0) (2026-07-14)
 
 ### Features
