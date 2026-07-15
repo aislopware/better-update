@@ -14,8 +14,14 @@ import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
 import { formatCause } from "../../lib/format-error";
 import { printHuman, printHumanKeyValue, printHumanList } from "../../lib/output";
+import { promptConfirm } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
-import { confirmFingerprint, resolveSelector, unlockVaultInteractively } from "./vault-session";
+import {
+  confirmFingerprint,
+  printRecipientDetails,
+  resolveSelector,
+  unlockVaultInteractively,
+} from "./vault-session";
 
 import type { RotationRecipient } from "../../application/vault-rotation";
 
@@ -189,13 +195,25 @@ const grantEnvCommand = defineCommand({
 
 // Exported for reuse by `credentials robot revoke` (see toRotationRecipient above).
 // The header makes clear the keys listed below are the SURVIVORS the rotated key
-// is re-wrapped to — not whatever is being revoked.
+// is re-wrapped to — not whatever is being revoked. One confirmation covers the
+// whole list — per-recipient prompts made revoking from a large org a slog.
 export const confirmRecipients = (recipients: readonly UserEncryptionKey[], skip: boolean) =>
   Effect.gen(function* () {
     yield* printHuman("The rotated vault key will be re-wrapped to these recipients:");
-    yield* Effect.forEach(recipients, (recipient) => confirmFingerprint(recipient, skip), {
-      discard: true,
-    });
+    yield* Effect.forEach(recipients, printRecipientDetails, { discard: true });
+    if (skip) {
+      return undefined;
+    }
+    const verified = yield* promptConfirm(
+      "Have you verified these recipient fingerprints out-of-band?",
+      { initialValue: false },
+    );
+    if (!verified) {
+      return yield* new IdentityError({
+        message: "Cancelled — verify the recipient fingerprints out-of-band first.",
+      });
+    }
+    return undefined;
   });
 
 const rotateCommand = defineCommand({

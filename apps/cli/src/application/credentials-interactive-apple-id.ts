@@ -1,5 +1,5 @@
 import { compact, toOptional } from "@better-update/type-guards";
-import { Console, Effect } from "effect";
+import { Console, Effect, Ref } from "effect";
 
 import type { RequestContext } from "@expo/apple-utils";
 
@@ -211,7 +211,22 @@ const offerAscKeyFromSession = (api: ApiClient, ctx: RequestContext, appleTeamId
     ),
   );
 
-export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) =>
+/**
+ * Answers from a previous target, reused across a multi-target Apple ID setup
+ * loop: the certificate pick and the create-an-ASC-key offer are org/team-wide
+ * decisions, so ask once — only the per-bundle profile generation repeats.
+ */
+export interface AppleIdSetupReuse {
+  readonly certId: string;
+  readonly certAppleTeamId: string;
+  readonly ascApiKeyId: string | null;
+}
+
+export const setupIosViaAppleId = (
+  api: ApiClient,
+  input: AppleIdIosSetupInput,
+  reuse?: Ref.Ref<AppleIdSetupReuse | null>,
+) =>
   Effect.gen(function* () {
     const auth = yield* AppleAuth;
     const session = yield* auth.ensureLoggedIn();
@@ -219,7 +234,14 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
     yield* Console.log(
       `Logged in as ${session.username}. Team: ${session.teamName ?? session.teamId} (${session.teamId}).`,
     );
-    const cert = yield* chooseDistributionCertViaAppleId(api, ctx, session.teamId);
+    const cached = reuse === undefined ? null : yield* Ref.get(reuse);
+    if (cached !== null) {
+      yield* Console.log("Reusing the distribution certificate picked for the previous target.");
+    }
+    const cert =
+      cached === null
+        ? yield* chooseDistributionCertViaAppleId(api, ctx, session.teamId)
+        : { id: cached.certId, appleTeamId: cached.certAppleTeamId };
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
     yield* Console.log("Generating provisioning profile via Apple ID...");
     const profile = yield* generateAndUploadProvisioningProfile(api, {
@@ -228,7 +250,13 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
       bundleIdentifier: input.bundleIdentifier,
       distributionType,
     });
-    const ascApiKeyId = yield* offerAscKeyFromSession(api, ctx, session.teamId);
+    const ascApiKeyId =
+      cached === null
+        ? yield* offerAscKeyFromSession(api, ctx, session.teamId)
+        : cached.ascApiKeyId;
+    if (reuse !== undefined) {
+      yield* Ref.set(reuse, { certId: cert.id, certAppleTeamId: cert.appleTeamId, ascApiKeyId });
+    }
     // A declined offer leaves ascApiKeyId unset; existing bindings (if any) are
     // preserved by the upsert.
     yield* upsertIosBundleConfiguration(api, {
@@ -253,6 +281,13 @@ export interface AppleIdRegenerateInput {
 export const regenerateProvisioningProfileViaAppleId = (
   api: ApiClient,
   input: AppleIdRegenerateInput,
+  options?: {
+    /**
+     * Set once the mint-an-ASC-key offer has been answered this run, so a loop
+     * regenerating many bundles asks it once instead of once per bundle.
+     */
+    readonly ascKeyOfferSettled?: Ref.Ref<boolean>;
+  },
 ) =>
   Effect.gen(function* () {
     const auth = yield* AppleAuth;
@@ -268,7 +303,16 @@ export const regenerateProvisioningProfileViaAppleId = (
     // Reaching this path means the bundle has no bound ASC key AND the org holds
     // none for the team (the caller already offered existing keys) — minting one
     // from the session we just opened is the only way out of the login loop.
-    const ascApiKeyId = yield* offerAscKeyFromSession(api, ctx, session.teamId);
+    const offerSettled =
+      options?.ascKeyOfferSettled === undefined
+        ? false
+        : yield* Ref.get(options.ascKeyOfferSettled);
+    const ascApiKeyId = offerSettled
+      ? null
+      : yield* offerAscKeyFromSession(api, ctx, session.teamId);
+    if (options?.ascKeyOfferSettled !== undefined) {
+      yield* Ref.set(options.ascKeyOfferSettled, true);
+    }
     yield* api.iosBundleConfigurations.update({
       path: { id: input.bundleConfigurationId },
       payload: {

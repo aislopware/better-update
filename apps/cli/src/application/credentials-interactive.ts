@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { Console, Effect } from "effect";
+import { Console, Effect, Ref } from "effect";
 
 import type { IosBundleConfiguration } from "@better-update/api";
 
@@ -22,7 +22,8 @@ import {
 import { setupIosViaAscKey } from "./credentials-interactive-ios-asc";
 
 import type { ApiClient } from "../services/api-client";
-import type { IosSetupInput } from "./credentials-interactive-ios-asc";
+import type { AppleIdSetupReuse, IosSetupPath } from "./credentials-interactive-apple-id";
+import type { AscSetupReuse, IosSetupInput } from "./credentials-interactive-ios-asc";
 
 export type {
   DistributionTypeValue,
@@ -185,8 +186,49 @@ const ensureAndroidCredentialsAvailable = (api: ApiClient, input: AndroidSetupIn
     })
     .pipe(Effect.asVoid);
 
+/**
+ * Per-run memory for the ASC-key questions asked while regenerating stale
+ * profiles, so a loop over many bundle configurations asks each question once
+ * instead of once per bundle. Only explicit user answers are remembered —
+ * silent skips (no keys on the team yet) stay uncached so a key minted mid-run
+ * still gets offered to later bundles.
+ */
+export interface AscBindingMemo {
+  /** Internal Apple team id → chosen ASC key id, or null when the user declined. */
+  readonly bindChoiceByTeam: Ref.Ref<ReadonlyMap<string, string | null>>;
+  /** The mint-an-ASC-key-from-this-session offer was already answered this run. */
+  readonly ascKeyOfferSettled: Ref.Ref<boolean>;
+}
+
+export const makeAscBindingMemo: Effect.Effect<AscBindingMemo> = Effect.all({
+  bindChoiceByTeam: Ref.make<ReadonlyMap<string, string | null>>(new Map()),
+  ascKeyOfferSettled: Ref.make(false),
+});
+
+/**
+ * Interactive answers shared across a multi-target iOS setup loop (main app +
+ * app extensions): the setup path, distribution certificate, and ASC key are
+ * the same for every bundle, so ask once and reuse — only the per-bundle
+ * provisioning-profile questions repeat.
+ */
+export interface IosSetupSession extends AscBindingMemo {
+  readonly path: Ref.Ref<IosSetupPath | null>;
+  readonly asc: Ref.Ref<AscSetupReuse | null>;
+  readonly appleId: Ref.Ref<AppleIdSetupReuse | null>;
+}
+
+export const makeIosSetupSession: Effect.Effect<IosSetupSession> = Effect.all({
+  path: Ref.make<IosSetupPath | null>(null),
+  asc: Ref.make<AscSetupReuse | null>(null),
+  appleId: Ref.make<AppleIdSetupReuse | null>(null),
+  bindChoiceByTeam: Ref.make<ReadonlyMap<string, string | null>>(new Map()),
+  ascKeyOfferSettled: Ref.make(false),
+});
+
 export interface EnsureCredentialsOptions {
   readonly freezeCredentials: boolean;
+  /** Share interactive answers across a multi-target loop — see {@link IosSetupSession}. */
+  readonly setupSession?: IosSetupSession;
 }
 
 export const ensureAndroidCredentials = (
@@ -214,17 +256,21 @@ export const ensureAndroidCredentials = (
 
 // ── iOS ────────────────────────────────────────────────────────────
 
-const setupIosInteractive = (api: ApiClient, input: IosSetupInput) =>
+const setupIosInteractive = (api: ApiClient, input: IosSetupInput, session?: IosSetupSession) =>
   Effect.gen(function* () {
     yield* Console.log("");
     yield* Console.log(
       `No iOS bundle configuration for ${input.bundleIdentifier} (${input.distribution}).`,
     );
-    const path = yield* chooseIosSetupPath(api);
-    if (path === "apple-id") {
-      return yield* setupIosViaAppleId(api, input);
+    const remembered = session === undefined ? null : yield* Ref.get(session.path);
+    const path = remembered ?? (yield* chooseIosSetupPath(api));
+    if (session !== undefined) {
+      yield* Ref.set(session.path, path);
     }
-    return yield* setupIosViaAscKey(api, input);
+    if (path === "apple-id") {
+      return yield* setupIosViaAppleId(api, input, session?.appleId);
+    }
+    return yield* setupIosViaAscKey(api, input, session?.asc);
   });
 
 const resolveIosBuildCredentials = (api: ApiClient, input: IosSetupInput) =>
@@ -266,11 +312,32 @@ const APPLE_ID_FALLBACK = "__apple-id__";
  * headless over the ASC API. Returns the bound key id, or null to keep the
  * Apple ID path (declined, no matching key, or non-interactive).
  */
-const offerAscKeyBinding = (api: ApiClient, config: IosBundleConfiguration) =>
+const offerAscKeyBinding = (
+  api: ApiClient,
+  config: IosBundleConfiguration,
+  memo?: AscBindingMemo,
+) =>
   Effect.gen(function* () {
     const mode = yield* InteractiveMode;
     if (!mode.allow) {
       return null;
+    }
+    const remembered =
+      memo === undefined
+        ? undefined
+        : (yield* Ref.get(memo.bindChoiceByTeam)).get(config.appleTeamId);
+    if (remembered !== undefined) {
+      if (remembered === null) {
+        return null;
+      }
+      yield* api.iosBundleConfigurations.update({
+        path: { id: config.id },
+        payload: { ascApiKeyId: remembered },
+      });
+      yield* Console.log(
+        `Bound the previously chosen ASC API key to ${config.bundleIdentifier} as well.`,
+      );
+      return remembered;
     }
     const ascKeys = yield* api.ascApiKeys.list();
     const teamKeys = ascKeys.items.filter((key) => key.appleTeamId === config.appleTeamId);
@@ -287,18 +354,28 @@ const offerAscKeyBinding = (api: ApiClient, config: IosBundleConfiguration) =>
         { value: APPLE_ID_FALLBACK, label: "No — continue with Apple ID login" },
       ],
     );
-    if (choice === APPLE_ID_FALLBACK) {
+    const chosen = choice === APPLE_ID_FALLBACK ? null : choice;
+    if (memo !== undefined) {
+      yield* Ref.update(memo.bindChoiceByTeam, (entries) =>
+        new Map(entries).set(config.appleTeamId, chosen),
+      );
+    }
+    if (chosen === null) {
       return null;
     }
     yield* api.iosBundleConfigurations.update({
       path: { id: config.id },
-      payload: { ascApiKeyId: choice },
+      payload: { ascApiKeyId: chosen },
     });
     yield* Console.log("ASC API key bound — this and future regenerations skip Apple ID login.");
-    return choice;
+    return chosen;
   });
 
-export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInput) =>
+export const regenerateProvisioningProfile = (
+  api: ApiClient,
+  input: IosSetupInput,
+  memo?: AscBindingMemo,
+) =>
   Effect.gen(function* () {
     const config = yield* findBoundIosConfig(api, input);
     if (config.appleDistributionCertificateId === null) {
@@ -309,14 +386,18 @@ export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInp
       });
     }
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
-    const ascApiKeyId = config.ascApiKeyId ?? (yield* offerAscKeyBinding(api, config));
+    const ascApiKeyId = config.ascApiKeyId ?? (yield* offerAscKeyBinding(api, config, memo));
     if (ascApiKeyId === null) {
-      return yield* regenerateProvisioningProfileViaAppleId(api, {
-        bundleIdentifier: input.bundleIdentifier,
-        distributionCertificateId: config.appleDistributionCertificateId,
-        distributionType,
-        bundleConfigurationId: config.id,
-      });
+      return yield* regenerateProvisioningProfileViaAppleId(
+        api,
+        {
+          bundleIdentifier: input.bundleIdentifier,
+          distributionCertificateId: config.appleDistributionCertificateId,
+          distributionType,
+          bundleConfigurationId: config.id,
+        },
+        memo === undefined ? undefined : { ascKeyOfferSettled: memo.ascKeyOfferSettled },
+      );
     }
     yield* Console.log("Regenerating provisioning profile via App Store Connect API...");
     const context = yield* ascKeyRequestContext(api, ascApiKeyId);
@@ -350,7 +431,7 @@ export const ensureIosCredentials = (
               : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
           });
         }
-        yield* setupIosInteractive(api, input);
+        yield* setupIosInteractive(api, input, options.setupSession);
         return yield* resolveIosBuildCredentials(api, input);
       }),
     ),
@@ -371,7 +452,7 @@ export const ensureIosCredentials = (
         yield* Console.log(
           `Stale provisioning profile for ${input.bundleIdentifier} (device roster changed). Regenerating...`,
         );
-        yield* regenerateProvisioningProfile(api, input);
+        yield* regenerateProvisioningProfile(api, input, options.setupSession);
         return undefined;
       }),
     ),

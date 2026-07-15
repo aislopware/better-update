@@ -7,6 +7,7 @@ import { Effect } from "effect";
 import {
   ensureAndroidCredentials,
   ensureIosCredentials,
+  makeIosSetupSession,
 } from "../../application/credentials-interactive";
 import {
   rebindAndroidKeystore,
@@ -206,12 +207,15 @@ interface ConfigureIosTargetsArgs {
 // Service Extension) discovered from the Xcode project. The distribution cert is
 // shared across targets, but each bundle id needs its own provisioning profile,
 // so we run the ensure flow once per bundle. Sequential (concurrency 1) so the
-// interactive Apple ID / ASC prompts for different bundles don't race.
+// interactive Apple ID / ASC prompts for different bundles don't race, and one
+// setup session so the shared answers (setup path, cert, ASC key) are asked
+// once — not re-asked for every target.
 const configureIosTargets = (args: ConfigureIosTargetsArgs) =>
   Effect.gen(function* () {
     yield* printHuman(
       `Configuring iOS credentials for ${args.targets.length} signed target(s) (${args.distribution})...`,
     );
+    const setupSession = yield* makeIosSetupSession;
     yield* Effect.forEach(
       args.targets,
       (target) =>
@@ -223,7 +227,7 @@ const configureIosTargets = (args: ConfigureIosTargetsArgs) =>
           };
           yield* printHuman("");
           yield* printHuman(`${target.targetName} (${target.bundleId})`);
-          yield* ensureIosCredentials(args.api, input, { freezeCredentials: false });
+          yield* ensureIosCredentials(args.api, input, { freezeCredentials: false, setupSession });
           yield* showIosBinding(args.api, input);
         }),
       { concurrency: 1 },

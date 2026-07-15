@@ -1,7 +1,10 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import { regenerateProvisioningProfile } from "../../application/credentials-interactive";
+import {
+  makeAscBindingMemo,
+  regenerateProvisioningProfile,
+} from "../../application/credentials-interactive";
 import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError, MissingCredentialsError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
@@ -9,6 +12,7 @@ import { readAppMetaOptional, readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
+import type { AscBindingMemo } from "../../application/credentials-interactive";
 import type { IosDistribution } from "../../lib/build-profile";
 import type { ApiClient } from "../../services/api-client";
 
@@ -39,13 +43,18 @@ const regenerateOne = (
   projectId: string,
   bundleIdentifier: string,
   distribution: IosDistribution,
+  memo?: AscBindingMemo,
 ) =>
   Effect.gen(function* () {
-    const created = yield* regenerateProvisioningProfile(api, {
-      projectId,
-      bundleIdentifier,
-      distribution,
-    });
+    const created = yield* regenerateProvisioningProfile(
+      api,
+      {
+        projectId,
+        bundleIdentifier,
+        distribution,
+      },
+      memo,
+    );
     yield* printHumanKeyValue([
       ["Bundle", bundleIdentifier],
       ["Distribution", distribution],
@@ -68,12 +77,16 @@ const regenerateAllForProject = (api: ApiClient, projectId: string) =>
     yield* printHuman(
       `Regenerating ${String(configs.items.length)} provisioning profile(s) for this project...`,
     );
+    // One memo for the whole loop: the ASC-key-binding answers are per-team, so
+    // ask once and apply to every configuration on that team instead of
+    // re-prompting per bundle.
+    const memo = yield* makeAscBindingMemo;
     type RegenerationResult = Effect.Effect.Success<ReturnType<typeof regenerateOne>>;
     const regenerated: RegenerationResult[] = [];
     for (const config of configs.items) {
       const distribution = distributionTypeToDistribution(config.distributionType);
       yield* printHuman("");
-      const one = yield* regenerateOne(api, projectId, config.bundleIdentifier, distribution);
+      const one = yield* regenerateOne(api, projectId, config.bundleIdentifier, distribution, memo);
       regenerated.push(one);
     }
     return { regenerated };

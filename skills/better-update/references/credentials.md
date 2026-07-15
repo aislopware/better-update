@@ -167,8 +167,13 @@ better-update credentials sync pull [--platform ios|android|all] [--keys-dir <di
   holds one for the config's team, an interactive run offers to **bind it in place** before falling
   back to Apple ID + 2FA login. If the team has no stored key at all, the Apple ID fallback then
   offers to **create an ASC key from that very session and bind it** — so the login it just performed
-  is the last one. The Apple ID setup path (`build` first-run wizard) makes the same offer.
-- `configure` is the non-build wizard to bind/rebind which credential each bundle/package uses.
+  is the last one. The Apple ID setup path (`build` first-run wizard) makes the same offer. With
+  `--all`, both offers are asked **once per run** (bind answers remembered per Apple team and applied
+  to the remaining bundle configs), not once per bundle.
+- `configure` is the non-build wizard to bind/rebind which credential each bundle/package uses. When
+  it (or the `build` first-run wizard) walks multiple signed targets (main app + extensions), the
+  shared answers — setup path, distribution certificate, ASC key — are asked once for the first
+  target and reused; only the per-bundle provisioning-profile questions repeat.
 - `sync` bridges a local `credentials.json` (EAS-style) with the server vault.
 
 ## Revoke

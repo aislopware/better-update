@@ -3,7 +3,10 @@ import path from "node:path";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import { ensureIosCredentials } from "../../application/credentials-interactive";
+import {
+  ensureIosCredentials,
+  makeIosSetupSession,
+} from "../../application/credentials-interactive";
 import { findArtifactByGlob, findIosArtifact } from "../../lib/artifact-finder";
 import { downloadIosCredentials } from "../../lib/credentials-downloader";
 import { BuildFailedError, MissingCredentialsError, ProvisioningError } from "../../lib/exit-codes";
@@ -143,7 +146,9 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
 // ── multi-target credentials + signing helpers ────────────────────
 
 // Sequential so interactive Apple ID / ASC prompts don't race when multiple
-// bundles (main + extensions) need setup in the same session.
+// bundles (main + extensions) need setup in the same session; one setup session
+// so the shared answers (setup path, cert, ASC key) are asked once, not per
+// target.
 const ensurePerTargetCredentials = (params: {
   readonly api: ApiClient;
   readonly projectId: string;
@@ -151,20 +156,23 @@ const ensurePerTargetCredentials = (params: {
   readonly signedTargets: readonly DiscoveredTarget[];
   readonly freezeCredentials: boolean;
 }) =>
-  Effect.forEach(
-    params.signedTargets,
-    (target) =>
-      ensureIosCredentials(
-        params.api,
-        {
-          projectId: params.projectId,
-          bundleIdentifier: target.bundleId,
-          distribution: params.distribution,
-        },
-        { freezeCredentials: params.freezeCredentials },
-      ),
-    { concurrency: 1 },
-  );
+  Effect.gen(function* () {
+    const setupSession = yield* makeIosSetupSession;
+    yield* Effect.forEach(
+      params.signedTargets,
+      (target) =>
+        ensureIosCredentials(
+          params.api,
+          {
+            projectId: params.projectId,
+            bundleIdentifier: target.bundleId,
+            distribution: params.distribution,
+          },
+          { freezeCredentials: params.freezeCredentials, setupSession },
+        ),
+      { concurrency: 1 },
+    );
+  });
 
 const fetchAllCredentials = (params: {
   readonly api: ApiClient;

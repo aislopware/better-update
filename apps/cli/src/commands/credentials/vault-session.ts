@@ -26,6 +26,15 @@ export const resolveSelector = (flag: string | undefined, message: string) =>
     return yield* promptText(message);
   });
 
+/** Print a recipient's identifying details for out-of-band fingerprint verification. */
+export const printRecipientDetails = (target: UserEncryptionKey) =>
+  printKeyValue([
+    ["Label", target.label],
+    ["Kind", target.kind],
+    ["Recipient (public key)", target.publicKey],
+    ["Fingerprint", target.fingerprint],
+  ]);
+
 /**
  * Show a target recipient's fingerprint and require explicit out-of-band
  * confirmation before wrapping the vault key to it — the trust-on-first-use
@@ -34,12 +43,7 @@ export const resolveSelector = (flag: string | undefined, message: string) =>
  */
 export const confirmFingerprint = (target: UserEncryptionKey, skip: boolean) =>
   Effect.gen(function* () {
-    yield* printKeyValue([
-      ["Label", target.label],
-      ["Kind", target.kind],
-      ["Recipient (public key)", target.publicKey],
-      ["Fingerprint", target.fingerprint],
-    ]);
+    yield* printRecipientDetails(target);
     if (skip) {
       return undefined;
     }

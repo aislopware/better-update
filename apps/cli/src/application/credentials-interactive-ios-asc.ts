@@ -1,4 +1,4 @@
-import { Console, Effect } from "effect";
+import { Console, Effect, Ref } from "effect";
 
 import { distributionCertChoice, makeAppleTeamLabeler } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
@@ -217,22 +217,56 @@ export const resolveIosProfileId = (api: ApiClient, input: IosSetupInput, ctx: I
     );
   });
 
-export const setupIosViaAscKey = (api: ApiClient, input: IosSetupInput) =>
+/**
+ * Certificate + ASC key answers from a previous target, reused across a
+ * multi-target setup loop — both are shared org-wide, so re-asking per bundle
+ * only repeats the same picks.
+ */
+export interface AscSetupReuse {
+  readonly certId: string;
+  readonly appleTeamId: string;
+  readonly ascKeyId: string;
+}
+
+export const setupIosViaAscKey = (
+  api: ApiClient,
+  input: IosSetupInput,
+  reuse?: Ref.Ref<AscSetupReuse | null>,
+) =>
   Effect.gen(function* () {
-    const { certId, cert } = yield* pickIosCertificate(api);
-    const ascKeyId = yield* pickIosAscKey(api, cert.appleTeamId);
+    const cached = reuse === undefined ? null : yield* Ref.get(reuse);
+    if (cached !== null) {
+      yield* Console.log(
+        "Reusing the distribution certificate and ASC API key picked for the previous target.",
+      );
+    }
+    const picked =
+      cached ??
+      (yield* Effect.gen(function* () {
+        const { certId, cert } = yield* pickIosCertificate(api);
+        const ascKeyId = yield* pickIosAscKey(api, cert.appleTeamId);
+        return { certId, appleTeamId: cert.appleTeamId, ascKeyId } satisfies AscSetupReuse;
+      }));
+    if (reuse !== undefined) {
+      yield* Ref.set(reuse, picked);
+    }
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
-    const ctx: IosSetupContext = { certId, cert, ascKeyId, distributionType };
+    const ctx: IosSetupContext = {
+      certId: picked.certId,
+      cert: { appleTeamId: picked.appleTeamId },
+      ascKeyId: picked.ascKeyId,
+      distributionType,
+    };
     const profileId = yield* resolveIosProfileId(api, input, ctx);
 
     yield* upsertIosBundleConfiguration(api, {
       projectId: input.projectId,
       bundleIdentifier: input.bundleIdentifier,
       distributionType,
-      appleTeamId: cert.appleTeamId,
-      appleDistributionCertificateId: certId,
+      appleTeamId: picked.appleTeamId,
+      appleDistributionCertificateId: picked.certId,
       appleProvisioningProfileId: profileId,
-      ascApiKeyId: ascKeyId,
+      ascApiKeyId: picked.ascKeyId,
     });
     return undefined;
   });
