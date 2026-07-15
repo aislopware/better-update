@@ -30,10 +30,14 @@ const fullResolution: BundleResolution = { kind: "full", blob: blob(8) };
 
 const notFoundResolution: BundleResolution = { kind: "not-found" };
 
+const CACHE_TAGS = "project:proj-1,update:bbbb2222-0000-0000-0000-000000000000";
+
+const respond = (emit226: boolean) => toResponse({ emit226, cacheTags: CACHE_TAGS });
+
 describe("bundle toResponse — Item 3 HTTP 226 opt-in", () => {
   describe("flag OFF (default)", () => {
     it("patch serves 200 + im:bsdiff + lowercased expo-base-update-id", () => {
-      const response = toResponse(false)(patchResolution);
+      const response = respond(false)(patchResolution);
       expect(response.status).toBe(200);
       expect(response.headers.get("im")).toBe("bsdiff");
       // baseUpdateId is lowercased in the patch headers.
@@ -45,7 +49,7 @@ describe("bundle toResponse — Item 3 HTTP 226 opt-in", () => {
     });
 
     it("full bundle serves 200 with no patch headers", () => {
-      const response = toResponse(false)(fullResolution);
+      const response = respond(false)(fullResolution);
       expect(response.status).toBe(200);
       expect(response.headers.get("im")).toBeNull();
       expect(response.headers.get("expo-base-update-id")).toBeNull();
@@ -55,7 +59,7 @@ describe("bundle toResponse — Item 3 HTTP 226 opt-in", () => {
 
   describe("flag ON", () => {
     it("patch serves 226 IM Used, headers unchanged", () => {
-      const response = toResponse(true)(patchResolution);
+      const response = respond(true)(patchResolution);
       expect(response.status).toBe(226);
       // The opt-in flag only changes the status line — the patch headers + body
       // contract is byte-for-byte identical to the 200 path.
@@ -67,15 +71,15 @@ describe("bundle toResponse — Item 3 HTTP 226 opt-in", () => {
     });
 
     it("full bundle still serves 200 regardless of the flag", () => {
-      const response = toResponse(true)(fullResolution);
+      const response = respond(true)(fullResolution);
       expect(response.status).toBe(200);
       expect(response.headers.get("im")).toBeNull();
     });
   });
 
   it("not-found maps to 404 in both flag states", () => {
-    expect(toResponse(false)(notFoundResolution).status).toBe(404);
-    expect(toResponse(true)(notFoundResolution).status).toBe(404);
+    expect(respond(false)(notFoundResolution).status).toBe(404);
+    expect(respond(true)(notFoundResolution).status).toBe(404);
   });
 });
 
@@ -88,22 +92,42 @@ describe("bundle toResponse — Vary + cache-control", () => {
   const VARY = "a-im, expo-current-update-id, expo-embedded-update-id";
 
   it("sets Vary on the negotiation inputs for full bundles", () => {
-    expect(toResponse(false)(fullResolution).headers.get("vary")).toBe(VARY);
+    expect(respond(false)(fullResolution).headers.get("vary")).toBe(VARY);
   });
 
   it("sets Vary on patch responses too", () => {
-    expect(toResponse(false)(patchResolution).headers.get("vary")).toBe(VARY);
-    expect(toResponse(true)(patchResolution).headers.get("vary")).toBe(VARY);
+    expect(respond(false)(patchResolution).headers.get("vary")).toBe(VARY);
+    expect(respond(true)(patchResolution).headers.get("vary")).toBe(VARY);
   });
 
   it("keeps full bundles immutable-cacheable (content-addressed by hash)", () => {
-    expect(toResponse(false)(fullResolution).headers.get("cache-control")).toBe(
+    expect(respond(false)(fullResolution).headers.get("cache-control")).toBe(
       "public, max-age=31536000, immutable",
     );
   });
 
   it("makes patch responses non-cacheable (no-store) under both 200 and 226", () => {
-    expect(toResponse(false)(patchResolution).headers.get("cache-control")).toBe("no-store");
-    expect(toResponse(true)(patchResolution).headers.get("cache-control")).toBe("no-store");
+    expect(respond(false)(patchResolution).headers.get("cache-control")).toBe("no-store");
+    expect(respond(true)(patchResolution).headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+// Workers Cache integration: full bundles are the only bundle responses a
+// front cache may store, so they carry Cache-Tag for explicit-delete purging;
+// patches (no-store) and 404s must not advertise tags or cacheability.
+describe("bundle toResponse — Workers Cache tags", () => {
+  it("tags full bundles with the project + update cache tags", () => {
+    expect(respond(false)(fullResolution).headers.get("cache-tag")).toBe(CACHE_TAGS);
+  });
+
+  it("does not tag patch responses (never stored)", () => {
+    expect(respond(false)(patchResolution).headers.get("cache-tag")).toBeNull();
+    expect(respond(true)(patchResolution).headers.get("cache-tag")).toBeNull();
+  });
+
+  it("keeps the 404 non-cacheable and untagged", () => {
+    const response = respond(false)(notFoundResolution);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-tag")).toBeNull();
   });
 });

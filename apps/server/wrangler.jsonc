@@ -4,6 +4,20 @@
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-07-04",
   "main": "src/index.ts",
+  // Workers Cache: an HTTP cache in FRONT of the fetch handler — hits return
+  // without invoking the Worker (no CPU billed, no D1/R2 touched). Opt-in per
+  // response: only GET/HEAD responses with a cacheable Cache-Control are
+  // stored; `private`/`no-store`/`Set-Cookie` bypass, and src/index.ts stamps
+  // `no-store` on anything that says nothing. Today only full OTA bundles
+  // (public, immutable) and /api/config (max-age=60) opt in.
+  // `cross_version_cache` keeps entries across deploys: full bundles are
+  // content-addressed by hash so a new Worker version never changes their
+  // bytes, and flushing them on every release would re-pay a cold R2 read per
+  // bundle per colo. Escape hatch: ctx.cache.purge({ purgeEverything: true }).
+  "cache": {
+    "enabled": true,
+    "cross_version_cache": true,
+  },
   "observability": {
     "enabled": true,
   },

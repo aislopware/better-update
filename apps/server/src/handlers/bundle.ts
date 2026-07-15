@@ -2,6 +2,7 @@ import { Effect, Layer, Match } from "effect";
 
 import { resolveBundle } from "../application/resolve-bundle";
 import { provideCloudflareEnv } from "../cloudflare/context";
+import { bundleCacheTags } from "../domain/cache-tags";
 import { parsePatchRequest, patchResponseHeaders } from "../protocol/patch-negotiation";
 import { BundleRepoLive, ManifestRepoLive } from "../repositories";
 
@@ -47,8 +48,14 @@ const BUNDLE_VARY = "a-im, expo-current-update-id, expo-embedded-update-id";
 // custom headers); `BUNDLE_VARY` additionally guards Vary-honoring caches.
 const PATCH_CACHE_CONTROL = "no-store";
 
+// The 404 must never be cached: with Workers Cache enabled a stored miss for a
+// just-published (still-replicating) update would keep 404ing devices after the
+// row lands.
 const notFoundResponse = (): Response =>
-  Response.json({ code: "NOT_FOUND", message: "Bundle not found" }, { status: 404 });
+  Response.json(
+    { code: "NOT_FOUND", message: "Bundle not found" },
+    { status: 404, headers: { "cache-control": "no-store" } },
+  );
 
 // IMPORTANT: do NOT set `content-encoding` on bundle/patch responses.
 // zstd/gzip is applied at the Cloudflare edge via the zone Compression Rule
@@ -80,17 +87,23 @@ const HTTP_226_IM_USED = 226;
 
 // Pure status selection: 226 ONLY for kind:"patch" when the opt-in flag is set;
 // 200 for full bundles always, and for patches when the flag is off. patchResponseHeaders (im:bsdiff + expo-base-update-id) is identical either way.
-export const toResponse = (emit226: boolean) =>
+// Full bundles additionally carry `Cache-Tag` so an explicit update-group
+// delete can purge their Workers Cache copies (domain/cache-tags.ts) —
+// key-side invalidation (cache_version) never reaches a URL-keyed front cache.
+// Patches are no-store, so a tag on them would never be stored.
+export const toResponse = (options: { readonly emit226: boolean; readonly cacheTags: string }) =>
   Match.type<BundleResolution>().pipe(
     Match.discriminator("kind")("not-found", () => notFoundResponse()),
     Match.discriminator("kind")("patch", (resolution) =>
       blobResponse(
         resolution.blob,
         { ...patchResponseHeaders(resolution.baseUpdateId), "cache-control": PATCH_CACHE_CONTROL },
-        emit226 ? HTTP_226_IM_USED : 200,
+        options.emit226 ? HTTP_226_IM_USED : 200,
       ),
     ),
-    Match.discriminator("kind")("full", (resolution) => blobResponse(resolution.blob, {})),
+    Match.discriminator("kind")("full", (resolution) =>
+      blobResponse(resolution.blob, { "cache-tag": options.cacheTags }),
+    ),
     Match.exhaustive,
   );
 
@@ -116,5 +129,8 @@ export const handleBundleRequest = async (
   // Opt-in 226 emission, gated by the EMIT_HTTP_226 var (Cloudflare vars are
   // strings). Default "false"/absent -> 200 for patches. Only affects the
   // status line; the patch headers + body are identical to the 200 path.
-  return toResponse(env.EMIT_HTTP_226 === "true")(resolution);
+  return toResponse({
+    emit226: env.EMIT_HTTP_226 === "true",
+    cacheTags: bundleCacheTags({ projectId, updateId }).join(","),
+  })(resolution);
 };

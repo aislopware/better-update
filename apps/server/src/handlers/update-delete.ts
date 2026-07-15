@@ -4,6 +4,8 @@ import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
 import { BuildRuntime } from "../cloudflare/build-runtime";
+import { WorkersCache } from "../cloudflare/workers-cache";
+import { updateCacheTag } from "../domain/cache-tags";
 import { NotFound } from "../errors";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
 import {
@@ -78,6 +80,13 @@ export const handleDeleteGroup = ({ path }: { readonly path: { readonly groupId:
 
       const channelRepo = yield* ChannelRepo;
       yield* channelRepo.bumpCacheVersionByBranch({ branchId: firstUpdate.branchId });
+
+      // The cache_version bump above only rotates the INTERNAL manifest-cache
+      // key; Workers Cache (in front of the Worker) keys full bundles by URL
+      // and would keep serving a deleted update's bundle until TTL. Purge its
+      // tags so an explicit delete actually removes the bytes from the edge.
+      const workersCache = yield* WorkersCache;
+      yield* workersCache.purgeTags(updates.map((update) => updateCacheTag(update.id)));
 
       yield* logAudit({
         action: "update.delete",

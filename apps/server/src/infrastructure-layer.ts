@@ -8,6 +8,7 @@ import { CryptoServiceLive } from "./cloudflare/crypto-service";
 import { EmailServiceLive } from "./cloudflare/email-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
+import { WorkersCacheLive } from "./cloudflare/workers-cache";
 import {
   AccountKeyRepoLive,
   AdminUsersRepoLive,
@@ -65,6 +66,7 @@ import type { BuildRuntime } from "./cloudflare/build-runtime";
 import type { CredentialArtifacts } from "./cloudflare/credential-artifacts";
 import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
 import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
+import type { WorkersCache } from "./cloudflare/workers-cache";
 import type { CryptoService } from "./domain/crypto-service";
 import type { EmailService } from "./domain/email-service";
 import type {
@@ -172,7 +174,8 @@ export type ServerInfrastructure =
   | UpdateCoordinator
   | UpdateRepo
   | UserEncryptionKeyRepo
-  | WebhookRepo;
+  | WebhookRepo
+  | WorkersCache;
 
 export const RepositoryLayer = Layer.mergeAll(
   AccountKeyRepoLive,
@@ -234,6 +237,7 @@ export const AdapterLayer = Layer.mergeAll(
   EmailServiceLive,
   ManifestCacheStorageLive,
   UpdateCoordinatorLive,
+  WorkersCacheLive,
 );
 
 export const ServerInfrastructureLayer = Layer.merge(

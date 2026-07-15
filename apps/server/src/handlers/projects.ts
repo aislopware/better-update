@@ -11,6 +11,8 @@ import { AssetStorage } from "../cloudflare/asset-storage";
 import { BuildRuntime } from "../cloudflare/build-runtime";
 import { cloudflareEnv } from "../cloudflare/context";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
+import { WorkersCache } from "../cloudflare/workers-cache";
+import { projectCacheTag } from "../domain/cache-tags";
 import { BadRequest, Forbidden } from "../errors";
 import { toApiProject } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiCrudEffect } from "../http/to-api-effect";
@@ -161,6 +163,43 @@ const removeLogoEffect = (id: string) =>
       });
 
       return toApiProject({ ...project, logoUrl: null });
+    }),
+  );
+
+const deleteProjectEffect = (id: string) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const projectRepo = yield* ProjectRepo;
+      const project = yield* projectRepo.findById({ id });
+      yield* assertOrgOwnership(project.organizationId);
+      yield* assertAccess("project", "delete", { kind: "project", projectId: id });
+      yield* purgeProjectBuildStorage(project.organizationId, id);
+      const storage = yield* AssetStorage;
+      yield* storage.deleteObjects({ keys: [logoR2Key(id)] });
+      yield* projectRepo.delete({ id });
+
+      // The repo delete cascades every update row away, but Workers Cache
+      // (in front of the Worker) still holds the project's full bundles by
+      // URL until TTL — the project tag evicts them all in one call.
+      const workersCache = yield* WorkersCache;
+      yield* workersCache.purgeTags([projectCacheTag(id)]);
+
+      yield* logAudit({
+        action: "project.delete",
+        resourceType: "project",
+        resourceId: id,
+        projectId: id,
+      });
+
+      // The delete cascades project_member rows, which can strip a member's
+      // vault participation (≥ developer on SOME project) — reconcile the
+      // recipient set (never fails the delete).
+      yield* reconcileVaultAccess({
+        organizationId: project.organizationId,
+        reason: `project-delete:${id}`,
+      });
+
+      return { deleted: 1 };
     }),
   );
 
@@ -378,37 +417,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
     )
     .handle("setLogo", ({ path }) => setLogoEffect(path.id))
     .handle("removeLogo", ({ path }) => removeLogoEffect(path.id))
-    .handle("delete", ({ path }) =>
-      toApiCrudEffect(
-        Effect.gen(function* () {
-          const projectRepo = yield* ProjectRepo;
-          const project = yield* projectRepo.findById({ id: path.id });
-          yield* assertOrgOwnership(project.organizationId);
-          yield* assertAccess("project", "delete", { kind: "project", projectId: path.id });
-          yield* purgeProjectBuildStorage(project.organizationId, path.id);
-          const storage = yield* AssetStorage;
-          yield* storage.deleteObjects({ keys: [logoR2Key(path.id)] });
-          yield* projectRepo.delete({ id: path.id });
-
-          yield* logAudit({
-            action: "project.delete",
-            resourceType: "project",
-            resourceId: path.id,
-            projectId: path.id,
-          });
-
-          // The delete cascades project_member rows, which can strip a member's
-          // vault participation (≥ developer on SOME project) — reconcile the
-          // recipient set (never fails the delete).
-          yield* reconcileVaultAccess({
-            organizationId: project.organizationId,
-            reason: `project-delete:${path.id}`,
-          });
-
-          return { deleted: 1 };
-        }),
-      ),
-    )
+    .handle("delete", ({ path }) => deleteProjectEffect(path.id))
     .handle("archive", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {

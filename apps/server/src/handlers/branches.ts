@@ -5,6 +5,8 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
+import { WorkersCache } from "../cloudflare/workers-cache";
+import { projectCacheTag } from "../domain/cache-tags";
 import { Conflict } from "../errors";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
@@ -163,6 +165,14 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             });
           }
           yield* branchRepo.delete({ id: path.id });
+
+          // The repo delete cascades the branch's update rows away, so their
+          // per-update cache tags can no longer be enumerated (and a large
+          // branch could exceed a purge call's tag budget). Purge the project
+          // tag instead: sibling branches' bundles are immutable and simply
+          // re-cache from R2 on their next request.
+          const workersCache = yield* WorkersCache;
+          yield* workersCache.purgeTags([projectCacheTag(branch.projectId)]);
 
           yield* logAudit({
             action: "branch.delete",

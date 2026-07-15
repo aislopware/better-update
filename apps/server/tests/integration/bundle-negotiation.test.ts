@@ -167,6 +167,9 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("im")).toBeNull();
     expect(response.headers.get("expo-base-update-id")).toBeNull();
+    // Workers Cache purge contract: the stored full-bundle copy is tagged so
+    // an explicit update-group delete can evict it (domain/cache-tags.ts).
+    expect(response.headers.get("cache-tag")).toBe(`project:${projectId},update:${toUpdateId}`);
     expect(await bytesOf(response)).toEqual(FULL_BUNDLE_BYTES);
   });
 

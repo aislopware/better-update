@@ -109,14 +109,24 @@ const routeRequest = async (
     // URLs against the origin the Worker actually serves regular assets from
     // (there is no `/assets/{hash}` route on the API origin), keeping signed
     // updates' image/font/extra-chunk assets loadable on-device.
-    return Response.json({
-      githubEnabled: isGithubEnabled(env),
-      googleEnabled: isGoogleEnabled(env),
-      assetCdnUrl: env.ASSET_CDN_URL,
-      // Remote killswitch: the CLI must be strictly newer than this to run. It
-      // hard-blocks at startup when its version is <= this. "0.0.0" blocks nothing.
-      requireCliVersionAbove: env.REQUIRE_CLI_VERSION_ABOVE,
-    });
+    return Response.json(
+      {
+        githubEnabled: isGithubEnabled(env),
+        googleEnabled: isGoogleEnabled(env),
+        assetCdnUrl: env.ASSET_CDN_URL,
+        // Remote killswitch: the CLI must be strictly newer than this to run. It
+        // hard-blocks at startup when its version is <= this. "0.0.0" blocks nothing.
+        requireCliVersionAbove: env.REQUIRE_CLI_VERSION_ABOVE,
+      },
+      {
+        // Same body for every caller (env vars only) and hit on every CLI
+        // startup, so let Workers Cache answer it without invoking the Worker.
+        // The TTL bounds killswitch propagation: a REQUIRE_CLI_VERSION_ABOVE
+        // bump is visible within max-age, plus at most one stale serve during
+        // the background stale-while-revalidate refresh.
+        headers: { "cache-control": "public, max-age=60, stale-while-revalidate=300" },
+      },
+    );
   }
 
   // Public health probe — CLI/clients call this before long-running ops to
@@ -162,11 +172,33 @@ const routeRequest = async (
   return applyD1Bookmark(await handler(request, requestContext), session);
 };
 
+/**
+ * Default-deny caching at the worker boundary: Workers Cache (wrangler
+ * `cache.enabled`) sits in FRONT of this fetch handler and stores any GET/HEAD
+ * response whose Cache-Control opts in. Cacheability must therefore be an
+ * explicit per-route decision — the bundle route (immutable full bundles) and
+ * `/api/config` opt in above; everything that says nothing gets `no-store`
+ * here so presigned redirects, install plists, auth and management responses
+ * can never leak into a shared cache. Routes that already set a header
+ * (manifest: `private, max-age=0`, patches: `no-store`, …) pass through
+ * untouched.
+ */
+const withDefaultCacheControl = (response: Response): Response => {
+  if (response.headers.has("cache-control")) {
+    return response;
+  }
+  // Redirect/error responses can carry immutable header guards; re-wrap instead
+  // of mutating in place. Body is passed through by reference, not buffered.
+  const wrapped = new Response(response.body, response);
+  wrapped.headers.set("cache-control", "no-store");
+  return wrapped;
+};
+
 export default {
   async fetch(request, env, ctx) {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
     try {
-      return await routeRequest(request, env, ctx);
+      return withDefaultCacheControl(await routeRequest(request, env, ctx));
     } catch (error) {
       structuredLog("error", "Unhandled request error", {
         method: request.method,
@@ -174,7 +206,7 @@ export default {
         error: error instanceof Error ? error.message : String(error),
         ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
       });
-      return internalError();
+      return withDefaultCacheControl(internalError());
     }
   },
 

@@ -142,3 +142,45 @@ gzip` itself. So the Compression Rule (and the public R2 asset host,
 > dashboard/ops config, not the repo; pin it (infra-as-code) and verify with a
 > deploy check that an `Accept-Encoding: gzip, br` request never receives
 > `content-encoding: zstd`.
+
+## Workers Cache (in front of the Worker)
+
+`apps/server/wrangler.jsonc` enables **Workers Cache** (`cache.enabled`, with
+`cross_version_cache` so content-addressed entries survive deploys): an HTTP
+cache placed _before_ the fetch handler. A hit returns the stored response
+without invoking the Worker at all — no CPU billed, no D1 lookup, no R2 read.
+It is opt-in per response (GET/HEAD + cacheable `Cache-Control` only) and
+honors `Vary` on the custom negotiation headers, unlike the zone edge cache.
+
+How the bundle route composes with it:
+
+- **Full bundles** (`public, max-age=31536000, immutable`) are the payload it
+  stores. `Vary: a-im, expo-current-update-id, expo-embedded-update-id` keys
+  variants per negotiation-input combination, so a stored full body can never
+  be replayed to a request whose negotiation inputs differ.
+- **Patches** stay `no-store` — every `a-im: bsdiff` request reaches the Worker
+  to negotiate against the device's actual base. `no-store` remains the
+  load-bearing protection for the zone edge cache (which ignores custom-header
+  `Vary`) and doubly opts out of Workers Cache.
+- **404s** are `no-store`: a cached miss for a just-published update would
+  outlive D1 replication.
+- **Purge**: full-bundle responses carry `Cache-Tag`
+  (`project:{id},update:{id}`, `domain/cache-tags.ts`); every explicit delete
+  purges via `ctx.cache.purge` (`cloudflare/workers-cache.ts`, best-effort in
+  `waitUntil`): update-group delete purges the update tags, branch delete and
+  project delete purge the project tag (their repo deletes cascade the update
+  rows away, so per-update tags cannot be enumerated afterwards — the project
+  tag over-purges immutable siblings, which simply re-cache). The internal
+  manifest cache's `cache_version` bump cannot reach this cache — it is
+  URL-keyed in front of the Worker. The OTA retention reaper deliberately does
+  not purge (rate-limited API; aged entries evict via TTL/LRU).
+- Everything else the Worker serves is pinned non-cacheable at the boundary:
+  `src/index.ts` stamps `cache-control: no-store` on any response that does not
+  set its own header; `/api/config` alone opts in
+  (`public, max-age=60, stale-while-revalidate=300` — bounds killswitch
+  propagation).
+
+Local dev / vitest-pool-workers do **not** simulate Workers Cache; tests pin
+the header contract (`tests/integration/cache-headers.test.ts`), and hit/miss
+behavior is verified in prod via the `Cf-Cache-Status` response header and the
+Workers dashboard cache metrics.
