@@ -12,7 +12,7 @@
         "@commitlint/cli": "^21.2.1",
         "@commitlint/config-conventional": "^21.2.0",
         "@effect/language-service": "^0.87.0",
-        "@effect/tsgo": "^0.19.0",
+        "@effect/tsgo": "^0.21.0",
         "@effect/vitest": "^0.30.0",
         "@lerna-lite/cli": "^5.4.1",
         "@lerna-lite/publish": "^5.4.1",
@@ -25,7 +25,7 @@
         "oxlint": "^1.74.0",
         "oxlint-plugin-eslint": "1.74.0",
         "oxlint-tsgolint": "^0.24.0",
-        "portless": "^0.15.2",
+        "portless": "^0.15.3",
         "turbo": "^2.10.5",
         "type-fest": "^5.8.0",
         "typescript": "^7.0.2",
@@ -34,7 +34,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.67.0",
+      "version": "0.67.1",
       "bin": {
         "better-update": "./dist/index.mjs",
       },
@@ -82,7 +82,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.53.1",
+      "version": "0.54.0",
       "dependencies": {
         "@better-auth/passkey": "^1.6.23",
         "@better-update/api": "workspace:*",
@@ -116,7 +116,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.64.2",
+      "version": "0.64.3",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",
@@ -176,7 +176,7 @@
     },
     "packages/api": {
       "name": "@better-update/api",
-      "version": "0.43.2",
+      "version": "0.43.3",
       "dependencies": {
         "@effect/platform": "^0.97.0",
         "effect": "^3.22.0",
@@ -188,7 +188,7 @@
     },
     "packages/api-client": {
       "name": "@better-update/api-client",
-      "version": "0.32.2",
+      "version": "0.32.3",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/type-guards": "workspace:*",
@@ -226,11 +226,11 @@
         "@napi-rs/cli": "^3.7.3",
       },
       "optionalDependencies": {
-        "@better-update/bsdiff-darwin-arm64": "0.2.17",
-        "@better-update/bsdiff-linux-arm64-gnu": "0.2.17",
-        "@better-update/bsdiff-linux-arm64-musl": "0.2.17",
-        "@better-update/bsdiff-linux-x64-gnu": "0.2.17",
-        "@better-update/bsdiff-linux-x64-musl": "0.2.17",
+        "@better-update/bsdiff-darwin-arm64": "0.2.19",
+        "@better-update/bsdiff-linux-arm64-gnu": "0.2.19",
+        "@better-update/bsdiff-linux-arm64-musl": "0.2.19",
+        "@better-update/bsdiff-linux-x64-gnu": "0.2.19",
+        "@better-update/bsdiff-linux-x64-musl": "0.2.19",
       },
     },
     "packages/credentials-crypto": {
@@ -457,15 +457,15 @@
 
     "@better-update/bsdiff": ["@better-update/bsdiff@workspace:packages/bsdiff"],
 
-    "@better-update/bsdiff-darwin-arm64": ["@better-update/bsdiff-darwin-arm64@0.2.17", "", { "os": "darwin", "cpu": "arm64" }, "sha512-sJpU3HFzsC3TNWZxdOfgAlax8P/D8Z2QulzT9ddV5zCgoVL25d1aCZRz8Rmbtxae9gPFiaOceG2tZSGB1RAvIA=="],
+    "@better-update/bsdiff-darwin-arm64": ["@better-update/bsdiff-darwin-arm64@0.2.19", "", { "os": "darwin", "cpu": "arm64" }, "sha512-A1YrpYT1dRDcbAEdYjksI+vY3CH1wp2Kt3Ur2xXkwCxg9WZMbH7CJSJRw6WcqR0Jr3RaK8sB5NLTR7o5mivapg=="],
 
-    "@better-update/bsdiff-linux-arm64-gnu": ["@better-update/bsdiff-linux-arm64-gnu@0.2.17", "", { "os": "linux", "cpu": "arm64" }, "sha512-BbxSXxBfCFLoD+IbvazxNjeMqTQOPpeQyYRmKsQBFm2MvZ9R2s3v2Gex/u9N3fdOjL3Jq/MMTHmxErFd2KcpLA=="],
+    "@better-update/bsdiff-linux-arm64-gnu": ["@better-update/bsdiff-linux-arm64-gnu@0.2.19", "", { "os": "linux", "cpu": "arm64" }, "sha512-vrNBRTkyHsr0jsBvQIxvfPoxQrp4leyTdndqf7kXQr8iqY7cBCY/AcxnYF9zaQNTT88EoeW/UHQ+agk/IlxX5g=="],
 
-    "@better-update/bsdiff-linux-arm64-musl": ["@better-update/bsdiff-linux-arm64-musl@0.2.17", "", { "os": "linux", "cpu": "arm64" }, "sha512-BSzHOKodHXC6byjizcfWdGI35+ua6Yr8fbLMI6xbHz1RKdwIciYQd8c5H3Ou30LJDFCtKlzEMFeLKQSEI3paZg=="],
+    "@better-update/bsdiff-linux-arm64-musl": ["@better-update/bsdiff-linux-arm64-musl@0.2.19", "", { "os": "linux", "cpu": "arm64" }, "sha512-f6VcEZ6iekXYJVnWbGS3s1/KK6wqQCjQSdT2GLmZmtcRAqnjHCgNwJ2I8hOeTEiIL7XVM2jHiYDF2d5H7GjHHw=="],
 
-    "@better-update/bsdiff-linux-x64-gnu": ["@better-update/bsdiff-linux-x64-gnu@0.2.17", "", { "os": "linux", "cpu": "x64" }, "sha512-CZ2P1UJa1NO7S8fHMo8Gtol8o4UjRXVHgwvFIc+W9QV4TirbaQGTdx0eYiUBrMzv/TpLn4K6DLylFjZGeVx/FQ=="],
+    "@better-update/bsdiff-linux-x64-gnu": ["@better-update/bsdiff-linux-x64-gnu@0.2.19", "", { "os": "linux", "cpu": "x64" }, "sha512-rksPM8rsS+ksFxuGnM2bwfrQ56kB5wAAq7qASub137slOThn+ZTQlj24bHBZG5BcifW3cUiLKjtnFd8nOxrXcQ=="],
 
-    "@better-update/bsdiff-linux-x64-musl": ["@better-update/bsdiff-linux-x64-musl@0.2.17", "", { "os": "linux", "cpu": "x64" }, "sha512-krPA5ccimyJIUCAGg8Pgm/pszmyvRLfK5Szn+nNvnJHSG1+jEjzgqis6UC9kUrjuc9zXeW8jZ5AL9tiNsHYUJw=="],
+    "@better-update/bsdiff-linux-x64-musl": ["@better-update/bsdiff-linux-x64-musl@0.2.19", "", { "os": "linux", "cpu": "x64" }, "sha512-hKOsISVtnTkNOA796YnH/BmBGKJcql/4aqpWqcPDW1xdTU40rqsUuO98DcrSB9VcGxg5V7Zfy93bVd9jPAmqFA=="],
 
     "@better-update/cli": ["@better-update/cli@workspace:apps/cli"],
 
@@ -593,21 +593,21 @@
 
     "@effect/sql": ["@effect/sql@0.51.1", "", { "dependencies": { "uuid": "^11.0.3" }, "peerDependencies": { "@effect/experimental": "^0.60.0", "@effect/platform": "^0.96.1", "effect": "^3.21.2" } }, "sha512-iPDAefrJcI0HcTk9keP9Gq8Pg08K1HmpnmZZt85AqyTcvorhoNsXDFiKBbPldfV2CortwVkacX8KjO9GPpSYCA=="],
 
-    "@effect/tsgo": ["@effect/tsgo@0.19.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.19.0", "@effect/tsgo-darwin-x64": "0.19.0", "@effect/tsgo-linux-arm": "0.19.0", "@effect/tsgo-linux-arm64": "0.19.0", "@effect/tsgo-linux-x64": "0.19.0", "@effect/tsgo-win32-arm64": "0.19.0", "@effect/tsgo-win32-x64": "0.19.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.js" } }, "sha512-NDyG/RufHigI0bdvyggbr53J6c1GWcnNkm7rUwQbBDuRI1KRThFh2WtugMLL+i6wrRiMXJtgLHzh9lIMqy9gGA=="],
+    "@effect/tsgo": ["@effect/tsgo@0.21.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.21.0", "@effect/tsgo-darwin-x64": "0.21.0", "@effect/tsgo-linux-arm": "0.21.0", "@effect/tsgo-linux-arm64": "0.21.0", "@effect/tsgo-linux-x64": "0.21.0", "@effect/tsgo-win32-arm64": "0.21.0", "@effect/tsgo-win32-x64": "0.21.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.js" } }, "sha512-bsctKj3pcr/pz6mzGq/AGpFoa8LFkKukmpYmXKxdCRbPybC2EBJHOLag8mAKkr64ZqKpjHthgb2X4xXEKV+McA=="],
 
-    "@effect/tsgo-darwin-arm64": ["@effect/tsgo-darwin-arm64@0.19.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-tieZTHXZlqOtm3YbGxclXNsyxILFtZqMC1fZEy2PAoEGKBHfwNc+r0gR3k3SU9dsSNj3KV8wLsXxfQr/VH1pAA=="],
+    "@effect/tsgo-darwin-arm64": ["@effect/tsgo-darwin-arm64@0.21.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-cTh8nsNwsxyCAwKEc8euvon2zMMBBA7ZlHmPKEX5hcX1iLCbAeOg0uOQKse3uGwg2dZG1C8YTMBdGN+JQIdPrA=="],
 
-    "@effect/tsgo-darwin-x64": ["@effect/tsgo-darwin-x64@0.19.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-gTxeWR5xkL+UIdrTDcnGDj0dFPnk2AxvHzrA8j3U9OQZ5yHaFK4DA8W2hVxbu2lvGoHeRlyrArBf8YomKnNRdQ=="],
+    "@effect/tsgo-darwin-x64": ["@effect/tsgo-darwin-x64@0.21.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-FlQ9s23fvHI094mtPI1mOTLJVdKWE3+Nk9PyAIwGl3tD4hQ+J9GCEkVBrpAKS1/OGJmBcPSL87LqiwcLE+jU8w=="],
 
-    "@effect/tsgo-linux-arm": ["@effect/tsgo-linux-arm@0.19.0", "", { "os": "linux", "cpu": "arm" }, "sha512-SZlUqv74YZkBDd2czXmeOTPtWPOppWNFmwCN4k11s1K4Y/BfIpHmmv0TUHU5DcPe3IoHIJV1kxXrxhfxO1nQsQ=="],
+    "@effect/tsgo-linux-arm": ["@effect/tsgo-linux-arm@0.21.0", "", { "os": "linux", "cpu": "arm" }, "sha512-Ez04FzLvojCpRH5QcUa354G9FkcOVtCwoMT+lpzxER5A7eVM7BwhfOFRtABCBaBqSv+FwHzfHSihv6lZv9CZBg=="],
 
-    "@effect/tsgo-linux-arm64": ["@effect/tsgo-linux-arm64@0.19.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-XEMv3PA8hNkSXAwAXYA5/FPYqV7eVrZS032P/3AuZTHr1jJTcesTK2ANfBHwwEKekmb7y3yBC7f73yhpXah4sg=="],
+    "@effect/tsgo-linux-arm64": ["@effect/tsgo-linux-arm64@0.21.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-grfqrxLQvO6bgvxdRaEQhOnAnrZAmKpLbIbwKmYfnCG/cwuwHKjxB1UUlQECr5PfQr+79EFugB9Ja7GzEbeQVg=="],
 
-    "@effect/tsgo-linux-x64": ["@effect/tsgo-linux-x64@0.19.0", "", { "os": "linux", "cpu": "x64" }, "sha512-T3KDEWgWuS3XAuJ5eUkEgeOVgC7pYK/8/hxASEtHJR1NDGPPk6gjg+jfcc0Y5O9P6mG4GL9LQmBIw/G1+GFRHA=="],
+    "@effect/tsgo-linux-x64": ["@effect/tsgo-linux-x64@0.21.0", "", { "os": "linux", "cpu": "x64" }, "sha512-ZbHTKCrVVAQpQ/Wbm+Q3Gg3vQluXqVHyYaNw8RmmAUrOXQ+pxPnrny2+T1G/u4pixWEtfTCKzX/GOM0/64l8Hw=="],
 
-    "@effect/tsgo-win32-arm64": ["@effect/tsgo-win32-arm64@0.19.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-raoGQr2lNm0qO8sH3v4TlyUlTePm6c6y2FBIZQrUw8B4N/srHS5aVOUgWqnJ/WjuQKl1xCM5SoehuhRkGnoFzw=="],
+    "@effect/tsgo-win32-arm64": ["@effect/tsgo-win32-arm64@0.21.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-Yq/NrK0AFmN2sbVJwAUYSATwcuXyl+aSf3yKzkKB72L1UzohsA12UABbKlhe5JLpI8sujT5rCSCuKbRbEDOTTw=="],
 
-    "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.19.0", "", { "os": "win32", "cpu": "x64" }, "sha512-KRWaWLXWIEm5mR/qPi9UJIRQdNs7uPfstiEv3bNR3qMVhgwndL2e5XYUoQOOYEK4MTjLM0GO+uknlHHRfI5K8A=="],
+    "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.21.0", "", { "os": "win32", "cpu": "x64" }, "sha512-vE6hifasQTWw1Y5RN02GfxHcPgcgLxtnrMfX9kWaic709zmFPKtvYUipFhVEFhlftGSxH0tL6ZoSKVRytQNy+Q=="],
 
     "@effect/vitest": ["@effect/vitest@0.30.0", "", { "peerDependencies": { "effect": "^3.22.0", "vitest": "^3.2.0" } }, "sha512-2qcK7F4XSwOn7Ye9vgEkrndHiiHVf9Nl+U5jvvLBKeYx4+8++O5Y8RFezaQzs/rWx8GkdlStv/s+HYMHZ/2/AQ=="],
 
@@ -2589,7 +2589,7 @@
 
     "pluralize": ["pluralize@8.0.0", "", {}, "sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA=="],
 
-    "portless": ["portless@0.15.2", "", { "os": [ "linux", "win32", "darwin", ], "bin": { "portless": "dist/cli.js" } }, "sha512-jyTXeRUfYgVerW/YMP1bexm79da0+55K0HgHQukHEJMmpp9AsXKVLywF4F+NnutSO1yV91AX2IK7DWAH+i2pKg=="],
+    "portless": ["portless@0.15.3", "", { "os": [ "linux", "win32", "darwin", ], "bin": { "portless": "dist/cli.js" } }, "sha512-2xm7SOHMhl6QOZZS3hwdtVT7D/908TDH8+Sebc1TJRJcaTVtTwMR4Mv/oI5JsdeiMh/6Im+Tp4e/OsPn+skOJQ=="],
 
     "postcss": ["postcss@8.5.16", "", { "dependencies": { "nanoid": "^3.3.12", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg=="],
 
