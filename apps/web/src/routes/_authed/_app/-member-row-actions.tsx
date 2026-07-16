@@ -38,7 +38,8 @@ const InvitationActions = ({
 }) => (
   <DropdownMenu>
     <ActionsTrigger isPending={isPending} label="Invitation actions" />
-    <DropdownMenuContent align="end">
+    {/* w-auto: size to the labels, not the icon-button anchor width. */}
+    <DropdownMenuContent align="end" className="w-auto">
       <DropdownMenuItem
         variant="destructive"
         onClick={() => {
@@ -63,7 +64,7 @@ const ActiveMemberActions = ({
 }) => (
   <DropdownMenu>
     <ActionsTrigger isPending={isPending} label="Member actions" />
-    <DropdownMenuContent align="end">
+    <DropdownMenuContent align="end" className="w-auto">
       <DropdownMenuGroup>
         <DropdownMenuItem
           variant="destructive"
