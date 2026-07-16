@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.55.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.54.0...%40better-update%2Fserver%400.55.0) (2026-07-16)
+
+### Features
+
+* server-side pagination, search and name embedding across all lists and pickers ([eb9f82b](https://github.com/better-update/better-update/commit/eb9f82bcd98093b922b0eb13c530e68643b55b7b))
+
 ## [0.54.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.53.1...%40better-update%2Fserver%400.54.0) (2026-07-15)
 
 ### Features

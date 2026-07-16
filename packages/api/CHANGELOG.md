@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.44.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.43.3...%40better-update%2Fapi%400.44.0) (2026-07-16)
+
+### Features
+
+* server-side pagination, search and name embedding across all lists and pickers ([eb9f82b](https://gitlab.jmango360.com/mobile/better-update/commit/eb9f82bcd98093b922b0eb13c530e68643b55b7b))
+
 ## [0.43.3](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.43.2...%40better-update%2Fapi%400.43.3) (2026-07-15)
 
 **Note:** Version bump only for package @better-update/api

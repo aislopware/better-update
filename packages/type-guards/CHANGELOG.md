@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.0.16](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Ftype-guards%400.0.15...%40better-update%2Ftype-guards%400.0.16) (2026-07-16)
+
+**Note:** Version bump only for package @better-update/type-guards
+
 ## [0.0.15](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Ftype-guards%400.0.14...%40better-update%2Ftype-guards%400.0.15) (2026-07-13)
 
 **Note:** Version bump only for package @better-update/type-guards
