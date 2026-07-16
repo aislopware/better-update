@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.65.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.65.0...%40better-update%2Fweb%400.65.1) (2026-07-16)
+
+### Bug Fixes
+
+* **web:** navigate to all projects and keep switcher feedback while changing organization ([2eefe28](https://github.com/better-update/better-update/commit/2eefe2873eafdf5895d5a17596df3ef01740099a))
+
 ## [0.65.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.64.3...%40better-update%2Fweb%400.65.0) (2026-07-16)
 
 ### Features
