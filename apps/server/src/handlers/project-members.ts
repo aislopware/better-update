@@ -25,6 +25,7 @@ const toApiProjectMember = (detail: ProjectMemberDetail): ProjectMember =>
     principalType: detail.principalType,
     principalId: detail.principalId,
     role: detail.role,
+    allProjects: detail.allProjects,
     displayName: detail.displayName,
     email: detail.email,
     createdAt: detail.createdAt,

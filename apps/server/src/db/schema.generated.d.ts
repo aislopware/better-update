@@ -461,6 +461,16 @@ export interface OrgEnvVaultKeyWraps {
   wrapped_key: string;
 }
 
+export interface OrgProjectMember {
+  created_at: Generated<string>;
+  id: string;
+  organization_id: string;
+  principal_id: string;
+  principal_type: string;
+  role: string;
+  updated_at: string | null;
+}
+
 export interface OrgVaultKeyWraps {
   created_at: Generated<string>;
   organization_id: string;
@@ -722,6 +732,7 @@ export interface DB {
   member: Member;
   org_credential_binding: OrgCredentialBinding;
   org_env_vault_key_wraps: OrgEnvVaultKeyWraps;
+  org_project_member: OrgProjectMember;
   org_vault_key_wraps: OrgVaultKeyWraps;
   org_vaults: OrgVaults;
   organization: Organization;

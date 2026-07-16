@@ -16,6 +16,7 @@ const makeProjectMember = (overrides?: Partial<ProjectMemberItem>): ProjectMembe
   principalType: "member",
   principalId: "member-1",
   role: "developer",
+  allProjects: false,
   displayName: "Alice Dev",
   email: "alice@example.com",
   createdAt: "2026-06-01T00:00:00Z",
@@ -74,6 +75,34 @@ describe(ProjectMembersTableView, () => {
     expect(screen.getByLabelText("Change role for Alice Dev")).toBeInTheDocument();
     expect(screen.getByLabelText("Change role for Bob Lead")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Project member actions")).toHaveLength(2);
+  });
+
+  it("org-wide rows are read-only even for managers: badges, no select, no remove", () => {
+    const orgWideRow = makeProjectMember({
+      id: "opm-1",
+      principalId: "member-3",
+      role: "developer",
+      allProjects: true,
+      displayName: "Org Wide",
+      email: "orgwide@example.com",
+    });
+
+    renderWithQuery(
+      <ProjectMembersTableView
+        items={[orgWideRow]}
+        canManage
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRoleChange={onRoleChange}
+        onRemove={onRemove}
+      />,
+    );
+
+    // Managed on the org Members screen, not per project.
+    expect(screen.getByText("All projects")).toBeInTheDocument();
+    expect(screen.getByText("Developer")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Change role for Org Wide")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Project member actions")).not.toBeInTheDocument();
   });
 
   it("selecting a new role calls onRoleChange with the row and role", async () => {

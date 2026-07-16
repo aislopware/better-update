@@ -366,11 +366,16 @@ export {
 } from "./domain/credential-binding";
 export type { CredentialBindingTypeValue } from "./domain/credential-binding";
 export {
+  AllProjectsMembership,
+  MemberProjectMembership,
+  MemberProjectMemberships,
+  MemberProjectMembershipsList,
   ProjectMember,
   ProjectMemberList,
   ProjectMemberPrincipalType,
   ProjectMemberRole,
   RemoveProjectMemberParams,
+  SetAllProjectsMembershipBody,
   UpdateProjectMemberBody,
   UpsertProjectMemberBody,
 } from "./domain/project-member";

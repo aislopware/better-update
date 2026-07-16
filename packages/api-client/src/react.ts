@@ -166,7 +166,17 @@ export {
   updateRobotAccount,
 } from "./react/robot-accounts";
 export type { RobotAccountItem, RobotAccountRoleValue } from "./react/robot-accounts";
-export { meQueryKey, meQueryOptions, removeMember, updateMemberRole } from "./react/members";
+export {
+  memberProjectMembershipsQueryKey,
+  memberProjectMembershipsQueryOptions,
+  meQueryKey,
+  meQueryOptions,
+  removeMember,
+  removeMemberAllProjectsRole,
+  setMemberAllProjectsRole,
+  updateMemberRole,
+} from "./react/members";
+export type { MemberProjectMembershipsItem } from "./react/members";
 export { isAvatarContentType, removeUserAvatar, uploadUserAvatar } from "./react/me";
 export type { AvatarContentTypeValue } from "./react/me";
 export {

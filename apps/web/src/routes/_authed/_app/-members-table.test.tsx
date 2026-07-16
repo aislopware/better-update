@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import type { MemberProjectMembershipsItem } from "@better-update/api-client/react";
 import type { SortingState } from "@tanstack/react-table";
 
 import { makeInvitation, makeMember } from "../../../../tests/helpers/fixtures";
@@ -278,6 +279,92 @@ describe(MembersTableView, () => {
     await user.click(await screen.findByRole("option", { name: "Admin" }));
 
     expect(onRoleChange).toHaveBeenCalledWith("member-regular", "admin");
+  });
+
+  it("owner and admin rows show the implicit All-projects badge, never a manage button", () => {
+    renderWithQuery(
+      <MembersTableView
+        members={[ownerMember, adminMember]}
+        invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRemove={onRemove}
+        onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
+        currentUserId="user-owner"
+        canRemoveMembers
+        canManageProjects
+      />,
+    );
+
+    expect(screen.getAllByText("All projects")).toHaveLength(2);
+    expect(screen.getAllByText("Implicit maintainer")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Manage projects" })).not.toBeInTheDocument();
+  });
+
+  it("member rows show project chips, an org-wide role badge, or a No-projects hint", () => {
+    const membershipsByPrincipal = new Map<string, MemberProjectMembershipsItem>([
+      [
+        "member-capable",
+        {
+          principalId: "member-capable",
+          allProjectsRole: "developer",
+          projects: [],
+        },
+      ],
+      [
+        "member-regular",
+        {
+          principalId: "member-regular",
+          allProjectsRole: null,
+          projects: [{ projectId: "proj-1", projectName: "App One", role: "maintainer" }],
+        },
+      ],
+    ]);
+
+    renderWithQuery(
+      <MembersTableView
+        members={allMembers}
+        invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRemove={onRemove}
+        onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
+        currentUserId="user-owner"
+        canRemoveMembers
+        membershipsByPrincipal={membershipsByPrincipal}
+      />,
+    );
+
+    // Org-wide grant collapses to a single role-suffixed badge (like the
+    // credential All-projects chip); explicit memberships render name chips.
+    expect(screen.getByText("All projects · Developer")).toBeInTheDocument();
+    expect(screen.getByText("App One")).toBeInTheDocument();
+    // The owner row shows the implicit badge; no summary → "No projects" never
+    // applies to it. Members without a summary would show the hint (none here
+    // besides the owner, which renders the implicit badge instead).
+    expect(screen.getByText("All projects")).toBeInTheDocument();
+  });
+
+  it("canManageProjects renders a Manage-projects trigger for plain member rows only", () => {
+    renderWithQuery(
+      <MembersTableView
+        members={allMembers}
+        invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
+        onRemove={onRemove}
+        onCancelInvitation={onCancelInvitation}
+        onRoleChange={onRoleChange}
+        currentUserId="user-owner"
+        canRemoveMembers
+        canManageProjects
+      />,
+    );
+
+    // Two role-"member" rows get the dialog trigger; the owner row is implicit.
+    expect(screen.getAllByRole("button", { name: "Manage projects" })).toHaveLength(2);
   });
 
   it("cancel invitation menu item calls onCancelInvitation with invitation id", async () => {

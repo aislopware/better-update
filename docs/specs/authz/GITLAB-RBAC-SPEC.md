@@ -70,6 +70,21 @@ Effective project role = `max(orgRoleImplied, projectMemberRole)` where
 no deny rules, no path globs, no boundaries — escalation is structural (a
 maintainer has no lever that grants admin/owner).
 
+**Org-wide ("all projects") membership** (mig 0097, mirroring §1a's
+`org_credential_binding`): a row in
+`org_project_member(organization_id, principal_type, principal_id, role)`
+grants the member its role on EVERY project — present and future — resolved at
+query time inside `ProjectMemberRepo.rolesForPrincipal` (so `CurrentActor` and
+the vault reconcile see it for free). Explicit `project_member` rows still
+apply; the effective role per project is the **max** of the two, and revoking
+the org-wide row falls back to whatever explicit rows exist. Managed on the
+org Members screen (`PUT/DELETE /api/members/:id/all-projects`, member:update
+= org admin; owners rejected — implicit maintainers). `listByProject`
+synthesizes read-only rows for org-wide members (flagged `allProjects`), so a
+project's members page still answers "who has access here" truthfully;
+per-project remove/role-change is disabled on those rows. Member removal
+sweeps the org-wide row along with the explicit ones.
+
 ### 1a. Credential→project bindings (v2; replaces the v1 "anywhere rank")
 
 Credentials are stored at org scope but are USABLE only where bound. A row in

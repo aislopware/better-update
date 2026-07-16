@@ -5,6 +5,11 @@ import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { DeletedResult, idParam } from "../domain/common";
 import { Conflict } from "../domain/errors";
+import {
+  AllProjectsMembership,
+  MemberProjectMembershipsList,
+  SetAllProjectsMembershipBody,
+} from "../domain/project-member";
 
 const UpdateMemberRoleBody = Schema.Struct({
   role: Schema.Literal("admin", "member"),
@@ -36,6 +41,40 @@ export class MembersGroup extends HttpApiGroup.make("members")
           title: "Remove member",
           description:
             "Remove a member from the active organization by member id (org-scoped; no cross-organization removes). Rejects removing the last owner (409). Also drops the member's project_member rows.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("listProjectMemberships")`/api/members/project-memberships`
+      .addSuccess(MemberProjectMembershipsList)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List member project memberships",
+          description:
+            "Every member's project memberships in the active org: explicit project_member rows (project names embedded) plus the org-wide 'all projects' role when granted. Org owner/admin are implicit maintainers everywhere and carry no rows. Requires member:read (any org member).",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.put("setAllProjects")`/api/members/${idParam}/all-projects`
+      .setPayload(SetAllProjectsMembershipBody)
+      .addSuccess(AllProjectsMembership)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Grant org-wide project membership",
+          description:
+            "Give the member the role on EVERY project of the org — present and future — resolved at query time like org-wide credential bindings (idempotent upsert). Explicit per-project rows still apply; the higher role wins. Requires member:update. Owners are rejected (implicit maintainers).",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("removeAllProjects")`/api/members/${idParam}/all-projects`
+      .addSuccess(DeletedResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Revoke org-wide project membership",
+          description:
+            "Drop the member's org-wide 'all projects' role. Explicit per-project memberships are untouched — access falls back to them. Requires member:update.",
         }),
       ),
   )

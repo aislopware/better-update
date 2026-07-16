@@ -1,3 +1,4 @@
+import { MemberProjectMembership, MemberProjectMemberships } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -147,6 +148,112 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
             });
           }
 
+          return { deleted: 1 };
+        }),
+      ),
+    )
+    .handle("listProjectMemberships", () =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          // Same visibility as the member directory itself (member:read =
+          // any org member) — the summaries only reveal project names, which
+          // every member may already list.
+          yield* assertAccess("member", "read");
+          const ctx = yield* CurrentActor;
+          const projectMembers = yield* ProjectMemberRepo;
+          const summaries = yield* projectMembers.membershipSummariesByOrg({
+            organizationId: ctx.organizationId,
+          });
+          return {
+            items: summaries.map(
+              (summary) =>
+                new MemberProjectMemberships({
+                  principalId: summary.principalId,
+                  allProjectsRole: summary.allProjectsRole,
+                  projects: summary.projects.map((project) => new MemberProjectMembership(project)),
+                }),
+            ),
+          };
+        }),
+      ),
+    )
+    .handle("setAllProjects", ({ path, payload }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          // Org-wide grants are org administration (like org-wide credential
+          // bindings), not per-project maintainer work — hence member:update.
+          yield* assertAccess("member", "update");
+          const ctx = yield* CurrentActor;
+          const repo = yield* MemberRepo;
+          const target = yield* repo.findInOrg({
+            id: path.id,
+            organizationId: ctx.organizationId,
+          });
+          if (target === null) {
+            return yield* new NotFound({ message: "Member not found" });
+          }
+          // Owners are implicit maintainers on every project already; a row
+          // would be dead weight that outlives nothing (owners are permanent).
+          if (target.role === "owner") {
+            return yield* new Conflict({
+              message: "The owner is an implicit maintainer on every project",
+            });
+          }
+          const projectMembers = yield* ProjectMemberRepo;
+          yield* projectMembers.upsertAllProjects({
+            id: crypto.randomUUID(),
+            organizationId: ctx.organizationId,
+            principalType: "member",
+            principalId: path.id,
+            role: payload.role,
+            now: new Date().toISOString(),
+          });
+          yield* logAudit({
+            action: "projectMember.all_projects_set",
+            resourceType: "member",
+            resourceId: path.id,
+            metadata: { role: payload.role },
+          });
+          // Lowering the org-wide role to reporter can strip vault
+          // participation (≥ developer on SOME project) — reconcile the
+          // recipient set (no-op when the member still qualifies elsewhere).
+          if (payload.role === "reporter") {
+            yield* reconcileVaultAccess({
+              organizationId: ctx.organizationId,
+              reason: `all-projects-role-change:${path.id}`,
+            });
+          }
+          return { principalId: path.id, role: payload.role };
+        }),
+      ),
+    )
+    .handle("removeAllProjects", ({ path }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          yield* assertAccess("member", "update");
+          const ctx = yield* CurrentActor;
+          const projectMembers = yield* ProjectMemberRepo;
+          const removed = yield* projectMembers.removeAllProjects({
+            organizationId: ctx.organizationId,
+            principalType: "member",
+            principalId: path.id,
+          });
+          if (!removed) {
+            return yield* new NotFound({
+              message: "No org-wide project membership for this member",
+            });
+          }
+          yield* logAudit({
+            action: "projectMember.all_projects_remove",
+            resourceType: "member",
+            resourceId: path.id,
+          });
+          // Losing the org-wide role can strip vault participation — explicit
+          // per-project rows may no longer clear the ≥ developer bar.
+          yield* reconcileVaultAccess({
+            organizationId: ctx.organizationId,
+            reason: `all-projects-remove:${path.id}`,
+          });
           return { deleted: 1 };
         }),
       ),

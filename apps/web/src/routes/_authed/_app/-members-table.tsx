@@ -15,15 +15,18 @@ import {
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 
+import type { MemberProjectMembershipsItem } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView, PAGE_SIZE } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
 import { RelativeTime } from "../../../lib/relative-time";
+import { MemberProjectsCell } from "./-member-projects-cell";
 import { MemberRowActions } from "./-member-row-actions";
 import { buildRows } from "./-members-row";
 
+import type { ManageProjectsTarget } from "./-member-projects-cell";
 import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members-row";
 
 export type { InvitationInput, MemberInput, MemberStatus };
@@ -35,6 +38,10 @@ const STATUS_RANK: Record<MemberStatus, number> = { active: 0, pending: 1 };
 const isOwnerRole = (role: string): boolean => role === "owner";
 
 export type EditableOrgRole = "admin" | "member";
+
+// Stable defaults so omitted props never invalidate the columns memo.
+const EMPTY_MEMBERSHIPS: ReadonlyMap<string, MemberProjectMembershipsItem> = new Map();
+const NOOP_MANAGE_PROJECTS = (_target: ManageProjectsTarget): void => undefined;
 const ORG_ROLE_LABELS: Record<EditableOrgRole, string> = { admin: "Admin", member: "Member" };
 const ORG_ROLE_VALUES = ["admin", "member"] as const;
 
@@ -93,12 +100,15 @@ interface BuildColumnsParams {
   currentUserId: string;
   canRemoveMembers: boolean;
   canEditOrgRoles: boolean;
+  canManageProjects: boolean;
+  membershipsByPrincipal: ReadonlyMap<string, MemberProjectMembershipsItem>;
   pendingMemberId: string | undefined;
   pendingInvitationId: string | undefined;
   pendingRoleMemberId: string | undefined;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
   onRoleChange: (memberId: string, role: EditableOrgRole) => void;
+  onManageProjects: (target: ManageProjectsTarget) => void;
 }
 
 const RoleBadge = ({ role }: { role: string }) => {
@@ -193,6 +203,28 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
     enableSorting: true,
   },
   {
+    id: "projects",
+    header: "Projects",
+    cell: ({ row }) => {
+      const { membershipsByPrincipal, canManageProjects, onManageProjects } = params;
+      // Invitations hold no memberships yet (they materialize on accept).
+      if (row.original.kind !== "member") {
+        return <span className="text-muted-foreground text-xs">—</span>;
+      }
+      return (
+        <MemberProjectsCell
+          principalId={row.original.id}
+          memberName={row.original.name}
+          orgRole={row.original.role}
+          summary={membershipsByPrincipal.get(row.original.id)}
+          canManage={canManageProjects}
+          onManage={onManageProjects}
+        />
+      );
+    },
+    enableSorting: false,
+  },
+  {
     id: "status",
     accessorFn: (row) => STATUS_RANK[row.status],
     header: "Status",
@@ -245,6 +277,8 @@ export const MembersTableView = ({
   currentUserId,
   canRemoveMembers,
   canEditOrgRoles = false,
+  canManageProjects = false,
+  membershipsByPrincipal = EMPTY_MEMBERSHIPS,
   pendingMemberId,
   pendingInvitationId,
   pendingRoleMemberId,
@@ -255,12 +289,15 @@ export const MembersTableView = ({
   onRemove,
   onCancelInvitation,
   onRoleChange,
+  onManageProjects = NOOP_MANAGE_PROJECTS,
 }: {
   members: readonly MemberInput[];
   invitations: readonly InvitationInput[];
   currentUserId: string;
   canRemoveMembers: boolean;
   canEditOrgRoles?: boolean;
+  canManageProjects?: boolean;
+  membershipsByPrincipal?: ReadonlyMap<string, MemberProjectMembershipsItem>;
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
   pendingRoleMemberId?: string | undefined;
@@ -271,6 +308,7 @@ export const MembersTableView = ({
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
   onRoleChange: (memberId: string, role: EditableOrgRole) => void;
+  onManageProjects?: (target: ManageProjectsTarget) => void;
 }) => {
   const tableData = useMemo(() => buildRows(members, invitations), [members, invitations]);
   const columns = useMemo(
@@ -279,23 +317,29 @@ export const MembersTableView = ({
         currentUserId,
         canRemoveMembers,
         canEditOrgRoles,
+        canManageProjects,
+        membershipsByPrincipal,
         pendingMemberId,
         pendingInvitationId,
         pendingRoleMemberId,
         onRemove,
         onCancelInvitation,
         onRoleChange,
+        onManageProjects,
       }),
     [
       currentUserId,
       canRemoveMembers,
       canEditOrgRoles,
+      canManageProjects,
+      membershipsByPrincipal,
       pendingMemberId,
       pendingInvitationId,
       pendingRoleMemberId,
       onRemove,
       onCancelInvitation,
       onRoleChange,
+      onManageProjects,
     ],
   );
 

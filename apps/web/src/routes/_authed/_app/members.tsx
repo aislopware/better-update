@@ -1,3 +1,4 @@
+import { memberProjectMembershipsQueryOptions } from "@better-update/api-client/react";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -27,6 +28,7 @@ import {
 import { pluralize } from "../../../lib/pluralize";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
+import { ManageProjectsDialog } from "./-member-projects-cell";
 import { useMembersHandlers } from "./-members-mutations";
 import { MembersTableView } from "./-members-table";
 
@@ -53,7 +55,7 @@ const membersSearchSchema = z.object({
 const MembersSkeleton = () => (
   <div className="flex flex-col gap-3">
     <FilterBarSkeleton selectCount={1} />
-    <TableSkeleton columns={5} rows={5} hasFooter={false} />
+    <TableSkeleton columns={6} rows={5} hasFooter={false} />
   </div>
 );
 
@@ -66,6 +68,17 @@ const InviteHeaderAction = () => {
     <InviteDialog orgId={activeOrg.id} isOwner={me.orgRole === "owner"} />
   ) : null;
 };
+
+// One map lookup per row: principalId (org member.id) → membership summary.
+const useMembershipsByPrincipal = (orgId: string) => {
+  const { data: memberships } = useSuspenseQuery(memberProjectMembershipsQueryOptions(orgId));
+  return useMemo(
+    () => new Map(memberships.map((summary) => [summary.principalId, summary] as const)),
+    [memberships],
+  );
+};
+
+const memberCountLabel = (count: number): string => `${count} ${pluralize(count, "member")}`;
 
 const MembersContent = () => {
   const { activeOrg, user } = Route.useRouteContext();
@@ -89,6 +102,7 @@ const MembersContent = () => {
   const pendingOnly = statusFilter.length === 1 && statusFilter[0] === "pending";
 
   const { data: members } = useSuspenseQuery(membersQueryOptions(orgId));
+  const membershipsByPrincipal = useMembershipsByPrincipal(orgId);
   const { data: invitations = [] } = useQuery({
     ...invitationsQueryOptions(orgId),
     enabled: !activeOnly,
@@ -131,6 +145,11 @@ const MembersContent = () => {
     rolePendingId,
     invitationPendingId,
     isRemoving,
+    manageProjectsTarget,
+    manageProjectsOpen,
+    openManageProjects,
+    closeManageProjects,
+    clearManageProjects,
   } = useMembersHandlers(orgId);
 
   const filteredMembers = useMemo(() => (pendingOnly ? [] : members), [pendingOnly, members]);
@@ -138,9 +157,8 @@ const MembersContent = () => {
     () => (activeOnly ? [] : pendingInvitations),
     [activeOnly, pendingInvitations],
   );
-  const visibleCount = filteredMembers.length + filteredInvitations.length;
   const inviteCta = canInviteMembers ? <InviteDialog orgId={orgId} isOwner={isOwner} /> : undefined;
-  const countLabel = `${visibleCount} ${pluralize(visibleCount, "member")}`;
+  const countLabel = memberCountLabel(filteredMembers.length + filteredInvitations.length);
 
   const isOrgEmpty =
     statusFilter.length === 0 && members.length === 0 && pendingInvitations.length === 0;
@@ -186,6 +204,8 @@ const MembersContent = () => {
           currentUserId={user.id}
           canRemoveMembers={canRemoveMembers}
           canEditOrgRoles={canEditOrgRoles}
+          canManageProjects={canManageMembers}
+          membershipsByPrincipal={membershipsByPrincipal}
           pendingMemberId={memberPendingId}
           pendingInvitationId={invitationPendingId}
           pendingRoleMemberId={rolePendingId}
@@ -196,8 +216,22 @@ const MembersContent = () => {
           onRemove={setRemoveMemberId}
           onCancelInvitation={handleCancelInvitation}
           onRoleChange={handleRoleChange}
+          onManageProjects={openManageProjects}
         />
       </div>
+
+      <ManageProjectsDialog
+        orgId={orgId}
+        open={manageProjectsOpen}
+        target={manageProjectsTarget}
+        summary={
+          manageProjectsTarget === null
+            ? undefined
+            : membershipsByPrincipal.get(manageProjectsTarget.id)
+        }
+        onClose={closeManageProjects}
+        onClosed={clearManageProjects}
+      />
 
       <RemoveDialog
         open={removeMemberId !== null}

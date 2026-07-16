@@ -110,12 +110,24 @@ const RoleCell = ({
   canManage: boolean;
   isPending: boolean;
   onRoleChange: (row: ProjectMemberItem, role: ProjectMemberRoleValue) => void;
-}) =>
-  canManage ? (
+}) => {
+  // An org-wide ("all projects") membership is managed on the org Members
+  // screen, not per project — the row here is read-only (the shown role is
+  // already the max of the org-wide and any explicit role).
+  if (row.allProjects) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Badge variant="outline">{PROJECT_ROLE_LABELS[row.role]}</Badge>
+        <Badge variant="secondary">All projects</Badge>
+      </div>
+    );
+  }
+  return canManage ? (
     <RoleSelect row={row} isPending={isPending} onRoleChange={onRoleChange} />
   ) : (
     <Badge variant="outline">{PROJECT_ROLE_LABELS[row.role]}</Badge>
   );
+};
 
 const RowActions = ({
   row,
@@ -140,7 +152,8 @@ const RowActions = ({
     >
       {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
+    {/* w-auto: size to the labels, not the icon-button anchor width. */}
+    <DropdownMenuContent align="end" className="w-auto">
       <DropdownMenuItem
         variant="destructive"
         onClick={() => {
@@ -204,6 +217,10 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<ProjectMemberItem>[
           header: "",
           cell: ({ row }) => {
             const { pendingPrincipalId, onRemove: handleRemove } = params;
+            // Org-wide memberships cannot be removed per project.
+            if (row.original.allProjects) {
+              return null;
+            }
             return (
               <RowActions
                 row={row.original}

@@ -117,6 +117,9 @@ export type OrgEnvVaultKeyWraps = WithNonNullId<
 export type OrgCredentialBinding = WithNonNullId<
   Narrow<Gen.OrgCredentialBinding, { resource_type: CredentialBindingType }>
 >;
+export type OrgProjectMember = WithNonNullId<
+  Narrow<Gen.OrgProjectMember, { principal_type: ProjectPrincipalType; role: ProjectRole }>
+>;
 export type OrgVaultKeyWraps = WithNonNullId<Gen.OrgVaultKeyWraps>;
 export type OrgVaults = WithNonNullId<Gen.OrgVaults>;
 export type Passkey = WithNonNullId<Gen.Passkey>;
@@ -188,6 +191,7 @@ export interface DB {
   member: Member;
   org_credential_binding: OrgCredentialBinding;
   org_env_vault_key_wraps: OrgEnvVaultKeyWraps;
+  org_project_member: OrgProjectMember;
   org_vault_key_wraps: OrgVaultKeyWraps;
   org_vaults: OrgVaults;
   organization: Organization;

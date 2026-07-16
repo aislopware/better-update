@@ -10,6 +10,7 @@ import { useCallback, useState } from "react";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 
+import type { ManageProjectsTarget } from "./-member-projects-cell";
 import type { EditableOrgRole } from "./-members-table";
 
 const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
@@ -52,6 +53,25 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
 
 export const useMembersHandlers = (orgId: string) => {
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
+
+  // Manage-projects dialog (page-level, RemoveDialog-style): `open` drives the
+  // animation; `target` stays set until the close animation completes so the
+  // dialog body never empties mid-animation.
+  const [manageProjectsTarget, setManageProjectsTarget] = useState<ManageProjectsTarget | null>(
+    null,
+  );
+  const [manageProjectsOpen, setManageProjectsOpen] = useState(false);
+
+  const openManageProjects = useCallback((target: ManageProjectsTarget) => {
+    setManageProjectsTarget(target);
+    setManageProjectsOpen(true);
+  }, []);
+  const closeManageProjects = useCallback(() => {
+    setManageProjectsOpen(false);
+  }, []);
+  const clearManageProjects = useCallback(() => {
+    setManageProjectsTarget(null);
+  }, []);
 
   const handleMemberRemoved = useCallback(() => {
     setRemoveMemberId(null);
@@ -102,5 +122,10 @@ export const useMembersHandlers = (orgId: string) => {
     rolePendingId,
     invitationPendingId,
     isRemoving: removeMember.isPending,
+    manageProjectsTarget,
+    manageProjectsOpen,
+    openManageProjects,
+    closeManageProjects,
+    clearManageProjects,
   };
 };
