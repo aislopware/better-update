@@ -83,7 +83,9 @@ VALUES
 INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "build_number", "bundle_id", "git_ref", "git_commit", "message", "metadata_json", "created_at")
 VALUES
   ('build-old-ios', ${sqlString(projectId)}, 'ios', 'production', 'development', '1.0.0', '1.0.0', '1', 'com.example.old', NULL, NULL, 'Old iOS build', '{}', '2024-01-10T00:00:00Z'),
-  ('build-next-ios', ${sqlString(projectId)}, 'ios', 'production', 'development', '2.0.0', '2.0.0', '2', 'com.example.next', NULL, NULL, 'Next iOS build', '{}', '2024-01-11T00:00:00Z');
+  ('build-next-ios', ${sqlString(projectId)}, 'ios', 'production', 'development', '2.0.0', '2.0.0', '2', 'com.example.next', NULL, NULL, 'Next iOS build', '{}', '2024-01-11T00:00:00Z'),
+  ('build-unmatched-ios', ${sqlString(projectId)}, 'ios', 'production', 'development', '9.9.9', '9.9.9', '3', 'com.example.unmatched', NULL, NULL, 'Unmatched runtime build', '{}', '2024-01-12T00:00:00Z'),
+  ('build-zero-ios', ${sqlString(projectId)}, 'ios', 'production', 'development', '6.0.0', '6.0.0', '4', 'com.example.zero', NULL, NULL, 'Zero rollout build', '{}', '2024-01-13T00:00:00Z');
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "created_at")
 VALUES
@@ -93,7 +95,8 @@ VALUES
   ('update-android-stable', 'branch-main', '4.0.0', 'android', 'Android stable', '{}', NULL, 'group-android-stable', 100, 0, NULL, NULL, NULL, NULL, '2024-01-15T00:00:00Z'),
   ('update-android-reverted', 'branch-main', '4.0.0', 'android', 'Android reverted', '{}', NULL, 'group-android-reverted', 0, 0, NULL, NULL, NULL, NULL, '2024-01-16T00:00:00Z'),
   ('update-ios-stable', 'branch-main', '5.0.0', 'ios', 'Stable release', '{}', NULL, 'group-ios-stable', 100, 0, NULL, NULL, NULL, NULL, '2024-01-17T00:00:00Z'),
-  ('update-ios-canary', 'branch-main', '5.0.0', 'ios', 'Canary release', '{}', NULL, 'group-ios-canary', 50, 0, NULL, NULL, NULL, NULL, '2024-01-18T00:00:00Z');
+  ('update-ios-canary', 'branch-main', '5.0.0', 'ios', 'Canary release', '{}', NULL, 'group-ios-canary', 50, 0, NULL, NULL, NULL, NULL, '2024-01-18T00:00:00Z'),
+  ('update-zero-ios', 'branch-main', '6.0.0', 'ios', 'Fully reverted', '{}', NULL, 'group-zero-ios', 0, 0, NULL, NULL, NULL, NULL, '2024-01-19T00:00:00Z');
 `);
   });
 
@@ -159,6 +162,50 @@ VALUES
     );
   });
 
+  it("lists compatible builds for a channel with an exact server-side total", async () => {
+    // build-old-ios matches via the channel's default branch (branch-main) and
+    // build-next-ios via the rollout target (branch-next) — both branches of
+    // the active rollout count. build-unmatched-ios (no update for its runtime)
+    // and build-zero-ios (its only update has rollout_percentage 0, i.e. not
+    // servable) must be excluded from the rows AND the total.
+    const response = await get("/api/channels/channel-production/compatible-builds", {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.total).toBe(2);
+    expect(body.items.map((item: { id: string }) => item.id)).toEqual([
+      "build-next-ios",
+      "build-old-ios",
+    ]);
+  });
+
+  it("paginates compatible builds newest-first", async () => {
+    const firstPage = await get("/api/channels/channel-production/compatible-builds?limit=1", {
+      cookie: cookies,
+    });
+    expect(firstPage.status).toBe(200);
+    const firstBody = await firstPage.json();
+    expect(firstBody.total).toBe(2);
+    expect(firstBody.items.map((item: { id: string }) => item.id)).toEqual(["build-next-ios"]);
+
+    const secondPage = await get(
+      "/api/channels/channel-production/compatible-builds?limit=1&page=2",
+      { cookie: cookies },
+    );
+    expect(secondPage.status).toBe(200);
+    const secondBody = await secondPage.json();
+    expect(secondBody.items.map((item: { id: string }) => item.id)).toEqual(["build-old-ios"]);
+  });
+
+  it("returns 404 for compatible builds of an unknown channel", async () => {
+    const response = await get("/api/channels/missing-channel/compatible-builds", {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(404);
+  });
+
   it("returns 404 when the active organization does not own the project", async () => {
     const createOrgResponse = await post(
       "/api/auth/organization/create",
@@ -181,5 +228,11 @@ VALUES
       cookie: cookies,
     });
     expect(response.status).toBe(404);
+
+    const compatibleBuildsResponse = await get(
+      "/api/channels/channel-production/compatible-builds",
+      { cookie: cookies },
+    );
+    expect(compatibleBuildsResponse.status).toBe(404);
   });
 });

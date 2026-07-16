@@ -1,8 +1,4 @@
-import {
-  branchesQueryOptions,
-  buildsQueryOptions,
-  updatesQueryOptions,
-} from "@better-update/api-client/react";
+import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -35,10 +31,12 @@ import { StatCard } from "../../../../../../components/stat-card";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
-import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 import { buildBuildsColumns } from "../builds/-builds-columns";
 
 const RUNTIME_PAGE_LIMIT = 25;
+
+/** The updates card only renders this many rows; "View all" covers the rest. */
+const RUNTIME_UPDATES_LIMIT = 10;
 
 const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <Card>
@@ -139,15 +137,8 @@ const RuntimeDetailContent = () => {
   const { data: updatesData } = useSuspenseQuery(
     updatesQueryOptions(orgId, projectId, {
       runtimeVersion: version,
-      limit: DROPDOWN_FETCH_LIMIT,
+      limit: RUNTIME_UPDATES_LIMIT,
     }),
-  );
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const branchNames = useMemo(
-    () => new Map(branchesData.items.map((branch) => [branch.id, branch.name])),
-    [branchesData.items],
   );
 
   const buildsCount = buildsData.total;
@@ -249,15 +240,15 @@ const RuntimeDetailContent = () => {
             </p>
           ) : (
             <div className="flex flex-col">
-              {updatesData.items.slice(0, 10).map((update) => (
+              {updatesData.items.map((update) => (
                 <UpdateRow
                   key={update.id}
                   update={update}
-                  branchName={branchNames.get(update.branchId)}
+                  branchName={update.branchName}
                   projectSlug={projectSlug}
                 />
               ))}
-              {updatesData.items.length > 10 ? (
+              {updatesCount > RUNTIME_UPDATES_LIMIT ? (
                 <Link
                   to="/projects/$projectSlug/updates"
                   params={{ projectSlug }}

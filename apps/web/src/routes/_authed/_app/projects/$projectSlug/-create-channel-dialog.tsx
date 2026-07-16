@@ -11,23 +11,17 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
-import type { BranchItem } from "@better-update/api-client/react";
-
+import {
+  ServerSearchCombobox,
+  useServerSearchList,
+} from "../../../../../components/server-search-combobox";
 import { getFieldError, requiredStringSchema } from "../../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
@@ -48,27 +42,23 @@ const useCreateChannelForm = (onSubmit: (value: CreateChannelFormValues) => Prom
 
 type CreateChannelFormApi = ReturnType<typeof useCreateChannelForm>;
 
-const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
-  <SelectContent>
-    <SelectGroup>
-      {branches.map((branch) => (
-        <SelectItem key={branch.id} value={branch.id}>
-          {branch.name}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-  </SelectContent>
-);
-
+// Server-searched branch picker: projects can outgrow the dropdown fetch
+// limit, so the option list is the first page and typing searches all branches.
 const BranchField = ({
   form,
-  branches,
+  orgId,
+  projectId,
 }: {
   form: CreateChannelFormApi;
-  branches: readonly BranchItem[];
+  orgId: string;
+  projectId: string;
 }) => {
-  const branchLabels: Record<string, string> = Object.fromEntries(
-    branches.map((branch) => [branch.id, branch.name]),
+  const list = useServerSearchList((query) =>
+    branchesQueryOptions(
+      orgId,
+      projectId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
   );
   return (
     <form.Field
@@ -85,21 +75,22 @@ const BranchField = ({
         return (
           <Field data-invalid={Boolean(errorMessage)}>
             <FieldLabel>Branch</FieldLabel>
-            <Select
-              items={branchLabels}
+            <ServerSearchCombobox
               value={field.state.value}
               onValueChange={(next) => {
-                if (next === null) {
-                  return;
-                }
                 field.handleChange(next);
               }}
-            >
-              <SelectTrigger className="w-full" aria-invalid={errorMessage ? true : undefined}>
-                <SelectValue placeholder="Select a branch" />
-              </SelectTrigger>
-              <BranchOptions branches={branches} />
-            </Select>
+              options={list.items.map((branch) => ({ value: branch.id, label: branch.name }))}
+              search={list.search}
+              onSearchChange={list.handleSearchChange}
+              isPending={list.isPending}
+              defaultListTruncated={list.defaultListTruncated}
+              placeholder="Select a branch"
+              searchPlaceholder="Search branches…"
+              emptyMessage="No branches found."
+              ariaLabel="Branch"
+              invalid={Boolean(errorMessage)}
+            />
             {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
           </Field>
         );
@@ -111,12 +102,10 @@ const BranchField = ({
 const CreateChannelForm = ({
   orgId,
   projectId,
-  branches,
   onSuccess,
 }: {
   orgId: string;
   projectId: string;
-  branches: readonly BranchItem[];
   onSuccess: () => void;
 }) => {
   const queryClient = useQueryClient();
@@ -180,7 +169,7 @@ const CreateChannelForm = ({
           }}
         </form.Field>
 
-        <BranchField form={form} branches={branches} />
+        <BranchField form={form} orgId={orgId} projectId={projectId} />
       </FieldGroup>
 
       <DialogFooter>
@@ -205,10 +194,6 @@ const CreateChannelForm = ({
 export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const branches = branchesData.items;
 
   return (
     <Dialog
@@ -239,7 +224,6 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
           key={resetKey}
           orgId={orgId}
           projectId={projectId}
-          branches={branches}
           onSuccess={() => {
             setOpen(false);
           }}

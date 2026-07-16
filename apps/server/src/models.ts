@@ -81,6 +81,11 @@ export interface ChannelModel {
   readonly projectId: string;
   readonly name: string;
   readonly branchId: string;
+  // Resolved at read time (branches join); absent on paths that never
+  // surface names (manifest serving, cache bumps). `| undefined` keeps
+  // spread-overrides legal under exactOptionalPropertyTypes.
+  readonly branchName?: string | undefined;
+  readonly rolloutTargetBranchName?: string | undefined;
   readonly branchMappingJson: string | null;
   readonly cacheVersion: number;
   readonly isPaused: boolean;
@@ -106,6 +111,8 @@ export interface UpdateAssetRefModel {
 export interface UpdateModel {
   readonly id: string;
   readonly branchId: string;
+  // Resolved at read time (branches join); absent on insert-shaped values.
+  readonly branchName?: string | undefined;
   readonly runtimeVersion: string;
   readonly platform: Platform;
   readonly message: string;
@@ -452,49 +459,5 @@ export interface AuditLogModel {
   readonly createdAt: string;
 }
 
-export interface UpdateAdoptionEntryModel {
-  readonly updateId: string;
-  readonly devices: number;
-  readonly firstSeen: string;
-  readonly lastSeen: string;
-}
-
-export interface UpdateAdoptionResultModel {
-  readonly updates: readonly UpdateAdoptionEntryModel[];
-}
-
-export interface AnalyticsResponseTypeBreakdownModel {
-  readonly manifest: number;
-  readonly directive: number;
-  readonly noUpdate: number;
-}
-
-export interface AnalyticsTimeSeriesEntryModel {
-  readonly timestamp: string;
-  readonly requests: number;
-}
-
-export interface UpdateAnalyticsModel {
-  readonly updateId: string;
-  readonly totalRequests: number;
-  readonly uniqueDevices: number;
-  readonly byResponseType: AnalyticsResponseTypeBreakdownModel;
-  readonly timeSeries: readonly AnalyticsTimeSeriesEntryModel[];
-}
-
-export interface ChannelAnalyticsModel {
-  readonly channel: string;
-  readonly totalRequests: number;
-  readonly uniqueDevices: number;
-  readonly responseTypeDistribution: AnalyticsResponseTypeBreakdownModel;
-}
-
-export interface PlatformAnalyticsEntryModel {
-  readonly platform: string;
-  readonly requests: number;
-  readonly devices: number;
-}
-
-export interface PlatformAnalyticsResultModel {
-  readonly platforms: readonly PlatformAnalyticsEntryModel[];
-}
+// Analytics read models live in analytics-models.ts (extracted for the line
+// budget).

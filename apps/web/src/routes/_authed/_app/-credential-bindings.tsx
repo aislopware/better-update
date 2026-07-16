@@ -24,6 +24,11 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import {
   Popover,
   PopoverContent,
   PopoverHeader,
@@ -34,10 +39,12 @@ import { toast } from "@better-update/ui/components/ui/sonner";
 import { Switch } from "@better-update/ui/components/ui/switch";
 import { cn } from "@better-update/ui/lib/utils";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { SearchIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { CredentialBindingTypeValue } from "@better-update/api";
 
+import { useServerSearchList } from "../../../components/server-search-combobox";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 
@@ -76,6 +83,9 @@ const AFFECTED_LIST_KEYS: Record<
 
 // Keep the Projects column compact: a handful of chips, the rest in a popover.
 const MAX_VISIBLE_PROJECT_CHIPS = 3;
+
+// Below this count the whole checklist is scannable at a glance — no filter box.
+const CHECKLIST_FILTER_THRESHOLD = 8;
 
 export const BoundProjectChips = ({
   boundProjectIds,
@@ -187,6 +197,15 @@ const AllProjectsToggle = ({
   );
 };
 
+// The search runs server-side, so an in-flight query has a distinct
+// "Searching…" state before the definitive no-match copy.
+const ChecklistEmptyState = ({ query, isPending }: { query: string; isPending: boolean }) => {
+  if (isPending) {
+    return <p className="text-muted-foreground text-sm">Searching…</p>;
+  }
+  return <p className="text-muted-foreground text-sm">No projects match “{query}”.</p>;
+};
+
 const BindingsChecklist = ({
   orgId,
   resourceType,
@@ -202,6 +221,16 @@ const BindingsChecklist = ({
   projects: readonly ProjectOption[];
   disabled: boolean;
 }) => {
+  // Server-side search: the checklist page is bounded by DROPDOWN_FETCH_LIMIT,
+  // so typing queries the whole org instead of filtering the first page.
+  const list = useServerSearchList((query) =>
+    projectsQueryOptions(
+      orgId,
+      query
+        ? { limit: DROPDOWN_FETCH_LIMIT, query, status: "all" }
+        : { limit: DROPDOWN_FETCH_LIMIT, status: "all" },
+    ),
+  );
   const queryClient = useQueryClient();
   const toggleMutation = useApiMutation({
     mutationFn: async (input: { readonly projectId: string; readonly next: boolean }) =>
@@ -219,27 +248,50 @@ const BindingsChecklist = ({
     },
   });
 
+  if (projects.length === 0) {
+    return <p className="text-muted-foreground text-sm">No projects in this organization yet.</p>;
+  }
+
+  const visibleProjects = list.items.toSorted((left, right) => left.name.localeCompare(right.name));
+
   return (
     <div className="grid gap-3">
-      {projects.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No projects in this organization yet.</p>
-      ) : (
-        projects.map((project) => (
-          <label
-            key={project.id}
-            className={cn("flex items-center gap-2 text-sm", disabled && "opacity-50")}
-          >
-            <Checkbox
-              checked={boundProjectIds.includes(project.id)}
-              disabled={disabled || toggleMutation.isPending}
-              onCheckedChange={(next) => {
-                toggleMutation.mutate({ projectId: project.id, next });
-              }}
-            />
-            <span>{project.name}</span>
-          </label>
-        ))
-      )}
+      {projects.length > CHECKLIST_FILTER_THRESHOLD || list.defaultListTruncated ? (
+        <InputGroup>
+          <InputGroupInput
+            type="search"
+            value={list.search}
+            placeholder="Filter projects…"
+            onChange={(event) => {
+              list.handleSearchChange(event.target.value);
+            }}
+          />
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+        </InputGroup>
+      ) : null}
+      <div className="grid max-h-[40vh] gap-3 overflow-y-auto">
+        {visibleProjects.length === 0 ? (
+          <ChecklistEmptyState query={list.search.trim()} isPending={list.isPending} />
+        ) : (
+          visibleProjects.map((project) => (
+            <label
+              key={project.id}
+              className={cn("flex items-center gap-2 text-sm", disabled && "opacity-50")}
+            >
+              <Checkbox
+                checked={boundProjectIds.includes(project.id)}
+                disabled={disabled || toggleMutation.isPending}
+                onCheckedChange={(next) => {
+                  toggleMutation.mutate({ projectId: project.id, next });
+                }}
+              />
+              <span>{project.name}</span>
+            </label>
+          ))
+        )}
+      </div>
     </div>
   );
 };
@@ -298,7 +350,7 @@ export const BoundProjectsCell = ({
           >
             Manage projects
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Bound projects</DialogTitle>
               <DialogDescription>

@@ -1,4 +1,4 @@
-import { deleteUpdateGroup } from "@better-update/api-client/react";
+import { channelsQueryOptions, deleteUpdateGroup } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   EllipsisVerticalIcon,
   EyeIcon,
@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import type { Channel, Update } from "@better-update/api";
+import type { Update } from "@better-update/api";
 
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 import { PreviewUpdateDialog } from "./-preview-update-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
@@ -29,7 +30,6 @@ import { invalidateUpdates } from "./-update-helpers";
 
 interface UpdateActionsMenuProps {
   readonly update: Update;
-  readonly channels: readonly Channel[];
   readonly branchName: string | undefined;
   readonly slug: string;
   readonly orgId: string;
@@ -37,6 +37,25 @@ interface UpdateActionsMenuProps {
   /** Detail pages navigate away after the group is deleted; lists just refetch. */
   readonly onDeleted?: () => Promise<void>;
 }
+
+/**
+ * "No target channels" is only knowable when the default channels page holds
+ * the WHOLE project (total fits the page). On bigger projects — or while the
+ * page is still loading — keep Promote enabled and let the dialog's
+ * server-searched picker be the source of truth.
+ */
+const usePromoteTargetsExist = (orgId: string, projectId: string, updateBranchId: string) => {
+  // Same cache entry as every other default-page consumer (one fetch per page
+  // of rows, deduped by React Query).
+  const { data } = useQuery(
+    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
+  if (!data) {
+    return true;
+  }
+  const eligibleOnPage = data.items.some((channel) => channel.branchId !== updateBranchId);
+  return eligibleOnPage || data.total > data.items.length;
+};
 
 const computeFollowupBlockReason = (update: Update): string | undefined => {
   if (update.isRollback) {
@@ -55,7 +74,6 @@ const computeFollowupBlockReason = (update: Update): string | undefined => {
  */
 export const UpdateActionsMenu = ({
   update,
-  channels,
   branchName,
   slug,
   orgId,
@@ -69,16 +87,14 @@ export const UpdateActionsMenu = ({
   const [republishOpen, setRepublishOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
+  const promoteTargetsExist = usePromoteTargetsExist(orgId, projectId, update.branchId);
   const followupBlockReason = computeFollowupBlockReason(update);
   const branchMissingReason = branchName === undefined ? "Branch info unavailable" : undefined;
   const rollbackDisabledReason = followupBlockReason ?? branchMissingReason;
   const republishDisabledReason = followupBlockReason ?? branchMissingReason;
   const promoteDisabledReason =
     followupBlockReason ??
-    (eligibleChannels.length === 0
-      ? "No other channels available to promote this update to"
-      : undefined);
+    (promoteTargetsExist ? undefined : "No other channels available to promote this update to");
 
   return (
     <>
@@ -146,7 +162,6 @@ export const UpdateActionsMenu = ({
       <PreviewUpdateDialog
         update={update}
         branchName={branchName}
-        channels={channels}
         projectSlug={slug}
         orgId={orgId}
         projectId={projectId}
@@ -180,7 +195,6 @@ export const UpdateActionsMenu = ({
       {promoteDisabledReason === undefined && (
         <PromoteUpdateDialog
           update={update}
-          channels={eligibleChannels}
           orgId={orgId}
           projectId={projectId}
           open={promoteOpen}

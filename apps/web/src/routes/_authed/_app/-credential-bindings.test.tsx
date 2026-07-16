@@ -1,5 +1,5 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithQuery } from "../../../../tests/helpers/render-with-query";
@@ -116,9 +116,80 @@ describe(BoundProjectsCell, () => {
 
     const checkboxes = await screen.findAllByRole("checkbox");
     expect(checkboxes).toHaveLength(5);
-    expect(checkboxes[0]).toHaveAttribute("aria-checked", "true");
-    expect(checkboxes[1]).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("checkbox", { name: "My App" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("checkbox", { name: "Other App" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("narrows a long checklist through the server-side search", async () => {
+    const manyProjects = Array.from({ length: 9 }, (_, index) => ({
+      id: `project-${index + 1}`,
+      name: index === 0 ? "Needle App" : `Haystack ${index + 1}`,
+    }));
+    const [needleProject] = manyProjects;
+    const user = userEvent.setup();
+    // Typing queries the server, so the narrowed list lives under its own
+    // search-scoped cache key — seed default and searched pages separately.
+    renderWithQuery(
+      <BoundProjectsCell
+        orgId="org-1"
+        resourceType="ascApiKey"
+        resourceId="key-1"
+        resourceLabel="the ASC API key"
+        boundProjectIds={[]}
+        boundToAllProjects={false}
+        canManage
+      />,
+      {
+        seedCache: [
+          [
+            projectsQueryOptions("org-1", { limit: DROPDOWN_FETCH_LIMIT, status: "all" }).queryKey,
+            { items: manyProjects },
+          ],
+          [
+            projectsQueryOptions("org-1", {
+              limit: DROPDOWN_FETCH_LIMIT,
+              query: "needle",
+              status: "all",
+            }).queryKey,
+            { items: [needleProject] },
+          ],
+          [
+            projectsQueryOptions("org-1", {
+              limit: DROPDOWN_FETCH_LIMIT,
+              query: "no such project",
+              status: "all",
+            }).queryKey,
+            { items: [] },
+          ],
+        ],
+      },
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Manage projects" }));
+    await expect(screen.findAllByRole("checkbox")).resolves.toHaveLength(9);
+
+    await user.type(screen.getByPlaceholderText("Filter projects…"), "needle");
+
+    // The query is deferred (useDeferredValue), so the list narrows async.
+    await waitFor(() => {
+      expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    });
+    expect(screen.getByRole("checkbox", { name: "Needle App" })).toBeInTheDocument();
+
+    await user.clear(screen.getByPlaceholderText("Filter projects…"));
+    await user.type(screen.getByPlaceholderText("Filter projects…"), "no such project");
+
+    await expect(
+      screen.findByText("No projects match “no such project”."),
+    ).resolves.toBeInTheDocument();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 
   it("disables the per-project checklist while the org-wide binding is on", async () => {

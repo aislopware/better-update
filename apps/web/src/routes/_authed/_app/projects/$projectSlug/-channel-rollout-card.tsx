@@ -1,4 +1,5 @@
 import {
+  branchesQueryOptions,
   completeBranchRollout,
   createBranchRollout,
   revertBranchRollout,
@@ -21,41 +22,47 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@better-update/ui/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { Separator } from "@better-update/ui/components/ui/separator";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheckIcon, GitBranchIcon, RocketIcon, Undo2Icon } from "lucide-react";
+import { CircleCheckIcon, RocketIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 
 import type { Channel } from "@better-update/api";
-import type { BranchItem } from "@better-update/api-client/react";
 import type { ChangeEvent } from "react";
 
+import {
+  ServerSearchCombobox,
+  useServerSearchList,
+} from "../../../../../components/server-search-combobox";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { parseRolloutState } from "./-channel-rollout-state";
 import { RolloutSplitDiagram } from "./-rollout-split-diagram";
 import { invalidateChannels as invalidateChannelsHelper } from "./-update-helpers";
 
+// Server-searched branch picker: default list = first page, typing searches all branches.
+const useBranchSearchList = (orgId: string, projectId: string) =>
+  useServerSearchList((query) =>
+    branchesQueryOptions(
+      orgId,
+      projectId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
+  );
+
+type BranchSearchList = ReturnType<typeof useBranchSearchList>;
+
 interface RolloutSectionProps {
   readonly channel: Channel;
-  readonly branches: readonly BranchItem[];
   readonly invalidateChannels: () => Promise<void>;
 }
 
 const ActiveRolloutSection = ({
   channel,
-  branches,
   rolloutState,
   invalidateChannels,
 }: RolloutSectionProps & {
@@ -102,10 +109,8 @@ const ActiveRolloutSection = ({
     updateBranchRolloutMutation.mutate(percentage);
   };
 
-  const currentBranch = branches.find((branch) => branch.id === channel.branchId);
-  const oldBranchName = currentBranch?.name ?? channel.branchId.slice(0, 8);
-  const targetBranch = branches.find((branch) => branch.id === rolloutState.targetBranchId);
-  const newBranchName = targetBranch?.name ?? rolloutState.targetBranchId.slice(0, 8);
+  const oldBranchName = channel.branchName ?? channel.branchId.slice(0, 8);
+  const newBranchName = channel.rolloutTargetBranchName ?? rolloutState.targetBranchId.slice(0, 8);
 
   return (
     <div className="flex flex-col gap-4">
@@ -192,10 +197,13 @@ const ActiveRolloutSection = ({
 
 const StartRolloutForm = ({
   channel,
-  branches,
+  branchList,
   onDone,
   invalidateChannels,
-}: RolloutSectionProps & { readonly onDone: () => void }) => {
+}: RolloutSectionProps & {
+  readonly branchList: BranchSearchList;
+  readonly onDone: () => void;
+}) => {
   const createBranchRolloutMutation = useApiMutation({
     mutationFn: async (input: { newBranchId: string; percentage: number }) =>
       createBranchRollout(channel.id, input),
@@ -224,10 +232,9 @@ const StartRolloutForm = ({
     },
   });
 
-  const targetBranches = branches.filter((branch) => branch.id !== channel.branchId);
-  const targetBranchLabels: Record<string, string> = Object.fromEntries(
-    targetBranches.map((branch) => [branch.id, branch.name]),
-  );
+  const targetBranchOptions = branchList.items
+    .filter((branch) => branch.id !== channel.branchId)
+    .map((branch) => ({ value: branch.id, label: branch.name }));
 
   return (
     <form
@@ -243,29 +250,21 @@ const StartRolloutForm = ({
           {(field) => (
             <Field>
               <FieldLabel>Target branch</FieldLabel>
-              <Select
-                items={targetBranchLabels}
+              <ServerSearchCombobox
                 value={field.state.value}
-                onValueChange={(value) => {
-                  if (value === null) {
-                    return;
-                  }
-                  field.handleChange(value);
+                onValueChange={(next) => {
+                  field.handleChange(next);
                 }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {targetBranches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+                options={targetBranchOptions}
+                search={branchList.search}
+                onSearchChange={branchList.handleSearchChange}
+                isPending={branchList.isPending}
+                defaultListTruncated={branchList.defaultListTruncated}
+                placeholder="Select a branch"
+                searchPlaceholder="Search branches…"
+                emptyMessage="No branches found."
+                ariaLabel="Target branch"
+              />
               <FieldDescription>Branch the rollout shifts clients to.</FieldDescription>
             </Field>
           )}
@@ -326,13 +325,19 @@ const StartRolloutForm = ({
   );
 };
 
-const StartRolloutSection = (props: RolloutSectionProps) => {
+const StartRolloutSection = (
+  props: RolloutSectionProps & { readonly orgId: string; readonly projectId: string },
+) => {
   const [isStartingRollout, setIsStartingRollout] = useState(false);
-  const targetBranchCount = props.branches.filter(
-    (branch) => branch.id !== props.channel.branchId,
-  ).length;
-  const noTargetsReason =
-    targetBranchCount === 0 ? "Create another branch first to enable rollouts" : undefined;
+  const branchList = useBranchSearchList(props.orgId, props.projectId);
+  // Only a settled, untruncated default page with no other branch proves there is no target.
+  const hasNoTargets =
+    !branchList.isPending &&
+    !branchList.defaultListTruncated &&
+    !branchList.items.some((branch) => branch.id !== props.channel.branchId);
+  const noTargetsReason = hasNoTargets
+    ? "Create another branch first to enable rollouts"
+    : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -345,7 +350,7 @@ const StartRolloutSection = (props: RolloutSectionProps) => {
       {isStartingRollout ? (
         <StartRolloutForm
           channel={props.channel}
-          branches={props.branches}
+          branchList={branchList}
           invalidateChannels={props.invalidateChannels}
           onDone={() => {
             setIsStartingRollout(false);
@@ -376,24 +381,68 @@ const StartRolloutSection = (props: RolloutSectionProps) => {
   );
 };
 
+const LinkedBranchField = ({
+  channel,
+  orgId,
+  projectId,
+  disabled,
+  isRolloutActive,
+  onRelink,
+}: {
+  readonly channel: Channel;
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly disabled: boolean;
+  readonly isRolloutActive: boolean;
+  readonly onRelink: (branchId: string) => void;
+}) => {
+  const branchList = useBranchSearchList(orgId, projectId);
+  const options = branchList.items.map((branch) => ({ value: branch.id, label: branch.name }));
+  // Seed the current selection so its embedded name renders even off-page.
+  const optionsWithCurrent = options.some((option) => option.value === channel.branchId)
+    ? options
+    : [{ value: channel.branchId, label: channel.branchName ?? channel.branchId }, ...options];
+
+  return (
+    <Field>
+      <FieldLabel>Linked branch</FieldLabel>
+      <div className="w-full sm:max-w-xs">
+        <ServerSearchCombobox
+          value={channel.branchId}
+          onValueChange={(next) => {
+            if (next !== channel.branchId) {
+              onRelink(next);
+            }
+          }}
+          options={optionsWithCurrent}
+          search={branchList.search}
+          onSearchChange={branchList.handleSearchChange}
+          isPending={branchList.isPending}
+          defaultListTruncated={branchList.defaultListTruncated}
+          placeholder="Select a branch"
+          searchPlaceholder="Search branches…"
+          emptyMessage="No branches found."
+          ariaLabel="Linked branch"
+          disabled={disabled}
+        />
+      </div>
+      <FieldDescription>
+        {isRolloutActive
+          ? "Locked while a rollout is active — complete or revert the rollout first."
+          : "Clients on this channel receive updates published to this branch."}
+      </FieldDescription>
+    </Field>
+  );
+};
+
 interface ChannelRolloutCardProps {
   readonly channel: Channel;
   readonly orgId: string;
   readonly projectId: string;
-  readonly branches: readonly BranchItem[];
 }
 
-export const ChannelRolloutCard = ({
-  channel,
-  orgId,
-  projectId,
-  branches,
-}: ChannelRolloutCardProps) => {
+export const ChannelRolloutCard = ({ channel, orgId, projectId }: ChannelRolloutCardProps) => {
   const queryClient = useQueryClient();
-  const linkedBranch = branches.find((branch) => branch.id === channel.branchId);
-  const branchLabels: Record<string, string> = Object.fromEntries(
-    branches.map((branch) => [branch.id, branch.name]),
-  );
 
   const rolloutState = channel.branchMappingJson
     ? parseRolloutState(channel.branchMappingJson)
@@ -418,50 +467,28 @@ export const ChannelRolloutCard = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <Field>
-          <FieldLabel>Linked branch</FieldLabel>
-          <Select
-            items={branchLabels}
-            value={channel.branchId}
-            disabled={rolloutState !== null || updateChannelMutation.isPending}
-            onValueChange={(value) => {
-              if (value) {
-                updateChannelMutation.mutate(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-full sm:max-w-xs">
-              <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
-              <SelectValue>{linkedBranch?.name ?? channel.branchId}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldDescription>
-            {rolloutState
-              ? "Locked while a rollout is active — complete or revert the rollout first."
-              : "Clients on this channel receive updates published to this branch."}
-          </FieldDescription>
-        </Field>
+        <LinkedBranchField
+          channel={channel}
+          orgId={orgId}
+          projectId={projectId}
+          disabled={rolloutState !== null || updateChannelMutation.isPending}
+          isRolloutActive={rolloutState !== null}
+          onRelink={(branchId) => {
+            updateChannelMutation.mutate(branchId);
+          }}
+        />
         <Separator />
         {rolloutState ? (
           <ActiveRolloutSection
             channel={channel}
-            branches={branches}
             rolloutState={rolloutState}
             invalidateChannels={invalidateChannels}
           />
         ) : (
           <StartRolloutSection
             channel={channel}
-            branches={branches}
+            orgId={orgId}
+            projectId={projectId}
             invalidateChannels={invalidateChannels}
           />
         )}

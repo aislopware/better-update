@@ -5,7 +5,12 @@ import { runEffect } from "../../lib/citty-effect";
 import { printHuman } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
-import { EnvResourceNotFoundError, envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
+import {
+  EnvResourceNotFoundError,
+  envErrorExtras,
+  listAllEnvVars,
+  parseSingleEnvironmentArg,
+} from "./helpers";
 
 export const deleteCommand = defineCommand({
   meta: {
@@ -29,12 +34,12 @@ export const deleteCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const { items } = yield* api["env-vars"].list({
-          urlParams: {
-            projectId,
-            scope: "project",
-            ...(environment ? { environments: environment } : {}),
-          },
+        // `search` narrows server-side (substring match); the exact-key filter stays.
+        const items = yield* listAllEnvVars(api, {
+          projectId,
+          scope: "project",
+          search: args.key,
+          ...(environment ? { environments: environment } : {}),
         });
         const matches = items.filter(
           (item) =>

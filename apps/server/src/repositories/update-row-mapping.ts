@@ -1,3 +1,5 @@
+import { toOptional } from "@better-update/type-guards";
+
 import type { Kysely, SelectQueryBuilder } from "kysely";
 
 import type { DB } from "../db/schema";
@@ -49,6 +51,9 @@ export interface UpdateRow {
   // A correlated scalar subselect (COALESCE(SUM(...), 0)); Kysely types every
   // scalar subquery as nullable, so this mirrors the inferred row shape.
   total_asset_size: number | null;
+  // Correlated subselect on branches; NULL only if the branch row vanished
+  // mid-read (the FK normally guarantees presence).
+  branch_name: string | null;
   created_at: string;
 }
 
@@ -92,6 +97,13 @@ export const selectUpdateRow = <Output>(qb: SelectQueryBuilder<DB, "updates", Ou
           agg.fn.coalesce(agg.fn.sum<number | null>("assets.byte_size"), agg.lit(0)).as("total"),
         )
         .as("total_asset_size"),
+    )
+    .select((eb) =>
+      eb
+        .selectFrom("branches")
+        .whereRef("branches.id", "=", "updates.branch_id")
+        .select("branches.name")
+        .as("branch_name"),
     );
 
 // Kysely insert builders for one update row + its update_assets, shared by
@@ -203,6 +215,7 @@ export const toUpdate = (row: UpdateRow) =>
   ({
     id: row.id,
     branchId: row.branch_id,
+    branchName: toOptional(row.branch_name),
     runtimeVersion: row.runtime_version,
     platform: row.platform,
     message: row.message,

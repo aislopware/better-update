@@ -1,5 +1,4 @@
 import {
-  branchesQueryOptions,
   buildsQueryOptions,
   channelsQueryOptions,
   runtimesQueryOptions,
@@ -26,7 +25,6 @@ import { Link } from "@tanstack/react-router";
 import { GitBranchIcon, RocketIcon } from "lucide-react";
 
 import type { Channel } from "@better-update/api";
-import type { BranchItem } from "@better-update/api-client/react";
 import type { ReactElement, ReactNode } from "react";
 
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
@@ -71,15 +69,7 @@ const FirstPublishCard = () => (
 );
 
 /** One channel row in the "Live now" hero: name → branch → latest update → state. */
-const LiveNowRow = ({
-  scope,
-  channel,
-  branches,
-}: {
-  scope: OverviewScope;
-  channel: Channel;
-  branches: readonly BranchItem[];
-}) => {
+const LiveNowRow = ({ scope, channel }: { scope: OverviewScope; channel: Channel }) => {
   const { data } = useSuspenseQuery(
     updatesQueryOptions(scope.orgId, scope.projectId, {
       branchId: [channel.branchId],
@@ -88,7 +78,6 @@ const LiveNowRow = ({
     }),
   );
   const [latest] = data.items;
-  const branchName = branches.find((branch) => branch.id === channel.branchId)?.name;
 
   return (
     <Link
@@ -100,7 +89,7 @@ const LiveNowRow = ({
         <span className="truncate font-medium">{channel.name}</span>
         <span className="text-muted-foreground flex items-center gap-1 text-xs">
           <GitBranchIcon strokeWidth={2} className="size-3 shrink-0" />
-          <span className="truncate">{branchName ?? channel.branchId.slice(0, 8)}</span>
+          <span className="truncate">{channel.branchName ?? channel.branchId.slice(0, 8)}</span>
         </span>
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
@@ -115,7 +104,7 @@ const LiveNowRow = ({
           <span className="text-muted-foreground text-sm">No updates on this branch yet</span>
         )}
       </span>
-      <ChannelStatusBadge channel={channel} branches={branches} />
+      <ChannelStatusBadge channel={channel} />
     </Link>
   );
 };
@@ -123,11 +112,9 @@ const LiveNowRow = ({
 const LiveNowCard = ({
   scope,
   channels,
-  branches,
 }: {
   scope: OverviewScope;
   channels: readonly Channel[];
-  branches: readonly BranchItem[];
 }) => (
   <Card className="gap-4">
     <CardHeader>
@@ -146,7 +133,7 @@ const LiveNowCard = ({
     <CardContent className="px-2">
       <div className="divide-border/60 flex flex-col divide-y">
         {channels.map((channel) => (
-          <LiveNowRow key={channel.id} scope={scope} channel={channel} branches={branches} />
+          <LiveNowRow key={channel.id} scope={scope} channel={channel} />
         ))}
       </div>
     </CardContent>
@@ -223,10 +210,9 @@ const ROW_LINK_CLASS =
 
 export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
   const { orgId, projectId } = scope;
-  const [channelsQ, branchesQ, updatesQ, buildsQ, runtimesQ] = useSuspenseQueries({
+  const [channelsQ, updatesQ, buildsQ, runtimesQ] = useSuspenseQueries({
     queries: [
       channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT, sort: "name" }),
-      branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
       updatesQueryOptions(orgId, projectId, { limit: RECENT_LIMIT, sort: "-createdAt" }),
       buildsQueryOptions(orgId, projectId, { limit: RECENT_LIMIT, sort: "-createdAt" }),
       runtimesQueryOptions(orgId, projectId, { limit: 1 }),
@@ -234,20 +220,16 @@ export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
   });
 
   const channels = channelsQ.data.items;
-  const branches = branchesQ.data.items;
   const updates = updatesQ.data;
   const builds = buildsQ.data;
 
   const isFirstRun = updates.total === 0 && builds.total === 0;
 
-  const branchName = (branchId: string) =>
-    branches.find((branch) => branch.id === branchId)?.name ?? branchId.slice(0, 8);
-
   const updateEntries: readonly RecentEntry[] = updates.items.map((update) => ({
     key: update.id,
     title: update.message || "Untitled update",
     platform: update.platform,
-    meta: branchName(update.branchId),
+    meta: update.branchName ?? update.branchId.slice(0, 8),
     createdAt: update.createdAt,
     detailId: update.id,
   }));
@@ -274,9 +256,7 @@ export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
         <FirstPublishCard />
       ) : (
         <>
-          {channels.length > 0 && (
-            <LiveNowCard scope={scope} channels={channels} branches={branches} />
-          )}
+          {channels.length > 0 && <LiveNowCard scope={scope} channels={channels} />}
           <div className="grid gap-6 lg:grid-cols-2">
             <RecentListCard
               title="Recent updates"

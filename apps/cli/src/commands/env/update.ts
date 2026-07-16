@@ -11,8 +11,8 @@ import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import {
   describePayload,
-  EnvResourceNotFoundError,
   envErrorExtras,
+  findProjectEnvVar,
   parseSingleEnvironmentArg,
 } from "./helpers";
 
@@ -39,15 +39,7 @@ const applyValueUpdate = (
 ) =>
   Effect.gen(function* () {
     const { key, environment, projectId, value, visibility } = params;
-    const { items } = yield* api["env-vars"].list({
-      urlParams: { projectId, scope: "project", environments: environment },
-    });
-    const match = items.find((item) => item.key === key && item.environment === environment);
-    if (!match) {
-      return yield* new EnvResourceNotFoundError({
-        message: `Env var "${key}" not found for environment "${environment}".`,
-      });
-    }
+    const match = yield* findProjectEnvVar(api, projectId, key, environment);
 
     if (value === undefined) {
       yield* api["env-vars"].update({ path: { id: match.id }, payload: compact({ visibility }) });

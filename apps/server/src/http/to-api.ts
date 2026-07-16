@@ -74,6 +74,10 @@ export const toApiChannel = (channel: ChannelModel) =>
     projectId: channel.projectId,
     name: channel.name,
     branchId: channel.branchId,
+    ...(channel.branchName === undefined ? {} : { branchName: channel.branchName }),
+    ...(channel.rolloutTargetBranchName === undefined
+      ? {}
+      : { rolloutTargetBranchName: channel.rolloutTargetBranchName }),
     branchMappingJson: channel.branchMappingJson,
     cacheVersion: channel.cacheVersion,
     isPaused: channel.isPaused,
@@ -96,6 +100,7 @@ export const toApiUpdate = (update: UpdateModel) =>
   new Update({
     id: update.id,
     branchId: update.branchId,
+    ...(update.branchName === undefined ? {} : { branchName: update.branchName }),
     runtimeVersion: update.runtimeVersion,
     platform: update.platform,
     message: update.message,

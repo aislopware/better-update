@@ -1,4 +1,4 @@
-import { buildsQueryOptions } from "@better-update/api-client/react";
+import { buildsQueryOptions, channelsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -21,12 +21,13 @@ import {
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
-import type { Channel, Update } from "@better-update/api";
+import type { Update } from "@better-update/api";
+import type { BuildDistribution } from "@better-update/api-client/react";
 
 import {
   ChannelBadge,
@@ -37,9 +38,16 @@ import { CopyButton } from "../../../../../lib/copy-button";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
 type UpdateItem = Update;
-type ChannelItem = Channel;
 
-const QA_DISTRIBUTIONS = new Set(["development", "ad-hoc", "enterprise", "simulator", "direct"]);
+// Filtered server-side so QA builds surface even when the first page of the
+// unfiltered list is all store builds.
+const QA_DISTRIBUTIONS = [
+  "development",
+  "ad-hoc",
+  "enterprise",
+  "simulator",
+  "direct",
+] as const satisfies readonly BuildDistribution[];
 
 const CompatibleBuildsList = ({
   orgId,
@@ -58,11 +66,12 @@ const CompatibleBuildsList = ({
     buildsQueryOptions(orgId, projectId, {
       runtimeVersion,
       platform,
+      distribution: QA_DISTRIBUTIONS,
       limit: DROPDOWN_FETCH_LIMIT,
     }),
   );
 
-  const qaBuilds = data.items.filter((build) => QA_DISTRIBUTIONS.has(build.distribution));
+  const qaBuilds = data.items;
 
   if (qaBuilds.length === 0) {
     return (
@@ -128,55 +137,64 @@ const CompatibleBuildsSkeleton = () => (
 const PreviewBody = ({
   update,
   branchName,
-  channelName,
   projectSlug,
   orgId,
   projectId,
 }: {
   update: UpdateItem;
   branchName: string | undefined;
-  channelName: string | undefined;
   projectSlug: string;
   orgId: string;
   projectId: string;
-}) => (
-  <div className="flex flex-col gap-4">
-    <div className="flex flex-wrap items-center gap-1.5 text-sm">
-      <PlatformBadge platform={update.platform} />
-      <Badge variant="outline">v{update.runtimeVersion}</Badge>
-      {channelName ? <ChannelBadge name={channelName} /> : null}
-      {branchName ? <span className="text-muted-foreground">on {branchName}</span> : null}
-    </div>
+}) => {
+  // Resolved server-side by linked branch (exact regardless of channel count);
+  // only fetched while the dialog body is mounted. The badge simply stays
+  // hidden until it resolves — it is informational, not blocking.
+  const { data: servingChannels } = useQuery(
+    channelsQueryOptions(orgId, projectId, { branchId: update.branchId, limit: 1 }),
+  );
+  const channelName = servingChannels?.items[0]?.name;
 
-    <div className="flex flex-col gap-2">
-      <span className="text-muted-foreground text-xs font-medium uppercase">Update group</span>
-      <InputGroup>
-        <InputGroupInput readOnly value={update.groupId} className="font-mono text-xs" />
-        <InputGroupAddon align="inline-end">
-          <CopyButton value={update.groupId} label="Group ID" size="icon-xs" />
-        </InputGroupAddon>
-      </InputGroup>
-    </div>
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+        <PlatformBadge platform={update.platform} />
+        <Badge variant="outline">v{update.runtimeVersion}</Badge>
+        {channelName ? <ChannelBadge name={channelName} /> : null}
+        {branchName ? <span className="text-muted-foreground">on {branchName}</span> : null}
+      </div>
 
-    <div className="flex flex-col gap-2">
-      <span className="text-muted-foreground text-xs font-medium uppercase">Compatible builds</span>
-      <Suspense fallback={<CompatibleBuildsSkeleton />}>
-        <CompatibleBuildsList
-          orgId={orgId}
-          projectId={projectId}
-          projectSlug={projectSlug}
-          runtimeVersion={update.runtimeVersion}
-          platform={update.platform}
-        />
-      </Suspense>
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs font-medium uppercase">Update group</span>
+        <InputGroup>
+          <InputGroupInput readOnly value={update.groupId} className="font-mono text-xs" />
+          <InputGroupAddon align="inline-end">
+            <CopyButton value={update.groupId} label="Group ID" size="icon-xs" />
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs font-medium uppercase">
+          Compatible builds
+        </span>
+        <Suspense fallback={<CompatibleBuildsSkeleton />}>
+          <CompatibleBuildsList
+            orgId={orgId}
+            projectId={projectId}
+            projectSlug={projectSlug}
+            runtimeVersion={update.runtimeVersion}
+            platform={update.platform}
+          />
+        </Suspense>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const PreviewUpdateDialog = ({
   update,
   branchName,
-  channels,
   projectSlug,
   orgId,
   projectId,
@@ -185,7 +203,6 @@ export const PreviewUpdateDialog = ({
 }: {
   update: UpdateItem;
   branchName: string | undefined;
-  channels: readonly ChannelItem[];
   projectSlug: string;
   orgId: string;
   projectId: string;
@@ -193,8 +210,6 @@ export const PreviewUpdateDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   const [resetKey, setResetKey] = useState(0);
-
-  const channelName = channels.find((channel) => channel.branchId === update.branchId)?.name;
 
   return (
     <Dialog
@@ -217,7 +232,6 @@ export const PreviewUpdateDialog = ({
           key={resetKey}
           update={update}
           branchName={branchName}
-          channelName={channelName}
           projectSlug={projectSlug}
           orgId={orgId}
           projectId={projectId}

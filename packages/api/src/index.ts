@@ -109,6 +109,7 @@ export {
   EnvVarScope,
   EnvVarValueEnvelope,
   EnvVarVisibility,
+  resolveEnvVarOverrides,
   RollbackEnvVarBody,
   UpdateEnvVarBody,
   UpsertEnvVarDescriptionBody,

@@ -213,15 +213,19 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const isReadable = yield* resolveEnvReadPredicate();
 
           const { items } = yield* repo.list(filters);
+          // Readability filtering happens AFTER paging, so a short page does not
+          // mean the last page — a full raw page is the only "more remains" signal.
+          const hasMore = items.length === limit;
           const readable = items.filter((model) => isReadable(model.projectId, model.environment));
 
           if (scope === "all") {
             const resolved = applyOverrideResolution(readable);
             return {
               items: resolved.map((entry) => toApiEnvVar(entry.model, entry.overridesGlobal)),
+              hasMore,
             };
           }
-          return { items: readable.map((model) => toApiEnvVar(model)) };
+          return { items: readable.map((model) => toApiEnvVar(model)), hasMore };
         }),
       ),
     )

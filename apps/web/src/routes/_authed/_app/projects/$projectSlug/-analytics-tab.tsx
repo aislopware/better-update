@@ -39,6 +39,10 @@ import {
 } from "recharts";
 import { z } from "zod";
 
+import {
+  ServerSearchCombobox,
+  useServerSearchList,
+} from "../../../../../components/server-search-combobox";
 import { enumParam, optionalStringParam } from "../../../../../lib/data-table";
 import { formatChartTimestamp } from "../../../../../lib/format-date";
 import { truncateId } from "../../../../../lib/truncate-id";
@@ -220,6 +224,15 @@ const ChannelHealthChart = ({
   channel: string | undefined;
   onChannelChange: (next: string) => void;
 }) => {
+  const list = useServerSearchList((query) =>
+    channelsQueryOptions(
+      orgId,
+      projectId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
+  );
+  // Same cache key as the hook's default query, so this suspends without an
+  // extra fetch; fallback + empty state stay pinned to the default list.
   const { data: channelsData } = useSuspenseQuery(
     channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
@@ -234,32 +247,23 @@ const ChannelHealthChart = ({
   const effectiveSelected =
     channel && channels.some((ch) => ch.name === channel) ? channel : fallback;
 
-  const channelLabels = Object.fromEntries(channels.map((item) => [item.name, item.name]));
-
   return (
     <div className="flex flex-col gap-3">
-      <Select
-        items={channelLabels}
-        value={effectiveSelected}
-        onValueChange={(value) => {
-          if (value) {
-            onChannelChange(value);
-          }
-        }}
-      >
-        <SelectTrigger className="w-48">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {channels.map((item) => (
-              <SelectItem key={item.id} value={item.name}>
-                {item.name}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      <div className="w-48">
+        <ServerSearchCombobox
+          value={effectiveSelected}
+          onValueChange={onChannelChange}
+          options={list.items.map((item) => ({ value: item.name, label: item.name }))}
+          search={list.search}
+          onSearchChange={list.handleSearchChange}
+          isPending={list.isPending}
+          defaultListTruncated={list.defaultListTruncated}
+          placeholder="Select channel"
+          searchPlaceholder="Search channels…"
+          emptyMessage="No channels found."
+          ariaLabel="Channel"
+        />
+      </div>
       <Suspense fallback={chartSkeleton}>
         <ChannelHealthInner
           orgId={orgId}
@@ -333,6 +337,15 @@ const UpdateTrafficChart = ({
   update: string | undefined;
   onUpdateChange: (next: string) => void;
 }) => {
+  const list = useServerSearchList((query) =>
+    updatesQueryOptions(
+      orgId,
+      projectId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
+  );
+  // Same cache key as the hook's default query, so this suspends without an
+  // extra fetch; fallback + empty state stay pinned to the default list.
   const { data: updatesData } = useSuspenseQuery(
     updatesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
@@ -346,34 +359,26 @@ const UpdateTrafficChart = ({
   const fallback = items[0]?.id ?? "";
   const effectiveUpdateId = update && items.some((upd) => upd.id === update) ? update : fallback;
 
-  const updateLabels = Object.fromEntries(
-    items.map((updateItem) => [updateItem.id, updateLabel(updateItem)]),
-  );
-
   return (
     <div className="flex flex-col gap-3">
-      <Select
-        items={updateLabels}
-        value={effectiveUpdateId}
-        onValueChange={(value) => {
-          if (value) {
-            onUpdateChange(value);
-          }
-        }}
-      >
-        <SelectTrigger className="w-48">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {items.map((updateItem) => (
-              <SelectItem key={updateItem.id} value={updateItem.id}>
-                {updateLabel(updateItem)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      <div className="w-48">
+        <ServerSearchCombobox
+          value={effectiveUpdateId}
+          onValueChange={onUpdateChange}
+          options={list.items.map((updateItem) => ({
+            value: updateItem.id,
+            label: updateLabel(updateItem),
+          }))}
+          search={list.search}
+          onSearchChange={list.handleSearchChange}
+          isPending={list.isPending}
+          defaultListTruncated={list.defaultListTruncated}
+          placeholder="Select update"
+          searchPlaceholder="Search updates…"
+          emptyMessage="No updates found."
+          ariaLabel="Update"
+        />
+      </div>
       <Suspense fallback={chartSkeleton}>
         <UpdateTrafficInner
           orgId={orgId}

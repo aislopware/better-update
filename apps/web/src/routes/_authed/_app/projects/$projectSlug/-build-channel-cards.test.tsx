@@ -1,6 +1,8 @@
+import { branchesQueryKey } from "@better-update/api-client/react";
 import { screen } from "@testing-library/react";
 
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { ChannelBuildsCard } from "./-channel-builds-card";
 import { ChannelRolloutCard } from "./-channel-rollout-card";
 
@@ -52,6 +54,8 @@ const activeRolloutChannel = {
   projectId: "proj-1",
   name: "production",
   branchId: "branch-main",
+  branchName: "main",
+  rolloutTargetBranchName: "next",
   branchMappingJson:
     '{"data":[{"branchId":"branch-next","branchMappingLogic":"hash_lt(mappingId, 0.50)"},{"branchId":"branch-main","branchMappingLogic":"true"}],"salt":"salt"}',
   cacheVersion: 0,
@@ -65,6 +69,7 @@ const pausedChannel = {
   projectId: "proj-1",
   name: "paused",
   branchId: "branch-main",
+  branchName: "main",
   branchMappingJson: null,
   cacheVersion: 0,
   isPaused: true,
@@ -91,6 +96,13 @@ const branches = [
   },
 ];
 
+// Seeds the server-search branch pickers' default page so the rollout card's
+// useServerSearchList hooks resolve from cache instead of fetching.
+const branchesSeed: [readonly unknown[], unknown] = [
+  [...branchesQueryKey("org-1", "proj-1"), { limit: DROPDOWN_FETCH_LIMIT }],
+  { items: branches, total: branches.length, page: 1, limit: DROPDOWN_FETCH_LIMIT },
+];
+
 const missingRuntimeVersion = {
   channelId: "channel-production",
   channelName: "production",
@@ -106,12 +118,8 @@ const missingRuntimeVersion = {
 describe("build and channel cards", () => {
   it("channelRolloutCard renders active rollout controls with labeled inputs", () => {
     renderWithQuery(
-      <ChannelRolloutCard
-        channel={activeRolloutChannel}
-        orgId="org-1"
-        projectId="proj-1"
-        branches={branches}
-      />,
+      <ChannelRolloutCard channel={activeRolloutChannel} orgId="org-1" projectId="proj-1" />,
+      { seedCache: [branchesSeed] },
     );
 
     expect(screen.getByText("Branch & rollout")).toBeInTheDocument();
@@ -124,12 +132,8 @@ describe("build and channel cards", () => {
 
   it("channelRolloutCard offers to start a rollout when none is active", () => {
     renderWithQuery(
-      <ChannelRolloutCard
-        channel={pausedChannel}
-        orgId="org-1"
-        projectId="proj-1"
-        branches={branches}
-      />,
+      <ChannelRolloutCard channel={pausedChannel} orgId="org-1" projectId="proj-1" />,
+      { seedCache: [branchesSeed] },
     );
 
     expect(screen.getByRole("button", { name: /Start rollout/ })).toBeEnabled();
@@ -141,6 +145,7 @@ describe("build and channel cards", () => {
       <ChannelBuildsCard
         projectSlug="my-app"
         compatibleBuilds={[{ build, status: productionStatus }]}
+        totalCount={1}
         missingRuntimeVersions={[missingRuntimeVersion]}
       />,
     );
@@ -158,11 +163,31 @@ describe("build and channel cards", () => {
 
   it("channelBuildsCard renders an empty state when no builds match", () => {
     renderWithQuery(
-      <ChannelBuildsCard projectSlug="my-app" compatibleBuilds={[]} missingRuntimeVersions={[]} />,
+      <ChannelBuildsCard
+        projectSlug="my-app"
+        compatibleBuilds={[]}
+        totalCount={0}
+        missingRuntimeVersions={[]}
+      />,
     );
 
     expect(
-      screen.getByText("No builds have been uploaded for this project yet."),
+      screen.getByText("No uploaded builds can install this channel's updates yet."),
     ).toBeInTheDocument();
+  });
+
+  it("channelBuildsCard links to all builds when the server total exceeds the visible rows", () => {
+    renderWithQuery(
+      <ChannelBuildsCard
+        projectSlug="my-app"
+        compatibleBuilds={[{ build, status: productionStatus }]}
+        totalCount={9}
+        missingRuntimeVersions={[]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "8 more compatible builds — view all builds →" }),
+    ).toHaveAttribute("href", "/projects/my-app/builds");
   });
 });

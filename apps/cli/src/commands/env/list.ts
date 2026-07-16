@@ -5,7 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { printList } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras, optionalCell } from "./helpers";
+import { envErrorExtras, listAllEnvVars, optionalCell } from "./helpers";
 
 export const listCommand = defineCommand({
   meta: {
@@ -39,11 +39,11 @@ export const listCommand = defineCommand({
           ...(args.search ? { search: args.search } : {}),
         };
 
-        const result = yield* api["env-vars"].list({ urlParams });
+        const items = yield* listAllEnvVars(api, urlParams);
 
         yield* printList(
           ["Key", "Label", "Environment", "Scope", "Visibility", "Revisions"],
-          result.items.map((item) => [
+          items.map((item) => [
             item.key,
             optionalCell(item.label),
             item.environment,

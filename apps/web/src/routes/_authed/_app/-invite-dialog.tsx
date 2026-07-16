@@ -23,13 +23,17 @@ import {
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon, UserPlusIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod/v4";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
 
+import {
+  ServerSearchCombobox,
+  useServerSearchList,
+} from "../../../components/server-search-combobox";
 import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
@@ -118,24 +122,57 @@ const SelectField = ({
   </Field>
 );
 
+// Server-searched project picker: orgs can outgrow the dropdown fetch limit,
+// so the option list is the first page and typing searches the whole org.
+const ProjectGrantPicker = ({
+  orgId,
+  value,
+  onChange,
+}: {
+  orgId: string;
+  value: string | null;
+  onChange: (next: string) => void;
+}) => {
+  const list = useServerSearchList((query) =>
+    projectsQueryOptions(
+      orgId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
+  );
+  return (
+    <Field className="min-w-0 flex-1">
+      <ServerSearchCombobox
+        value={value === null ? "" : value}
+        onValueChange={onChange}
+        options={list.items.map((project) => ({ value: project.id, label: project.name }))}
+        search={list.search}
+        onSearchChange={list.handleSearchChange}
+        isPending={list.isPending}
+        defaultListTruncated={list.defaultListTruncated}
+        placeholder="Select a project"
+        searchPlaceholder="Search projects…"
+        emptyMessage="No projects found."
+        ariaLabel="Project"
+      />
+    </Field>
+  );
+};
+
 const ProjectGrantRow = ({
+  orgId,
   grant,
-  projectItems,
   onChange,
   onRemove,
 }: {
+  orgId: string;
   grant: ProjectGrantDraft;
-  projectItems: Record<string, string>;
   onChange: (patch: Partial<Pick<ProjectGrantDraft, "projectId" | "role">>) => void;
   onRemove: () => void;
 }) => (
   <div className="flex items-start gap-2">
-    <SelectField
-      ariaLabel="Project"
+    <ProjectGrantPicker
+      orgId={orgId}
       value={grant.projectId}
-      items={projectItems}
-      placeholder="Select a project"
-      className="min-w-0 flex-1"
       onChange={(next) => {
         onChange({ projectId: next });
       }}
@@ -164,14 +201,14 @@ const ProjectGrantRow = ({
 );
 
 const ProjectGrantsSection = ({
+  orgId,
   grants,
-  projectItems,
   onAdd,
   onChange,
   onRemove,
 }: {
+  orgId: string;
   grants: readonly ProjectGrantDraft[];
-  projectItems: Record<string, string>;
   onAdd: () => void;
   onChange: (key: number, patch: Partial<Pick<ProjectGrantDraft, "projectId" | "role">>) => void;
   onRemove: (key: number) => void;
@@ -181,8 +218,8 @@ const ProjectGrantsSection = ({
     {grants.map((grant) => (
       <ProjectGrantRow
         key={grant.key}
+        orgId={orgId}
         grant={grant}
-        projectItems={projectItems}
         onChange={(patch) => {
           onChange(grant.key, patch);
         }}
@@ -208,17 +245,6 @@ const InviteFormContent = ({
   onSuccess: () => void;
 }) => {
   const queryClient = useQueryClient();
-
-  const { data: projectsResult } = useQuery(
-    projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const projectItems = useMemo<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        (projectsResult?.items ?? []).map((project) => [project.id, project.name]),
-      ),
-    [projectsResult],
-  );
 
   // Admin is grantable at invite time only by the owner (server guard mirrors
   // this — the option simply never renders for non-owners).
@@ -315,8 +341,8 @@ const InviteFormContent = ({
         />
 
         <ProjectGrantsSection
+          orgId={orgId}
           grants={grants}
-          projectItems={projectItems}
           onAdd={addGrant}
           onChange={changeGrant}
           onRemove={removeGrant}

@@ -13,6 +13,10 @@ import {
 export class Update extends Schema.Class<Update>("Update")({
   id: Id,
   branchId: Id,
+  // Branch name resolved server-side (join at read time) so list/detail
+  // surfaces never need a separate branches fetch to label rows. Optional for
+  // wire compatibility with older servers; absent = fall back to the id.
+  branchName: Schema.optional(Schema.String),
   runtimeVersion: Schema.String,
   platform: Platform,
   message: Schema.String,

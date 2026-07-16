@@ -1,4 +1,43 @@
+import type { Kysely } from "kysely";
+
+import type { DB } from "../db/schema";
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
+
+/**
+ * Base build projection: every stored column plus the LEFT-joined artifact
+ * columns aliased `a_*`. Shared by every read so the `toBuildWithArtifact`
+ * mapper always sees an identical row shape. The domain-narrowed columns
+ * (`platform`, `distribution`, `a_format`) and the non-null `id` are `$castTo`'d
+ * from their wider schema types so the inferred row matches the mapper input.
+ * Pure query builder — the caller executes it.
+ */
+export const selectBuildsWithArtifact = (db: Kysely<DB>) =>
+  db
+    .selectFrom("builds as b")
+    .leftJoin("build_artifacts as a", "a.build_id", "b.id")
+    .select((eb) => [
+      eb.ref("b.id").$castTo<string>().as("id"),
+      "b.project_id",
+      eb.ref("b.platform").$castTo<Platform>().as("platform"),
+      "b.profile",
+      eb.ref("b.distribution").$castTo<Distribution>().as("distribution"),
+      "b.runtime_version",
+      "b.app_version",
+      "b.build_number",
+      "b.bundle_id",
+      "b.git_ref",
+      "b.git_commit",
+      "b.git_dirty",
+      "b.message",
+      "b.metadata_json",
+      "b.fingerprint_hash",
+      "b.created_at",
+      eb.ref("a.r2_key").as("a_r2_key"),
+      eb.ref("a.format").$castTo<ArtifactFormat | null>().as("a_format"),
+      eb.ref("a.content_type").as("a_content_type"),
+      eb.ref("a.byte_size").as("a_byte_size"),
+      eb.ref("a.sha256").as("a_sha256"),
+    ]);
 
 interface BuildWithArtifactRow {
   id: string;

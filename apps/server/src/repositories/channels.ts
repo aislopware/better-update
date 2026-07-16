@@ -1,10 +1,19 @@
+import { toOptional } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
+import { chunk } from "es-toolkit";
 import { sql } from "kysely";
 
-import type { Expression, ExpressionBuilder, Selectable, SqlBool } from "kysely";
+import type {
+  Expression,
+  ExpressionBuilder,
+  Kysely,
+  Selectable,
+  SelectQueryBuilder,
+  SqlBool,
+} from "kysely";
 
-import { d1Batch, kyselyDb } from "../cloudflare/db";
-import { extractReachableBranchIds } from "../domain/branch-mapping";
+import { D1_IN_PARAM_CHUNK, d1Batch, kyselyDb } from "../cloudflare/db";
+import { extractNewBranchId, extractReachableBranchIds } from "../domain/branch-mapping";
 import { NotFound } from "../errors";
 import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
@@ -30,6 +39,8 @@ export interface ChannelRepository {
   readonly findByProject: (params: {
     readonly projectId: string;
     readonly query?: string | undefined;
+    /** Restrict to channels whose linked (default) branch is this branch. */
+    readonly branchId?: string | undefined;
     readonly sort: ChannelSortKey;
     readonly order: ChannelSortOrder;
     readonly limit: number;
@@ -106,33 +117,90 @@ const CHANNEL_COLUMNS = [
   "created_at",
 ] as const;
 
-// List filter: project scope plus an optional case-insensitive LIKE substring
-// match on the channel name (channels have no FTS table — LIKE is the only
-// search path). Shared by the count and page queries so `total` respects the
-// search.
+// List filter: project scope plus an optional linked-branch match and an
+// optional case-insensitive LIKE substring match on the channel name (channels
+// have no FTS table — LIKE is the only search path). Shared by the count and
+// page queries so `total` respects every filter.
 const channelFilter =
-  (projectId: string, query: string | undefined) =>
-  (eb: ExpressionBuilder<DB, "channels">): Expression<SqlBool> => {
-    const projectMatch = eb("project_id", "=", projectId);
-    if (!query) {
-      return projectMatch;
-    }
-    const pattern = `%${query.toLowerCase()}%`;
-    return eb.and([eb(eb.fn<string>("lower", ["name"]), "like", pattern), projectMatch]);
-  };
+  (params: {
+    readonly projectId: string;
+    readonly query?: string | undefined;
+    readonly branchId?: string | undefined;
+  }) =>
+  (eb: ExpressionBuilder<DB, "channels">): Expression<SqlBool> =>
+    eb.and([
+      eb("project_id", "=", params.projectId),
+      ...(params.branchId ? [eb("branch_id", "=", params.branchId)] : []),
+      ...(params.query
+        ? [eb(eb.fn<string>("lower", ["name"]), "like", `%${params.query.toLowerCase()}%`)]
+        : []),
+    ]);
 
-const toChannel = (row: Selectable<Channels>) =>
+// Read rows carry the linked branch's name via a correlated subselect so API
+// consumers never need a separate branches fetch to label channels. NULL only
+// if the branch row vanished mid-read (FK normally guarantees presence).
+const withBranchName = <Output>(qb: SelectQueryBuilder<DB, "channels", Output>) =>
+  qb
+    .select(CHANNEL_COLUMNS)
+    .select((eb) =>
+      eb
+        .selectFrom("branches")
+        .whereRef("branches.id", "=", "channels.branch_id")
+        .select("branches.name")
+        .as("branch_name"),
+    );
+
+const toChannel = (row: Selectable<Channels> & { readonly branch_name: string | null }) =>
   ({
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     branchId: row.branch_id,
+    branchName: toOptional(row.branch_name),
     branchMappingJson: row.branch_mapping_json,
     cacheVersion: row.cache_version,
     isPaused: row.is_paused === 1,
     isBuiltin: row.is_builtin === 1,
     createdAt: row.created_at,
   }) satisfies ChannelModel;
+
+/**
+ * Resolve the rollout-target branch name for channels with an active branch
+ * mapping. Active rollouts are rare, so this usually short-circuits without a
+ * query; otherwise one chunked IN lookup covers the whole page.
+ */
+const withRolloutTargetNames = (
+  db: Kysely<DB>,
+  channels: readonly ChannelModel[],
+): Effect.Effect<readonly ChannelModel[]> =>
+  Effect.gen(function* () {
+    const targetByChannel = new Map(
+      channels.flatMap((channel) => {
+        if (channel.branchMappingJson === null) {
+          return [];
+        }
+        const targetId = extractNewBranchId(channel.branchMappingJson);
+        return targetId === null ? [] : [[channel.id, targetId] as const];
+      }),
+    );
+    if (targetByChannel.size === 0) {
+      return channels;
+    }
+
+    const uniqueTargetIds = [...new Set(targetByChannel.values())];
+    const rowGroups = yield* Effect.forEach(chunk(uniqueTargetIds, D1_IN_PARAM_CHUNK), (ids) =>
+      Effect.promise(async () =>
+        db.selectFrom("branches").select(["id", "name"]).where("id", "in", ids).execute(),
+      ),
+    );
+    const nameById = new Map(rowGroups.flat().map((row) => [row.id, row.name]));
+
+    return channels.map((channel) => {
+      const targetId = targetByChannel.get(channel.id);
+      const name = targetId === undefined ? undefined : nameById.get(targetId);
+      return name === undefined ? channel : { ...channel, rolloutTargetBranchName: name };
+    });
+  });
 
 export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
   insert: (params) =>
@@ -177,7 +245,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
 
-      const where = channelFilter(params.projectId, params.query);
+      const where = channelFilter(params);
 
       const countRow = yield* Effect.promise(async () =>
         db
@@ -193,9 +261,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
         params.sort === "name" ? sql`"name" collate nocase` : sql.ref("created_at");
 
       const rows = yield* Effect.promise(async () =>
-        db
-          .selectFrom("channels")
-          .select(CHANNEL_COLUMNS)
+        withBranchName(db.selectFrom("channels"))
           .where(where)
           .orderBy(primaryOrder, direction)
           .orderBy("id", direction)
@@ -204,7 +270,8 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
           .execute(),
       );
 
-      return { items: rows.map(toChannel), total };
+      const items = yield* withRolloutTargetNames(db, rows.map(toChannel));
+      return { items, total };
     }),
 
   findById: (params) =>
@@ -212,18 +279,15 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        db
-          .selectFrom("channels")
-          .select(CHANNEL_COLUMNS)
-          .where("id", "=", params.id)
-          .executeTakeFirst(),
+        withBranchName(db.selectFrom("channels")).where("id", "=", params.id).executeTakeFirst(),
       );
 
       if (row === undefined) {
         return yield* new NotFound({ message: "Channel not found" });
       }
 
-      return toChannel(row);
+      const [channel] = yield* withRolloutTargetNames(db, [toChannel(row)]);
+      return channel ?? toChannel(row);
     }),
 
   findByProjectAndName: (params) =>
@@ -231,9 +295,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        db
-          .selectFrom("channels")
-          .select(CHANNEL_COLUMNS)
+        withBranchName(db.selectFrom("channels"))
           .where("project_id", "=", params.projectId)
           .where("name", "=", params.name)
           .executeTakeFirst(),
@@ -251,9 +313,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        db
-          .selectFrom("channels")
-          .select(CHANNEL_COLUMNS)
+        withBranchName(db.selectFrom("channels"))
           .where("branch_id", "=", params.branchId)
           .orderBy("created_at", "asc")
           .orderBy("id", "asc")

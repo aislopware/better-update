@@ -1,9 +1,4 @@
-import {
-  branchesQueryOptions,
-  channelsQueryOptions,
-  pauseChannel,
-  resumeChannel,
-} from "@better-update/api-client/react";
+import { channelsQueryOptions, pauseChannel, resumeChannel } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
@@ -16,12 +11,7 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -30,7 +20,7 @@ import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { Channel } from "@better-update/api";
-import type { BranchItem, ChannelSortColumn } from "@better-update/api-client/react";
+import type { ChannelSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { ChannelStatusBadge } from "../-channel-status-badge";
@@ -56,7 +46,6 @@ import {
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
-import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 type ChannelItem = Channel;
 
@@ -124,11 +113,7 @@ const PauseToggleButton = ({
   );
 };
 
-const buildColumns = (
-  orgId: string,
-  projectId: string,
-  branches: readonly BranchItem[],
-): readonly ColumnDef<ChannelItem>[] => [
+const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<ChannelItem>[] => [
   {
     id: "name",
     accessorKey: "name",
@@ -149,21 +134,18 @@ const buildColumns = (
   {
     id: "branch",
     header: "Branch",
-    cell: ({ row }) => {
-      const branch = branches.find((item) => item.id === row.original.branchId);
-      return (
-        <span className="inline-flex items-center gap-1.5">
-          <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
-          {branch ? branch.name : <CopyableId value={row.original.branchId} label="Branch ID" />}
-        </span>
-      );
-    },
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-1.5">
+        <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
+        {row.original.branchName ?? <CopyableId value={row.original.branchId} label="Branch ID" />}
+      </span>
+    ),
     enableSorting: false,
   },
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) => <ChannelStatusBadge channel={row.original} branches={branches} />,
+    cell: ({ row }) => <ChannelStatusBadge channel={row.original} />,
     enableSorting: false,
   },
   {
@@ -246,15 +228,7 @@ const ChannelsContent = () => {
     placeholderData: keepPreviousData,
   });
 
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const branches = branchesData.items;
-
-  const columns = useMemo(
-    () => buildColumns(orgId, projectId, branches),
-    [orgId, projectId, branches],
-  );
+  const columns = useMemo(() => buildColumns(orgId, projectId), [orgId, projectId]);
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
   const table = useReactTable({

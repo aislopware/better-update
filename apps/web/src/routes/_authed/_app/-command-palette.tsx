@@ -9,9 +9,10 @@ import {
   CommandItem,
   CommandList,
 } from "@better-update/ui/components/ui/command";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { useDeferredValue, useState } from "react";
 
 import type { LucideIcon } from "lucide-react";
 
@@ -93,20 +94,31 @@ const ProjectNavigationGroup = ({
 const ProjectsGroup = ({
   orgId,
   enabled,
+  query,
   close,
 }: {
   orgId: string;
   enabled: boolean;
+  query: string;
   close: () => void;
 }) => {
   const navigate = useNavigate();
+  const isSearching = query.length > 0;
   // Same bounded query the breadcrumb project switcher uses (shared cache key);
-  // fetched lazily once the palette opens. Orgs with more projects than the
-  // limit still have full-text search on /projects.
-  const { data } = useQuery({
+  // fetched lazily once the palette opens. Typing switches to a server-side
+  // search so projects beyond the fetch limit stay reachable.
+  const base = useQuery({
     ...projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT }),
     enabled,
   });
+  const searched = useQuery({
+    ...projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT, query }),
+    enabled: enabled && isSearching,
+    placeholderData: keepPreviousData,
+  });
+  const data = isSearching ? searched.data : base.data;
+  // Rendering nothing keeps CommandEmpty's "No results found." in charge — the
+  // input lives in the parent, so unmounting the group never drops focus.
   if (!data || data.items.length === 0) {
     return null;
   }
@@ -184,6 +196,11 @@ export const CommandPalette = ({
   projectSlug,
   isSuperadmin,
 }: CommandPaletteProps) => {
+  // Controlled input so the query also drives the server-side project search;
+  // cmdk still filters the rendered items client-side as before.
+  const [search, setSearch] = useState("");
+  const deferredQuery = useDeferredValue(search.trim());
+
   // Mount-only listener is safe: `onOpenChange` is a stable useState setter.
   useMountEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -210,11 +227,20 @@ export const CommandPalette = ({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
+      onOpenChangeComplete={(next: boolean) => {
+        if (!next) {
+          setSearch("");
+        }
+      }}
       title="Command palette"
       description="Search pages, projects, and theme actions"
     >
       <Command>
-        <CommandInput placeholder="Search pages, projects…" />
+        <CommandInput
+          placeholder="Search pages, projects…"
+          value={search}
+          onValueChange={setSearch}
+        />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           {projectSlug ? (
@@ -222,7 +248,7 @@ export const CommandPalette = ({
           ) : (
             <OrgNavigationGroup isSuperadmin={isSuperadmin} close={close} />
           )}
-          <ProjectsGroup orgId={orgId} enabled={open} close={close} />
+          <ProjectsGroup orgId={orgId} enabled={open} query={deferredQuery} close={close} />
           <ThemeGroup close={close} />
         </CommandList>
       </Command>

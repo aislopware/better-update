@@ -1,4 +1,4 @@
-import { republishUpdate } from "@better-update/api-client/react";
+import { channelsQueryOptions, republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -9,14 +9,6 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
@@ -24,66 +16,75 @@ import { useQueryClient } from "@tanstack/react-query";
 import { RocketIcon } from "lucide-react";
 import { useState } from "react";
 
-import type { Channel, Update } from "@better-update/api";
+import type { Update } from "@better-update/api";
 
 import { PlatformBadge } from "../../../../../components/attribute-badges";
+import {
+  ServerSearchCombobox,
+  useServerSearchList,
+} from "../../../../../components/server-search-combobox";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { invalidateUpdates } from "./-update-helpers";
 
 interface PromoteUpdateDialogProps {
   readonly update: Update;
-  readonly channels: readonly Channel[];
   readonly orgId: string;
   readonly projectId: string;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }
 
-interface TargetChannelSelectProps {
+const TargetChannelCombobox = ({
+  value,
+  onValueChange,
+  update,
+  orgId,
+  projectId,
+}: {
   readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly channels: readonly Channel[];
-}
-
-const TargetChannelSelect = ({ value, onChange, channels }: TargetChannelSelectProps) => {
-  const channelLabels: Record<string, string> = Object.fromEntries(
-    channels.map((channel) => [channel.name, channel.name]),
+  readonly onValueChange: (value: string) => void;
+  readonly update: Update;
+  readonly orgId: string;
+  readonly projectId: string;
+}) => {
+  const list = useServerSearchList((query) =>
+    channelsQueryOptions(
+      orgId,
+      projectId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
   );
+  // The mutation republishes by channel NAME, and a channel already serving
+  // this update's branch is not a valid promotion target.
+  const options = list.items
+    .filter((channel) => channel.branchId !== update.branchId)
+    .map((channel) => ({ value: channel.name, label: channel.name }));
+
   return (
-    <Select
-      items={channelLabels}
+    <ServerSearchCombobox
       value={value}
-      onValueChange={(next) => {
-        if (next) {
-          onChange(next);
-        }
-      }}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select a channel" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {channels.map((channel) => (
-            <SelectItem key={channel.id} value={channel.name}>
-              {channel.name}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+      onValueChange={onValueChange}
+      options={options}
+      search={list.search}
+      onSearchChange={list.handleSearchChange}
+      isPending={list.isPending}
+      defaultListTruncated={list.defaultListTruncated}
+      placeholder="Select a channel"
+      searchPlaceholder="Search channels…"
+      emptyMessage="No eligible channels found."
+      ariaLabel="Target channel"
+    />
   );
 };
 
 const PromoteForm = ({
   update,
-  channels,
   orgId,
   projectId,
   onSuccess,
 }: {
   readonly update: Update;
-  readonly channels: readonly Channel[];
   readonly orgId: string;
   readonly projectId: string;
   readonly onSuccess: () => void;
@@ -132,10 +133,12 @@ const PromoteForm = ({
           {(field) => (
             <Field>
               <FieldLabel>Target channel</FieldLabel>
-              <TargetChannelSelect
+              <TargetChannelCombobox
                 value={field.state.value}
-                onChange={field.handleChange}
-                channels={channels}
+                onValueChange={field.handleChange}
+                update={update}
+                orgId={orgId}
+                projectId={projectId}
               />
             </Field>
           )}
@@ -163,7 +166,6 @@ const PromoteForm = ({
 
 export const PromoteUpdateDialog = ({
   update,
-  channels,
   orgId,
   projectId,
   open,
@@ -191,7 +193,6 @@ export const PromoteUpdateDialog = ({
         <PromoteForm
           key={resetKey}
           update={update}
-          channels={channels}
           orgId={orgId}
           projectId={projectId}
           onSuccess={() => {

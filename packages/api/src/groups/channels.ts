@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
+import { BuildWithArtifact } from "../domain/build";
 import {
   Channel,
   CreateBranchRolloutBody,
@@ -10,7 +11,7 @@ import {
   ListChannelsParams,
   UpdateChannelBody,
 } from "../domain/channel";
-import { idParam, pageResult, UpdateRolloutBody } from "../domain/common";
+import { idParam, PaginationParams, pageResult, UpdateRolloutBody } from "../domain/common";
 import { Conflict } from "../domain/errors";
 
 export class ChannelsGroup extends HttpApiGroup.make("channels")
@@ -44,6 +45,26 @@ export class ChannelsGroup extends HttpApiGroup.make("channels")
         OpenApi.annotations({
           title: "List channels",
           description: "List all channels for a project",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("get")`/api/channels/${idParam}`.addSuccess(Channel).annotateContext(
+      OpenApi.annotations({
+        title: "Get channel",
+        description: "Fetch a single channel by id",
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.get("listCompatibleBuilds")`/api/channels/${idParam}/compatible-builds`
+      .setUrlParams(PaginationParams)
+      .addSuccess(pageResult(BuildWithArtifact))
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List compatible builds",
+          description:
+            "List builds whose platform and runtime version can install an update currently served by this channel",
         }),
       ),
   )

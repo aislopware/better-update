@@ -1,4 +1,7 @@
+import { resolveEnvVarOverrides } from "@better-update/api";
 import { Data, Effect } from "effect";
+
+import type { EnvVar, EnvVarListScope } from "@better-update/api";
 
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { resolveEnvironmentScope } from "../../lib/profile-env";
@@ -166,6 +169,51 @@ export const parseDotenv = (content: string): readonly DotenvEntry[] =>
     .map(parseDotenvLine)
     .filter((entry): entry is DotenvEntry => entry !== undefined);
 
+const ENV_VARS_PAGE_LIMIT = 100;
+// Backstop against a buggy `hasMore` looping forever: the server caps each scope
+// at 5000 vars, so scope=all tops out at 100 full pages.
+const ENV_VARS_MAX_PAGES = 120;
+
+export interface EnvVarListParams {
+  readonly projectId?: string;
+  readonly scope?: typeof EnvVarListScope.Type;
+  readonly environments?: string;
+  readonly search?: string;
+}
+
+interface EnvVarPageState {
+  readonly page: number;
+  readonly items: readonly EnvVar[];
+  readonly done: boolean;
+}
+
+/**
+ * Fetch the COMPLETE env-var list — the server pages (default limit 50), so a
+ * single `.list` call silently truncates. `hasMore` (raw page full), not a short
+ * `items`, signals further pages: the server filters unreadable rows AFTER
+ * paging, and an absent field means a pre-hasMore server. Override resolution is
+ * re-run over the accumulated set (per-page resolution can miss cross-page
+ * project/global pairs).
+ */
+export const listAllEnvVars = (api: ApiClient, urlParams: EnvVarListParams) =>
+  Effect.map(
+    Effect.iterate({ page: 1, items: [], done: false } as EnvVarPageState, {
+      while: (state) => !state.done,
+      body: (state) =>
+        Effect.map(
+          api["env-vars"].list({
+            urlParams: { ...urlParams, page: state.page, limit: ENV_VARS_PAGE_LIMIT },
+          }),
+          (result) => ({
+            page: state.page + 1,
+            items: [...state.items, ...result.items],
+            done: !result.hasMore || state.page >= ENV_VARS_MAX_PAGES,
+          }),
+        ),
+    }),
+    (state) => resolveEnvVarOverrides(state.items),
+  );
+
 /** Resolve a single project env var by (key, environment), or fail NotFound. */
 export const findProjectEnvVar = (
   api: ApiClient,
@@ -174,8 +222,12 @@ export const findProjectEnvVar = (
   environment: EnvironmentName,
 ) =>
   Effect.gen(function* () {
-    const { items } = yield* api["env-vars"].list({
-      urlParams: { projectId, scope: "project", environments: environment },
+    // `search` narrows server-side (substring match); the exact-key find stays.
+    const items = yield* listAllEnvVars(api, {
+      projectId,
+      scope: "project",
+      environments: environment,
+      search: key,
     });
     const match = items.find((item) => item.key === key && item.environment === environment);
     if (!match) {

@@ -6,7 +6,12 @@ import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { printKeyValue } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
-import { EnvResourceNotFoundError, envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
+import {
+  EnvResourceNotFoundError,
+  envErrorExtras,
+  listAllEnvVars,
+  parseSingleEnvironmentArg,
+} from "./helpers";
 
 export const getCommand = defineCommand({
   meta: {
@@ -52,8 +57,11 @@ export const getCommand = defineCommand({
 
         // The effective variable's non-secret documentation (shared per scope+key),
         // resolved from the metadata list so `get` explains what the value is for.
-        const { items: metadata } = yield* api["env-vars"].list({
-          urlParams: { projectId, scope: "all", environments: environment, search: match.key },
+        const metadata = yield* listAllEnvVars(api, {
+          projectId,
+          scope: "all",
+          environments: environment,
+          search: match.key,
         });
         const meta = metadata.find((item) => item.key === match.key);
 

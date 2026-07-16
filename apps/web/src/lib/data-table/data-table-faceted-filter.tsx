@@ -30,6 +30,16 @@ export interface DataTableFacetedFilterProps {
   /** Currently selected values (URL search state — server-side filtering). */
   readonly selected: readonly string[];
   readonly onChange: (next: readonly string[]) => void;
+  /**
+   * Server-search mode (opt-in): when `onSearchChange` is provided the option
+   * list is filtered server-side — cmdk's client filtering turns off and the
+   * search input becomes controlled. Pair with `useServerSearchList`.
+   */
+  readonly search?: string;
+  readonly onSearchChange?: (next: string) => void;
+  readonly isPending?: boolean;
+  /** Show the "type to search all" hint when the default list is truncated. */
+  readonly defaultListTruncated?: boolean;
 }
 
 const MAX_BADGES = 2;
@@ -71,8 +81,13 @@ export const DataTableFacetedFilter = ({
   options,
   selected,
   onChange,
+  search = "",
+  onSearchChange,
+  isPending = false,
+  defaultListTruncated = false,
 }: DataTableFacetedFilterProps) => {
   const [open, setOpen] = useState(false);
+  const serverSearched = onSearchChange !== undefined;
 
   // Always multiselect: toggling keeps the popover open so several values can
   // be picked in one visit.
@@ -83,17 +98,36 @@ export const DataTableFacetedFilter = ({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          onSearchChange?.("");
+        }
+      }}
+    >
       <PopoverTrigger render={<Button variant="outline" className="border-dashed" />}>
         <CirclePlusIcon strokeWidth={2} />
         {title}
         {selected.length > 0 ? <SelectedSummary options={options} selected={selected} /> : null}
       </PopoverTrigger>
       <PopoverContent className="w-52 p-0" align="start">
-        <Command>
-          <CommandInput placeholder={title} />
+        <Command shouldFilter={!serverSearched}>
+          {serverSearched ? (
+            <CommandInput placeholder={title} value={search} onValueChange={onSearchChange} />
+          ) : (
+            <CommandInput placeholder={title} />
+          )}
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            {/* CommandEmpty never fires with shouldFilter=false, so the
+                server-searched empty state is manual. */}
+            {serverSearched ? null : <CommandEmpty>No results found.</CommandEmpty>}
+            {serverSearched && options.length === 0 ? (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                {isPending ? "Searching…" : "No results found."}
+              </div>
+            ) : null}
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selected.includes(option.value);
@@ -142,6 +176,11 @@ export const DataTableFacetedFilter = ({
                   </CommandItem>
                 </CommandGroup>
               </>
+            ) : null}
+            {defaultListTruncated && !search ? (
+              <p className="text-muted-foreground border-t px-3 py-2 text-xs">
+                Showing the first {options.length} — type to search all.
+              </p>
             ) : null}
           </CommandList>
         </Command>

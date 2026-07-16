@@ -1,8 +1,4 @@
-import {
-  branchesQueryOptions,
-  updateAssetsQueryOptions,
-  updatesQueryOptions,
-} from "@better-update/api-client/react";
+import { updateAssetsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -20,14 +16,6 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeftRightIcon, ArrowRightIcon, GitCompareIcon } from "lucide-react";
@@ -35,6 +23,10 @@ import { Suspense, useState } from "react";
 
 import type { Update } from "@better-update/api";
 
+import {
+  ServerSearchCombobox,
+  useServerSearchList,
+} from "../../../../../components/server-search-combobox";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
@@ -45,9 +37,12 @@ interface CompareUpdatesDialogProps {
   readonly projectId: string;
 }
 
-const formatUpdateLabel = (update: UpdateItem, branchName: string) => {
+const branchLabel = (update: UpdateItem): string =>
+  update.branchName ?? update.branchId.slice(0, 8);
+
+const formatUpdateLabel = (update: UpdateItem) => {
   const messagePart = update.message ? update.message.slice(0, 40) : update.groupId.slice(0, 8);
-  return `${branchName} • ${update.platform} • v${update.runtimeVersion} • ${messagePart}`;
+  return `${branchLabel(update)} • ${update.platform} • v${update.runtimeVersion} • ${messagePart}`;
 };
 
 const MetadataRow = ({
@@ -74,15 +69,7 @@ const MetadataRow = ({
 
 const formatBool = (value: boolean): string => (value ? "yes" : "no");
 
-const MetadataComparison = ({
-  left,
-  right,
-  branchName,
-}: {
-  left: UpdateItem;
-  right: UpdateItem;
-  branchName: (id: string) => string;
-}) => {
+const MetadataComparison = ({ left, right }: { left: UpdateItem; right: UpdateItem }) => {
   const rows = [
     { label: "Group ID", valueA: left.groupId, valueB: right.groupId },
     { label: "Update ID", valueA: left.id, valueB: right.id },
@@ -90,8 +77,8 @@ const MetadataComparison = ({
     { label: "Runtime", valueA: left.runtimeVersion, valueB: right.runtimeVersion },
     {
       label: "Branch",
-      valueA: branchName(left.branchId),
-      valueB: branchName(right.branchId),
+      valueA: branchLabel(left),
+      valueB: branchLabel(right),
     },
     { label: "Message", valueA: left.message || "—", valueB: right.message || "—" },
     {
@@ -242,47 +229,53 @@ const AssetComparisonSkeleton = () => (
   </div>
 );
 
+// Server-searched update picker: the selected update may not be in the
+// currently-searched page, so selection is reported as the full item and the
+// parent keeps the object (the combobox caches the label at pick time).
 const UpdateSelector = ({
   label,
-  value,
-  onChange,
-  options,
-  branchName,
+  orgId,
+  projectId,
+  selected,
+  onSelect,
 }: {
   label: string;
-  value: string;
-  onChange: (id: string) => void;
-  options: readonly UpdateItem[];
-  branchName: (id: string) => string;
+  orgId: string;
+  projectId: string;
+  selected: UpdateItem | undefined;
+  onSelect: (update: UpdateItem) => void;
 }) => {
-  const itemLabels: Record<string, string> = Object.fromEntries(
-    options.map((update) => [update.id, formatUpdateLabel(update, branchName(update.branchId))]),
+  const list = useServerSearchList((query) =>
+    updatesQueryOptions(
+      orgId,
+      projectId,
+      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
+    ),
   );
   return (
     <Field className="w-full gap-1.5">
       <FieldLabel>{label}</FieldLabel>
-      <Select
-        items={itemLabels}
-        value={value}
+      <ServerSearchCombobox
+        value={selected ? selected.id : ""}
         onValueChange={(next) => {
-          if (next) {
-            onChange(next);
+          const update = list.items.find((item) => item.id === next);
+          if (update) {
+            onSelect(update);
           }
         }}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Choose an update" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {options.map((update) => (
-              <SelectItem key={update.id} value={update.id}>
-                {formatUpdateLabel(update, branchName(update.branchId))}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+        options={list.items.map((update) => ({
+          value: update.id,
+          label: formatUpdateLabel(update),
+        }))}
+        search={list.search}
+        onSearchChange={list.handleSearchChange}
+        isPending={list.isPending}
+        defaultListTruncated={list.defaultListTruncated}
+        placeholder="Choose an update"
+        searchPlaceholder="Search updates…"
+        emptyMessage="No updates found."
+        ariaLabel={label}
+      />
     </Field>
   );
 };
@@ -290,13 +283,11 @@ const UpdateSelector = ({
 const CompareResult = ({
   left,
   right,
-  branchName,
   orgId,
   projectId,
 }: {
   left: UpdateItem | undefined;
   right: UpdateItem | undefined;
-  branchName: (id: string) => string;
   orgId: string;
   projectId: string;
 }) => {
@@ -319,7 +310,7 @@ const CompareResult = ({
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">Metadata</h3>
-        <MetadataComparison left={left} right={right} branchName={branchName} />
+        <MetadataComparison left={left} right={right} />
       </section>
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">Assets</h3>
@@ -340,27 +331,18 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
   const { data: updatesData } = useSuspenseQuery(
     updatesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const updates = updatesData.items;
-  const branches = branchesData.items;
 
-  const [leftId, setLeftId] = useState<string>("");
-  const [rightId, setRightId] = useState<string>("");
-
-  const branchName = (id: string): string =>
-    branches.find((branch) => branch.id === id)?.name ?? id.slice(0, 8);
-
-  const left = updates.find((update) => update.id === leftId);
-  const right = updates.find((update) => update.id === rightId);
+  // Selected updates are stored as objects (not ids): a picked update may not
+  // be in the other selector's — or a later search's — page of items.
+  const [left, setLeft] = useState<UpdateItem | undefined>(undefined);
+  const [right, setRight] = useState<UpdateItem | undefined>(undefined);
 
   const swap = () => {
-    setLeftId(rightId);
-    setRightId(leftId);
+    setLeft(right);
+    setRight(left);
   };
 
-  if (updates.length < 2) {
+  if (updatesData.total < 2) {
     return (
       <Empty>
         <EmptyHeader>
@@ -381,36 +363,30 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
         <UpdateSelector
           label="Update A"
-          value={leftId}
-          onChange={setLeftId}
-          options={updates}
-          branchName={branchName}
+          orgId={orgId}
+          projectId={projectId}
+          selected={left}
+          onSelect={setLeft}
         />
         <Button
           variant="ghost"
           size="icon"
           aria-label="Swap A and B"
-          disabled={!leftId || !rightId}
+          disabled={!left || !right}
           onClick={swap}
         >
           <ArrowLeftRightIcon strokeWidth={2} />
         </Button>
         <UpdateSelector
           label="Update B"
-          value={rightId}
-          onChange={setRightId}
-          options={updates}
-          branchName={branchName}
+          orgId={orgId}
+          projectId={projectId}
+          selected={right}
+          onSelect={setRight}
         />
       </div>
 
-      <CompareResult
-        left={left}
-        right={right}
-        branchName={branchName}
-        orgId={orgId}
-        projectId={projectId}
-      />
+      <CompareResult left={left} right={right} orgId={orgId} projectId={projectId} />
     </div>
   );
 };

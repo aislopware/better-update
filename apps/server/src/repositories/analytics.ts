@@ -4,12 +4,12 @@ import { AnalyticsEngine } from "../cloudflare/analytics-engine";
 import { DataIntegrityError } from "../lib/require-value";
 
 import type {
-  AnalyticsPeriod,
   ChannelAnalyticsModel,
   PlatformAnalyticsResultModel,
   UpdateAdoptionResultModel,
   UpdateAnalyticsModel,
-} from "../models";
+} from "../analytics-models";
+import type { AnalyticsPeriod } from "../models";
 
 type ResponseTypeBreakdown = ChannelAnalyticsModel["responseTypeDistribution"];
 

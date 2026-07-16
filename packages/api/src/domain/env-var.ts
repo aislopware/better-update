@@ -173,3 +173,26 @@ export const EnvVarRevisionsResult = Schema.Struct({
 export const RollbackEnvVarBody = Schema.Struct({
   toRevisionId: Id,
 });
+
+// A project var shadows a global var only for the same key AND environment.
+const overrideKey = (item: EnvVar) => `${item.environment}\t${item.key}`;
+
+/**
+ * Re-run project-over-global override resolution across an ACCUMULATED list.
+ * The list endpoint resolves overrides per page, so a client that concatenates
+ * pages (`hasMore` loop) can end up holding a global row whose project
+ * counterpart landed on a different page — drop it and flag the project row.
+ * A no-op for single-scope lists.
+ */
+export const resolveEnvVarOverrides = (items: readonly EnvVar[]): readonly EnvVar[] => {
+  const projectPairs = new Set(items.filter((item) => item.scope === "project").map(overrideKey));
+  const globalPairs = new Set(items.filter((item) => item.scope === "global").map(overrideKey));
+  return items
+    .filter((item) => !(item.scope === "global" && projectPairs.has(overrideKey(item))))
+    .map((item) =>
+      item.scope === "project" && !item.overridesGlobal && globalPairs.has(overrideKey(item))
+        ? // eslint-disable-next-line typescript/no-misused-spread -- the spread feeds the class constructor, which rebuilds the EnvVar prototype
+          new EnvVar({ ...item, overridesGlobal: true })
+        : item,
+    );
+};

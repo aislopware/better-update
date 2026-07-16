@@ -13,7 +13,14 @@ export interface CompatibleBuildEntry {
   readonly status: SyntheticBuildChannel;
 }
 
-export const getCompatibleBuildsForChannel = (
+/**
+ * Decorate server-filtered compatible builds (GET /api/channels/:id/compatible-builds)
+ * with their matrix status for the update-count badge. The server already
+ * applied the compatibility filter, so no `updateCount > 0` re-check here — a
+ * row whose channel is missing from a momentarily stale matrix is dropped
+ * rather than shown unlabeled.
+ */
+export const toCompatibleBuildEntries = (
   builds: readonly BuildWithArtifact[],
   matrix: typeof BuildCompatibilityMatrixResult.Type,
   channelId: string,
@@ -21,7 +28,7 @@ export const getCompatibleBuildsForChannel = (
   builds.flatMap((rawBuild) => {
     const build = synthesizeBuildChannels(rawBuild, matrix);
     const status = build.channels.find((entry) => entry.channelId === channelId);
-    return status && status.updateCount > 0 ? [{ build, status }] : [];
+    return status ? [{ build, status }] : [];
   });
 
 export const getMissingRuntimeVersionsForChannel = (

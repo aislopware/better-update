@@ -1,8 +1,4 @@
-import {
-  branchesQueryOptions,
-  channelsQueryOptions,
-  updatesQueryOptions,
-} from "@better-update/api-client/react";
+import { updatesQueryOptions } from "@better-update/api-client/react";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -12,7 +8,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -43,7 +39,6 @@ import {
   useDebouncedSearch,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
-import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 import { buildUpdateColumns } from "./-updates-columns";
 import { UpdatesFilterBar } from "./-updates-view";
 
@@ -135,23 +130,12 @@ const useUpdatesData = ({
     placeholderData: keepPreviousData,
   });
 
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const { data: channelsData } = useSuspenseQuery(
-    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const branches = branchesData.items;
-  const branchNames = useMemo(
-    () => new Map(branches.map((branch) => [branch.id, branch.name])),
-    [branches],
-  );
   const columns = useMemo(
-    () => buildUpdateColumns(branchNames, channelsData.items, slug, orgId, projectId),
-    [branchNames, channelsData.items, slug, orgId, projectId],
+    () => buildUpdateColumns(slug, orgId, projectId),
+    [slug, orgId, projectId],
   );
 
-  return { updatesQuery, branches, columns };
+  return { updatesQuery, columns };
 };
 
 const UpdatesContent = () => {
@@ -216,7 +200,7 @@ const UpdatesContent = () => {
     );
   };
 
-  const { updatesQuery, branches, columns } = useUpdatesData({
+  const { updatesQuery, columns } = useUpdatesData({
     orgId,
     projectId,
     slug,
@@ -300,7 +284,8 @@ const UpdatesContent = () => {
         actions={<DataTableViewOptions table={table} />}
       >
         <UpdatesFilterBar
-          branches={branches}
+          orgId={orgId}
+          projectId={projectId}
           branchFilter={branchId}
           platformFilter={platform}
           onBranchFilter={handleBranchFilter}

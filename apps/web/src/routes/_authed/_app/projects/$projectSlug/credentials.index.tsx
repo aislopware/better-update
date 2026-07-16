@@ -35,6 +35,7 @@ import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { PageHeader, SectionHeader } from "../../../../../components/page-header";
+import { ClientPaginationFooter, useClientPagination } from "../../../../../lib/data-table";
 
 interface IosBundleGroup {
   readonly bundleIdentifier: string;
@@ -183,6 +184,7 @@ const AndroidSection = ({
 }) => {
   const { data } = useSuspenseQuery(androidApplicationIdentifiersQueryOptions(orgId, projectId));
   const { items } = data;
+  const pagination = useClientPagination(items, "identifier");
 
   return (
     <section className="flex flex-col gap-3">
@@ -197,20 +199,23 @@ const AndroidSection = ({
       {items.length === 0 ? (
         <AndroidEmpty />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Application identifier</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <AndroidIdentifierRow key={item.id} projectSlug={projectSlug} item={item} />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Application identifier</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagination.pageItems.map((item) => (
+                  <AndroidIdentifierRow key={item.id} projectSlug={projectSlug} item={item} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );
@@ -228,6 +233,7 @@ const IosSection = ({
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
   const { items } = data;
   const groups = groupBundleConfigs(items);
+  const pagination = useClientPagination(groups, "bundle identifier");
 
   return (
     <section className="flex flex-col gap-3">
@@ -242,24 +248,27 @@ const IosSection = ({
       {groups.length === 0 ? (
         <IosEmpty />
       ) : (
-        <div className="overflow-hidden rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bundle identifier</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groups.map((group) => (
-                <IosIdentifierRow
-                  key={group.bundleIdentifier}
-                  projectSlug={projectSlug}
-                  group={group}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bundle identifier</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagination.pageItems.map((group) => (
+                  <IosIdentifierRow
+                    key={group.bundleIdentifier}
+                    projectSlug={projectSlug}
+                    group={group}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <ClientPaginationFooter state={pagination} />
+        </>
       )}
     </section>
   );

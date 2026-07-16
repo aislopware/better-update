@@ -30,6 +30,11 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Switch } from "@better-update/ui/components/ui/switch";
@@ -43,13 +48,14 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
 import type { EnvironmentItem } from "@better-update/api-client/react";
 
 import { SectionHeader } from "../../../../components/page-header";
+import { ClientPaginationFooter, useClientPagination } from "../../../../lib/data-table";
 import { getFieldError } from "../../../../lib/form-utils";
 import { formatShortDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
@@ -364,17 +370,19 @@ const EnvironmentRowActions = ({
   );
 };
 
-export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
-  const { data } = useQuery(environmentsQueryOptions(orgId));
-  const items = data?.items ?? [];
+// Below this count the whole table is scannable at a glance — no filter box.
+const TABLE_FILTER_THRESHOLD = 8;
 
+const EnvironmentsTable = ({
+  orgId,
+  items,
+}: {
+  orgId: string;
+  items: readonly EnvironmentItem[];
+}) => {
+  const pagination = useClientPagination(items, "environment");
   return (
     <div className="flex flex-col gap-3">
-      <SectionHeader
-        title="Environments"
-        description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
-        actions={<CreateEnvironmentDialog orgId={orgId} />}
-      />
       <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
@@ -386,7 +394,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((environment) => (
+            {pagination.pageItems.map((environment) => (
               <TableRow key={environment.name}>
                 <TableCell>
                   <div className="flex items-center gap-2 font-medium">
@@ -413,6 +421,49 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
           </TableBody>
         </Table>
       </div>
+      <ClientPaginationFooter state={pagination} />
+    </div>
+  );
+};
+
+export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
+  const { data } = useQuery(environmentsQueryOptions(orgId));
+  const [query, setQuery] = useState("");
+  const items = data?.items ?? [];
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleItems = items.filter((environment) =>
+    environment.name.toLowerCase().includes(normalizedQuery),
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SectionHeader
+        title="Environments"
+        description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
+        actions={<CreateEnvironmentDialog orgId={orgId} />}
+      />
+      {items.length > TABLE_FILTER_THRESHOLD ? (
+        <InputGroup className="w-full sm:w-56">
+          <InputGroupInput
+            type="search"
+            value={query}
+            placeholder="Filter environments…"
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+          />
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+        </InputGroup>
+      ) : null}
+      {visibleItems.length === 0 && normalizedQuery ? (
+        <p className="text-muted-foreground text-sm">No environments match “{query.trim()}”.</p>
+      ) : (
+        // Filter identity as key: a filter change remounts the table so client
+        // pagination resets to page 1.
+        <EnvironmentsTable key={normalizedQuery} orgId={orgId} items={visibleItems} />
+      )}
     </div>
   );
 };

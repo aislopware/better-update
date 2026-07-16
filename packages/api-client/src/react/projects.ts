@@ -41,6 +41,12 @@ export const branchesQueryKey = (orgId: string, projectId: string) =>
 export const channelsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "channels"] as const;
 
+// Shares the channels prefix (unlike updateQueryKey) so the existing
+// invalidateChannels prefix invalidation also refreshes open detail pages
+// after pause/rollout/relink mutations.
+export const channelQueryKey = (orgId: string, projectId: string, channelId: string) =>
+  [...channelsQueryKey(orgId, projectId), "detail", channelId] as const;
+
 export const updatesQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "updates"] as const;
 
@@ -158,6 +164,8 @@ export interface ChannelsFilters {
   readonly page?: number;
   readonly limit?: number;
   readonly query?: string;
+  /** Restrict to channels whose linked (default) branch is this branch. */
+  readonly branchId?: string;
   readonly sort?: ChannelSort;
 }
 
@@ -173,8 +181,51 @@ export const channelsQueryOptions = (orgId: string, projectId: string, filters?:
               page: filters?.page,
               limit: filters?.limit,
               query: filters?.query,
+              branchId: filters?.branchId,
               sort: filters?.sort,
             }),
+          }),
+        signal,
+      ),
+    staleTime: 30_000,
+  });
+
+export const channelQueryOptions = (orgId: string, projectId: string, channelId: string) =>
+  queryOptions({
+    queryKey: channelQueryKey(orgId, projectId, channelId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.channels.get({ path: { id: channelId } }), signal),
+    staleTime: 30_000,
+  });
+
+export interface ChannelCompatibleBuildsFilters {
+  readonly page?: number;
+  readonly limit?: number;
+}
+
+/**
+ * Builds compatible with a channel (server-filtered, exact total). Keyed under
+ * the channel detail prefix so `invalidateChannels` refreshes it after the
+ * relink/rollout mutations that change compatibility.
+ */
+export const channelCompatibleBuildsQueryOptions = (
+  orgId: string,
+  projectId: string,
+  channelId: string,
+  filters?: ChannelCompatibleBuildsFilters,
+) =>
+  queryOptions({
+    queryKey: [
+      ...channelQueryKey(orgId, projectId, channelId),
+      "compatible-builds",
+      filters ?? {},
+    ] as const,
+    queryFn: async ({ signal }) =>
+      runApi(
+        (api) =>
+          api.channels.listCompatibleBuilds({
+            path: { id: channelId },
+            urlParams: compact({ page: filters?.page, limit: filters?.limit }),
           }),
         signal,
       ),

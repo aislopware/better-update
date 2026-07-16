@@ -1,6 +1,6 @@
 import {
-  getCompatibleBuildsForChannel,
   getMissingRuntimeVersionsForChannel,
+  toCompatibleBuildEntries,
 } from "./-channel-compatibility-helpers";
 import { synthesizeBuildChannels } from "./-compatibility-join";
 
@@ -90,17 +90,24 @@ const matrix = {
 };
 
 describe("channel compatibility helpers", () => {
-  it("maps build rows into compatible builds for a channel", () => {
-    const expectedBuild = synthesizeBuildChannels(builds[0]!, matrix);
-    const expectedStatus = expectedBuild.channels.find(
-      (entry) => entry.channelId === "channel-production",
+  it("decorates every server-filtered build with its channel status", () => {
+    // The server already applied the compatibility filter, so build-2 (whose
+    // matrix status has updateCount 0) is kept and decorated, not re-filtered.
+    const entries = toCompatibleBuildEntries(builds, matrix, "channel-production");
+
+    expect(entries).toStrictEqual(
+      builds.map((build) => {
+        const decorated = synthesizeBuildChannels(build, matrix);
+        return {
+          build: decorated,
+          status: decorated.channels.find((entry) => entry.channelId === "channel-production"),
+        };
+      }),
     );
-    expect(getCompatibleBuildsForChannel(builds, matrix, "channel-production")).toStrictEqual([
-      {
-        build: expectedBuild,
-        status: expectedStatus,
-      },
-    ]);
+  });
+
+  it("drops builds whose channel is missing from a stale matrix", () => {
+    expect(toCompatibleBuildEntries(builds, matrix, "channel-staging")).toStrictEqual([]);
   });
 
   it("filters missing runtime versions by channel", () => {

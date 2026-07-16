@@ -16,6 +16,7 @@ import { Fragment } from "react";
 import type { DeviceRegistrationRequestItem } from "@better-update/api-client/react";
 
 import { CopyButton } from "../../../../lib/copy-button";
+import { ClientPaginationFooter, useClientPagination } from "../../../../lib/data-table";
 import { formatRelativeFuture } from "../../../../lib/format-relative-time";
 
 const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => (
@@ -44,27 +45,31 @@ const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => (
 
 export const PendingInvitesList = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(registrationRequestsQueryOptions(orgId, true));
+  const pagination = useClientPagination(data.items, "invite");
 
   if (data.items.length === 0) {
     return null;
   }
 
   return (
-    <Card className="gap-0 py-0">
-      <CardHeader className="flex-row items-center justify-between border-b px-4 py-3">
-        <CardTitle className="text-sm font-medium">Pending invites</CardTitle>
-        <Badge variant="secondary">{data.items.length}</Badge>
-      </CardHeader>
-      <CardContent className="p-0">
-        <ItemGroup>
-          {data.items.map((invite, index) => (
-            <Fragment key={invite.id}>
-              {index > 0 ? <ItemSeparator /> : null}
-              <InviteRow invite={invite} />
-            </Fragment>
-          ))}
-        </ItemGroup>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-3">
+      <Card className="gap-0 py-0">
+        <CardHeader className="flex-row items-center justify-between border-b px-4 py-3">
+          <CardTitle className="text-sm font-medium">Pending invites</CardTitle>
+          <Badge variant="secondary">{data.items.length}</Badge>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ItemGroup>
+            {pagination.pageItems.map((invite, index) => (
+              <Fragment key={invite.id}>
+                {index > 0 ? <ItemSeparator /> : null}
+                <InviteRow invite={invite} />
+              </Fragment>
+            ))}
+          </ItemGroup>
+        </CardContent>
+      </Card>
+      <ClientPaginationFooter state={pagination} />
+    </div>
   );
 };

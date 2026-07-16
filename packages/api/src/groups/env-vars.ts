@@ -49,13 +49,17 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .addSuccess(
         Schema.Struct({
           items: Schema.Array(EnvVar),
+          // True when the requested page was full BEFORE per-environment readability
+          // filtering — a short `items` array alone cannot signal the last page.
+          // Optional so pre-existing servers (no field) read as "no more pages".
+          hasMore: Schema.optional(Schema.Boolean),
         }),
       )
       .annotateContext(
         OpenApi.annotations({
           title: "List environment variables",
           description:
-            "List environment variable metadata (no values — those are encrypted). scope=all merges project + global vars with project overrides. environments is a comma-separated list. search matches key substring.",
+            "List environment variable metadata (no values — those are encrypted). scope=all merges project + global vars with project overrides. environments is a comma-separated list. search matches key substring. hasMore signals further pages (readability filtering can shorten a page without ending the list).",
         }),
       ),
   )

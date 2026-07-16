@@ -1,8 +1,8 @@
+import { getTypedApiError } from "@better-update/api-client";
 import {
-  branchesQueryOptions,
   buildCompatibilityMatrixQueryOptions,
-  buildsQueryOptions,
-  channelsQueryOptions,
+  channelCompatibleBuildsQueryOptions,
+  channelQueryOptions,
   pauseChannel,
   resumeChannel,
 } from "@better-update/api-client/react";
@@ -20,18 +20,17 @@ import {
 import { Progress } from "@better-update/ui/components/ui/progress";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, PauseIcon, PlayIcon, RadioTowerIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { Channel } from "@better-update/api";
-import type { BranchItem } from "@better-update/api-client/react";
 
-import { ChannelBuildsCard } from "../-channel-builds-card";
+import { ChannelBuildsCard, VISIBLE_BUILD_LIMIT } from "../-channel-builds-card";
 import {
-  getCompatibleBuildsForChannel,
   getMissingRuntimeVersionsForChannel,
+  toCompatibleBuildEntries,
 } from "../-channel-compatibility-helpers";
 import { ChannelRolloutCard } from "../-channel-rollout-card";
 import { parseRolloutState } from "../-channel-rollout-state";
@@ -39,13 +38,13 @@ import { ChannelStatusBadge } from "../-channel-status-badge";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { invalidateChannels } from "../-update-helpers";
 import { PageHeader } from "../../../../../../components/page-header";
+import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { StatCard } from "../../../../../../components/stat-card";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
-import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <Card>
@@ -117,14 +116,10 @@ const ChannelHeaderActions = ({
 
 const ChannelSummaryCards = ({
   channel,
-  branches,
-  linkedBranch,
   compatibleBuildsCount,
   missingBuildCount,
 }: {
   channel: Channel;
-  branches: readonly BranchItem[];
-  linkedBranch: BranchItem | undefined;
   compatibleBuildsCount: number;
   missingBuildCount: number;
 }) => {
@@ -135,10 +130,10 @@ const ChannelSummaryCards = ({
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <StatCard label="Linked branch">
-        {linkedBranch ? (
+        {channel.branchName ? (
           <div className="flex items-center gap-2 font-medium">
             <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
-            {linkedBranch.name}
+            {channel.branchName}
           </div>
         ) : (
           <CopyableId value={channel.branchId} label="Branch ID" />
@@ -146,7 +141,7 @@ const ChannelSummaryCards = ({
       </StatCard>
       <StatCard label="Channel state">
         <div className="flex flex-col items-start gap-2">
-          <ChannelStatusBadge channel={channel} branches={branches} />
+          <ChannelStatusBadge channel={channel} />
           {rolloutState ? (
             <Progress value={rolloutState.percentage} className="w-full max-w-xs" />
           ) : null}
@@ -165,40 +160,45 @@ const ChannelSummaryCards = ({
   );
 };
 
-const ChannelDetailContent = () => {
-  const { channelId } = Route.useParams();
-  const { activeOrg, project } = Route.useRouteContext();
-  const orgId = activeOrg.id;
-  const projectId = project.id;
-  const { data: channelsData } = useSuspenseQuery(
-    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const { data: compatibilityData } = useSuspenseQuery(
-    buildCompatibilityMatrixQueryOptions(orgId, projectId),
-  );
-  const { data: buildsData } = useSuspenseQuery(
-    buildsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const builds = buildsData.items;
-  const channels = channelsData.items;
-  const branches = branchesData.items;
+const ChannelDetailSkeleton = () => (
+  <>
+    <PageHeader size="sub" title="Channel" />
+    <SummaryCardsSkeleton count={4} />
+    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <DetailCardSkeleton rows={3} columns={2} />
+      <DetailCardSkeleton rows={3} columns={1} />
+    </div>
+  </>
+);
 
-  const channel = channels.find((item) => item.id === channelId);
+const ChannelDetailBody = ({
+  channel,
+  orgId,
+  projectId,
+  projectSlug,
+}: {
+  channel: Channel;
+  orgId: string;
+  projectId: string;
+  projectSlug: string;
+}) => {
+  // Compatible builds are filtered + counted server-side (exact total, not a
+  // newest-N scan); the matrix only decorates the rows with update-count badges
+  // and supplies the missing-runtime warnings.
+  const [{ data: compatibilityData }, { data: compatibleBuildsPage }] = useSuspenseQueries({
+    queries: [
+      buildCompatibilityMatrixQueryOptions(orgId, projectId),
+      channelCompatibleBuildsQueryOptions(orgId, projectId, channel.id, {
+        limit: VISIBLE_BUILD_LIMIT,
+      }),
+    ],
+  });
 
-  if (!channel) {
-    return (
-      <>
-        <PageHeader size="sub" title="Channel details" />
-        <ChannelNotFoundState projectSlug={project.slug} />
-      </>
-    );
-  }
-
-  const linkedBranch = branches.find((branch) => branch.id === channel.branchId);
-  const compatibleBuilds = getCompatibleBuildsForChannel(builds, compatibilityData, channel.id);
+  const compatibleBuilds = toCompatibleBuildEntries(
+    compatibleBuildsPage.items,
+    compatibilityData,
+    channel.id,
+  );
   const missingRuntimeVersions = getMissingRuntimeVersionsForChannel(
     compatibilityData.missingRuntimeVersions,
     channel.id,
@@ -228,22 +228,16 @@ const ChannelDetailContent = () => {
 
       <ChannelSummaryCards
         channel={channel}
-        branches={branches}
-        linkedBranch={linkedBranch}
-        compatibleBuildsCount={compatibleBuilds.length}
+        compatibleBuildsCount={compatibleBuildsPage.total}
         missingBuildCount={missingRuntimeVersions.length}
       />
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <ChannelRolloutCard
-          channel={channel}
-          orgId={orgId}
-          projectId={projectId}
-          branches={branches}
-        />
+        <ChannelRolloutCard channel={channel} orgId={orgId} projectId={projectId} />
         <ChannelBuildsCard
-          projectSlug={project.slug}
+          projectSlug={projectSlug}
           compatibleBuilds={compatibleBuilds}
+          totalCount={compatibleBuildsPage.total}
           missingRuntimeVersions={missingRuntimeVersions}
         />
       </div>
@@ -251,16 +245,54 @@ const ChannelDetailContent = () => {
   );
 };
 
-const ChannelDetailSkeleton = () => (
-  <>
-    <PageHeader size="sub" title="Channel" />
-    <SummaryCardsSkeleton count={4} />
-    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-      <DetailCardSkeleton rows={3} columns={2} />
-      <DetailCardSkeleton rows={3} columns={1} />
-    </div>
-  </>
-);
+const ChannelDetailContent = () => {
+  const { channelId } = Route.useParams();
+  const { activeOrg, project } = Route.useRouteContext();
+  const orgId = activeOrg.id;
+  const projectId = project.id;
+  // Non-suspense: an unknown channel id 404s on the get endpoint, and that
+  // should render the in-page not-found state below instead of bubbling to
+  // the route error boundary. The body's compatible-builds query (which would
+  // 404 the same way) only mounts once the channel resolved successfully.
+  const {
+    data: channel,
+    error: channelError,
+    refetch,
+  } = useQuery(channelQueryOptions(orgId, projectId, channelId));
+
+  if (channelError) {
+    return getTypedApiError(channelError)?._tag === "NotFound" ? (
+      <>
+        <PageHeader size="sub" title="Channel details" />
+        <ChannelNotFoundState projectSlug={project.slug} />
+      </>
+    ) : (
+      <QueryErrorState error={channelError} onRetry={refetch} />
+    );
+  }
+
+  if (!channel) {
+    return <ChannelDetailSkeleton />;
+  }
+
+  if (channel.projectId !== projectId) {
+    return (
+      <>
+        <PageHeader size="sub" title="Channel details" />
+        <ChannelNotFoundState projectSlug={project.slug} />
+      </>
+    );
+  }
+
+  return (
+    <ChannelDetailBody
+      channel={channel}
+      orgId={orgId}
+      projectId={projectId}
+      projectSlug={project.slug}
+    />
+  );
+};
 
 const ChannelDetailPage = () => (
   <div className="flex w-full flex-col gap-4">

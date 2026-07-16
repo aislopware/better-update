@@ -8,13 +8,15 @@ import { assertAccess } from "../auth/policy";
 import {
   buildBranchMapping,
   extractNewBranchId,
+  extractReachableBranchIds,
   updateBranchMappingPercentage,
 } from "../domain/branch-mapping";
 import { Conflict, NotFound } from "../errors";
-import { toApiChannel } from "../http/to-api";
+import { toApiBuild, toApiChannel } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
+import { BuildRepo } from "../repositories/builds";
 import { ChannelRepo } from "../repositories/channels";
 import { ProjectRepo } from "../repositories/projects";
 
@@ -36,6 +38,39 @@ const parseChannelSort = (
     }
   }
 };
+
+// Builds compatible with the channel, server-filtered with an exact total.
+// Top-level (not inline in the group closure) to keep the group function under
+// the line budget.
+const listCompatibleBuildsForChannel = (
+  id: string,
+  urlParams: { readonly page?: number | undefined; readonly limit?: number | undefined },
+) =>
+  Effect.gen(function* () {
+    const repo = yield* ChannelRepo;
+    const channel = yield* repo.findById({ id });
+    // Read gate, same as get: project ownership admits the caller.
+    yield* assertProjectOwnership(channel.projectId);
+
+    const { page, limit, offset } = parsePagination(urlParams);
+    // During a rollout both mapped branches serve updates, so builds matching
+    // either count as compatible — mirrors the matrix's reachable-branch union
+    // (default branch_id always included).
+    const branchIds =
+      channel.branchMappingJson === null
+        ? [channel.branchId]
+        : [...new Set([channel.branchId, ...extractReachableBranchIds(channel.branchMappingJson)])];
+
+    const buildRepo = yield* BuildRepo;
+    const { items, total } = yield* buildRepo.listCompatibleWithBranches({
+      projectId: channel.projectId,
+      branchIds,
+      limit,
+      offset,
+    });
+
+    return { items: items.map(toApiBuild), total, page, limit };
+  });
 
 // Load a channel and run the ownership + access gates for a write on it. The
 // channel NAME is its environment segment, so per-environment grants + the
@@ -76,11 +111,14 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
 
           const repo = yield* ChannelRepo;
           const projectRepo = yield* ProjectRepo;
-          const channel = yield* repo.insert({
+          const inserted = yield* repo.insert({
             projectId: payload.projectId,
             name: payload.name,
             branchId: payload.branchId,
           });
+          // insert() returns the raw row shape; the branch was just loaded for
+          // validation, so attach its name instead of re-reading.
+          const channel = { ...inserted, branchName: branch.name };
           yield* projectRepo.bumpLastActivity({
             projectId: payload.projectId,
             at: new Date().toISOString(),
@@ -109,6 +147,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
             ...(urlParams.query ? { query: urlParams.query } : {}),
+            ...(urlParams.branchId ? { branchId: urlParams.branchId } : {}),
             sort,
             order,
             limit,
@@ -128,6 +167,21 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           };
         }),
       ),
+    )
+    .handle("get", ({ path }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          const channel = yield* repo.findById({ id: path.id });
+          // Same gate as list: project ownership admits the caller to every
+          // channel in the project (roles are project-wide).
+          yield* assertProjectOwnership(channel.projectId);
+          return toApiChannel(channel);
+        }),
+      ),
+    )
+    .handle("listCompatibleBuilds", ({ path, urlParams }) =>
+      toApiCrudEffect(listCompatibleBuildsForChannel(path.id, urlParams)),
     )
     .handle("update", ({ path, payload }) =>
       toApiCrudEffect(
@@ -155,7 +209,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             metadata: { branchId: payload.branchId },
           });
 
-          return toApiChannel({ ...channel, branchId: payload.branchId });
+          return toApiChannel({ ...channel, branchId: payload.branchId, branchName: branch.name });
         }),
       ),
     )
@@ -206,7 +260,11 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             runtimeVersion: payload.runtimeVersion,
           });
           yield* repo.setBranchMapping({ id: path.id, branchMappingJson });
-          return toApiChannel({ ...channel, branchMappingJson });
+          return toApiChannel({
+            ...channel,
+            branchMappingJson,
+            rolloutTargetBranchName: branch.name,
+          });
         }),
       ),
     )
@@ -244,7 +302,14 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             return yield* new NotFound({ message: "Branch mapping is empty" });
           }
           yield* repo.completeBranchRollout({ id: path.id, branchId: newBranchId });
-          return toApiChannel({ ...channel, branchId: newBranchId, branchMappingJson: null });
+          // The rollout target becomes the linked branch, so its name moves too.
+          return toApiChannel({
+            ...channel,
+            branchId: newBranchId,
+            branchName: channel.rolloutTargetBranchName,
+            branchMappingJson: null,
+            rolloutTargetBranchName: undefined,
+          });
         }),
       ),
     )
@@ -259,7 +324,11 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           }
 
           yield* repo.revertBranchRollout({ id: path.id });
-          return toApiChannel({ ...channel, branchMappingJson: null });
+          return toApiChannel({
+            ...channel,
+            branchMappingJson: null,
+            rolloutTargetBranchName: undefined,
+          });
         }),
       ),
     )

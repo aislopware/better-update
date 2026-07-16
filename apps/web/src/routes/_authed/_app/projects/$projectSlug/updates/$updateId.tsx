@@ -1,6 +1,4 @@
 import {
-  branchesQueryOptions,
-  channelsQueryOptions,
   updateAnalyticsQueryOptions,
   updateAssetsQueryOptions,
   updateGroupQueryOptions,
@@ -14,13 +12,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
 import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon, GitBranchIcon } from "lucide-react";
-import { Suspense } from "react";
+import { FingerprintIcon, GitBranchIcon, SearchIcon } from "lucide-react";
+import { Suspense, useState } from "react";
 
-import type { Update } from "@better-update/api";
+import type { Update, UpdateAssetEntry } from "@better-update/api";
 
 import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
@@ -31,7 +34,6 @@ import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
-import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 type UpdateItem = Update;
 
@@ -130,20 +132,13 @@ const OverviewCard = ({
   );
 };
 
-const PlatformVariantAssets = ({
-  orgId,
-  projectId,
-  updateId,
-}: {
-  orgId: string;
-  projectId: string;
-  updateId: string;
-}) => {
-  const { data: assets } = useSuspenseQuery(updateAssetsQueryOptions(orgId, projectId, updateId));
+/** Show the asset filter input only once the list is long enough to need it. */
+const ASSET_FILTER_THRESHOLD = 8;
+
+type UpdateAsset = typeof UpdateAssetEntry.Type;
+
+const AssetList = ({ assets }: { assets: readonly UpdateAsset[] }) => {
   const pagination = useClientPagination(assets, "asset");
-  if (assets.length === 0) {
-    return <p className="text-muted-foreground text-sm">No asset references recorded.</p>;
-  }
   return (
     <div className="flex flex-col gap-3">
       <ItemGroup>
@@ -170,6 +165,54 @@ const PlatformVariantAssets = ({
         ))}
       </ItemGroup>
       <ClientPaginationFooter state={pagination} />
+    </div>
+  );
+};
+
+const PlatformVariantAssets = ({
+  orgId,
+  projectId,
+  updateId,
+}: {
+  orgId: string;
+  projectId: string;
+  updateId: string;
+}) => {
+  const { data: assets } = useSuspenseQuery(updateAssetsQueryOptions(orgId, projectId, updateId));
+  const [query, setQuery] = useState("");
+  if (assets.length === 0) {
+    return <p className="text-muted-foreground text-sm">No asset references recorded.</p>;
+  }
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleAssets = normalizedQuery
+    ? assets.filter(
+        (asset) =>
+          asset.key.toLowerCase().includes(normalizedQuery) ||
+          asset.hash.toLowerCase().includes(normalizedQuery),
+      )
+    : assets;
+  return (
+    <div className="flex flex-col gap-3">
+      {assets.length > ASSET_FILTER_THRESHOLD ? (
+        <InputGroup className="w-full sm:w-56">
+          <InputGroupInput
+            type="search"
+            value={query}
+            placeholder="Filter assets…"
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+          />
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+        </InputGroup>
+      ) : null}
+      {visibleAssets.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No assets match “{query.trim()}”.</p>
+      ) : (
+        <AssetList key={normalizedQuery} assets={visibleAssets} />
+      )}
     </div>
   );
 };
@@ -259,16 +302,10 @@ const UpdateDetailContent = () => {
   const { data: group } = useSuspenseQuery(
     updateGroupQueryOptions(orgId, projectId, update.groupId),
   );
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
-  const { data: channelsData } = useSuspenseQuery(
-    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
-  );
 
   const primary = group.items.find((entry) => entry.id === updateId) ?? group.items[0] ?? update;
   const title = primary.message || `Update ${update.groupId.slice(0, 8)}`;
-  const branchName = branchesData.items.find((branch) => branch.id === primary.branchId)?.name;
+  const { branchName } = primary;
 
   return (
     <>
@@ -286,7 +323,6 @@ const UpdateDetailContent = () => {
         </div>
         <UpdateActionsMenu
           update={primary}
-          channels={channelsData.items}
           branchName={branchName}
           slug={project.slug}
           orgId={orgId}

@@ -21,8 +21,10 @@ import { MissingMatchingBuilds } from "./-channel-compatibility";
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
 import type { SyntheticBuildChannel } from "./-compatibility-join";
 
-// Keep the card glanceable — a busy project can match dozens of builds.
-const VISIBLE_BUILD_LIMIT = 6;
+// Keep the card glanceable — a busy project can match dozens of builds. The
+// page fetches exactly this many rows; `totalCount` carries the exact
+// server-side total for the "N more" link.
+export const VISIBLE_BUILD_LIMIT = 6;
 
 const UpdateCountStatus = ({ status }: { status: SyntheticBuildChannel }) => {
   if (status.isPaused) {
@@ -76,14 +78,16 @@ const CompatibleBuildRow = ({
 export const ChannelBuildsCard = ({
   projectSlug,
   compatibleBuilds,
+  totalCount,
   missingRuntimeVersions,
 }: {
   projectSlug: string;
   compatibleBuilds: readonly CompatibleBuildEntry[];
+  totalCount: number;
   missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
 }) => {
   const visible = compatibleBuilds.slice(0, VISIBLE_BUILD_LIMIT);
-  const hiddenCount = compatibleBuilds.length - visible.length;
+  const hiddenCount = Math.max(0, totalCount - visible.length);
 
   return (
     <Card>
@@ -106,7 +110,7 @@ export const ChannelBuildsCard = ({
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            No builds have been uploaded for this project yet.
+            No uploaded builds can install this channel&apos;s updates yet.
           </p>
         )}
         {hiddenCount > 0 && (

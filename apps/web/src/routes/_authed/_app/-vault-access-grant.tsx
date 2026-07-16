@@ -187,7 +187,7 @@ export const VaultAccessGrant = ({ orgId }: { orgId: string }) => {
         ) : null}
       </div>
       {vault.unlocked ? (
-        <div className="overflow-hidden rounded-md border">
+        <div className="max-h-[40vh] overflow-y-auto rounded-md border">
           <PendingGrants orgId={orgId} unlocked={vault.unlocked} />
         </div>
       ) : (

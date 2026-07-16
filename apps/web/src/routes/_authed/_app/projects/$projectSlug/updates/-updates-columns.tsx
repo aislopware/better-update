@@ -1,6 +1,6 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 
-import type { Channel, Update } from "@better-update/api";
+import type { Update } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { UpdateActionsMenu } from "../-update-actions-menu";
@@ -11,11 +11,8 @@ import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 export type UpdateItem = Update;
-export type ChannelItem = Channel;
 
 export const buildUpdateColumns = (
-  branchNames: ReadonlyMap<string, string>,
-  channels: readonly ChannelItem[],
   slug: string,
   orgId: string,
   projectId: string,
@@ -53,7 +50,7 @@ export const buildUpdateColumns = (
     id: "branch",
     header: "Branch",
     cell: ({ row }) => {
-      const branchName = branchNames.get(row.original.branchId);
+      const { branchName } = row.original;
       return branchName === undefined ? (
         <CopyableId value={row.original.branchId} label="Branch ID" />
       ) : (
@@ -111,8 +108,7 @@ export const buildUpdateColumns = (
       <div className="flex justify-end">
         <UpdateActionsMenu
           update={row.original}
-          channels={channels}
-          branchName={branchNames.get(row.original.branchId)}
+          branchName={row.original.branchName}
           slug={slug}
           orgId={orgId}
           projectId={projectId}

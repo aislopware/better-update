@@ -41,6 +41,7 @@ import {
 import { PageHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
+import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
@@ -283,50 +284,54 @@ const RelatedChannelsCard = ({
 }: {
   projectSlug: string;
   build: BuildWithSyntheticChannels;
-}) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Compatible channels</CardTitle>
-      <CardDescription>
-        Open a channel detail page to inspect rollout and update state.
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      {build.channels.length > 0 ? (
-        <div className="flex flex-col">
-          {build.channels.map((channel) => (
-            <div
-              key={`${build.id}:${channel.channelId}`}
-              className="border-border/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0"
-            >
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <ChannelBadge name={channel.channelName} />
-                {channel.isPaused && <Badge variant="warning">Paused</Badge>}
-                {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
-                <span className="text-muted-foreground text-sm">
-                  {channel.updateCount > 0
-                    ? `${channel.updateCount} matching ${pluralize(channel.updateCount, "update")}`
-                    : "No matching updates"}
-                </span>
-              </div>
-              <Link
-                to="/projects/$projectSlug/channels/$channelId"
-                params={{ projectSlug, channelId: channel.channelId }}
-                className="text-muted-foreground hover:text-foreground shrink-0 text-sm transition-colors"
+}) => {
+  const pagination = useClientPagination(build.channels, "channel");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Compatible channels</CardTitle>
+        <CardDescription>
+          Open a channel detail page to inspect rollout and update state.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {build.channels.length > 0 ? (
+          <div className="flex flex-col">
+            {pagination.pageItems.map((channel) => (
+              <div
+                key={`${build.id}:${channel.channelId}`}
+                className="border-border/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0"
               >
-                Open →
-              </Link>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          No channels currently match this build&apos;s runtime version.
-        </p>
-      )}
-    </CardContent>
-  </Card>
-);
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <ChannelBadge name={channel.channelName} />
+                  {channel.isPaused && <Badge variant="warning">Paused</Badge>}
+                  {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
+                  <span className="text-muted-foreground text-sm">
+                    {channel.updateCount > 0
+                      ? `${channel.updateCount} matching ${pluralize(channel.updateCount, "update")}`
+                      : "No matching updates"}
+                  </span>
+                </div>
+                <Link
+                  to="/projects/$projectSlug/channels/$channelId"
+                  params={{ projectSlug, channelId: channel.channelId }}
+                  className="text-muted-foreground hover:text-foreground shrink-0 text-sm transition-colors"
+                >
+                  Open →
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            No channels currently match this build&apos;s runtime version.
+          </p>
+        )}
+        <ClientPaginationFooter state={pagination} />
+      </CardContent>
+    </Card>
+  );
+};
 
 const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <Card>

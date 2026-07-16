@@ -1,7 +1,9 @@
+import { resolveEnvVarOverrides } from "@better-update/api";
 import { queryOptions } from "@tanstack/react-query";
 
 import type {
   CreateEnvVarBody,
+  EnvVar,
   EnvVarEnvironment,
   EnvVarListScope,
   UpdateEnvVarBody,
@@ -29,6 +31,43 @@ const filtersToUrlParams = (filters?: EnvVarsFilters) => ({
   ...(filters?.search ? { search: filters.search } : {}),
 });
 
+const ENV_VARS_PAGE_LIMIT = 100;
+// Backstop against a buggy `hasMore` looping forever: the server caps each scope
+// at 5000 vars, so scope=all tops out at 100 full pages.
+const ENV_VARS_MAX_PAGES = 120;
+
+interface EnvVarListUrlParams {
+  readonly scope?: typeof EnvVarListScope.Type;
+  readonly projectId?: string;
+  readonly environments?: string;
+  readonly search?: string;
+}
+
+const fetchPages = async (
+  urlParams: EnvVarListUrlParams,
+  page: number,
+  signal?: AbortSignal,
+): Promise<readonly EnvVar[]> => {
+  const result = await runApi(
+    (api) =>
+      api["env-vars"].list({
+        urlParams: { ...urlParams, page, limit: ENV_VARS_PAGE_LIMIT },
+      }),
+    signal,
+  );
+  // `hasMore` (raw page full), not a short `items`, signals further pages — the
+  // server filters unreadable rows AFTER paging. Absent field = pre-hasMore server.
+  if (!result.hasMore || page >= ENV_VARS_MAX_PAGES) {
+    return result.items;
+  }
+  return [...result.items, ...(await fetchPages(urlParams, page + 1, signal))];
+};
+
+/** Fetch the COMPLETE list (every page) — consumers paginate/filter client-side. */
+const fetchAllEnvVars = async (urlParams: EnvVarListUrlParams, signal?: AbortSignal) => ({
+  items: resolveEnvVarOverrides(await fetchPages(urlParams, 1, signal)),
+});
+
 export const envVarsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "env-vars"] as const;
 
@@ -36,13 +75,7 @@ export const envVarsQueryOptions = (orgId: string, projectId: string, filters?: 
   queryOptions({
     queryKey: [...envVarsQueryKey(orgId, projectId), ...filtersKey(filters)],
     queryFn: async ({ signal }) =>
-      runApi(
-        (api) =>
-          api["env-vars"].list({
-            urlParams: { projectId, limit: 100, ...filtersToUrlParams(filters) },
-          }),
-        signal,
-      ),
+      fetchAllEnvVars({ projectId, ...filtersToUrlParams(filters) }, signal),
     staleTime: 30_000,
   });
 
@@ -52,13 +85,7 @@ export const globalEnvVarsQueryOptions = (orgId: string, filters?: EnvVarsFilter
   queryOptions({
     queryKey: [...globalEnvVarsQueryKey(orgId), ...filtersKey(filters)],
     queryFn: async ({ signal }) =>
-      runApi(
-        (api) =>
-          api["env-vars"].list({
-            urlParams: { scope: "global", limit: 100, ...filtersToUrlParams(filters) },
-          }),
-        signal,
-      ),
+      fetchAllEnvVars({ scope: "global", ...filtersToUrlParams(filters) }, signal),
     staleTime: 30_000,
   });
 

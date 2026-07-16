@@ -13,9 +13,8 @@ import { PromoteUpdateDialog } from "./-promote-update-dialog";
 import { RepublishUpdateDialog } from "./-republish-update-dialog";
 import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 
-const { apiReactModule, selectModule, apiReactMocks } = vi.hoisted(() => ({
+const { apiReactModule, apiReactMocks } = vi.hoisted(() => ({
   apiReactModule: "@better-update/api-client/react",
-  selectModule: "@better-update/ui/components/ui/select",
   apiReactMocks: {
     createUpdate:
       vi.fn<
@@ -49,45 +48,6 @@ const { apiReactModule, selectModule, apiReactMocks } = vi.hoisted(() => ({
       >(),
   },
 }));
-
-vi.mock(selectModule, async () => {
-  const React = await import("react");
-
-  const SelectContext = React.createContext<((value: string) => void) | null>(null);
-
-  return {
-    Select: ({
-      onValueChange,
-      children,
-    }: {
-      onValueChange?: (value: string) => void;
-      children: React.ReactNode;
-    }) => (
-      <SelectContext.Provider value={onValueChange ?? null}>
-        <div>{children}</div>
-      </SelectContext.Provider>
-    ),
-    SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
-    SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    SelectGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    SelectLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => {
-      const onValueChange = React.useContext(SelectContext);
-
-      return (
-        <button
-          type="button"
-          onClick={() => {
-            onValueChange?.(value);
-          }}
-        >
-          {children}
-        </button>
-      );
-    },
-  };
-});
 
 vi.mock(apiReactModule, async (importOriginal) => {
   const actual = await importOriginal();
@@ -221,7 +181,10 @@ describe("mutation dialogs", () => {
 
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Name"), "production");
-    await user.click(within(dialog).getByRole("button", { name: "main" }));
+    // The branch picker is a server-search combobox; its option list renders
+    // in a popover portal outside the dialog element.
+    await user.click(within(dialog).getByRole("button", { name: "Branch" }));
+    await user.click(await screen.findByRole("option", { name: "main" }));
     await user.click(within(dialog).getByRole("button", { name: "Create channel" }));
 
     await waitFor(() => {
@@ -300,25 +263,38 @@ describe("mutation dialogs", () => {
   it("promoteUpdateDialog invalidates updates and compatibility matrix after republish", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn<(open: boolean) => void>();
+    // A channel serving the update's own branch is excluded from the picker,
+    // so the promotion target must live on another branch.
+    const promoteChannel = { ...channel, branchId: "branch-other" } satisfies Channel;
     const { queryClient } = renderWithQuery(
       <PromoteUpdateDialog
         update={update}
-        channels={[channel]}
         orgId={orgId}
         projectId={projectId}
         open
         onOpenChange={onOpenChange}
       />,
+      {
+        seedCache: [
+          [
+            ["org", orgId, "projects", projectId, "channels", { limit: 100 }],
+            { items: [promoteChannel], total: 1, page: 1, limit: 100 },
+          ],
+        ],
+      },
     );
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
-    await user.click(screen.getByRole("button", { name: "production" }));
+    // The channel picker is a server-search combobox; its option list renders
+    // in a popover portal outside the dialog element.
+    await user.click(screen.getByRole("button", { name: "Target channel" }));
+    await user.click(await screen.findByRole("option", { name: "production" }));
     await user.click(screen.getByRole("button", { name: "Promote" }));
 
     await waitFor(() => {
       expect(apiReactMocks.republishUpdate).toHaveBeenCalledWith({
         sourceUpdateId: update.id,
-        destinationChannel: channel.name,
+        destinationChannel: promoteChannel.name,
       });
     });
 
