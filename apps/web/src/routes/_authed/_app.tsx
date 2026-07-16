@@ -108,6 +108,7 @@ const renderUserTrigger = (
 const OrgSwitcher = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const { activeOrg, orgs } = Route.useRouteContext();
   const activeOrgId = activeOrg.id;
@@ -123,20 +124,29 @@ const OrgSwitcher = () => {
         "Failed to switch organization",
       ),
     onSuccess: async (_data, orgId) => {
+      // Drop both orgs' caches before navigating so nothing re-targets the
+      // previous org and the new org's pages load fresh.
       if (activeOrgId) {
         queryClient.removeQueries({ queryKey: orgKeyPrefix(activeOrgId) });
       }
-      await queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey, type: "all" });
-      await router.invalidate();
-      // Side-effect: reset cached active org so it does not re-target the previous one.
       queryClient.removeQueries({ queryKey: orgKeyPrefix(orgId) });
+      await queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey, type: "all" });
+      // Land on All Projects before invalidating: the current route may point
+      // at a project that does not exist in the new org ("Unknown project").
+      await router.navigate({ to: "/projects" });
+      await router.invalidate();
+      setMenuOpen(false);
     },
   });
 
   const switchingOrgId = switchOrg.isPending ? switchOrg.variables : undefined;
 
   const handleOrgSwitch = (orgId: string): void => {
-    if (orgId === activeOrgId || switchOrg.isPending) {
+    if (switchOrg.isPending) {
+      return;
+    }
+    if (orgId === activeOrgId) {
+      setMenuOpen(false);
       return;
     }
     switchOrg.mutate(orgId);
@@ -144,7 +154,16 @@ const OrgSwitcher = () => {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(next) => {
+          // Keep the menu (and its per-org spinner) visible while a switch is
+          // in flight; it closes itself once the new org has loaded.
+          if (next || !switchOrg.isPending) {
+            setMenuOpen(next);
+          }
+        }}
+      >
         <DropdownMenuTrigger
           render={renderOrgTrigger(displayName, activeOrg.slug, activeOrg.logo)}
         />
@@ -165,6 +184,7 @@ const OrgSwitcher = () => {
                   }}
                   data-pending={isSwitching || undefined}
                   disabled={switchOrg.isPending && !isSwitching}
+                  closeOnClick={false}
                 >
                   <EntityAvatar
                     name={org.name}
