@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.56.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.55.0...%40better-update%2Fserver%400.56.0) (2026-07-16)
+
+### Features
+
+* org-wide project membership managed from the members screen ([c31bb7d](https://github.com/better-update/better-update/commit/c31bb7d4d05fa45d5926e5fb33905483d8b4bbe1))
+
 ## [0.55.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.54.0...%40better-update%2Fserver%400.55.0) (2026-07-16)
 
 ### Features

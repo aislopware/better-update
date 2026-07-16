@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.66.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.65.1...%40better-update%2Fweb%400.66.0) (2026-07-16)
+
+### Features
+
+* org-wide project membership managed from the members screen ([c31bb7d](https://github.com/better-update/better-update/commit/c31bb7d4d05fa45d5926e5fb33905483d8b4bbe1))
+
+### Bug Fixes
+
+* **web:** size row-action menus to their labels instead of the trigger width ([c1ee7c1](https://github.com/better-update/better-update/commit/c1ee7c13407745cc6e13baab91479a3e1e2f47a5))
+
 ## [0.65.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.65.0...%40better-update%2Fweb%400.65.1) (2026-07-16)
 
 ### Bug Fixes
