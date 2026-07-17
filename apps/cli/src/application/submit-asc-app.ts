@@ -174,7 +174,7 @@ export const ensureAscAppForSubmit = (input: EnsureAscAppForSubmitInput) =>
   }).pipe(
     Effect.catchAll((error) =>
       printHuman(
-        `Could not resolve or create the App Store Connect app (${messageOf(error)}). The submission was queued — set ascAppId in eas.json and re-run.`,
+        `Could not resolve or create the App Store Connect app (${messageOf(error)}). Continuing without it — set ascAppId in the eas.json submit profile to skip this lookup.`,
       ).pipe(Effect.as(null)),
     ),
   );

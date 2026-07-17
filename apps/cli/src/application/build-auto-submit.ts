@@ -6,18 +6,19 @@ import { printHuman } from "../lib/output";
 import { CliRuntime } from "../services/cli-runtime";
 import { runAndroidGooglePlayUpload } from "./android-play-submit";
 import { needsTestFlightConfig } from "./ios-testflight-config";
+import { resolveAscUploadCredentials } from "./submit-asc-key";
+import { createSubmissionViaApi } from "./submit-flow";
 import {
-  createSubmissionViaApi,
+  fallbackPasswordAuth,
   hasAppleAppSpecificPassword,
-  resolveAscUploadCredentials,
   resolveIosUploadAuth,
   runIosSubmit,
-} from "./submit-flow";
+} from "./submit-ios-upload";
 
 import type { Platform } from "../lib/build-profile";
 import type { EasAndroidSubmitProfile, EasIosSubmitProfile } from "../lib/eas-config";
 import type { ApiClient } from "../services/api-client";
-import type { IosSubmitOutcome } from "./submit-flow";
+import type { IosSubmitOutcome } from "./submit-ios-upload";
 
 export interface AutoSubmitInput {
   readonly api: ApiClient;
@@ -63,8 +64,9 @@ const buildAutoSubmitAndroidConfig = (androidProfile: EasAndroidSubmitProfile | 
 };
 
 /**
- * Run the iOS altool upload for an auto-submit (non-interactive: never creates an
- * ASC key). Returns the submit outcome when the `.ipa` was uploaded (or already
+ * Run the iOS store upload for an auto-submit (non-interactive: never creates an
+ * ASC key). Uploads via the ASC Build Upload API when a key is configured, else
+ * `altool`. Returns the submit outcome when the `.ipa` was uploaded (or already
  * on ASC), or null when skipped because no upload auth / ASC key is available.
  */
 const autoSubmitIosUpload = (params: {
@@ -95,18 +97,24 @@ const autoSubmitIosUpload = (params: {
       ascApiKeyId: iosProfile?.ascApiKeyId,
       wantsConfig,
     });
+    let effectiveAuth = auth;
     if (auth.kind === "asc-api-key" && ascCredentials === null) {
-      yield* printHuman("Skipping iOS upload: the ASC API key could not be prepared for upload.");
-      return null;
+      const passwordAuth = fallbackPasswordAuth({
+        appleId: iosProfile?.appleId,
+        hasAppSpecificPassword: hasAppleAppSpecificPassword(),
+      });
+      if (passwordAuth === null) {
+        yield* printHuman("Skipping iOS upload: the ASC API key could not be prepared for upload.");
+        return null;
+      }
+      yield* printHuman(
+        "The ASC API key could not be prepared — falling back to the Apple ID app-specific password upload.",
+      );
+      effectiveAuth = passwordAuth;
     }
-    yield* printHuman(
-      auth.kind === "app-specific-password"
-        ? "Running xcrun altool upload (Apple ID app-specific password)..."
-        : "Running xcrun altool upload (ASC API key)...",
-    );
     return yield* runIosSubmit({
       archive: { source: "build", value: params.archiveUrl },
-      auth,
+      auth: effectiveAuth,
       ascCredentials,
       config: {
         bundleIdentifier: params.iosConfig.bundleIdentifier,

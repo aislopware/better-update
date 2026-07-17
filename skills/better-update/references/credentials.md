@@ -128,8 +128,11 @@ better-update credentials generate push-key [--method apple-id|upload] [--p8 <pa
 # truncated (the default is a short timestamped name well under the cap).
 better-update credentials generate asc-key [--role ADMIN|APP_MANAGER] [--name] [--nickname]
 
-# Apple Pay Merchant ID (via Apple ID login)
-better-update credentials generate merchant-id --identifier merchant.com.example.app [--bundle-identifier com.example.app]
+# Apple Pay Merchant ID. Token-first: a configured ASC API key (--asc-api-key-id, or the eas.json
+# submit profile's ascApiKeyId; --profile defaults to production) registers it headlessly via the
+# public ASC API (POST /v1/merchantIds) — no interactive picker. No key configured (or the key fails
+# to open before anything is created on Apple) → Apple ID login (2FA), as before.
+better-update credentials generate merchant-id --identifier merchant.com.example.app [--bundle-identifier com.example.app] [--asc-api-key-id <id>] [--profile <name>]
 
 # Google service account JSON key
 better-update credentials generate gsa-key [--file <path>] [--purpose fcm|play] [--skip-portal-hint]
@@ -139,9 +142,10 @@ better-update credentials generate gsa-key [--file <path>] [--purpose fcm|play] 
 pull-reconciles Apple's device list into better-update, registers better-update-only devices on the
 portal, and fingerprints the roster's UDIDs so the server can detect drift. Pass `--device-ids` (device
 row ids) only to hand-pick a subset — such profiles are stored _unmanaged_ and never auto-regenerate.
-APNs push keys, ASC API keys, and merchant IDs
+APNs push keys and ASC API keys
 are created via **Apple ID login (2FA), not the ASC API** — `generate asc-key` bootstraps the very
-credential the other ASC-API generators consume, so it needs no pre-existing `--asc-key-id`. Apple caps
+credential the other ASC-API generators consume, so it needs no pre-existing `--asc-key-id`. Merchant
+IDs prefer a configured ASC API key and only fall back to Apple ID login. Apple caps
 a team at 2 APNs keys; at the limit the CLI offers an interactive revoke + retry. Omitted args fall back
 to interactive prompts where sensible.
 

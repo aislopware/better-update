@@ -333,7 +333,7 @@ better-update credentials generate provisioning-profile --asc-key-id <id> --cert
   --distribution <APP_STORE|AD_HOC|DEVELOPMENT|ENTERPRISE> [--device-ids id1,id2]
 better-update credentials generate push-key [--method <apple-id|upload>] [--key-id] [--apple-team-id] [--p8 <path>] [--asc-key-id] [--name] [--skip-portal-hint]
 better-update credentials generate asc-key [--role <ADMIN|APP_MANAGER>=ADMIN] [--name] [--nickname]   # create an ASC API key via Apple ID login (no manual .p8)
-better-update credentials generate merchant-id --identifier <merchant.*> [--name] [--bundle-identifier]
+better-update credentials generate merchant-id --identifier <merchant.*> [--name] [--bundle-identifier] [--asc-api-key-id <id>] [--profile <name>=production]   # token-first: configured ASC key → headless ASC API; else Apple ID login
 better-update credentials generate gsa-key [--file <path>] [--name] [--purpose <fcm|play>] [--skip-portal-hint]
 
 better-update credentials regenerate-profile [--bundle] [--distribution <ad-hoc|app-store|development|enterprise>=ad-hoc] [--all]
@@ -534,9 +534,12 @@ better-update apple users list
 better-update apple users invite --email <e> --first-name <f> --last-name <l> \
   --roles DEVELOPER,APP_MANAGER [--visible-apps <appId,appId>] [--provisioning-allowed true|false]
 
+# IAP sandbox testers — list prefers the public ASC API (CI-safe) when an ASC key resolves
+# (--asc-api-key-id > submit profile ascApiKeyId); silently uses Apple ID login when no key is configured
+better-update apple sandbox list [--asc-api-key-id <id>] [--profile <name>=production]
+
 # Cookie-only (Apple ID login + 2FA; NOT CI-safe)
 better-update apple asc-key list                            # active ASC API keys as seen on Apple (not the local vault)
-better-update apple sandbox list                            # IAP sandbox testers
 better-update apple sandbox create --email <e> --password <p> --first-name <f> --last-name <l> \
   [--secret-question <q>] [--secret-answer <a>] [--birth-date YYYY-MM-DD]   # or BETTER_UPDATE_SANDBOX_PASSWORD
 better-update apple sandbox delete --id <testerId>
@@ -549,7 +552,11 @@ better-update apple sandbox delete --id <testerId>
   `APP_MANAGER`, `MARKETING`, `FINANCE`, `SALES`, `CUSTOMER_SUPPORT`, `ACCESS_TO_REPORTS`, `READ_ONLY`, …).
   Omitting `--visible-apps` makes all apps visible; supplying App ids scopes the user to them. Apple emails the
   invite. Both `apple users` commands require an Admin-role key (Apple returns 403 otherwise).
-- **`apple asc-key list`** and **`apple sandbox …`** are **cookie-only** (Apple's Iris API, no JWT equivalent):
+- **`apple sandbox list`** is **token-first**: with an ASC API key configured (`--asc-api-key-id` or the submit
+  profile's `ascApiKeyId`) it reads the public ASC API (`GET /v2/sandboxTesters`, CI-safe); a token failure
+  prints a one-line note and falls back to Apple ID login, and with no key it goes straight to Apple ID (no
+  surprise key picker). **`apple asc-key list`** and **`apple sandbox create/delete`** are **cookie-only**
+  (Apple's Iris API — the public API has no sandbox-tester create/delete):
   they log in via `apple login` and fail with a clear error under `--non-interactive` / CI. `asc-key list` shows
   what's on Apple (distinct from the local `credentials list` vault); create with `credentials generate asc-key`,
   revoke with `credentials revoke asc-key`. The sandbox password is read from `--password` or
@@ -563,7 +570,7 @@ better-update submit --platform <ios|android> [--profile <name>=production] \
   [--what-to-test <text>] [--service-account-key-id <id>]
 ```
 
-Submits a build to App Store Connect (iOS, via `xcrun altool`) or Google Play (Android), from the
+Submits a build to App Store Connect (iOS) or Google Play (Android), from the
 CLI. Exactly one archive source is required (`--latest`/`--id`/`--path`/`--url`); if several are
 passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight changelog; `--service-account-key-id` overrides the
 Android service account.
@@ -573,9 +580,13 @@ upload succeeds** — it is a success-only history, not a live status you can po
 upload fails (or is skipped because no auth is configured), no record is created; the failure is
 printed to the terminal.
 
-**iOS upload auth resolution.** The upload uses, in order: an app-specific password
-(`appleId` in the submit profile + the `EXPO_APPLE_APP_SPECIFIC_PASSWORD` env var) if set, else the
-submit profile's `ascApiKeyId`. If neither is configured and the terminal is interactive, `submit`
+**iOS upload auth resolution.** The upload uses, in order: the submit profile's `ascApiKeyId` if set
+(a blank/whitespace value counts as absent; it drives the native Build Upload API path below), else
+an app-specific password (`appleId` in the submit profile + the `EXPO_APPLE_APP_SPECIFIC_PASSWORD`
+env var). This deliberately diverges from `eas submit`, which prefers the password. When the ASC key
+is configured but its `.p8` cannot be prepared (e.g. CI without a robot identity to unlock the
+vault), the upload degrades to the app-specific-password path with a note instead of being skipped —
+a setup that uploaded before the key was added keeps uploading. If neither is configured and the terminal is interactive, `submit`
 opens a team-labeled picker over ALL stored vault keys (even a lone key is never auto-picked — it may
 belong to a different Apple team than the app being submitted) plus a "create a new ASC API key from
 my Apple ID" option — the create path warns about any keys the team already has, since Apple caps
@@ -583,32 +594,47 @@ keys per team and a key's `.p8` downloads only once. The resolved id is written 
 profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with nothing configured skip
 the upload (no record is written) and print how to add a key.
 
+**iOS uploader: Build Upload API first, `altool` fallback.** With an ASC API key, the `.ipa` goes up
+through Apple's native **Build Upload API** (REST: reserve the upload → chunked presigned PUTs →
+commit → poll delivery/processing) with a live progress bar (percent + uploaded/total MB) in
+interactive terminals; CI, piped output, and `[ios]`-prefixed parallel-build logs get one progress
+line per 10% step instead, and `--json` stays silent. `xcrun altool` remains in three cases: (a) the
+Apple-ID app-specific-password auth always uses it (the REST API needs an ASC key), (b) it is the
+automatic fallback when the Build Upload API is unavailable or unauthorized — detected at the reserve
+step, before any bytes move — or when the IPA's version strings can't be read, and (c)
+`BETTER_UPDATE_IOS_UPLOADER=altool` forces it. Both paths treat Apple's duplicate-build rejection as
+the benign "already uploaded, continue"; the Build Upload API 409s it at the reserve step, so a
+duplicate never re-uploads any bytes. `build --auto-submit` uses the same uploader selection.
+
 **What to Test validation.** `--what-to-test` is validated **before** the (slow) upload: it must be non-empty and
-≤ 4000 UTF-8 bytes, so an avoidable metadata error never costs a full `altool` run. Apple also enforces an
+≤ 4000 UTF-8 bytes, so an avoidable metadata error never costs a full binary upload. Apple also enforces an
 undocumented minimum length (rejecting terse text like `Fix` as "too short") with no published threshold to
 pre-check; if it trips post-upload, the error is surfaced clearly and you can fix it without re-uploading via
 `testflight build whats-new --latest`.
 
 **Idempotent upload + metadata status.** `submit` reads the `.ipa`'s `CFBundleVersion` and, before uploading,
 checks App Store Connect for a build with that number. If it's already there (a prior run uploaded it), `submit`
-**skips `altool` and goes straight to TestFlight config** — so re-running after a metadata failure just re-applies
+**skips the upload and goes straight to TestFlight config** — so re-running after a metadata failure just re-applies
 the config instead of dead-ending on the "already been used" duplicate-build error (which is itself now treated as
 "already uploaded, continue"). Because the binary and its TestFlight config are independent steps, `submit` records
 the server submission even when config fails, marking it **metadata-incomplete** and then surfacing the error; the
 dashboard shows the uploaded-but-pending build (green "Complete" vs amber "Metadata pending"). The record is keyed
 on the build number, so the re-run that completes config **updates the same row** rather than adding a duplicate.
 
-**TestFlight config + app auto-create.** When `--what-to-test` or submit-profile `groups` are set,
-`submit` configures the build on TestFlight after upload (sets "What to Test", assigns beta groups).
-This needs the App Store Connect app to exist: `submit` resolves it by the profile's `ascAppId`, else
-looks it up by bundle id (headless, via the ASC key), and — if it still doesn't exist and the terminal
-is interactive — offers to create it from your Apple ID (`App.createAsync`: name from the submit
-profile's `appName` if set, else a _required_ prompt pre-filled with the best default (app.json
-`expo.name` for Expo projects, else the better-update project name) — the prompt re-asks on a blank
-value, since Apple rejects an empty name; SKU = bundle id, locale en-US; `companyName` from the profile or the signed-in team name,
-which Apple requires for the first app on a brand-new organization account). The resolved `ascAppId` is
-written back to `eas.json`. The bundle id must already be registered in your Apple Developer account (a
-build or `credentials` run does this). Non-interactive runs with no resolvable app skip config with guidance.
+**ASC app resolution + auto-create.** Every asc-api-key submit resolves the App Store Connect app record
+— the Build Upload API uploads into it, and TestFlight config (when `--what-to-test` or submit-profile
+`groups` are set: "What to Test" + beta-group assignment after the upload) targets it. `submit` uses the
+profile's `ascAppId` if set, else looks the app up by bundle id (headless, via the ASC key), and — if it
+still doesn't exist and the terminal is interactive — offers to create it from your Apple ID
+(`App.createAsync`: name from the submit profile's `appName` if set, else a _required_ prompt pre-filled
+with the best default (app.json `expo.name` for Expo projects, else the better-update project name) —
+the prompt re-asks on a blank value, since Apple rejects an empty name; SKU = bundle id, locale en-US;
+`companyName` from the profile or the signed-in team name, which Apple requires for the first app on a
+brand-new organization account). The resolved `ascAppId` is written back to `eas.json`. The bundle id
+must already be registered in your Apple Developer account (a build or `credentials` run does this).
+When the app can't be resolved: with TestFlight config requested the submit fails loudly; without it the
+upload just falls back to `xcrun altool` (which doesn't need the app record). Non-interactive runs with
+no resolvable app skip config with guidance.
 
 ## testflight
 

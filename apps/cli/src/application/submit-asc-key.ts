@@ -1,11 +1,13 @@
 import { Effect } from "effect";
 
 import { messageOf } from "../lib/apple-asc-connect";
+import { fetchAscCredentials } from "../lib/asc-credentials";
 import { setSubmitProfileAscApiKeyId } from "../lib/eas-json";
 import { printHuman } from "../lib/output";
 import { pickOrCreateAscApiKey } from "./asc-key-resolve";
 
 import type { ApiClient } from "../services/api-client";
+import type { IosUploadAuth } from "./submit-ios-upload";
 
 export interface EnsureAscApiKeyForSubmitInput {
   readonly api: ApiClient;
@@ -54,3 +56,32 @@ export const ensureAscApiKeyForSubmit = (input: EnsureAscApiKeyForSubmitInput) =
       ).pipe(Effect.as(null)),
     ),
   );
+
+/**
+ * Decrypt the ASC `.p8` once for a submit: needed for an asc-api-key upload, and
+ * for post-upload TestFlight config regardless of upload auth. Returns null when
+ * none is required or available; a decrypt failure logs a note and degrades to
+ * null so the caller can queue-and-instruct rather than crash.
+ */
+export const resolveAscUploadCredentials = (params: {
+  readonly api: ApiClient;
+  readonly auth: IosUploadAuth;
+  readonly ascApiKeyId: string | undefined;
+  readonly wantsConfig: boolean;
+}) =>
+  Effect.gen(function* () {
+    const credsKeyId =
+      params.auth.kind === "asc-api-key" ? params.auth.ascApiKeyId : params.ascApiKeyId;
+    const needsCreds = params.auth.kind === "asc-api-key" || params.wantsConfig;
+    if (!needsCreds || credsKeyId === undefined) {
+      return null;
+    }
+    return yield* fetchAscCredentials(params.api, credsKeyId).pipe(
+      Effect.map((creds) => ({ keyId: creds.keyId, issuerId: creds.issuerId, p8Pem: creds.p8Pem })),
+      Effect.catchAll((error) =>
+        printHuman(`Could not prepare ASC API key ${credsKeyId} (${messageOf(error)}).`).pipe(
+          Effect.as(null),
+        ),
+      ),
+    );
+  });

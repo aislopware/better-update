@@ -166,12 +166,17 @@ better-update submit --platform <ios|android> [--profile <name>=production] \
   [--what-to-test <text>] [--service-account-key-id <id>] [--no-wait]
 ```
 
-Submits a build to App Store Connect (iOS, via `xcrun altool`) or Google Play (Android), straight
-from the CLI. Provide exactly one archive source (`--latest`/`--id`/`--path`/`--url`); if several are
+Submits a build to App Store Connect (iOS) or Google Play (Android), straight from the CLI. iOS
+uploads prefer Apple's native **Build Upload API** when the upload auth is an ASC API key (chunked
+presigned PUTs with a live progress bar; 10%-step progress lines in CI/piped output), falling back to
+`xcrun altool` — always used for the Apple-ID app-specific-password auth, automatically when the
+Build Upload API is unavailable or the IPA's version strings can't be read, or forced via
+`BETTER_UPDATE_IOS_UPLOADER=altool` (see `references/cli.md` for the full submit flow). Provide
+exactly one archive source (`--latest`/`--id`/`--path`/`--url`); if several are
 passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight "What to test" changelog;
 `--service-account-key-id` overrides the Android service account from the submit profile; `--no-wait`
 returns without blocking until a terminal status. (`build --auto-submit` runs build → submit in one
-step.) Note: this performs the _upload/submission_ — it does not poll store **review**.
+step, with the same iOS uploader selection.) Note: this performs the _upload/submission_ — it does not poll store **review**.
 
 ## `fingerprint` — runtime compatibility check
 

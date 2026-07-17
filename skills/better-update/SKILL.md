@@ -92,7 +92,7 @@ better-update
 ├── fingerprint               generate · compare (runtime-compatibility hashes)
 ├── analytics                 adoption · updates · channels · platforms
 ├── audit-logs                list (every mutation, with actor + timestamp)
-├── apple                     login · logout · whoami · accounts (multi-account switch); builds · users (CI-safe); asc-key · sandbox (Apple ID login)
+├── apple                     login · logout · whoami · accounts (multi-account switch); builds · users (CI-safe); asc-key · sandbox (Apple ID login; `sandbox list` prefers an ASC key)
 ├── submit                    Submit a build to App Store Connect / Google Play
 ├── testflight                group · tester · review · build — full TestFlight beta lifecycle (CI-safe)
 ├── app-store                 version · submit/cancel/status/release/reject · rollout · review-detail · info · categories · age-rating · privacy · apps (list + create) · pricing · availability (show + set) · territories · config (pull/push) (CI-safe; apps create needs Apple ID login)
@@ -179,14 +179,17 @@ better-update build --platform android --auto-submit          # or build + submi
 - **`update rollout`** is per-update %; **`channels rollout`** is a branch-level traffic split. They
   compose — you can ramp a channel onto a new branch while updates inside it have their own %.
 - **better-update DOES submit to stores from the CLI.** `better-update submit --platform ios|android`
-  uploads to App Store Connect (TestFlight via altool) or Google Play; `build --auto-submit` chains
-  build → submit. (It does not poll store _review_ — only the upload/submission.)
+  uploads to App Store Connect (via Apple's Build Upload API when an ASC key is the upload auth — live
+  progress bar — with `xcrun altool` as the app-specific-password path and automatic fallback) or
+  Google Play; `build --auto-submit` chains build → submit. (It does not poll store _review_ — only
+  the upload/submission.)
 - **`--what-to-test` has a length floor Apple won't document.** `submit` rejects empty or >4000-byte text
   before upload, but Apple also rejects _short_ strings ("too short" — e.g. `Fix`, and even `Bug fixes` in some
   reports) with no published minimum. Write a full sentence. If it trips after upload, fix it without
   re-uploading: `testflight build whats-new --latest --whats-new "<longer text>"`.
 - **`submit` is idempotent — just re-run it after a metadata failure.** It checks App Store Connect for the
-  IPA's build number before uploading; if the binary is already there it skips `altool` and only re-applies the
+  IPA's build number before uploading (and Apple 409s the Build Upload API's reserve step for a duplicate —
+  before any bytes upload); if the binary is already there it skips the upload and only re-applies the
   TestFlight config (so the "already been used" duplicate-build error can't strand you). When the upload
   succeeds but config fails, the submission is still recorded as **metadata-incomplete** (dashboard shows amber
   "Metadata pending" vs green "Complete"); the re-run that completes config updates that same row.
@@ -203,8 +206,10 @@ better-update build --platform android --auto-submit          # or build + submi
 - **A few App Store Connect ops are cookie-only (Apple ID login + 2FA, NOT CI-safe).** `app-review …`
   (Resolution Center: read App Review threads / rejection guideline codes / reply — text only), `apple asc-key
 list` + `credentials revoke asc-key` (the upstream ASC-key lifecycle), `app-store apps create`, `credentials
-bundle-id create --app-clip`, and `apple sandbox …` (IAP testers) all hit Apple's Iris API, which a JWT key
-  can't reach — they log in via `apple login` and fail with a clear error under `--non-interactive` / CI. A
+bundle-id create --app-clip`, and `apple sandbox create/delete` (IAP testers) all hit Apple's Iris API, which a
+  JWT key can't reach — they log in via `apple login` and fail with a clear error under `--non-interactive` /
+  CI. (`apple sandbox list` is token-first: it prefers the public ASC API when an ASC key is configured via
+  `--asc-api-key-id` or the submit profile, falling back to Apple ID login.) A
   rejected `app-store submit` is closed out with `app-review list` → `app-review rejections --thread <id>` →
   `app-review reply`.
 

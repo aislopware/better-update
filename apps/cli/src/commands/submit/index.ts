@@ -5,14 +5,17 @@ import { Effect } from "effect";
 import { runAndroidGooglePlayUpload } from "../../application/android-play-submit";
 import { needsTestFlightConfig } from "../../application/ios-testflight-config";
 import { ensureAscAppForSubmit } from "../../application/submit-asc-app";
-import { ensureAscApiKeyForSubmit } from "../../application/submit-asc-key";
 import {
-  createSubmissionViaApi,
-  hasAppleAppSpecificPassword,
+  ensureAscApiKeyForSubmit,
   resolveAscUploadCredentials,
+} from "../../application/submit-asc-key";
+import { createSubmissionViaApi } from "../../application/submit-flow";
+import {
+  fallbackPasswordAuth,
+  hasAppleAppSpecificPassword,
   resolveIosUploadAuth,
   runIosSubmit,
-} from "../../application/submit-flow";
+} from "../../application/submit-ios-upload";
 import { runEffect } from "../../lib/citty-effect";
 import { readSubmitProfile } from "../../lib/eas-json";
 import { printHuman } from "../../lib/output";
@@ -20,7 +23,7 @@ import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
-import type { IosSubmitOutcome } from "../../application/submit-flow";
+import type { IosSubmitOutcome } from "../../application/submit-ios-upload";
 import type {
   EasAndroidSubmitProfile,
   EasIosSubmitProfile,
@@ -126,8 +129,9 @@ interface RunArgs {
 
 /**
  * Run the iOS upload branch: resolve upload auth (stored key, app-specific
- * password, or an interactively-created ASC key), decrypt the `.p8` once, resolve
- * (or create) the ASC app for TestFlight config, then upload via `altool`.
+ * password, or an interactively-created ASC key), decrypt the `.p8` once,
+ * resolve (or create) the ASC app, then upload — via the App Store Connect
+ * Build Upload API when an ASC key is available (with progress), else `altool`.
  * Returns `null` when the submission was only queued (no client upload ran),
  * otherwise the submit outcome (build version + whether metadata was applied).
  */
@@ -163,7 +167,7 @@ const submitIosBranch = (params: {
       }));
     if (auth === null) {
       yield* printHuman(
-        "iOS submission queued. Add ascApiKeyId to the eas.json submit profile, or set appleId + the EXPO_APPLE_APP_SPECIFIC_PASSWORD env var, to enable client-side altool upload.",
+        "iOS submission queued. Add ascApiKeyId to the eas.json submit profile, or set appleId + the EXPO_APPLE_APP_SPECIFIC_PASSWORD env var, to enable the client-side store upload.",
       );
       return null;
     }
@@ -178,18 +182,32 @@ const submitIosBranch = (params: {
       ascApiKeyId: iosProfile?.ascApiKeyId,
       wantsConfig,
     });
-    // An asc-api-key upload cannot proceed without the decrypted .p8.
+    // An asc-api-key upload cannot proceed without the decrypted .p8 — but a
+    // configured app-specific password (the pre-flip winner) still can: degrade
+    // to it instead of skipping the upload a previous CLI performed.
+    let effectiveAuth = auth;
     if (auth.kind === "asc-api-key" && ascCredentials === null) {
+      const passwordAuth = fallbackPasswordAuth({
+        appleId: iosProfile?.appleId,
+        hasAppSpecificPassword: hasAppleAppSpecificPassword(),
+      });
+      if (passwordAuth === null) {
+        yield* printHuman(
+          "iOS submission queued — the ASC API key could not be prepared for upload.",
+        );
+        return null;
+      }
       yield* printHuman(
-        "iOS submission queued — the ASC API key could not be prepared for upload.",
+        "The ASC API key could not be prepared — falling back to the Apple ID app-specific password upload.",
       );
-      return null;
+      effectiveAuth = passwordAuth;
     }
 
-    // Resolve (and, with consent, create) the ASC app so TestFlight config has a
-    // target. Skipped when ascAppId is already set or no config is wanted.
+    // Resolve (and, with consent, create) the ASC app: TestFlight config needs
+    // it as a target, and the Build Upload API reserve call needs it for every
+    // asc-api-key upload. Skipped only when ascAppId is already configured.
     let resolvedAscAppId = iosProfile?.ascAppId;
-    if (wantsConfig && resolvedAscAppId === undefined && ascCredentials !== null) {
+    if (resolvedAscAppId === undefined && ascCredentials !== null) {
       // Best-effort: the better-update project name pre-fills the create-app prompt
       // for non-Expo projects (no app.json `expo.name` to default from).
       const defaultAppName = yield* api.projects.get({ path: { id: params.projectId } }).pipe(
@@ -211,14 +229,9 @@ const submitIosBranch = (params: {
       );
     }
 
-    yield* printHuman(
-      auth.kind === "app-specific-password"
-        ? "Running xcrun altool upload (Apple ID app-specific password)..."
-        : "Running xcrun altool upload (ASC API key)...",
-    );
     return yield* runIosSubmit({
       archive: { source: params.archive.archiveSource, value: params.archive.archiveUrl },
-      auth,
+      auth: effectiveAuth,
       ascCredentials,
       config: {
         bundleIdentifier: iosConfig.bundleIdentifier,

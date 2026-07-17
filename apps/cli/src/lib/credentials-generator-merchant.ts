@@ -9,7 +9,9 @@ import { wrap } from "./credentials-generator-apple";
 
 /**
  * Enable the Apple Pay capability on an App ID, registering the App ID first if
- * it does not exist yet. Returns once the capability is on.
+ * it does not exist yet. Returns once the capability is on. Works over both a
+ * token and a cookie `RequestContext` (apple-utils routes both through its
+ * provisioning client).
  */
 const enableApplePayCapability = (ctx: RequestContext, bundleIdentifier: string) =>
   Effect.gen(function* () {
@@ -50,13 +52,16 @@ export interface RegisteredMerchantId {
 }
 
 /**
- * Register an Apple Pay Merchant ID (`merchant.*`) on the Developer Portal via an
- * Apple ID session, optionally enabling the Apple Pay capability on an App ID.
- * This is the one piece of Apple Pay onboarding the portal API supports — the
- * payment-processing certificate itself is still created out-of-band (usually by
- * the PSP) and uploaded via `credentials upload --type apple-pay-certificate`.
+ * Register an Apple Pay Merchant ID (`merchant.*`), optionally enabling the
+ * Apple Pay capability on an App ID. Context-agnostic: over a headless token
+ * context apple-utils targets the public ASC REST API (`POST /v1/merchantIds`,
+ * attributes `identifier` + `name` only); over an Apple ID cookie context it
+ * proxies the same models through the Developer Portal. This is the one piece
+ * of Apple Pay onboarding those APIs support — the payment-processing
+ * certificate itself is still created out-of-band (usually by the PSP) and
+ * uploaded via `credentials upload --type apple-pay-certificate`.
  */
-export const registerMerchantIdViaAppleId = (input: RegisterMerchantIdInput) =>
+export const registerMerchantId = (input: RegisterMerchantIdInput) =>
   Effect.gen(function* () {
     const merchant = yield* wrap("apple-create-merchant-id", async () =>
       AppleUtils.MerchantId.createAsync(input.context, {

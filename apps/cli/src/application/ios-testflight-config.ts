@@ -103,19 +103,29 @@ export const resolveTestFlightAppId = (params: {
 
 /**
  * Find the uploaded build for a CFBundleVersion (the ASC `Build.version`),
- * returning `null` when none exists yet, else the newest match. ASC dedupes
- * uploads on the build number, so this identifies our exact build for both the
- * pre-upload "already there?" check and post-upload configuration.
+ * returning `null` when none exists yet, else the newest match. Apple dedupes
+ * uploads per (marketing version, build number) pair, so when `shortVersion`
+ * is known the lookup is scoped to that version train — a bare build-number
+ * match would false-positive against an older train that reused the number.
  */
 export const findBuildByVersion = (
   ctx: AppleUtils.RequestContext,
   appId: string,
   buildVersion: string,
+  shortVersion?: string,
 ): Effect.Effect<AppleUtils.Build | null, TestFlightConfigError> =>
   Effect.gen(function* () {
     const builds = yield* call("TESTFLIGHT_LIST_BUILDS_FAILED", "apple-list-builds", async () =>
       AppleUtils.Build.getAsync(ctx, {
-        query: { filter: { app: appId, version: buildVersion }, sort: "-uploadedDate", limit: 10 },
+        query: {
+          filter: {
+            app: appId,
+            version: buildVersion,
+            ...(shortVersion === undefined ? {} : { "preReleaseVersion.version": shortVersion }),
+          },
+          sort: "-uploadedDate",
+          limit: 10,
+        },
       }),
     );
     return toDbNull(builds[0]);
@@ -125,6 +135,7 @@ const pollForProcessedBuild = (params: {
   readonly ctx: AppleUtils.RequestContext;
   readonly appId: string;
   readonly buildVersion: string;
+  readonly shortVersion: string | undefined;
   readonly pollTimeoutMs: number;
   readonly pollIntervalMs: number;
 }) =>
@@ -143,6 +154,7 @@ const pollForProcessedBuild = (params: {
               params.ctx,
               params.appId,
               params.buildVersion,
+              params.shortVersion,
             );
             if (candidate !== null) {
               const processing = classifyProcessingState(candidate.attributes.processingState);
@@ -243,6 +255,8 @@ export interface ApplyTestFlightConfigInputs {
   readonly appId: string;
   /** CFBundleVersion of the uploaded build to configure. */
   readonly buildVersion: string;
+  /** CFBundleShortVersionString, to scope the build lookup to its version train. */
+  readonly shortVersion?: string | undefined;
   readonly language: string | undefined;
   readonly whatToTest: string | undefined;
   readonly groups: readonly string[];
@@ -264,6 +278,7 @@ export const applyTestFlightConfig = (inputs: ApplyTestFlightConfigInputs) =>
       ctx,
       appId: inputs.appId,
       buildVersion: inputs.buildVersion,
+      shortVersion: inputs.shortVersion,
       pollTimeoutMs: inputs.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS,
       pollIntervalMs: inputs.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
     });

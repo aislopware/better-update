@@ -123,6 +123,13 @@ export const promptText = (
     return handleCancel(value);
   });
 
+/**
+ * Raw progress-bar renderer for byte-progress reporting (lib/upload-progress).
+ * Unlike the prompts above it reads no input, so it takes no InteractiveMode
+ * gate here — the reporter decides TTY-appropriateness itself.
+ */
+export { progress as clackProgress } from "@clack/prompts";
+
 export const promptConfirm = (
   message: string,
   options?: { readonly initialValue?: boolean },
