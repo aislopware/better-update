@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.69.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.68.1...%40better-update%2Fcli%400.69.0) (2026-07-17)
+
+### Features
+
+* **cli:** prefer the App Store Connect public API over cookie sessions ([2798a9d](https://github.com/better-update/better-update/commit/2798a9d0968d21a88db3665d189bc66ad5193c23))
+
 ## [0.68.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.68.0...%40better-update%2Fcli%400.68.1) (2026-07-16)
 
 **Note:** Version bump only for package @better-update/cli

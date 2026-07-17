@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.56.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.56.0...%40better-update%2Fserver%400.56.1) (2026-07-17)
+
+**Note:** Version bump only for package @better-update/server
+
 ## [0.56.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.55.0...%40better-update%2Fserver%400.56.0) (2026-07-16)
 
 ### Features
