@@ -36,7 +36,8 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
-    "@tanstack/react-router": "^1.170.18"
+    "@tanstack/react-router": "^1.170.18",
+    "kysely": "^0.29.4"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
@@ -62,11 +63,11 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "kysely": "0.29.3"
+    "kysely": "0.29.4"
   },
   "packageManager": "bun@1.3.13",
   "patchedDependencies": {
     "@tanstack/react-router@1.170.18": "patches/@tanstack%2Freact-router@1.170.18.patch",
-    "kysely@0.29.3": "patches/kysely@0.29.3.patch"
+    "kysely@0.29.4": "patches/kysely@0.29.4.patch"
   }
 }
