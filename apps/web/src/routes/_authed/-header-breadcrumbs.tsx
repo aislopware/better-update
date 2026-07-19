@@ -1,4 +1,11 @@
 import {
+  buildQueryOptions,
+  channelQueryOptions,
+  projectBySlugQueryOptions,
+  submissionQueryOptions,
+  updateQueryOptions,
+} from "@better-update/api-client/react";
+import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -6,8 +13,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@better-update/ui/components/ui/breadcrumb";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { cn } from "@better-update/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { Link, getRouteApi, useRouterState } from "@tanstack/react-router";
 import { Fragment } from "react";
+
+import type { ReactNode } from "react";
 
 const ORG_SECTION_LABELS: Record<string, string> = {
   projects: "Projects",
@@ -63,9 +74,25 @@ const LIST_ROUTE_BY_SECTION: ReadonlyMap<string, ProjectListRoute> = new Map(
   Object.entries(PROJECT_LIST_ROUTES),
 );
 
+// Sections whose leaf crumb can resolve to a human name (channel name, update
+// message…) from the entity query cache the detail route itself populates.
+const ENTITY_SECTIONS = ["channels", "updates", "builds", "submissions"] as const;
+
+type EntitySection = (typeof ENTITY_SECTIONS)[number];
+
+const toEntitySection = (section: string): EntitySection | undefined =>
+  ENTITY_SECTIONS.find((candidate) => candidate === section);
+
+interface EntityRef {
+  readonly section: EntitySection;
+  readonly id: string;
+  readonly projectSlug: string;
+}
+
 interface Crumb {
   readonly label: string;
   readonly mono?: boolean;
+  readonly entity?: EntityRef;
   readonly link?: {
     readonly to: ProjectListRoute | "/account";
     readonly params?: { readonly projectSlug: string };
@@ -106,7 +133,17 @@ const projectDetailCrumbs = (
   if (section === "runtimes") {
     return [sectionCrumb, { label: `v${decodeURIComponent(first)}` }];
   }
-  return [sectionCrumb, { label: shortId(first), mono: true }];
+  const entitySection = toEntitySection(section);
+  return [
+    sectionCrumb,
+    entitySection
+      ? {
+          label: shortId(first),
+          mono: true,
+          entity: { section: entitySection, id: decodeURIComponent(first), projectSlug },
+        }
+      : { label: shortId(first), mono: true },
+  ];
 };
 
 const projectCrumbs = (projectSlug: string, rest: readonly string[]): readonly Crumb[] => {
@@ -123,7 +160,7 @@ const projectCrumbs = (projectSlug: string, rest: readonly string[]): readonly C
 const orgCrumbs = (segments: readonly string[]): readonly Crumb[] => {
   const [first, second] = segments;
   if (!first) {
-    return [{ label: "Projects" }];
+    return [{ label: "Overview" }];
   }
   if (first === "account" && second) {
     return [
@@ -134,10 +171,120 @@ const orgCrumbs = (segments: readonly string[]): readonly Crumb[] => {
   return [{ label: ORG_SECTION_LABELS[first] ?? first }];
 };
 
+const appRoute = getRouteApi("/_authed/_app");
+
+/**
+ * Leaf crumb for an entity detail page: shows the entity's human name once the
+ * detail route's own query resolves, falling back to the short mono id.
+ */
+const EntityLeaf = ({ name, fallback }: { name: string | undefined; fallback: string }) => {
+  const label = name?.trim() ? name : undefined;
+  return (
+    <BreadcrumbPage className={cn("truncate font-medium", !label && "font-mono text-xs")}>
+      {label ?? fallback}
+    </BreadcrumbPage>
+  );
+};
+
+/**
+ * Read-only subscription (`enabled: false`) to the project-by-slug cache the
+ * `$projectSlug` route's beforeLoad already populated — never a second fetch.
+ */
+const useCachedProject = (projectSlug: string) => {
+  const { activeOrg } = appRoute.useRouteContext();
+  const { data: project } = useQuery({
+    ...projectBySlugQueryOptions(activeOrg.id, projectSlug),
+    enabled: false,
+  });
+  return { orgId: activeOrg.id, projectId: project?.id };
+};
+
+interface EntityCrumbProps {
+  readonly entity: EntityRef;
+  readonly fallback: string;
+}
+
+interface ProjectEntityCrumbProps {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly entityId: string;
+  readonly fallback: string;
+}
+
+const ChannelCrumbName = ({ orgId, projectId, entityId, fallback }: ProjectEntityCrumbProps) => {
+  const { data: channel } = useQuery({
+    ...channelQueryOptions(orgId, projectId, entityId),
+    enabled: false,
+  });
+  return <EntityLeaf name={channel?.name} fallback={fallback} />;
+};
+
+const ChannelCrumb = ({ entity, fallback }: EntityCrumbProps) => {
+  const { orgId, projectId } = useCachedProject(entity.projectSlug);
+  return projectId ? (
+    <ChannelCrumbName
+      orgId={orgId}
+      projectId={projectId}
+      entityId={entity.id}
+      fallback={fallback}
+    />
+  ) : (
+    <EntityLeaf name={undefined} fallback={fallback} />
+  );
+};
+
+const UpdateCrumbName = ({ orgId, projectId, entityId, fallback }: ProjectEntityCrumbProps) => {
+  const { data: update } = useQuery({
+    ...updateQueryOptions(orgId, projectId, entityId),
+    enabled: false,
+  });
+  return <EntityLeaf name={update?.message} fallback={fallback} />;
+};
+
+const UpdateCrumb = ({ entity, fallback }: EntityCrumbProps) => {
+  const { orgId, projectId } = useCachedProject(entity.projectSlug);
+  return projectId ? (
+    <UpdateCrumbName orgId={orgId} projectId={projectId} entityId={entity.id} fallback={fallback} />
+  ) : (
+    <EntityLeaf name={undefined} fallback={fallback} />
+  );
+};
+
+const BuildCrumb = ({ entity, fallback }: EntityCrumbProps) => {
+  const { orgId } = useCachedProject(entity.projectSlug);
+  const { data: build } = useQuery({ ...buildQueryOptions(orgId, entity.id), enabled: false });
+  return <EntityLeaf name={build?.message ?? build?.profile} fallback={fallback} />;
+};
+
+const SubmissionCrumb = ({ entity, fallback }: EntityCrumbProps) => {
+  const { orgId } = useCachedProject(entity.projectSlug);
+  const { data: submission } = useQuery({
+    ...submissionQueryOptions(orgId, entity.id),
+    enabled: false,
+  });
+  return (
+    <EntityLeaf
+      name={submission?.buildVersion ? `Build ${submission.buildVersion}` : undefined}
+      fallback={fallback}
+    />
+  );
+};
+
+const ENTITY_CRUMBS: Record<EntitySection, (props: EntityCrumbProps) => ReactNode> = {
+  channels: ChannelCrumb,
+  updates: UpdateCrumb,
+  builds: BuildCrumb,
+  submissions: SubmissionCrumb,
+};
+
 // Split render paths so `params` is only passed when present
 // (exactOptionalPropertyTypes rejects an explicit undefined).
 const CrumbContent = ({ crumb, isLast }: { crumb: Crumb; isLast: boolean }) => {
   const labelClass = crumb.mono ? "truncate font-mono text-xs" : "truncate";
+  if (crumb.entity && isLast) {
+    const EntityCrumb = ENTITY_CRUMBS[crumb.entity.section];
+    return <EntityCrumb entity={crumb.entity} fallback={crumb.label} />;
+  }
   if (crumb.link && !isLast) {
     return (
       <CrumbLink link={crumb.link} className={labelClass}>
@@ -170,8 +317,9 @@ const CrumbLink = ({
 
 /**
  * Path-derived breadcrumb trail rendered next to the ProjectSwitcher (which
- * acts as the root crumb). Detail pages get a linked list crumb + a short
- * identifier leaf, Vercel-style — hence the `/` separator override.
+ * acts as the root crumb). Detail pages get a linked list crumb + a leaf that
+ * resolves to the entity's human name from the route's query cache (short mono
+ * id until then), Vercel-style — hence the `/` separator override.
  */
 export const HeaderBreadcrumbs = ({ projectSlug }: { projectSlug: string | undefined }) => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });

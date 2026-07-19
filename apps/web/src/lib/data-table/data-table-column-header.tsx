@@ -6,6 +6,7 @@ import { ChevronsUpDownIcon } from "lucide-react";
 
 import type { Header } from "@tanstack/react-table";
 
+import { headerAlignsRight } from "./column-meta";
 import { SortIcon, toAriaSort } from "./sort-icon";
 
 /**
@@ -17,7 +18,7 @@ import { SortIcon, toAriaSort } from "./sort-icon";
 export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData, unknown> }) => {
   const { column } = header;
   const { meta } = column.columnDef;
-  const alignRight = meta?.align === "right";
+  const alignRight = headerAlignsRight(meta);
   const content = header.isPlaceholder
     ? null
     : flexRender(column.columnDef.header, header.getContext());
@@ -38,10 +39,7 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
   };
 
   return (
-    <TableHead
-      aria-sort={toAriaSort(sortDir)}
-      className={cn(alignRight && "text-right", "[&:has([role=checkbox])]:pr-0")}
-    >
+    <TableHead aria-sort={toAriaSort(sortDir)} className={cn(alignRight && "text-right")}>
       <Button
         variant="ghost"
         size="sm"

@@ -6,7 +6,7 @@ import { useRef } from "react";
 import type { Arc, COBEOptions, Globe, Marker } from "cobe";
 import type { CSSProperties } from "react";
 
-import { BrandIcon } from "./brand-mark";
+import { BrandBackdrop, BrandIcon } from "./brand-mark";
 
 interface Edge {
   readonly id: string;
@@ -365,8 +365,7 @@ export const HeroMotion = () => {
 
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none">
-      <div className="absolute top-[18%] right-[-8%] size-[520px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.22_275/0.12)_0%,transparent_65%)] blur-3xl dark:bg-[radial-gradient(circle,oklch(0.55_0.24_275/0.22)_0%,transparent_65%)]" />
-      <div className="absolute bottom-[-12%] left-[-10%] size-[440px] rounded-full bg-[radial-gradient(circle,oklch(0.7_0.16_220/0.14)_0%,transparent_65%)] blur-3xl dark:bg-[radial-gradient(circle,oklch(0.55_0.2_220/0.22)_0%,transparent_65%)]" />
+      <BrandBackdrop />
       <div className="absolute inset-0 flex items-center justify-center lg:justify-end">
         <div className="pointer-events-auto relative aspect-square w-full max-w-[620px] translate-x-[18%] lg:max-w-[700px] lg:translate-x-[28%] xl:max-w-[780px] xl:translate-x-[30%] 2xl:max-w-[860px] 2xl:translate-x-[32%]">
           <canvas
@@ -405,7 +404,7 @@ export const HeroMotion = () => {
           {EDGES.map((edge) => (
             <span
               key={`label-${edge.id}`}
-              className="bg-background text-foreground ring-border/60 pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm ring-1 transition-opacity duration-300 ease-out"
+              className="bg-background text-foreground ring-border/60 pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm ring-1 transition-opacity duration-300 ease-out max-lg:hidden"
               style={edgeLabelStyle(edge.id)}
             >
               {edge.label}
@@ -414,7 +413,7 @@ export const HeroMotion = () => {
           {ARCS.map((arc) => (
             <span
               key={arc.id}
-              className="bg-foreground text-background pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm transition-opacity duration-300 ease-out"
+              className="bg-foreground text-background pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm transition-opacity duration-300 ease-out max-lg:hidden"
               style={arcLabelStyle(arc.id)}
             >
               {arc.label}

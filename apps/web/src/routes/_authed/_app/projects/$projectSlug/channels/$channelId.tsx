@@ -8,16 +8,6 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
-import { Progress } from "@better-update/ui/components/ui/progress";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
@@ -37,7 +27,7 @@ import { parseRolloutState } from "../-channel-rollout-state";
 import { ChannelStatusBadge } from "../-channel-status-badge";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { invalidateChannels } from "../-update-helpers";
-import { PageHeader } from "../../../../../../components/page-header";
+import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { StatCard } from "../../../../../../components/stat-card";
@@ -47,27 +37,13 @@ import { RelativeTime } from "../../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <RadioTowerIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>Channel not found in this project</EmptyTitle>
-        <EmptyDescription>
-          The requested channel does not belong to this project or was removed.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button
-          variant="outline"
-          render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
-        >
-          Back to project
-        </Button>
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <DetailNotFound
+    icon={<RadioTowerIcon strokeWidth={1.5} />}
+    title="Channel not found in this project"
+    description="The requested channel does not belong to this project or was removed."
+    backLink={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
+    backLabel="Back to project"
+  />
 );
 
 const ChannelHeaderActions = ({
@@ -90,7 +66,7 @@ const ChannelHeaderActions = ({
   });
 
   return (
-    <div className="flex items-center gap-2">
+    <>
       <Button
         variant="outline"
         disabled={togglePauseMutation.isPending}
@@ -110,7 +86,7 @@ const ChannelHeaderActions = ({
       {channel.isBuiltin ? null : (
         <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
       )}
-    </div>
+    </>
   );
 };
 
@@ -143,7 +119,10 @@ const ChannelSummaryCards = ({
         <div className="flex flex-col items-start gap-2">
           <ChannelStatusBadge channel={channel} />
           {rolloutState ? (
-            <Progress value={rolloutState.percentage} className="w-full max-w-xs" />
+            <span className="text-muted-foreground text-sm tabular-nums">
+              {rolloutState.percentage}% →{" "}
+              {channel.rolloutTargetBranchName ?? rolloutState.targetBranchId.slice(0, 8)}
+            </span>
           ) : null}
         </div>
       </StatCard>
@@ -162,7 +141,7 @@ const ChannelSummaryCards = ({
 
 const ChannelDetailSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Channel" />
+    <DetailHeader title="Channel" />
     <SummaryCardsSkeleton count={4} />
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <DetailCardSkeleton rows={3} columns={2} />
@@ -206,25 +185,25 @@ const ChannelDetailBody = ({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">
-            <span className="truncate">{channel.name}</span>
-            {channel.isBuiltin ? (
-              <Badge variant="outline" className="text-muted-foreground">
-                Built-in
-              </Badge>
-            ) : null}
-          </h1>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <DetailHeader
+        title={channel.name}
+        badges={
+          channel.isBuiltin ? (
+            <Badge variant="outline" className="text-muted-foreground">
+              Built-in
+            </Badge>
+          ) : null
+        }
+        meta={
+          <>
             <CopyableId value={channel.id} label="Channel ID" />
             <span>
               Created <RelativeTime value={channel.createdAt} />
             </span>
-          </div>
-        </div>
-        <ChannelHeaderActions channel={channel} orgId={orgId} projectId={projectId} />
-      </div>
+          </>
+        }
+        actions={<ChannelHeaderActions channel={channel} orgId={orgId} projectId={projectId} />}
+      />
 
       <ChannelSummaryCards
         channel={channel}
@@ -263,7 +242,7 @@ const ChannelDetailContent = () => {
   if (channelError) {
     return getTypedApiError(channelError)?._tag === "NotFound" ? (
       <>
-        <PageHeader size="sub" title="Channel details" />
+        <DetailHeader title="Channel details" />
         <ChannelNotFoundState projectSlug={project.slug} />
       </>
     ) : (
@@ -278,7 +257,7 @@ const ChannelDetailContent = () => {
   if (channel.projectId !== projectId) {
     return (
       <>
-        <PageHeader size="sub" title="Channel details" />
+        <DetailHeader title="Channel details" />
         <ChannelNotFoundState projectSlug={project.slug} />
       </>
     );

@@ -29,7 +29,9 @@ export const QueryErrorState = ({ error, onRetry }: QueryErrorStateProps) => {
     <Card>
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon">{forbidden ? <LockIcon /> : <TriangleAlertIcon />}</EmptyMedia>
+          <EmptyMedia variant="icon" tone="restricted">
+            {forbidden ? <LockIcon /> : <TriangleAlertIcon />}
+          </EmptyMedia>
           <EmptyTitle>{forbidden ? "You do not have access" : "Something went wrong"}</EmptyTitle>
           <EmptyDescription>
             {forbidden

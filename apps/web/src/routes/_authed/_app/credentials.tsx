@@ -9,14 +9,18 @@ import {
   googleServiceAccountKeysQueryOptions,
   meQueryOptions,
 } from "@better-update/api-client/react";
+import { Alert, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { TriangleAlertIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 
 import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { assertCapability, isOrgAdmin } from "../../../lib/access";
+import { deriveExpiryStatus } from "../../../lib/credential-status";
 import { ClientPaginationFooter, useClientPagination } from "../../../lib/data-table";
+import { pluralize } from "../../../lib/pluralize";
 import {
   AppleTeamsEmptyState,
   AppleTeamsTable,
@@ -49,6 +53,50 @@ const useAppleChildSection = (orgId: string) => {
   const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
   const { data: me } = useSuspenseQuery(meQueryOptions());
   return { teamsById, canManageProtection: isOrgAdmin(me.orgRole) };
+};
+
+/**
+ * Rollup message across every expiring credential type, from tones the tables
+ * already derive per row (lib/credential-status). Null when nothing is at risk.
+ */
+const expiryRollupMessage = (
+  items: readonly { readonly validUntil: string | null }[],
+  now: Date = new Date(),
+): string | null => {
+  const tones = items.map((item) => deriveExpiryStatus(item.validUntil, now).tone);
+  const expired = tones.filter((tone) => tone === "error").length;
+  const expiringSoon = tones.filter((tone) => tone === "warning").length;
+  const parts = [
+    expired > 0
+      ? `${expired} ${pluralize(expired, "certificate")} ${expired === 1 ? "has" : "have"} expired`
+      : null,
+    expiringSoon > 0
+      ? `${expiringSoon} ${pluralize(expiringSoon, "certificate")} ${expiringSoon === 1 ? "expires" : "expire"} within 30 days`
+      : null,
+  ].filter((part) => part !== null);
+  return parts.length > 0 ? parts.join(" · ") : null;
+};
+
+// Slim attention banner above the sections. Reads the same queries the cert
+// sections below suspend on (react-query dedupes), so no extra data is loaded.
+const ExpiryRollupBanner = ({ orgId }: { orgId: string }) => {
+  const { data: distribution } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
+  const { data: push } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
+  const { data: pay } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
+  const { data: passType } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
+  const message = expiryRollupMessage([
+    ...distribution.items,
+    ...push.items,
+    ...pay.items,
+    ...passType.items,
+  ]);
+
+  return message === null ? null : (
+    <Alert variant="warning">
+      <TriangleAlertIcon />
+      <AlertTitle>{message}</AlertTitle>
+    </Alert>
+  );
 };
 
 const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
@@ -307,6 +355,9 @@ const Credentials = () => {
         title="Credentials"
         description="Apple and Google credentials shared across all projects in this organization."
       />
+      <Suspense fallback={null}>
+        <ExpiryRollupBanner orgId={orgId} />
+      </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <DistributionCertificatesSection orgId={orgId} />
       </Suspense>

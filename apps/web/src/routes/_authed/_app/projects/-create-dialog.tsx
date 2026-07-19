@@ -10,7 +10,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
@@ -122,10 +128,10 @@ export const CreateProjectFormContent = ({
                   }}
                   onBlur={field.handleBlur}
                 />
-                <p className="text-muted-foreground text-xs">
+                <FieldDescription>
                   Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
                   in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
-                </p>
+                </FieldDescription>
                 {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );

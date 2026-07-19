@@ -44,15 +44,15 @@ interface StatCardProps {
 }
 
 /**
- * KPI/stat tile (dashboard-01 section-cards pattern): gradient-tinted Card with
- * label, big value, optional action badge and footnote.
+ * KPI/stat tile (dashboard-01 section-cards pattern): plain Card with label,
+ * big tabular value, optional action badge and footnote.
  */
 export const StatCard = ({ label, value, action, children, footer, className }: StatCardProps) => (
-  <Card className={cn("from-primary/5 to-card dark:bg-card bg-gradient-to-t shadow-xs", className)}>
+  <Card className={className}>
     <CardHeader>
       <CardDescription>{label}</CardDescription>
       {value === undefined ? null : (
-        <CardTitle className="text-xl font-semibold tabular-nums">{value}</CardTitle>
+        <CardTitle className="text-2xl font-semibold tabular-nums">{value}</CardTitle>
       )}
       {action ? <CardAction>{action}</CardAction> : null}
     </CardHeader>

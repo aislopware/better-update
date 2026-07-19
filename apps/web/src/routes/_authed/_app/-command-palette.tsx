@@ -9,6 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from "@better-update/ui/components/ui/command";
+import { Kbd } from "@better-update/ui/components/ui/kbd";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
@@ -251,6 +252,18 @@ export const CommandPalette = ({
           <ProjectsGroup orgId={orgId} enabled={open} query={deferredQuery} close={close} />
           <ThemeGroup close={close} />
         </CommandList>
+        <div className="border-border-subtle text-muted-foreground flex items-center gap-3 border-t px-2.5 py-1.5 text-xs">
+          <span className="inline-flex items-center gap-1">
+            <Kbd>↵</Kbd> select
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd> navigate
+          </span>
+          <span className="ml-auto inline-flex items-center gap-1">
+            <Kbd>esc</Kbd> close
+          </span>
+        </div>
       </Command>
     </CommandDialog>
   );

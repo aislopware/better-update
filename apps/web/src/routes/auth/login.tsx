@@ -76,11 +76,11 @@ const LeftHero = () => (
 );
 
 const HeroHeadline = () => (
-  <div className="hidden max-w-[22ch] flex-col gap-3 lg:flex">
-    <h1 className="font-heading text-foreground text-3xl leading-[1.1] font-semibold tracking-tight text-balance xl:text-4xl">
+  <div className="flex max-w-[22ch] flex-col gap-3">
+    <h1 className="font-heading text-foreground text-2xl leading-[1.1] font-semibold tracking-tight text-balance lg:text-3xl xl:text-4xl">
       Ship updates at the speed of code.
     </h1>
-    <p className="text-muted-foreground max-w-[32ch] text-sm leading-relaxed">
+    <p className="text-muted-foreground hidden max-w-[32ch] text-sm leading-relaxed sm:block">
       Over-the-air delivery for React Native, across 330+ edge cities in 125+ countries.
     </p>
   </div>
@@ -118,7 +118,7 @@ interface AuthPanelProps {
 }
 
 const AuthPanel = ({ onGithub, onGoogle, isGithubPending, isGooglePending }: AuthPanelProps) => (
-  <section className="bg-background/60 relative flex items-center justify-center px-6 py-12 backdrop-blur-sm sm:px-10 lg:px-12">
+  <section className="relative flex items-center justify-center px-6 py-12 sm:px-10 lg:px-12">
     <div className="flex w-full max-w-sm flex-col gap-8">
       <AuthHeader />
       <div className="flex flex-col gap-3">

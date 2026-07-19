@@ -14,14 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { PackageXIcon } from "lucide-react";
@@ -38,7 +30,7 @@ import {
   DistributionIndicator,
   PlatformIndicator,
 } from "../../../../../../components/attribute-badges";
-import { PageHeader } from "../../../../../../components/page-header";
+import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
 import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
@@ -84,7 +76,7 @@ const BuildMetadataCard = ({
           <div className="font-medium">Missing</div>
         ) : (
           <div className="flex items-center gap-1">
-            <span className="font-medium">{build.bundleId}</span>
+            <span className="min-w-0 font-mono text-sm break-all">{build.bundleId}</span>
             <CopyButton value={build.bundleId} label="Bundle ID" />
           </div>
         )}
@@ -334,33 +326,45 @@ const RelatedChannelsCard = ({
 };
 
 const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <PackageXIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>Build not found in this project</EmptyTitle>
-        <EmptyDescription>
-          The requested build exists outside this project or was removed.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button
-          variant="outline"
-          render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
-        >
-          Back to project
-        </Button>
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <DetailNotFound
+    icon={<PackageXIcon strokeWidth={1.5} />}
+    title="Build not found in this project"
+    description="The requested build exists outside this project or was removed."
+    backLink={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
+    backLabel="Back to project"
+  />
+);
+
+// Build meta chips: platform + distribution + mono version/git identifiers,
+// closed by the created-at sentence.
+const BuildHeaderMeta = ({ build }: { build: BuildWithArtifact }) => (
+  <>
+    <PlatformIndicator platform={build.platform} />
+    <DistributionIndicator distribution={build.distribution} />
+    {build.runtimeVersion ? (
+      <span className="font-mono text-xs">v{build.runtimeVersion}</span>
+    ) : null}
+    {build.appVersion ? (
+      <span className="font-mono text-xs">
+        App {build.appVersion}
+        {build.buildNumber ? ` (#${build.buildNumber})` : ""}
+      </span>
+    ) : null}
+    {build.gitRef ? (
+      <span className="font-mono text-xs">
+        {build.gitRef}
+        {build.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+      </span>
+    ) : null}
+    <span>
+      Created <RelativeTime value={build.createdAt} />
+    </span>
+  </>
 );
 
 /**
- * Detail-page header block: title + quiet meta line + the build's actions.
- * Replaces the old PageHeader + hero-card combo that duplicated the title and
- * the compatible-channels section.
+ * Detail-page header: shared DetailHeader anatomy with the build's title,
+ * meta chips, and install/download/delete actions.
  */
 const BuildDetailHeader = ({
   build,
@@ -371,47 +375,28 @@ const BuildDetailHeader = ({
   orgId: string;
   projectId: string;
 }) => (
-  <div className="flex flex-wrap items-start justify-between gap-4">
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <h1 className="truncate text-lg font-semibold tracking-tight">
-        {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
-      </h1>
-      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <PlatformIndicator platform={build.platform} />
-        <DistributionIndicator distribution={build.distribution} />
-        {build.runtimeVersion ? (
-          <span className="font-mono text-xs">v{build.runtimeVersion}</span>
+  <DetailHeader
+    title={(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
+    meta={<BuildHeaderMeta build={build} />}
+    actions={
+      <>
+        {build.artifact ? (
+          <>
+            <InstallLinkDialog build={build} buttonVariant="outline" buttonLabel="Install" />
+            <Button
+              variant="outline"
+              render={
+                <a aria-label="Download artifact" href={`/api/builds/${build.id}/artifact`} />
+              }
+            >
+              Download
+            </Button>
+          </>
         ) : null}
-        {build.appVersion ? (
-          <span className="font-mono text-xs">
-            App {build.appVersion}
-            {build.buildNumber ? ` (#${build.buildNumber})` : ""}
-          </span>
-        ) : null}
-        {build.gitRef ? (
-          <span className="font-mono text-xs">
-            {build.gitRef}
-            {build.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
-          </span>
-        ) : null}
-        <RelativeTime value={build.createdAt} />
-      </div>
-    </div>
-    <div className="flex shrink-0 items-center gap-2">
-      {build.artifact ? (
-        <>
-          <InstallLinkDialog build={build} buttonVariant="outline" buttonLabel="Install" />
-          <Button
-            variant="outline"
-            render={<a aria-label="Download artifact" href={`/api/builds/${build.id}/artifact`} />}
-          >
-            Download
-          </Button>
-        </>
-      ) : null}
-      <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />
-    </div>
-  </div>
+        <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />
+      </>
+    }
+  />
 );
 
 const BuildDetailContent = () => {
@@ -451,7 +436,7 @@ const BuildDetailContent = () => {
 
 const BuildDetailSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Build" />
+    <DetailHeader title="Build" />
     <DetailCardSkeleton rows={2} columns={2} />
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <DetailCardSkeleton rows={3} columns={2} />

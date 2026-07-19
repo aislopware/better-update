@@ -13,10 +13,11 @@ import { Suspense } from "react";
 import type { SubmissionItem } from "@better-update/api-client/react";
 
 import { PlatformBadge, SubmissionMetadataBadge } from "../../../../../components/attribute-badges";
-import { PageHeader } from "../../../../../components/page-header";
+import { DetailHeader } from "../../../../../components/detail-header";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../lib/relative-time";
 
 const DetailRow = ({
   label,
@@ -42,13 +43,15 @@ const DetailRow = ({
 
 const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
   <>
-    <PageHeader
-      size="sub"
-      title={
-        <span className="flex flex-wrap items-center gap-2">
-          Submission
+    <DetailHeader
+      title="Submission"
+      meta={
+        <>
           <CopyableId value={submission.id} label="Submission ID" />
-        </span>
+          <span>
+            Created <RelativeTime value={submission.createdAt} />
+          </span>
+        </>
       }
     />
     <Card>
@@ -131,7 +134,7 @@ const SubmissionDetailContainer = ({
 
 const SubmissionDetailSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Submission" />
+    <DetailHeader title="Submission" />
     <DetailCardSkeleton rows={6} columns={1} />
   </>
 );

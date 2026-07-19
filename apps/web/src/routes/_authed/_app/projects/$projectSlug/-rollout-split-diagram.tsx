@@ -1,4 +1,4 @@
-import { GitBranchIcon } from "lucide-react";
+import { CircleCheckIcon, GitBranchIcon } from "lucide-react";
 
 interface RolloutSplitDiagramProps {
   readonly oldBranchName: string;
@@ -32,7 +32,7 @@ export const RolloutSplitDiagram = ({
       <div className="bg-muted relative h-7 overflow-hidden rounded-lg" aria-hidden="true">
         {oldPercent > 0 ? (
           <div
-            className="bg-muted-foreground/40 absolute inset-y-0 left-0 transition-[width] duration-300"
+            className="bg-muted-foreground/70 absolute inset-y-0 left-0 transition-[width] duration-300"
             style={{ width: `${oldPercent}%` }}
           />
         ) : null}
@@ -42,19 +42,32 @@ export const RolloutSplitDiagram = ({
             style={{ width: `${newPercent}%` }}
           />
         ) : null}
+        {oldPercent > 0 && newPercent > 0 ? (
+          <div
+            className="bg-card absolute inset-y-0 w-px transition-[left] duration-300"
+            style={{ left: `${oldPercent}%` }}
+          />
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="text-muted-foreground flex items-center gap-1.5">
-          <span className="bg-muted-foreground/40 size-2 rounded-full" aria-hidden="true" />
+          <span className="bg-muted-foreground/70 size-2 rounded-full" aria-hidden="true" />
           <GitBranchIcon strokeWidth={2} className="size-3" />
           <span className="font-medium">{oldBranchName}</span>
-          <span>{oldPercent}%</span>
+          <span className="tabular-nums">{oldPercent}%</span>
         </div>
         <div className="text-foreground flex items-center gap-1.5">
           <span className="bg-primary size-2 rounded-full" aria-hidden="true" />
           <GitBranchIcon strokeWidth={2} className="size-3" />
           <span className="font-medium">{newBranchName}</span>
-          <span>{newPercent}%</span>
+          <span className="tabular-nums">{newPercent}%</span>
+          {newPercent === 100 ? (
+            <CircleCheckIcon
+              strokeWidth={2}
+              className="text-success size-3.5"
+              aria-label="Rollout at 100%"
+            />
+          ) : null}
         </div>
       </div>
     </div>

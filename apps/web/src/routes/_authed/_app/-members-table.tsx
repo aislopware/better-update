@@ -57,11 +57,11 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
       </div>
     );
   }
+  // One avatar implementation everywhere: invited rows use EntityAvatar too,
+  // seeded by email; the "Invited" caption + Pending status carry the state.
   return (
     <div className="flex items-center gap-3">
-      <span className="bg-muted/72 text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-medium">
-        {row.email.charAt(0).toUpperCase()}
-      </span>
+      <EntityAvatar name={row.email} className="size-9" />
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-sm leading-none font-medium">{row.email}</span>
         <span className="text-muted-foreground truncate text-xs">Invited</span>

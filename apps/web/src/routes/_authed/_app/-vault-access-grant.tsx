@@ -20,6 +20,7 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { SectionHeader } from "../../../components/page-header";
 import { CopyableMono } from "../../../lib/copy-button";
 import { useEnvVault } from "../../../lib/env-vault/use-env-vault";
 import { RelativeTime } from "../../../lib/relative-time";
@@ -172,20 +173,22 @@ export const VaultAccessGrant = ({ orgId }: { orgId: string }) => {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">Env-vault access</h2>
-        {vault.unlocked ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              vault.lock();
-            }}
-          >
-            Lock
-          </Button>
-        ) : null}
-      </div>
+      <SectionHeader
+        title="Env-vault access"
+        actions={
+          vault.unlocked ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                vault.lock();
+              }}
+            >
+              Lock
+            </Button>
+          ) : undefined
+        }
+      />
       {vault.unlocked ? (
         <div className="max-h-[40vh] overflow-y-auto rounded-md border">
           <PendingGrants orgId={orgId} unlocked={vault.unlocked} />

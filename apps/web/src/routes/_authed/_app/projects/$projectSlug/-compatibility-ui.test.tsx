@@ -81,12 +81,16 @@ describe("compatibility UI", () => {
       />,
     );
 
-    expect(screen.getByText("Builds × Channels")).toBeInTheDocument();
-    expect(screen.getByText("Missing native builds")).toBeInTheDocument();
+    expect(screen.getByText("Builds × channels")).toBeInTheDocument();
+    expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("iOS build")).toBeInTheDocument();
-    expect(screen.getByText("Canary release")).toBeInTheDocument();
-    expect(screen.getAllByText("Rollout active").length).toBeGreaterThan(0);
-    expect(screen.getByText("1 update, latest Native change")).toBeInTheDocument();
+    // Cells are glyphs — the words live in the accessible label + tooltip.
+    expect(screen.getByLabelText("2 updates servable")).toBeInTheDocument();
+    expect(screen.getByLabelText("Channel paused — updates are not served")).toBeInTheDocument();
+    // The shared warning names the channel (also a column header) and the gap.
+    expect(screen.getAllByText("production").length).toBeGreaterThan(1);
+    expect(screen.getByText("v3.0.0")).toBeInTheDocument();
+    expect(screen.getByText("1 update but no uploaded build.")).toBeInTheDocument();
   });
 
   it("renders missing matching builds warnings", () => {

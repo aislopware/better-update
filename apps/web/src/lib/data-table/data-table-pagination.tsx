@@ -8,8 +8,6 @@ import {
 
 export interface DataTablePaginationProps {
   readonly countLabel: string;
-  /** When rows are selectable, shown instead of countLabel while a selection exists. */
-  readonly selectedCount?: number;
   readonly safePage: number;
   readonly totalPages: number;
   readonly isPlaceholderData: boolean;
@@ -42,21 +40,18 @@ const PageButton = ({
 );
 
 /**
- * Pagination row rendered below the table (shadcn data-table pattern): count /
- * selection summary on the left; page indicator + first/prev/next/last on the right.
+ * Pagination row rendered below the table (shadcn data-table pattern): count
+ * on the left; page indicator + first/prev/next/last on the right.
  */
 export const DataTablePagination = ({
   countLabel,
-  selectedCount = 0,
   safePage,
   totalPages,
   isPlaceholderData,
   onChange,
 }: DataTablePaginationProps) => (
   <div className="flex items-center justify-between gap-2">
-    <span className="text-muted-foreground text-xs tabular-nums">
-      {selectedCount > 0 ? `${selectedCount} selected` : countLabel}
-    </span>
+    <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
     <div className="flex items-center gap-4">
       <span className="text-muted-foreground hidden text-xs font-normal tabular-nums sm:inline">
         Page {safePage} of {totalPages}

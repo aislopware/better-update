@@ -31,7 +31,7 @@ import { FingerprintIcon, TriangleAlertIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { CliCommandBlock } from "../../../components/cli-command-block";
-import { PageHeader } from "../../../components/page-header";
+import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { TableSkeleton } from "../../../components/skeletons";
 import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
@@ -131,7 +131,7 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
 };
 
 const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
-  <Alert className="text-warning *:data-[slot=alert-description]:text-warning/90">
+  <Alert variant="warning">
     <TriangleAlertIcon />
     <AlertTitle>Rotation required</AlertTitle>
     <AlertDescription>
@@ -144,7 +144,7 @@ const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
 );
 
 const EnvRotationPendingBanner = () => (
-  <Alert className="text-warning *:data-[slot=alert-description]:text-warning/90">
+  <Alert variant="warning">
     <TriangleAlertIcon />
     <AlertTitle>Env rotation required</AlertTitle>
     <AlertDescription>
@@ -172,11 +172,15 @@ const VaultSectionHeading = ({
   version: number;
   summary: string;
 }) => (
-  <div className="flex items-center gap-2">
-    <h2 className="text-sm font-medium">{title}</h2>
-    <Badge variant="outline">v{version}</Badge>
-    <span className="text-muted-foreground text-sm">{summary}</span>
-  </div>
+  <SectionHeader
+    title={
+      <span className="flex items-center gap-2">
+        {title}
+        <Badge variant="outline">v{version}</Badge>
+      </span>
+    }
+    description={summary}
+  />
 );
 
 const EnvVaultRecipientsSection = ({

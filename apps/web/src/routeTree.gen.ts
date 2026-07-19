@@ -9,75 +9,59 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AuthedRouteImport } from './routes/_authed'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthCliLoginRouteImport } from './routes/auth/cli-login'
-import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboarding'
+import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
+import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboarding'
+import { Route as AuthCliLoginRouteImport } from './routes/auth/cli-login'
+import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
-import { Route as AuthedAppVaultAccessRouteImport } from './routes/_authed/_app/vault-access'
-import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
-import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
-import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
-import { Route as AuthedAppAdminRouteImport } from './routes/_authed/_app/admin'
 import { Route as AuthedAppAccountRouteImport } from './routes/_authed/_app/account'
-import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
-import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
-import { Route as AuthedAppEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/environment-variables/index'
-import { Route as AuthedAppAppleDevicesIndexRouteImport } from './routes/_authed/_app/apple-devices/index'
+import { Route as AuthedAppAdminRouteImport } from './routes/_authed/_app/admin'
+import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
+import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
+import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
+import { Route as AuthedAppVaultAccessRouteImport } from './routes/_authed/_app/vault-access'
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
-import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
-import { Route as AuthedAppAccountSessionsRouteImport } from './routes/_authed/_app/account/sessions'
-import { Route as AuthedAppAccountProfileRouteImport } from './routes/_authed/_app/account/profile'
-import { Route as AuthedAppAccountPasskeysRouteImport } from './routes/_authed/_app/account/passkeys'
-import { Route as AuthedAppAccountConnectionsRouteImport } from './routes/_authed/_app/account/connections'
 import { Route as AuthedAppAccountAppearanceRouteImport } from './routes/_authed/_app/account/appearance'
+import { Route as AuthedAppAccountConnectionsRouteImport } from './routes/_authed/_app/account/connections'
+import { Route as AuthedAppAccountPasskeysRouteImport } from './routes/_authed/_app/account/passkeys'
+import { Route as AuthedAppAccountProfileRouteImport } from './routes/_authed/_app/account/profile'
+import { Route as AuthedAppAccountSessionsRouteImport } from './routes/_authed/_app/account/sessions'
+import { Route as AuthedAppAppleDevicesIndexRouteImport } from './routes/_authed/_app/apple-devices/index'
+import { Route as AuthedAppEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/environment-variables/index'
+import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
+import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
+import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsProjectSlugIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/index'
-import { Route as AuthedAppProjectsProjectSlugRobotAccountsRouteImport } from './routes/_authed/_app/projects/$projectSlug/robot-accounts'
-import { Route as AuthedAppProjectsProjectSlugMembersRouteImport } from './routes/_authed/_app/projects/$projectSlug/members'
-import { Route as AuthedAppProjectsProjectSlugCredentialsRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials'
 import { Route as AuthedAppProjectsProjectSlugAuditLogRouteImport } from './routes/_authed/_app/projects/$projectSlug/audit-log'
-import { Route as AuthedAppProjectsProjectSlugUpdatesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/index'
-import { Route as AuthedAppProjectsProjectSlugSubmissionsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/submissions.index'
-import { Route as AuthedAppProjectsProjectSlugSettingsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/settings/index'
-import { Route as AuthedAppProjectsProjectSlugRuntimesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/runtimes/index'
-import { Route as AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/environment-variables/index'
-import { Route as AuthedAppProjectsProjectSlugCredentialsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.index'
-import { Route as AuthedAppProjectsProjectSlugChannelsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/index'
-import { Route as AuthedAppProjectsProjectSlugBuildsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/index'
+import { Route as AuthedAppProjectsProjectSlugCredentialsRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials'
+import { Route as AuthedAppProjectsProjectSlugMembersRouteImport } from './routes/_authed/_app/projects/$projectSlug/members'
+import { Route as AuthedAppProjectsProjectSlugRobotAccountsRouteImport } from './routes/_authed/_app/projects/$projectSlug/robot-accounts'
 import { Route as AuthedAppProjectsProjectSlugBranchesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/branches/index'
-import { Route as AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/$updateId'
-import { Route as AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/submissions.$submissionId'
-import { Route as AuthedAppProjectsProjectSlugRuntimesVersionRouteImport } from './routes/_authed/_app/projects/$projectSlug/runtimes/$version'
-import { Route as AuthedAppProjectsProjectSlugFingerprintsHashRouteImport } from './routes/_authed/_app/projects/$projectSlug/fingerprints/$hash'
-import { Route as AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/$channelId'
+import { Route as AuthedAppProjectsProjectSlugBuildsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/index'
 import { Route as AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/$buildId'
-import { Route as AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.ios.$bundleIdentifier'
+import { Route as AuthedAppProjectsProjectSlugChannelsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/index'
+import { Route as AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/$channelId'
+import { Route as AuthedAppProjectsProjectSlugCredentialsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.index'
+import { Route as AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/environment-variables/index'
+import { Route as AuthedAppProjectsProjectSlugFingerprintsHashRouteImport } from './routes/_authed/_app/projects/$projectSlug/fingerprints/$hash'
+import { Route as AuthedAppProjectsProjectSlugRuntimesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/runtimes/index'
+import { Route as AuthedAppProjectsProjectSlugRuntimesVersionRouteImport } from './routes/_authed/_app/projects/$projectSlug/runtimes/$version'
+import { Route as AuthedAppProjectsProjectSlugSettingsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/settings/index'
+import { Route as AuthedAppProjectsProjectSlugSubmissionsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/submissions.index'
+import { Route as AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/submissions.$submissionId'
+import { Route as AuthedAppProjectsProjectSlugUpdatesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/index'
+import { Route as AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/$updateId'
 import { Route as AuthedAppProjectsProjectSlugCredentialsAndroidPackageNameRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.android.$packageName'
+import { Route as AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.ios.$bundleIdentifier'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PendingApprovalRoute = PendingApprovalRouteImport.update({
-  id: '/pending-approval',
-  path: '/pending-approval',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
@@ -85,57 +69,48 @@ const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
   path: '/accept-invitation',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedRoute = AuthedRouteImport.update({
-  id: '/_authed',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AuthRoute,
+const PendingApprovalRoute = PendingApprovalRouteImport.update({
+  id: '/pending-approval',
+  path: '/pending-approval',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCliLoginRoute = AuthCliLoginRouteImport.update({
-  id: '/cli-login',
-  path: '/cli-login',
-  getParentRoute: () => AuthRoute,
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedAppRoute = AuthedAppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedOnboardingRoute = AuthedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedAppRoute = AuthedAppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => AuthedRoute,
+const AuthCliLoginRoute = AuthCliLoginRouteImport.update({
+  id: '/cli-login',
+  path: '/cli-login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthedAppIndexRoute = AuthedAppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppVaultAccessRoute = AuthedAppVaultAccessRouteImport.update({
-  id: '/vault-access',
-  path: '/vault-access',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
-  id: '/members',
-  path: '/members',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppCredentialsRoute = AuthedAppCredentialsRouteImport.update({
-  id: '/credentials',
-  path: '/credentials',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppAuditLogRoute = AuthedAppAuditLogRouteImport.update({
-  id: '/audit-log',
-  path: '/audit-log',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppAdminRoute = AuthedAppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
   getParentRoute: () => AuthedAppRoute,
 } as any)
 const AuthedAppAccountRoute = AuthedAppAccountRouteImport.update({
@@ -143,54 +118,40 @@ const AuthedAppAccountRoute = AuthedAppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AuthedAppRoute,
 } as any)
-const AuthedAppSettingsIndexRoute = AuthedAppSettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
+const AuthedAppAdminRoute = AuthedAppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthedAppRoute,
 } as any)
-const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
-  id: '/projects/',
-  path: '/projects/',
+const AuthedAppAuditLogRoute = AuthedAppAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
   getParentRoute: () => AuthedAppRoute,
 } as any)
-const AuthedAppEnvironmentVariablesIndexRoute =
-  AuthedAppEnvironmentVariablesIndexRouteImport.update({
-    id: '/environment-variables/',
-    path: '/environment-variables/',
-    getParentRoute: () => AuthedAppRoute,
-  } as any)
-const AuthedAppAppleDevicesIndexRoute =
-  AuthedAppAppleDevicesIndexRouteImport.update({
-    id: '/apple-devices/',
-    path: '/apple-devices/',
-    getParentRoute: () => AuthedAppRoute,
-  } as any)
+const AuthedAppCredentialsRoute = AuthedAppCredentialsRouteImport.update({
+  id: '/credentials',
+  path: '/credentials',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppVaultAccessRoute = AuthedAppVaultAccessRouteImport.update({
+  id: '/vault-access',
+  path: '/vault-access',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
 const AuthedAppAccountIndexRoute = AuthedAppAccountIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthedAppAccountRoute,
 } as any)
-const AuthedAppProjectsProjectSlugRoute =
-  AuthedAppProjectsProjectSlugRouteImport.update({
-    id: '/projects/$projectSlug',
-    path: '/projects/$projectSlug',
-    getParentRoute: () => AuthedAppRoute,
-  } as any)
-const AuthedAppAccountSessionsRoute =
-  AuthedAppAccountSessionsRouteImport.update({
-    id: '/sessions',
-    path: '/sessions',
-    getParentRoute: () => AuthedAppAccountRoute,
-  } as any)
-const AuthedAppAccountProfileRoute = AuthedAppAccountProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AuthedAppAccountRoute,
-} as any)
-const AuthedAppAccountPasskeysRoute =
-  AuthedAppAccountPasskeysRouteImport.update({
-    id: '/passkeys',
-    path: '/passkeys',
+const AuthedAppAccountAppearanceRoute =
+  AuthedAppAccountAppearanceRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
     getParentRoute: () => AuthedAppAccountRoute,
   } as any)
 const AuthedAppAccountConnectionsRoute =
@@ -199,34 +160,55 @@ const AuthedAppAccountConnectionsRoute =
     path: '/connections',
     getParentRoute: () => AuthedAppAccountRoute,
   } as any)
-const AuthedAppAccountAppearanceRoute =
-  AuthedAppAccountAppearanceRouteImport.update({
-    id: '/appearance',
-    path: '/appearance',
+const AuthedAppAccountPasskeysRoute =
+  AuthedAppAccountPasskeysRouteImport.update({
+    id: '/passkeys',
+    path: '/passkeys',
     getParentRoute: () => AuthedAppAccountRoute,
   } as any)
+const AuthedAppAccountProfileRoute = AuthedAppAccountProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthedAppAccountRoute,
+} as any)
+const AuthedAppAccountSessionsRoute =
+  AuthedAppAccountSessionsRouteImport.update({
+    id: '/sessions',
+    path: '/sessions',
+    getParentRoute: () => AuthedAppAccountRoute,
+  } as any)
+const AuthedAppAppleDevicesIndexRoute =
+  AuthedAppAppleDevicesIndexRouteImport.update({
+    id: '/apple-devices/',
+    path: '/apple-devices/',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
+const AuthedAppEnvironmentVariablesIndexRoute =
+  AuthedAppEnvironmentVariablesIndexRouteImport.update({
+    id: '/environment-variables/',
+    path: '/environment-variables/',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
+const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppProjectsProjectSlugRoute =
+  AuthedAppProjectsProjectSlugRouteImport.update({
+    id: '/projects/$projectSlug',
+    path: '/projects/$projectSlug',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
+const AuthedAppSettingsIndexRoute = AuthedAppSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
 const AuthedAppProjectsProjectSlugIndexRoute =
   AuthedAppProjectsProjectSlugIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugRobotAccountsRoute =
-  AuthedAppProjectsProjectSlugRobotAccountsRouteImport.update({
-    id: '/robot-accounts',
-    path: '/robot-accounts',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugMembersRoute =
-  AuthedAppProjectsProjectSlugMembersRouteImport.update({
-    id: '/members',
-    path: '/members',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugCredentialsRoute =
-  AuthedAppProjectsProjectSlugCredentialsRouteImport.update({
-    id: '/credentials',
-    path: '/credentials',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugAuditLogRoute =
@@ -235,52 +217,22 @@ const AuthedAppProjectsProjectSlugAuditLogRoute =
     path: '/audit-log',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectSlugUpdatesIndexRoute =
-  AuthedAppProjectsProjectSlugUpdatesIndexRouteImport.update({
-    id: '/updates/',
-    path: '/updates/',
+const AuthedAppProjectsProjectSlugCredentialsRoute =
+  AuthedAppProjectsProjectSlugCredentialsRouteImport.update({
+    id: '/credentials',
+    path: '/credentials',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectSlugSubmissionsIndexRoute =
-  AuthedAppProjectsProjectSlugSubmissionsIndexRouteImport.update({
-    id: '/submissions/',
-    path: '/submissions/',
+const AuthedAppProjectsProjectSlugMembersRoute =
+  AuthedAppProjectsProjectSlugMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectSlugSettingsIndexRoute =
-  AuthedAppProjectsProjectSlugSettingsIndexRouteImport.update({
-    id: '/settings/',
-    path: '/settings/',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugRuntimesIndexRoute =
-  AuthedAppProjectsProjectSlugRuntimesIndexRouteImport.update({
-    id: '/runtimes/',
-    path: '/runtimes/',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute =
-  AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport.update({
-    id: '/environment-variables/',
-    path: '/environment-variables/',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugCredentialsIndexRoute =
-  AuthedAppProjectsProjectSlugCredentialsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthedAppProjectsProjectSlugCredentialsRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugChannelsIndexRoute =
-  AuthedAppProjectsProjectSlugChannelsIndexRouteImport.update({
-    id: '/channels/',
-    path: '/channels/',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugBuildsIndexRoute =
-  AuthedAppProjectsProjectSlugBuildsIndexRouteImport.update({
-    id: '/builds/',
-    path: '/builds/',
+const AuthedAppProjectsProjectSlugRobotAccountsRoute =
+  AuthedAppProjectsProjectSlugRobotAccountsRouteImport.update({
+    id: '/robot-accounts',
+    path: '/robot-accounts',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugBranchesIndexRoute =
@@ -289,34 +241,10 @@ const AuthedAppProjectsProjectSlugBranchesIndexRoute =
     path: '/branches/',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute =
-  AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport.update({
-    id: '/updates/$updateId',
-    path: '/updates/$updateId',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRoute =
-  AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRouteImport.update({
-    id: '/submissions/$submissionId',
-    path: '/submissions/$submissionId',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugRuntimesVersionRoute =
-  AuthedAppProjectsProjectSlugRuntimesVersionRouteImport.update({
-    id: '/runtimes/$version',
-    path: '/runtimes/$version',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugFingerprintsHashRoute =
-  AuthedAppProjectsProjectSlugFingerprintsHashRouteImport.update({
-    id: '/fingerprints/$hash',
-    path: '/fingerprints/$hash',
-    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
-  } as any)
-const AuthedAppProjectsProjectSlugChannelsChannelIdRoute =
-  AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport.update({
-    id: '/channels/$channelId',
-    path: '/channels/$channelId',
+const AuthedAppProjectsProjectSlugBuildsIndexRoute =
+  AuthedAppProjectsProjectSlugBuildsIndexRouteImport.update({
+    id: '/builds/',
+    path: '/builds/',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugBuildsBuildIdRoute =
@@ -325,16 +253,88 @@ const AuthedAppProjectsProjectSlugBuildsBuildIdRoute =
     path: '/builds/$buildId',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRoute =
-  AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport.update({
-    id: '/ios/$bundleIdentifier',
-    path: '/ios/$bundleIdentifier',
+const AuthedAppProjectsProjectSlugChannelsIndexRoute =
+  AuthedAppProjectsProjectSlugChannelsIndexRouteImport.update({
+    id: '/channels/',
+    path: '/channels/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugChannelsChannelIdRoute =
+  AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport.update({
+    id: '/channels/$channelId',
+    path: '/channels/$channelId',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugCredentialsIndexRoute =
+  AuthedAppProjectsProjectSlugCredentialsIndexRouteImport.update({
+    id: '/',
+    path: '/',
     getParentRoute: () => AuthedAppProjectsProjectSlugCredentialsRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute =
+  AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport.update({
+    id: '/environment-variables/',
+    path: '/environment-variables/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugFingerprintsHashRoute =
+  AuthedAppProjectsProjectSlugFingerprintsHashRouteImport.update({
+    id: '/fingerprints/$hash',
+    path: '/fingerprints/$hash',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugRuntimesIndexRoute =
+  AuthedAppProjectsProjectSlugRuntimesIndexRouteImport.update({
+    id: '/runtimes/',
+    path: '/runtimes/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugRuntimesVersionRoute =
+  AuthedAppProjectsProjectSlugRuntimesVersionRouteImport.update({
+    id: '/runtimes/$version',
+    path: '/runtimes/$version',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugSettingsIndexRoute =
+  AuthedAppProjectsProjectSlugSettingsIndexRouteImport.update({
+    id: '/settings/',
+    path: '/settings/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugSubmissionsIndexRoute =
+  AuthedAppProjectsProjectSlugSubmissionsIndexRouteImport.update({
+    id: '/submissions/',
+    path: '/submissions/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRoute =
+  AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRouteImport.update({
+    id: '/submissions/$submissionId',
+    path: '/submissions/$submissionId',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugUpdatesIndexRoute =
+  AuthedAppProjectsProjectSlugUpdatesIndexRouteImport.update({
+    id: '/updates/',
+    path: '/updates/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute =
+  AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport.update({
+    id: '/updates/$updateId',
+    path: '/updates/$updateId',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugCredentialsAndroidPackageNameRoute =
   AuthedAppProjectsProjectSlugCredentialsAndroidPackageNameRouteImport.update({
     id: '/android/$packageName',
     path: '/android/$packageName',
+    getParentRoute: () => AuthedAppProjectsProjectSlugCredentialsRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRoute =
+  AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport.update({
+    id: '/ios/$bundleIdentifier',
+    path: '/ios/$bundleIdentifier',
     getParentRoute: () => AuthedAppProjectsProjectSlugCredentialsRoute,
   } as any)
 
@@ -651,32 +651,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pending-approval': {
-      id: '/pending-approval'
-      path: '/pending-approval'
-      fullPath: '/pending-approval'
-      preLoaderRoute: typeof PendingApprovalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-invitation': {
@@ -686,33 +665,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInvitationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed': {
-      id: '/_authed'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthedRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/login': {
-      id: '/auth/login'
-      path: '/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof AuthRoute
+    '/pending-approval': {
+      id: '/pending-approval'
+      path: '/pending-approval'
+      fullPath: '/pending-approval'
+      preLoaderRoute: typeof PendingApprovalRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/auth/cli-login': {
-      id: '/auth/cli-login'
-      path: '/cli-login'
-      fullPath: '/auth/cli-login'
-      preLoaderRoute: typeof AuthCliLoginRouteImport
-      parentRoute: typeof AuthRoute
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authed/onboarding': {
-      id: '/_authed/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AuthedOnboardingRouteImport
-      parentRoute: typeof AuthedRoute
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/_app': {
       id: '/_authed/_app'
@@ -721,46 +700,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/onboarding': {
+      id: '/_authed/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthedOnboardingRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/auth/cli-login': {
+      id: '/auth/cli-login'
+      path: '/cli-login'
+      fullPath: '/auth/cli-login'
+      preLoaderRoute: typeof AuthCliLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_authed/_app/': {
       id: '/_authed/_app/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedAppIndexRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/vault-access': {
-      id: '/_authed/_app/vault-access'
-      path: '/vault-access'
-      fullPath: '/vault-access'
-      preLoaderRoute: typeof AuthedAppVaultAccessRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/members': {
-      id: '/_authed/_app/members'
-      path: '/members'
-      fullPath: '/members'
-      preLoaderRoute: typeof AuthedAppMembersRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/credentials': {
-      id: '/_authed/_app/credentials'
-      path: '/credentials'
-      fullPath: '/credentials'
-      preLoaderRoute: typeof AuthedAppCredentialsRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/audit-log': {
-      id: '/_authed/_app/audit-log'
-      path: '/audit-log'
-      fullPath: '/audit-log'
-      preLoaderRoute: typeof AuthedAppAuditLogRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/admin': {
-      id: '/_authed/_app/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthedAppAdminRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/account': {
@@ -770,32 +735,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppAccountRouteImport
       parentRoute: typeof AuthedAppRoute
     }
-    '/_authed/_app/settings/': {
-      id: '/_authed/_app/settings/'
-      path: '/settings'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof AuthedAppSettingsIndexRouteImport
+    '/_authed/_app/admin': {
+      id: '/_authed/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthedAppAdminRouteImport
       parentRoute: typeof AuthedAppRoute
     }
-    '/_authed/_app/projects/': {
-      id: '/_authed/_app/projects/'
-      path: '/projects'
-      fullPath: '/projects/'
-      preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
+    '/_authed/_app/audit-log': {
+      id: '/_authed/_app/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof AuthedAppAuditLogRouteImport
       parentRoute: typeof AuthedAppRoute
     }
-    '/_authed/_app/environment-variables/': {
-      id: '/_authed/_app/environment-variables/'
-      path: '/environment-variables'
-      fullPath: '/environment-variables/'
-      preLoaderRoute: typeof AuthedAppEnvironmentVariablesIndexRouteImport
+    '/_authed/_app/credentials': {
+      id: '/_authed/_app/credentials'
+      path: '/credentials'
+      fullPath: '/credentials'
+      preLoaderRoute: typeof AuthedAppCredentialsRouteImport
       parentRoute: typeof AuthedAppRoute
     }
-    '/_authed/_app/apple-devices/': {
-      id: '/_authed/_app/apple-devices/'
-      path: '/apple-devices'
-      fullPath: '/apple-devices/'
-      preLoaderRoute: typeof AuthedAppAppleDevicesIndexRouteImport
+    '/_authed/_app/members': {
+      id: '/_authed/_app/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof AuthedAppMembersRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/vault-access': {
+      id: '/_authed/_app/vault-access'
+      path: '/vault-access'
+      fullPath: '/vault-access'
+      preLoaderRoute: typeof AuthedAppVaultAccessRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/account/': {
@@ -805,32 +777,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppAccountIndexRouteImport
       parentRoute: typeof AuthedAppAccountRoute
     }
-    '/_authed/_app/projects/$projectSlug': {
-      id: '/_authed/_app/projects/$projectSlug'
-      path: '/projects/$projectSlug'
-      fullPath: '/projects/$projectSlug'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/account/sessions': {
-      id: '/_authed/_app/account/sessions'
-      path: '/sessions'
-      fullPath: '/account/sessions'
-      preLoaderRoute: typeof AuthedAppAccountSessionsRouteImport
-      parentRoute: typeof AuthedAppAccountRoute
-    }
-    '/_authed/_app/account/profile': {
-      id: '/_authed/_app/account/profile'
-      path: '/profile'
-      fullPath: '/account/profile'
-      preLoaderRoute: typeof AuthedAppAccountProfileRouteImport
-      parentRoute: typeof AuthedAppAccountRoute
-    }
-    '/_authed/_app/account/passkeys': {
-      id: '/_authed/_app/account/passkeys'
-      path: '/passkeys'
-      fullPath: '/account/passkeys'
-      preLoaderRoute: typeof AuthedAppAccountPasskeysRouteImport
+    '/_authed/_app/account/appearance': {
+      id: '/_authed/_app/account/appearance'
+      path: '/appearance'
+      fullPath: '/account/appearance'
+      preLoaderRoute: typeof AuthedAppAccountAppearanceRouteImport
       parentRoute: typeof AuthedAppAccountRoute
     }
     '/_authed/_app/account/connections': {
@@ -840,39 +791,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppAccountConnectionsRouteImport
       parentRoute: typeof AuthedAppAccountRoute
     }
-    '/_authed/_app/account/appearance': {
-      id: '/_authed/_app/account/appearance'
-      path: '/appearance'
-      fullPath: '/account/appearance'
-      preLoaderRoute: typeof AuthedAppAccountAppearanceRouteImport
+    '/_authed/_app/account/passkeys': {
+      id: '/_authed/_app/account/passkeys'
+      path: '/passkeys'
+      fullPath: '/account/passkeys'
+      preLoaderRoute: typeof AuthedAppAccountPasskeysRouteImport
       parentRoute: typeof AuthedAppAccountRoute
+    }
+    '/_authed/_app/account/profile': {
+      id: '/_authed/_app/account/profile'
+      path: '/profile'
+      fullPath: '/account/profile'
+      preLoaderRoute: typeof AuthedAppAccountProfileRouteImport
+      parentRoute: typeof AuthedAppAccountRoute
+    }
+    '/_authed/_app/account/sessions': {
+      id: '/_authed/_app/account/sessions'
+      path: '/sessions'
+      fullPath: '/account/sessions'
+      preLoaderRoute: typeof AuthedAppAccountSessionsRouteImport
+      parentRoute: typeof AuthedAppAccountRoute
+    }
+    '/_authed/_app/apple-devices/': {
+      id: '/_authed/_app/apple-devices/'
+      path: '/apple-devices'
+      fullPath: '/apple-devices/'
+      preLoaderRoute: typeof AuthedAppAppleDevicesIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/environment-variables/': {
+      id: '/_authed/_app/environment-variables/'
+      path: '/environment-variables'
+      fullPath: '/environment-variables/'
+      preLoaderRoute: typeof AuthedAppEnvironmentVariablesIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/projects/': {
+      id: '/_authed/_app/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/projects/$projectSlug': {
+      id: '/_authed/_app/projects/$projectSlug'
+      path: '/projects/$projectSlug'
+      fullPath: '/projects/$projectSlug'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/settings/': {
+      id: '/_authed/_app/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthedAppSettingsIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/projects/$projectSlug/': {
       id: '/_authed/_app/projects/$projectSlug/'
       path: '/'
       fullPath: '/projects/$projectSlug/'
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/robot-accounts': {
-      id: '/_authed/_app/projects/$projectSlug/robot-accounts'
-      path: '/robot-accounts'
-      fullPath: '/projects/$projectSlug/robot-accounts'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRobotAccountsRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/members': {
-      id: '/_authed/_app/projects/$projectSlug/members'
-      path: '/members'
-      fullPath: '/projects/$projectSlug/members'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugMembersRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/credentials': {
-      id: '/_authed/_app/projects/$projectSlug/credentials'
-      path: '/credentials'
-      fullPath: '/projects/$projectSlug/credentials'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/audit-log': {
@@ -882,60 +861,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugAuditLogRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectSlug/updates/': {
-      id: '/_authed/_app/projects/$projectSlug/updates/'
-      path: '/updates'
-      fullPath: '/projects/$projectSlug/updates/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugUpdatesIndexRouteImport
+    '/_authed/_app/projects/$projectSlug/credentials': {
+      id: '/_authed/_app/projects/$projectSlug/credentials'
+      path: '/credentials'
+      fullPath: '/projects/$projectSlug/credentials'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectSlug/submissions/': {
-      id: '/_authed/_app/projects/$projectSlug/submissions/'
-      path: '/submissions'
-      fullPath: '/projects/$projectSlug/submissions/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSubmissionsIndexRouteImport
+    '/_authed/_app/projects/$projectSlug/members': {
+      id: '/_authed/_app/projects/$projectSlug/members'
+      path: '/members'
+      fullPath: '/projects/$projectSlug/members'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugMembersRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectSlug/settings/': {
-      id: '/_authed/_app/projects/$projectSlug/settings/'
-      path: '/settings'
-      fullPath: '/projects/$projectSlug/settings/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSettingsIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/runtimes/': {
-      id: '/_authed/_app/projects/$projectSlug/runtimes/'
-      path: '/runtimes'
-      fullPath: '/projects/$projectSlug/runtimes/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRuntimesIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/environment-variables/': {
-      id: '/_authed/_app/projects/$projectSlug/environment-variables/'
-      path: '/environment-variables'
-      fullPath: '/projects/$projectSlug/environment-variables/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/credentials/': {
-      id: '/_authed/_app/projects/$projectSlug/credentials/'
-      path: '/'
-      fullPath: '/projects/$projectSlug/credentials/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugCredentialsRoute
-    }
-    '/_authed/_app/projects/$projectSlug/channels/': {
-      id: '/_authed/_app/projects/$projectSlug/channels/'
-      path: '/channels'
-      fullPath: '/projects/$projectSlug/channels/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugChannelsIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/builds/': {
-      id: '/_authed/_app/projects/$projectSlug/builds/'
-      path: '/builds'
-      fullPath: '/projects/$projectSlug/builds/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugBuildsIndexRouteImport
+    '/_authed/_app/projects/$projectSlug/robot-accounts': {
+      id: '/_authed/_app/projects/$projectSlug/robot-accounts'
+      path: '/robot-accounts'
+      fullPath: '/projects/$projectSlug/robot-accounts'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRobotAccountsRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/branches/': {
@@ -945,39 +889,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugBranchesIndexRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectSlug/updates/$updateId': {
-      id: '/_authed/_app/projects/$projectSlug/updates/$updateId'
-      path: '/updates/$updateId'
-      fullPath: '/projects/$projectSlug/updates/$updateId'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/submissions/$submissionId': {
-      id: '/_authed/_app/projects/$projectSlug/submissions/$submissionId'
-      path: '/submissions/$submissionId'
-      fullPath: '/projects/$projectSlug/submissions/$submissionId'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/runtimes/$version': {
-      id: '/_authed/_app/projects/$projectSlug/runtimes/$version'
-      path: '/runtimes/$version'
-      fullPath: '/projects/$projectSlug/runtimes/$version'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRuntimesVersionRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/fingerprints/$hash': {
-      id: '/_authed/_app/projects/$projectSlug/fingerprints/$hash'
-      path: '/fingerprints/$hash'
-      fullPath: '/projects/$projectSlug/fingerprints/$hash'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugFingerprintsHashRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
-    }
-    '/_authed/_app/projects/$projectSlug/channels/$channelId': {
-      id: '/_authed/_app/projects/$projectSlug/channels/$channelId'
-      path: '/channels/$channelId'
-      fullPath: '/projects/$projectSlug/channels/$channelId'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport
+    '/_authed/_app/projects/$projectSlug/builds/': {
+      id: '/_authed/_app/projects/$projectSlug/builds/'
+      path: '/builds'
+      fullPath: '/projects/$projectSlug/builds/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugBuildsIndexRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/builds/$buildId': {
@@ -987,18 +903,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectSlug/credentials/ios/$bundleIdentifier': {
-      id: '/_authed/_app/projects/$projectSlug/credentials/ios/$bundleIdentifier'
-      path: '/ios/$bundleIdentifier'
-      fullPath: '/projects/$projectSlug/credentials/ios/$bundleIdentifier'
-      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport
+    '/_authed/_app/projects/$projectSlug/channels/': {
+      id: '/_authed/_app/projects/$projectSlug/channels/'
+      path: '/channels'
+      fullPath: '/projects/$projectSlug/channels/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugChannelsIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/channels/$channelId': {
+      id: '/_authed/_app/projects/$projectSlug/channels/$channelId'
+      path: '/channels/$channelId'
+      fullPath: '/projects/$projectSlug/channels/$channelId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/credentials/': {
+      id: '/_authed/_app/projects/$projectSlug/credentials/'
+      path: '/'
+      fullPath: '/projects/$projectSlug/credentials/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsIndexRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugCredentialsRoute
+    }
+    '/_authed/_app/projects/$projectSlug/environment-variables/': {
+      id: '/_authed/_app/projects/$projectSlug/environment-variables/'
+      path: '/environment-variables'
+      fullPath: '/projects/$projectSlug/environment-variables/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/fingerprints/$hash': {
+      id: '/_authed/_app/projects/$projectSlug/fingerprints/$hash'
+      path: '/fingerprints/$hash'
+      fullPath: '/projects/$projectSlug/fingerprints/$hash'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugFingerprintsHashRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/runtimes/': {
+      id: '/_authed/_app/projects/$projectSlug/runtimes/'
+      path: '/runtimes'
+      fullPath: '/projects/$projectSlug/runtimes/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRuntimesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/runtimes/$version': {
+      id: '/_authed/_app/projects/$projectSlug/runtimes/$version'
+      path: '/runtimes/$version'
+      fullPath: '/projects/$projectSlug/runtimes/$version'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRuntimesVersionRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/settings/': {
+      id: '/_authed/_app/projects/$projectSlug/settings/'
+      path: '/settings'
+      fullPath: '/projects/$projectSlug/settings/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSettingsIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/submissions/': {
+      id: '/_authed/_app/projects/$projectSlug/submissions/'
+      path: '/submissions'
+      fullPath: '/projects/$projectSlug/submissions/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSubmissionsIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/submissions/$submissionId': {
+      id: '/_authed/_app/projects/$projectSlug/submissions/$submissionId'
+      path: '/submissions/$submissionId'
+      fullPath: '/projects/$projectSlug/submissions/$submissionId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSubmissionsSubmissionIdRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/updates/': {
+      id: '/_authed/_app/projects/$projectSlug/updates/'
+      path: '/updates'
+      fullPath: '/projects/$projectSlug/updates/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugUpdatesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/updates/$updateId': {
+      id: '/_authed/_app/projects/$projectSlug/updates/$updateId'
+      path: '/updates/$updateId'
+      fullPath: '/projects/$projectSlug/updates/$updateId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/credentials/android/$packageName': {
       id: '/_authed/_app/projects/$projectSlug/credentials/android/$packageName'
       path: '/android/$packageName'
       fullPath: '/projects/$projectSlug/credentials/android/$packageName'
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsAndroidPackageNameRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugCredentialsRoute
+    }
+    '/_authed/_app/projects/$projectSlug/credentials/ios/$bundleIdentifier': {
+      id: '/_authed/_app/projects/$projectSlug/credentials/ios/$bundleIdentifier'
+      path: '/ios/$bundleIdentifier'
+      fullPath: '/projects/$projectSlug/credentials/ios/$bundleIdentifier'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugCredentialsRoute
     }
   }

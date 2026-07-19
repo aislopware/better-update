@@ -53,16 +53,17 @@ const SelectedSummary = ({
 }) => (
   <>
     <Separator orientation="vertical" className="mx-0.5 my-auto data-[orientation=vertical]:h-4" />
+    {/* Chips inherit the default Badge pill radius — no one-off shapes. */}
     <div className="flex gap-1">
       {selected.length > MAX_BADGES ? (
-        <Badge variant="secondary" className="rounded-sm px-1.5 font-normal">
+        <Badge variant="secondary" className="px-1.5 font-normal">
           {selected.length} selected
         </Badge>
       ) : (
         options
           .filter((option) => selected.includes(option.value))
           .map((option) => (
-            <Badge key={option.value} variant="secondary" className="rounded-sm px-1.5 font-normal">
+            <Badge key={option.value} variant="secondary" className="px-1.5 font-normal">
               {option.label}
             </Badge>
           ))

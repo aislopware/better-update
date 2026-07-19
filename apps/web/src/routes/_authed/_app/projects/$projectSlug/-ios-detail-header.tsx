@@ -1,33 +1,17 @@
 import { iosBundleConfigurationsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@better-update/ui/components/ui/breadcrumb";
-import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import { AppleIcon } from "../../../../../components/apple-icon";
+import { DetailHeader, DetailNotFound } from "../../../../../components/detail-header";
 import { DISTRIBUTION_LABELS } from "./-ios-detail-shared";
 
+// `projectSlug` stays in the props type for the caller; the shell breadcrumb
+// now covers the route, so the header itself no longer links back.
 export const IosDetailHeader = ({
   orgId,
   projectId,
-  projectSlug,
   bundleIdentifier,
 }: {
   orgId: string;
@@ -49,57 +33,28 @@ export const IosDetailHeader = ({
   )?.targetName;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink
-              render={
-                <Link
-                  to="/projects/$projectSlug/credentials"
-                  params={{ projectSlug }}
-                  className="text-muted-foreground hover:text-foreground"
-                />
-              }
-            >
-              Credentials
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage className="font-mono">{bundleIdentifier}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2.5">
-            <AppleIcon className="size-5" />
-            <span className="font-mono">{bundleIdentifier}</span>
-          </CardTitle>
-          <CardDescription>
-            {configs.length === 0 ? (
-              "Bundle Identifier"
-            ) : (
-              <span className="flex flex-wrap items-center gap-1.5">
-                <span>Bundle Identifier</span>
-                {targetName ? <Badge variant="secondary">Target: {targetName}</Badge> : null}
-                {parentBundle ? (
-                  <Badge variant="outline">
-                    Extension of <span className="ml-1 font-mono">{parentBundle}</span>
-                  </Badge>
-                ) : null}
-                {configs.map((config) => (
-                  <Badge key={config.id} variant="outline">
-                    {DISTRIBUTION_LABELS[config.distributionType]}
-                  </Badge>
-                ))}
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    </div>
+    <DetailHeader
+      title={<span className="font-mono">{bundleIdentifier}</span>}
+      meta={
+        <>
+          <span className="inline-flex items-center gap-1.5">
+            <AppleIcon className="size-3.5" />
+            Bundle Identifier
+          </span>
+          {targetName ? <Badge variant="secondary">Target: {targetName}</Badge> : null}
+          {parentBundle ? (
+            <Badge variant="outline">
+              Extension of <span className="ml-1 font-mono">{parentBundle}</span>
+            </Badge>
+          ) : null}
+          {configs.map((config) => (
+            <Badge key={config.id} variant="outline">
+              {DISTRIBUTION_LABELS[config.distributionType]}
+            </Badge>
+          ))}
+        </>
+      }
+    />
   );
 };
 
@@ -110,26 +65,16 @@ export const IosNotFoundEmpty = ({
   projectSlug: string;
   bundleIdentifier: string;
 }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <AppleIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>Bundle identifier not found</EmptyTitle>
-        <EmptyDescription>
-          No configuration exists for{" "}
-          <code className="text-foreground font-mono">{bundleIdentifier}</code> on this project.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button
-          variant="outline"
-          render={<Link to="/projects/$projectSlug/credentials" params={{ projectSlug }} />}
-        >
-          Back to credentials
-        </Button>
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <DetailNotFound
+    icon={<AppleIcon />}
+    title="Bundle identifier not found"
+    description={
+      <>
+        No configuration exists for{" "}
+        <code className="text-foreground font-mono">{bundleIdentifier}</code> on this project.
+      </>
+    }
+    backLink={<Link to="/projects/$projectSlug/credentials" params={{ projectSlug }} />}
+    backLabel="Back to credentials"
+  />
 );

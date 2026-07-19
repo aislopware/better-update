@@ -1,6 +1,5 @@
 import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,14 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -25,7 +16,8 @@ import { Suspense, useMemo } from "react";
 import type { PlatformValue } from "@better-update/api-client/react";
 
 import { PlatformIndicator } from "../../../../../../components/attribute-badges";
-import { PageHeader, SectionHeader } from "../../../../../../components/page-header";
+import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
+import { SectionHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { StatCard } from "../../../../../../components/stat-card";
 import { DataTableView } from "../../../../../../lib/data-table";
@@ -39,25 +31,13 @@ const RUNTIME_PAGE_LIMIT = 25;
 const RUNTIME_UPDATES_LIMIT = 10;
 
 const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <LayersIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No data for this runtime version</EmptyTitle>
-        <EmptyDescription>Nothing in this project references this runtime yet.</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button
-          variant="outline"
-          render={<Link to="/projects/$projectSlug/runtimes" params={{ projectSlug }} />}
-        >
-          Back to runtimes
-        </Button>
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <DetailNotFound
+    icon={<LayersIcon strokeWidth={1.5} />}
+    title="No data for this runtime version"
+    description="Nothing in this project references this runtime yet."
+    backLink={<Link to="/projects/$projectSlug/runtimes" params={{ projectSlug }} />}
+    backLabel="Back to runtimes"
+  />
 );
 
 const RuntimeSummaryCards = ({
@@ -168,7 +148,7 @@ const RuntimeDetailContent = () => {
   if (buildsCount === 0 && updatesCount === 0) {
     return (
       <>
-        <PageHeader size="sub" title={`Runtime v${version}`} />
+        <DetailHeader title={`Runtime v${version}`} />
         <RuntimeNotFoundState projectSlug={projectSlug} />
       </>
     );
@@ -176,7 +156,7 @@ const RuntimeDetailContent = () => {
 
   return (
     <>
-      <PageHeader size="sub" title={`Runtime v${version}`} />
+      <DetailHeader title={`Runtime v${version}`} />
 
       <RuntimeSummaryCards
         buildsCount={buildsCount}
@@ -268,7 +248,7 @@ const RuntimeDetailContent = () => {
 
 const RuntimeDetailSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Runtime" />
+    <DetailHeader title="Runtime" />
     <SummaryCardsSkeleton count={3} />
     <DetailCardSkeleton rows={3} columns={2} />
     <DetailCardSkeleton rows={3} columns={1} />

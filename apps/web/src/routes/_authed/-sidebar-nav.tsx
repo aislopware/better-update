@@ -47,6 +47,7 @@ type MeCapability = keyof Pick<
 
 interface OrgNavItem {
   to:
+    | "/"
     | "/projects"
     | "/members"
     | "/audit-log"
@@ -59,6 +60,8 @@ interface OrgNavItem {
     | "/account/profile";
   label: string;
   icon: LucideIcon;
+  /** Exact-match active state — required for "/" so it never shadows siblings. */
+  exact?: boolean;
   /** Omitted = visible to every member (projects list + member directory). */
   capability?: MeCapability;
 }
@@ -96,7 +99,12 @@ interface ProjectNavSection {
 const ORG_NAV: OrgNavSection[] = [
   {
     label: "Platform",
-    items: [{ to: "/projects", label: "Projects", icon: FolderIcon }],
+    items: [
+      // Same icon as the project-side Overview entry; exact so "/" never also
+      // reads active alongside Projects (or any other org page).
+      { to: "/", label: "Overview", icon: LayoutDashboardIcon, exact: true },
+      { to: "/projects", label: "Projects", icon: FolderIcon },
+    ],
   },
   {
     label: "Organization",
@@ -237,7 +245,7 @@ export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolea
             <SidebarMenu>
               {section.items.map((item) => (
                 <SidebarMenuItem key={item.to}>
-                  <Link to={item.to}>
+                  <Link to={item.to} activeOptions={{ exact: item.exact === true }}>
                     {({ isActive }) => (
                       <SidebarMenuButton isActive={isActive} tooltip={item.label}>
                         <item.icon strokeWidth={2} />

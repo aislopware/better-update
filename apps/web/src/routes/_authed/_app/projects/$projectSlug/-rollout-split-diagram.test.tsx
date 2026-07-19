@@ -38,4 +38,18 @@ describe(RolloutSplitDiagram, () => {
 
     expect(screen.getByLabelText("Rollout split: 75% on main, 25% on next")).toBeInTheDocument();
   });
+
+  it("shows a completion check only at 100%", () => {
+    const { rerender } = render(
+      <RolloutSplitDiagram oldBranchName="main" newBranchName="next" newBranchPercentage={60} />,
+    );
+
+    expect(screen.queryByLabelText("Rollout at 100%")).not.toBeInTheDocument();
+
+    rerender(
+      <RolloutSplitDiagram oldBranchName="main" newBranchName="next" newBranchPercentage={100} />,
+    );
+
+    expect(screen.getByLabelText("Rollout at 100%")).toBeInTheDocument();
+  });
 });

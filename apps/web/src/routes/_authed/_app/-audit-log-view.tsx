@@ -1,6 +1,5 @@
 import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
@@ -29,7 +28,7 @@ import {
   TableRow,
 } from "@better-update/ui/components/ui/table";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { BracesIcon, ScrollTextIcon } from "lucide-react";
+import { BotIcon, BracesIcon, ScrollTextIcon } from "lucide-react";
 import { z } from "zod";
 
 import type { DateRange } from "react-day-picker";
@@ -42,6 +41,7 @@ import {
   enumArrayParam,
   optionalStringParam,
 } from "../../../lib/data-table";
+import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
 
@@ -156,7 +156,7 @@ const humanizeActionToken = (action: string): string => {
   return [`${first.charAt(0).toUpperCase()}${first.slice(1)}`, ...rest].join(" ");
 };
 
-const actionLabel = (action: string): string =>
+export const actionLabel = (action: string): string =>
   ACTION_LABELS[action] ?? humanizeActionToken(action);
 
 const parseDateRange = (search: AuditLogSearch): DateRange | undefined => {
@@ -191,6 +191,27 @@ const readMetadataName = (parsed: unknown): string | undefined => {
     (value): value is string => typeof value === "string" && value.length > 0,
   );
 };
+
+// Actor identity media (spec §5.9): humans get the shared EntityAvatar seeded
+// by email; robot actors get a BotIcon medallion — the `robot:` name prefix
+// keeps the state readable as text, so the old "Robot" badge is redundant.
+const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string }) => (
+  <span className="flex items-center gap-2">
+    {source === "robot" ? (
+      <span
+        className="bg-muted text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-full border"
+        title="Robot account"
+      >
+        <BotIcon strokeWidth={2} className="size-3.5" aria-hidden />
+      </span>
+    ) : (
+      <EntityAvatar name={actorEmail} size="sm" />
+    )}
+    <span className="truncate" title={actorEmail}>
+      {actorEmail}
+    </span>
+  </span>
+);
 
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
   <Card>
@@ -258,10 +279,7 @@ const AuditLogRow = ({
         </div>
       </TableCell>
       <TableCell>
-        <span className="flex items-center gap-1.5">
-          {entry.actorEmail}
-          {entry.source === "robot" ? <Badge variant="secondary">Robot</Badge> : null}
-        </span>
+        <ActorCell actorEmail={entry.actorEmail} source={entry.source} />
       </TableCell>
       <TableCell className="text-muted-foreground text-right whitespace-nowrap">
         <span title={`${formatWeekdayShort(entry.createdAt)} ${formatTimeShort(entry.createdAt)}`}>

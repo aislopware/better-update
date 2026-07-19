@@ -12,6 +12,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { differenceInDays } from "date-fns";
 import { ArchiveIcon, FolderIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -22,6 +23,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { PageHeader } from "../../../../components/page-header";
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
+import { StatusDot } from "../../../../components/status-dot";
 import {
   DataTableFacetedFilter,
   DataTableToolbar,
@@ -116,17 +118,49 @@ const ProjectNameCell = ({ project }: { project: ProjectItem }) => (
   </Link>
 );
 
-// Ongoing activity is the expected state — plain relative time, no pill.
-// Only the archived exception keeps a badge.
-const ActivityCell = ({ project }: { project: ProjectItem }) =>
-  project.archivedAt === null ? (
+const ACTIVE_WITHIN_DAYS = 7;
+const STALE_AFTER_DAYS = 30;
+
+// Health signal for the Activity column: green when the project shipped
+// something this week, gray when it has gone quiet for over a month. The
+// in-between band is the unremarkable default and stays dot-free — color is
+// exception-only. Exported for tests.
+export const activityTone = (lastActivityAt: string): "success" | "muted" | undefined => {
+  const days = differenceInDays(new Date(), new Date(lastActivityAt));
+  if (days < ACTIVE_WITHIN_DAYS) {
+    return "success";
+  }
+  return days > STALE_AFTER_DAYS ? "muted" : undefined;
+};
+
+// Ongoing activity is the expected state — relative time, with a StatusDot only
+// at the fresh/stale extremes. Only the archived exception keeps a badge.
+// Exported for tests.
+export const ActivityCell = ({ project }: { project: ProjectItem }) => {
+  if (project.archivedAt) {
+    return (
+      <Badge variant="secondary" className="gap-1.5">
+        <ArchiveIcon aria-hidden="true" className="size-3" />
+        Archived <RelativeTime value={project.archivedAt} />
+      </Badge>
+    );
+  }
+  const tone = activityTone(project.lastActivityAt);
+  const time = (
     <RelativeTime value={project.lastActivityAt} className="text-muted-foreground text-sm" />
-  ) : (
-    <Badge variant="secondary" className="gap-1.5">
-      <ArchiveIcon aria-hidden="true" className="size-3" />
-      Archived <RelativeTime value={project.archivedAt} />
-    </Badge>
   );
+  return tone ? <StatusDot tone={tone}>{time}</StatusDot> : time;
+};
+
+// One secondary cell for project shape — counts are context, not KPIs, so they
+// share a column instead of claiming two numeric ones. Exported for tests.
+export const StructureCell = ({ project }: { project: ProjectItem }) => (
+  <span className="text-muted-foreground text-sm whitespace-nowrap">
+    {project.branchCount} {pluralize(project.branchCount, "branch", "branches")}
+    {" · "}
+    {project.channelCount} {pluralize(project.channelCount, "channel")}
+  </span>
+);
 
 const columns: readonly ColumnDef<ProjectItem>[] = [
   {
@@ -144,20 +178,12 @@ const columns: readonly ColumnDef<ProjectItem>[] = [
     enableSorting: true,
   },
   {
-    id: "branchCount",
-    accessorKey: "branchCount",
-    header: "Branches",
-    cell: ({ row }) => row.original.branchCount,
-    enableSorting: true,
-    meta: { align: "right" },
-  },
-  {
-    id: "channelCount",
-    accessorKey: "channelCount",
-    header: "Channels",
-    cell: ({ row }) => row.original.channelCount,
-    enableSorting: true,
-    meta: { align: "right" },
+    // Combined secondary cell; sort by branches/channels stays reachable via
+    // the URL `sort` param but is no longer a header affordance.
+    id: "structure",
+    header: "Structure",
+    cell: ({ row }) => <StructureCell project={row.original} />,
+    enableSorting: false,
   },
   {
     id: "updateCount",
@@ -241,7 +267,7 @@ const Projects = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={6} rows={6} />
+          <TableSkeleton columns={5} rows={6} />
         )}
       </div>
     );

@@ -1,47 +1,48 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
+import { TriangleAlertIcon } from "lucide-react";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
 
-import { PlatformBadge } from "../../../../../components/attribute-badges";
+import { ChannelBadge, PlatformBadge } from "../../../../../components/attribute-badges";
 import { pluralize } from "../../../../../lib/pluralize";
 
+/**
+ * The single "missing builds" warning — shared by the channel detail page and
+ * the builds × channels matrix so the same gap always looks the same. Pass
+ * `showChannel` where rows span multiple channels.
+ */
 export const MissingMatchingBuilds = ({
   missingRuntimeVersions,
+  showChannel = false,
 }: {
   missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
+  showChannel?: boolean;
 }) => {
   if (missingRuntimeVersions.length === 0) {
     return null;
   }
 
   return (
-    <Card className="border-border bg-muted/40">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Missing matching builds</CardTitle>
-        <CardDescription>
-          These runtime versions have OTA updates but no uploaded build.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {missingRuntimeVersions.map((entry) => (
-          <div
-            key={`${entry.channelId}:${entry.platform}:${entry.runtimeVersion}`}
-            className="flex flex-wrap items-center gap-2 text-sm"
-          >
-            <PlatformBadge platform={entry.platform} />
-            <span className="font-medium">v{entry.runtimeVersion}</span>
-            <span className="text-muted-foreground">
-              {entry.updateCount} {pluralize(entry.updateCount, "update")} but no uploaded build.
-            </span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+    <Alert variant="warning">
+      <TriangleAlertIcon strokeWidth={2} />
+      <AlertTitle>Missing matching builds</AlertTitle>
+      <AlertDescription>
+        <div className="flex flex-col gap-1.5">
+          {missingRuntimeVersions.map((entry) => (
+            <div
+              key={`${entry.channelId}:${entry.platform}:${entry.runtimeVersion}`}
+              className="flex flex-wrap items-center gap-2"
+            >
+              {showChannel ? <ChannelBadge name={entry.channelName} size="sm" /> : null}
+              <PlatformBadge platform={entry.platform} size="sm" />
+              <span className="font-mono text-xs font-medium">v{entry.runtimeVersion}</span>
+              <span>
+                {entry.updateCount} {pluralize(entry.updateCount, "update")} but no uploaded build.
+              </span>
+            </div>
+          ))}
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 };

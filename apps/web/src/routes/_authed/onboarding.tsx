@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useRef } from "react";
 
+import { BrandWordmark } from "../../components/brand-mark";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { logout } from "../../lib/logout";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
@@ -74,107 +75,110 @@ const Onboarding = () => {
   });
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-16">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Create your organization</CardTitle>
-          <CardDescription>
-            Organizations are shared workspaces where teams manage projects and API keys together.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form
-            className="flex w-full flex-col gap-4"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              await form.handleSubmit();
-            }}
-          >
-            <FieldGroup>
-              <form.Field
-                name="name"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = nameSchema.safeParse(value);
-                    return result.success ? undefined : result.error.issues[0]?.message;
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor="name">Organization name</FieldLabel>
-                      <Input
-                        id="name"
-                        placeholder="Acme Inc."
-                        aria-invalid={Boolean(errorMessage) || undefined}
-                        value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                          if (!slugEdited.current) {
-                            form.setFieldValue("slug", generateSlug(event.target.value), {
-                              dontUpdateMeta: true,
-                              dontValidate: true,
-                            });
-                          }
-                        }}
-                        onBlur={field.handleBlur}
-                      />
-                      {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field
-                name="slug"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = slugSchema.safeParse(value);
-                    return result.success ? undefined : result.error.issues[0]?.message;
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor="slug">URL slug</FieldLabel>
-                      <Input
-                        id="slug"
-                        placeholder="acme-inc"
-                        aria-invalid={Boolean(errorMessage) || undefined}
-                        value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                          slugEdited.current = event.target.value !== "";
-                        }}
-                        onBlur={field.handleBlur}
-                      />
-                      {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </FieldGroup>
-            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-              {([canSubmit, isSubmitting]) => (
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={!canSubmit || Boolean(isSubmitting)}
+    <div className="bg-background relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-16">
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
+        <BrandWordmark />
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">Create your organization</CardTitle>
+            <CardDescription>
+              Organizations are shared workspaces where teams manage projects and API keys together.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="flex w-full flex-col gap-4"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await form.handleSubmit();
+              }}
+            >
+              <FieldGroup>
+                <form.Field
+                  name="name"
+                  validators={{
+                    onBlur: ({ value }) => {
+                      const result = nameSchema.safeParse(value);
+                      return result.success ? undefined : result.error.issues[0]?.message;
+                    },
+                  }}
                 >
-                  {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
-                  Create organization
-                </Button>
-              )}
-            </form.Subscribe>
-          </form>
-        </CardContent>
-      </Card>
-      <SignedInAs />
+                  {(field) => {
+                    const errorMessage = getFieldError(field);
+                    return (
+                      <Field data-invalid={Boolean(errorMessage)}>
+                        <FieldLabel htmlFor="name">Organization name</FieldLabel>
+                        <Input
+                          id="name"
+                          placeholder="Acme Inc."
+                          aria-invalid={Boolean(errorMessage) || undefined}
+                          value={field.state.value}
+                          onChange={(event) => {
+                            field.handleChange(event.target.value);
+                            if (!slugEdited.current) {
+                              form.setFieldValue("slug", generateSlug(event.target.value), {
+                                dontUpdateMeta: true,
+                                dontValidate: true,
+                              });
+                            }
+                          }}
+                          onBlur={field.handleBlur}
+                        />
+                        {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+
+                <form.Field
+                  name="slug"
+                  validators={{
+                    onBlur: ({ value }) => {
+                      const result = slugSchema.safeParse(value);
+                      return result.success ? undefined : result.error.issues[0]?.message;
+                    },
+                  }}
+                >
+                  {(field) => {
+                    const errorMessage = getFieldError(field);
+                    return (
+                      <Field data-invalid={Boolean(errorMessage)}>
+                        <FieldLabel htmlFor="slug">URL slug</FieldLabel>
+                        <Input
+                          id="slug"
+                          placeholder="acme-inc"
+                          aria-invalid={Boolean(errorMessage) || undefined}
+                          value={field.state.value}
+                          onChange={(event) => {
+                            field.handleChange(event.target.value);
+                            slugEdited.current = event.target.value !== "";
+                          }}
+                          onBlur={field.handleBlur}
+                        />
+                        {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+              </FieldGroup>
+              <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+                {([canSubmit, isSubmitting]) => (
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!canSubmit || Boolean(isSubmitting)}
+                  >
+                    {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
+                    Create organization
+                  </Button>
+                )}
+              </form.Subscribe>
+            </form>
+          </CardContent>
+        </Card>
+        <SignedInAs />
+      </div>
     </div>
   );
 };

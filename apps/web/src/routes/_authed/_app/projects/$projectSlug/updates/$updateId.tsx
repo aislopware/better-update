@@ -28,7 +28,7 @@ import type { Update, UpdateAssetEntry } from "@better-update/api";
 import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
-import { PageHeader } from "../../../../../../components/page-header";
+import { DetailHeader } from "../../../../../../components/detail-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
@@ -309,29 +309,31 @@ const UpdateDetailContent = () => {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">
-            <span className="truncate">{title}</span>
-            {primary.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
-          </h1>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <DetailHeader
+        title={title}
+        badges={primary.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+        meta={
+          <>
             <CopyableId value={primary.groupId} label="Update group ID" />
             <span className="font-mono text-xs">v{primary.runtimeVersion}</span>
-            <RelativeTime value={primary.createdAt} />
-          </div>
-        </div>
-        <UpdateActionsMenu
-          update={primary}
-          branchName={branchName}
-          slug={project.slug}
-          orgId={orgId}
-          projectId={projectId}
-          onDeleted={async () => {
-            await navigate({ to: "/projects/$projectSlug/updates", params: { projectSlug } });
-          }}
-        />
-      </div>
+            <span>
+              Published <RelativeTime value={primary.createdAt} />
+            </span>
+          </>
+        }
+        actions={
+          <UpdateActionsMenu
+            update={primary}
+            branchName={branchName}
+            slug={project.slug}
+            orgId={orgId}
+            projectId={projectId}
+            onDeleted={async () => {
+              await navigate({ to: "/projects/$projectSlug/updates", params: { projectSlug } });
+            }}
+          />
+        }
+      />
       <OverviewCard
         primary={primary}
         variants={group.items}
@@ -355,7 +357,7 @@ const UpdateDetailContent = () => {
 
 const UpdateDetailSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Update" />
+    <DetailHeader title="Update" />
     <DetailCardSkeleton rows={4} columns={2} />
     <DetailCardSkeleton rows={2} columns={2} />
   </>

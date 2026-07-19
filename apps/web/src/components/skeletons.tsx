@@ -195,7 +195,7 @@ export const DetailCardSkeleton = ({
   columns = 2,
   className,
 }: DetailCardSkeletonProps) => (
-  <Card className={cn("skeleton-appear gap-4 p-6", className)}>
+  <Card className={cn("skeleton-appear gap-4 px-4", className)}>
     <div className="flex flex-col gap-2">
       <Skeleton className="h-4 w-40 rounded" />
       <Skeleton className="h-3 w-64 rounded" />
@@ -220,9 +220,9 @@ export const SummaryCardsSkeleton = ({ count = 3, className }: SummaryCardsSkele
   <div className={cn("skeleton-appear @container/stat-grid", className)}>
     <div className="grid grid-cols-1 gap-4 @xl/stat-grid:grid-cols-2 @5xl/stat-grid:grid-cols-4">
       {repeat(count).map((index) => (
-        <Card key={index} className="gap-3 p-6">
-          <Skeleton className="h-3.5 w-28 rounded" />
-          <Skeleton className="h-6 w-40 rounded" />
+        <Card key={index} className="gap-1 px-4">
+          <Skeleton className="h-3.5 w-24 rounded" />
+          <Skeleton className="h-8 w-20 rounded" />
         </Card>
       ))}
     </div>

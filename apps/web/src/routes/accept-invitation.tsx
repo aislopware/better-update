@@ -1,5 +1,6 @@
 import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
@@ -7,7 +8,9 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { CheckCircle2Icon, MailWarningIcon } from "lucide-react";
 import { z } from "zod";
 
+import { BrandWordmark } from "../components/brand-mark";
 import { GlobalLoading } from "../components/global-loading";
+import { StatusMedallion } from "../components/status-medallion";
 import { authClient, rejectOnAuthClientError } from "../lib/auth-client";
 import { useApiMutation } from "../lib/use-api-mutation";
 import { orgsQueryOptions, sessionQueryOptions } from "../queries/auth";
@@ -40,9 +43,14 @@ const AcceptInvitationPage = () => {
   });
 
   return (
-    <div className="bg-background flex min-h-dvh items-center justify-center px-6 py-12">
-      <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-        <Body isError={isError} isSuccess={isSuccess} isPending={isPending} error={error} />
+    <div className="bg-background relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-12">
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
+        <BrandWordmark />
+        <Card className="w-full">
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+            <Body isError={isError} isSuccess={isSuccess} isPending={isPending} error={error} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -71,8 +79,10 @@ const Body = ({ isError, isSuccess, isPending, error }: BodyProps) => {
 
 const PendingState = ({ isPending }: { readonly isPending: boolean }) => (
   <>
-    <Spinner className="text-muted-foreground size-8" data-state={isPending ? "pending" : "idle"} />
-    <div className="flex flex-col gap-2">
+    <StatusMedallion tone="neutral">
+      <Spinner className="size-6" data-state={isPending ? "pending" : "idle"} />
+    </StatusMedallion>
+    <div className="flex flex-col gap-1.5">
       <h1 className="font-heading text-foreground text-xl font-semibold">Accepting invitation</h1>
       <p className="text-muted-foreground text-sm">Hang on while we add you to the organization.</p>
     </div>
@@ -81,8 +91,10 @@ const PendingState = ({ isPending }: { readonly isPending: boolean }) => (
 
 const SuccessState = () => (
   <>
-    <CheckCircle2Icon className="text-primary size-8" />
-    <div className="flex flex-col gap-2">
+    <StatusMedallion tone="success">
+      <CheckCircle2Icon strokeWidth={1.5} />
+    </StatusMedallion>
+    <div className="flex flex-col gap-1.5">
       <h1 className="font-heading text-foreground text-xl font-semibold">Invitation accepted</h1>
       <p className="text-muted-foreground text-sm">Redirecting you to your dashboard…</p>
     </div>
@@ -91,14 +103,18 @@ const SuccessState = () => (
 
 const FailedState = ({ message }: { readonly message: string }) => (
   <>
-    <MailWarningIcon className="text-destructive size-8" />
-    <div className="flex flex-col gap-2">
+    <StatusMedallion tone="destructive">
+      <MailWarningIcon strokeWidth={1.5} />
+    </StatusMedallion>
+    <div className="flex flex-col gap-1.5">
       <h1 className="font-heading text-foreground text-xl font-semibold">
         Could not accept invitation
       </h1>
       <p className="text-muted-foreground text-sm">{message}</p>
     </div>
-    <Button render={<Link to="/" />}>Go to dashboard</Button>
+    <Button className="mt-2" render={<Link to="/" />}>
+      Go to dashboard
+    </Button>
   </>
 );
 

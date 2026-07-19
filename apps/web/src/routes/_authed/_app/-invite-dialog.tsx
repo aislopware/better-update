@@ -213,8 +213,15 @@ const ProjectGrantsSection = ({
   onChange: (key: number, patch: Partial<Pick<ProjectGrantDraft, "projectId" | "role">>) => void;
   onRemove: (key: number) => void;
 }) => (
-  <div className="flex flex-col gap-2">
-    <span className="text-sm font-medium">Project access (optional)</span>
+  // Same panel framing as the credential-bindings All-projects toggle
+  // (-credential-bindings.tsx): rounded-md border p-3 with a title + hint stack.
+  <div className="flex flex-col gap-3 rounded-md border p-3">
+    <div className="grid gap-0.5">
+      <span className="text-sm font-medium">Project access</span>
+      <span className="text-muted-foreground text-xs">
+        Optional — grants apply when the invitation is accepted.
+      </span>
+    </div>
     {grants.map((grant) => (
       <ProjectGrantRow
         key={grant.key}

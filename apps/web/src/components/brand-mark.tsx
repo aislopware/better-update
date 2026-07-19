@@ -19,6 +19,22 @@ export const BrandIcon = ({ size = 40, className }: BrandIconProps) => (
   </svg>
 );
 
+/**
+ * Quiet brand backdrop: the two radial-gradient blobs from the login hero,
+ * shared by the first-impression surfaces (onboarding, pending approval,
+ * invitation, CLI login) so the auth → onboarding journey reads as one place.
+ * Parent must be `relative overflow-hidden`.
+ */
+export const BrandBackdrop = ({ className }: { readonly className?: string }) => (
+  <div
+    aria-hidden="true"
+    className={cn("pointer-events-none absolute inset-0 select-none", className)}
+  >
+    <div className="absolute top-[18%] right-[-8%] size-[520px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.22_275/0.12)_0%,transparent_65%)] blur-3xl dark:bg-[radial-gradient(circle,oklch(0.55_0.24_275/0.22)_0%,transparent_65%)]" />
+    <div className="absolute bottom-[-12%] left-[-10%] size-[440px] rounded-full bg-[radial-gradient(circle,oklch(0.7_0.16_220/0.14)_0%,transparent_65%)] blur-3xl dark:bg-[radial-gradient(circle,oklch(0.55_0.2_220/0.22)_0%,transparent_65%)]" />
+  </div>
+);
+
 interface BrandWordmarkProps {
   readonly className?: string;
   readonly iconSize?: number;

@@ -1,11 +1,8 @@
-import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
-  CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
 import { createFileRoute, redirect } from "@tanstack/react-router";
@@ -13,6 +10,9 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { CircleAlertIcon } from "lucide-react";
 import { z } from "zod";
 
+import { BrandWordmark } from "../../components/brand-mark";
+import { CliCommandBlock } from "../../components/cli-command-block";
+import { StatusMedallion } from "../../components/status-medallion";
 import { authClient } from "../../lib/auth-client";
 import {
   buildCliCallbackRedirect,
@@ -26,34 +26,52 @@ const cliLoginSearchSchema = z.object({
   callbackUrl: z.string().catch(""),
 });
 
+const RetryInstructions = () => (
+  <div className="mt-2 flex w-full flex-col gap-2 text-left">
+    <CliCommandBlock commands={["better-update login"]} />
+    <p className="text-muted-foreground text-xs leading-relaxed">
+      Return to your terminal and run the command again to retry. Need help? See the{" "}
+      <a
+        href="https://www.npmjs.com/package/@better-update/cli"
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline-offset-4 hover:underline"
+      >
+        CLI docs
+      </a>
+      .
+    </p>
+  </div>
+);
+
 const CliLoginPage = () => {
   const { error } = Route.useRouteContext();
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Connect CLI</CardTitle>
-          <CardDescription>The browser login could not finish.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>Login failed</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </CardContent>
-        <CardFooter>
-          <Button
-            variant="outline"
-            onClick={() => {
-              globalThis.location.assign("/");
-            }}
-          >
-            Go to dashboard
-          </Button>
-        </CardFooter>
-      </Card>
+    <div className="bg-background relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
+        <BrandWordmark />
+        <Card className="w-full">
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+            <StatusMedallion tone="destructive">
+              <CircleAlertIcon strokeWidth={1.5} />
+            </StatusMedallion>
+            <div className="flex flex-col gap-1.5">
+              <CardTitle className="text-xl font-semibold">CLI login failed</CardTitle>
+              <CardDescription>{error}</CardDescription>
+            </div>
+            <RetryInstructions />
+            <Button
+              variant="outline"
+              onClick={() => {
+                globalThis.location.assign("/");
+              }}
+            >
+              Go to dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

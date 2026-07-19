@@ -14,25 +14,60 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { CircleCheckIcon } from "lucide-react";
 
 import type {
   BuildCompatibilityMatrixResult,
   BuildWithArtifact,
   MissingRuntimeVersionBuild,
 } from "@better-update/api";
+import type { ReactNode } from "react";
 
-import {
-  ChannelBadge,
-  PlatformBadge,
-  PlatformIndicator,
-} from "../../../../../components/attribute-badges";
+import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { pluralize } from "../../../../../lib/pluralize";
+import { MissingMatchingBuilds } from "./-channel-compatibility";
 import { synthesizeBuildChannels } from "./-compatibility-join";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
 
 const buildLabel = (build: BuildWithSyntheticChannels) =>
   (build.message ?? build.profile) || build.id.slice(0, 8);
+
+// Fixed-height glyph cell: the grid scans like a matrix, the words live in the
+// tooltip. `label` doubles as the accessible name of the glyph.
+const MatrixCellGlyph = ({
+  label,
+  tooltip,
+  children,
+}: {
+  label: string;
+  tooltip?: ReactNode;
+  children: ReactNode;
+}) => (
+  <Tooltip>
+    <TooltipTrigger
+      render={
+        <span aria-label={label} className="flex h-6 w-fit items-center gap-1.5 text-xs">
+          {children}
+        </span>
+      }
+    />
+    <TooltipContent>{tooltip ?? label}</TooltipContent>
+  </Tooltip>
+);
+
+const ServableTooltipBody = ({ channel }: { channel: SyntheticBuildChannel }) => (
+  <span className="flex max-w-52 flex-col gap-0.5">
+    <span>
+      {channel.updateCount} {pluralize(channel.updateCount, "update")} servable
+    </span>
+    {channel.latestUpdateMessage ? (
+      <span className="text-background/70 truncate">Latest: {channel.latestUpdateMessage}</span>
+    ) : null}
+    {channel.rolloutActive ? <span className="text-background/70">Rollout active</span> : null}
+  </span>
+);
 
 const MatrixStatusCell = ({
   build,
@@ -43,23 +78,33 @@ const MatrixStatusCell = ({
 }) => {
   if (channel.isPaused) {
     return (
-      <Badge variant="outline" className="w-fit">
-        Paused
-      </Badge>
+      <MatrixCellGlyph label="Channel paused — updates are not served">
+        <span className="bg-warning size-2 rounded-full" aria-hidden="true" />
+      </MatrixCellGlyph>
     );
   }
 
-  if (build.runtimeVersion === null) {
-    return <span className="text-muted-foreground text-xs">No runtime version</span>;
+  if (!build.runtimeVersion) {
+    return (
+      <MatrixCellGlyph label="No runtime version on this build">
+        <span className="text-muted-foreground">—</span>
+      </MatrixCellGlyph>
+    );
   }
 
   // Only builds that DO receive updates get color — "no updates" is the quiet default.
   return channel.updateCount > 0 ? (
-    <Badge variant="success" className="w-fit">
-      {channel.updateCount} {pluralize(channel.updateCount, "update")}
-    </Badge>
+    <MatrixCellGlyph
+      label={`${channel.updateCount} ${pluralize(channel.updateCount, "update")} servable`}
+      tooltip={<ServableTooltipBody channel={channel} />}
+    >
+      <CircleCheckIcon strokeWidth={2} className="text-success size-3.5" aria-hidden="true" />
+      <span className="font-medium tabular-nums">{channel.updateCount}</span>
+    </MatrixCellGlyph>
   ) : (
-    <span className="text-muted-foreground text-xs">No updates</span>
+    <MatrixCellGlyph label="No updates on this channel yet">
+      <span className="bg-muted-foreground/40 size-2 rounded-full" aria-hidden="true" />
+    </MatrixCellGlyph>
   );
 };
 
@@ -84,19 +129,7 @@ const MatrixBuildRow = ({ build }: { build: BuildWithSyntheticChannels }) => (
     </TableCell>
     {build.channels.map((channel) => (
       <TableCell key={`${build.id}:${channel.channelId}`}>
-        <div className="flex min-w-36 flex-col gap-1">
-          <MatrixStatusCell build={build} channel={channel} />
-          {channel.rolloutActive && (
-            <Badge variant="info" className="w-fit">
-              Rollout active
-            </Badge>
-          )}
-          {channel.latestUpdateMessage && (
-            <span className="text-muted-foreground max-w-40 truncate text-xs">
-              {channel.latestUpdateMessage}
-            </span>
-          )}
-        </div>
+        <MatrixStatusCell build={build} channel={channel} />
       </TableCell>
     ))}
   </TableRow>
@@ -127,41 +160,15 @@ export const CompatibilityMatrix = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {missingRuntimeVersions.length > 0 && (
-        <Card className="border-border bg-muted/40">
-          <CardHeader className="pb-2">
-            <CardTitle>Missing native builds</CardTitle>
-            <CardDescription>
-              These channel/runtime combinations have OTA updates but no uploaded build with the
-              same runtime version.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {missingRuntimeVersions.map((entry) => (
-              <div
-                key={`${entry.channelId}:${entry.platform}:${entry.runtimeVersion}`}
-                className="flex flex-wrap items-center gap-2 text-sm"
-              >
-                <ChannelBadge name={entry.channelName} />
-                <PlatformBadge platform={entry.platform} />
-                <span className="font-medium">v{entry.runtimeVersion}</span>
-                <span className="text-muted-foreground">
-                  {entry.updateCount} {pluralize(entry.updateCount, "update")}, latest{" "}
-                  {entry.latestUpdateMessage}
-                </span>
-                {entry.rolloutActive && <Badge variant="outline">Rollout active</Badge>}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <MissingMatchingBuilds missingRuntimeVersions={missingRuntimeVersions} showChannel />
 
       {synthesized.length > 0 && channels.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Builds × Channels</CardTitle>
+            <CardTitle>Builds × channels</CardTitle>
             <CardDescription>
-              Check which builds can receive OTA updates from each channel.
+              Check which builds can receive OTA updates from each channel — hover a cell for
+              details.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">

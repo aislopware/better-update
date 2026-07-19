@@ -23,9 +23,9 @@ import { Suspense } from "react";
 import type { BuildWithArtifact, Update } from "@better-update/api";
 
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
-import { PageHeader } from "../../../../../../components/page-header";
+import { DetailHeader } from "../../../../../../components/detail-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
-import { CopyButton } from "../../../../../../lib/copy-button";
+import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
@@ -196,10 +196,17 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
   const { activeOrg, project } = Route.useRouteContext();
   const { data } = useSuspenseQuery(fingerprintDetailQueryOptions(activeOrg.id, project.id, hash));
 
+  const header = (
+    <DetailHeader
+      title="Fingerprint"
+      meta={<CopyableId value={hash} label="Fingerprint" length={16} />}
+    />
+  );
+
   if (data.builds.length === 0 && data.updates.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Fingerprint" />
+        {header}
         <FingerprintEmpty />
       </div>
     );
@@ -207,7 +214,7 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <PageHeader size="sub" title="Fingerprint" />
+      {header}
       <FingerprintHashCard
         hash={data.hash}
         buildCount={data.builds.length}
@@ -221,7 +228,7 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
 
 const FingerprintSkeleton = () => (
   <div className="flex w-full flex-col gap-4">
-    <PageHeader size="sub" title="Fingerprint" />
+    <DetailHeader title="Fingerprint" />
     <DetailCardSkeleton rows={2} columns={1} />
     <DetailCardSkeleton rows={3} columns={1} />
     <DetailCardSkeleton rows={3} columns={1} />
