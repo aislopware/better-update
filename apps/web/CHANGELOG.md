@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.67.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.66.0...%40better-update%2Fweb%400.67.0) (2026-07-19)
+
+### Features
+
+* **web:** graphite visual overhaul ([6189cbf](https://github.com/better-update/better-update/commit/6189cbf44860f1e3144d0cd77e5cd4f8bc9d7a6b))
+
 ## [0.66.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.65.1...%40better-update%2Fweb%400.66.0) (2026-07-16)
 
 ### Features
