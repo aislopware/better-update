@@ -9,6 +9,7 @@
         "@tanstack/react-query",
         "@tanstack/react-router",
         "conventional-changelog-conventionalcommits",
+        "kysely",
         "oxlint-plugin-eslint",
         "type-fest"
       ]
@@ -19,7 +20,6 @@
       "ignoreDependencies": ["cloudflare"]
     },
     "apps/web": {
-      "entry": ["src/router.tsx"],
       "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
       "ignoreDependencies": [
         "@fontsource-variable/geist",
