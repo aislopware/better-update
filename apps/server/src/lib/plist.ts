@@ -92,7 +92,7 @@ export const isPlistObject = (value: unknown): value is PlistObject =>
 const parseXmlDocument = (xml: string): unknown => {
   // eslint-disable-next-line functional/no-try-statements -- xmldom throws ParseError for malformed XML; plist parsing should return null for invalid input
   try {
-    return new DOMParser({ errorHandler: () => undefined }).parseFromString(xml, "text/xml");
+    return new DOMParser({ onError: () => undefined }).parseFromString(xml, "text/xml");
   } catch {
     return null;
   }
