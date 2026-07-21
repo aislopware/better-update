@@ -113,10 +113,9 @@
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing (default).
-    // 0.68.1: retire CLI 0.68.1 and older — only versions strictly newer may run
-    // (iOS submit is ASC-public-API-first: Build Upload API upload + flipped
-    // ascApiKeyId-over-password auth precedence).
-    "REQUIRE_CLI_VERSION_ABOVE": "0.68.1",
+    // 0.69.1: retire CLI 0.69.1 and older — only versions strictly newer may run
+    // (macOS Developer ID signing + notarization: `macos sign` / `macos notarize`).
+    "REQUIRE_CLI_VERSION_ABOVE": "0.69.1",
     "ENVIRONMENT": "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
