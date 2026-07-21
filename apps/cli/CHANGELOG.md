@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.70.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.69.1...%40better-update%2Fcli%400.70.0) (2026-07-21)
+
+### Features
+
+* **cli:** add macos sign + notarize commands ([ed644c7](https://github.com/better-update/better-update/commit/ed644c72e03a6d2f247c2ed8c69ba094082cadd5))
+
 ## [0.69.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.69.0...%40better-update%2Fcli%400.69.1) (2026-07-19)
 
 **Note:** Version bump only for package @better-update/cli
