@@ -104,6 +104,7 @@ better-update credentials generate keystore \
 # Apple signing cert: builds the CSR locally, requests a fresh .p12 from the ASC API, uploads it.
 # --type distribution|development = iOS; developer-id = macOS Developer ID Application (signs apps
 # distributed outside the Mac App Store; Apple only lets the team's Account Holder create these).
+# A stored developer-id cert is what `macos sign` / `macos notarize` consume (see references/cli.md#macos).
 # At Apple's per-type cert limit, offers an interactive revoke + retry.
 better-update credentials generate distribution-certificate [--asc-key-id <id>] [--type distribution|development|developer-id]
 

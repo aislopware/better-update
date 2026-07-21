@@ -138,3 +138,11 @@ export class FingerprintMismatchError extends Data.TaggedError("FingerprintMisma
   readonly localHash: string;
   readonly providedHash: string;
 }> {}
+
+export class CodesignError extends Data.TaggedError("CodesignError")<{
+  readonly message: string;
+}> {}
+
+export class NotarizationError extends Data.TaggedError("NotarizationError")<{
+  readonly message: string;
+}> {}

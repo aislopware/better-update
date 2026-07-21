@@ -11,8 +11,9 @@ description: >-
   in app.json, or an `updates.jmango360.dev` manifest URL), OR when the user asks to publish /
   ship an OTA update, stage a rollout or roll back a release, cut a release candidate, promote an
   update between channels, build an IPA/APK/AAB locally, manage keystores / distribution certs /
-  provisioning profiles / APNs push keys, or configure per-environment secrets — even if they
-  never say the words "better-update". Covers every command, every flag, and the
+  provisioning profiles / APNs push keys, sign or notarize a macOS app with a Developer ID
+  certificate, or configure per-environment secrets — even if they never say the words
+  "better-update". Covers every command, every flag, and the
   publish → branch → channel → device routing model.
 ---
 
@@ -21,9 +22,9 @@ description: >-
 better-update is a self-hosted mobile release platform for Expo, React Native, Kotlin Multiplatform,
 and native apps — any project type, including ones driven by a custom build command — running on
 Cloudflare. It does OTA JS updates (Expo Updates protocol-compatible), local native builds (EAS
-Build-compatible), an end-to-end-encrypted credential vault, server-side env vars, and store
-submission — all driven from one CLI, `better-update`. This skill is how you operate that CLI on a
-user's behalf.
+Build-compatible), an end-to-end-encrypted credential vault, server-side env vars, store
+submission, and macOS Developer ID signing + notarization (`macos sign` / `macos notarize`) — all
+driven from one CLI, `better-update`. This skill is how you operate that CLI on a user's behalf.
 
 ## The one mental model that explains everything
 

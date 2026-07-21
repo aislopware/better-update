@@ -17,6 +17,7 @@ import { fingerprintCommand } from "./commands/fingerprint";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
+import { macosCommand } from "./commands/macos";
 import { metadataCommand } from "./commands/metadata";
 import { openCommand } from "./commands/open";
 import { orgCommand } from "./commands/org";
@@ -73,6 +74,7 @@ export const commandRegistry = {
   autocomplete: autocompleteCommand,
   apple: appleCommand,
   "app-store": appStoreCommand,
+  macos: macosCommand,
   submit: submitCommand,
   testflight: testflightCommand,
   reviews: reviewsCommand,

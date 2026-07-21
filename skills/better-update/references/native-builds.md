@@ -154,9 +154,33 @@ better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]
 - `builds compatibility-matrix` answers "if I publish to channel X today, will any device receive
   it?" — prints runtime-version coverage per channel and flags gaps. Run before a publish if unsure.
 - `builds resign` prints step-by-step instructions (fastlane sigh / codesign) for re-signing an iOS
-  build locally with a new provisioning profile — better-update does not bundle the macOS signing
-  toolchain, so it downloads the profile/cert to a tmp path and gives you the commands plus a
-  re-upload path (iOS only; the build id is the `--build` flag, not a positional).
+  build locally with a new provisioning profile — for iOS builds the CLI does not drive codesign
+  itself, so it downloads the profile/cert to a tmp path and gives you the commands plus a
+  re-upload path (iOS only; the build id is the `--build` flag, not a positional). For **macOS**
+  apps, signing IS driven by the CLI — see the section below.
+
+## macOS Developer ID signing & notarization
+
+For apps distributed **outside** the Mac App Store (a `.app`, `.dmg`, `.pkg`, or a bare CLI binary):
+
+```bash
+# One-time: store a Developer ID Application cert in the vault (Account Holder only)
+better-update credentials generate distribution-certificate --type developer-id
+
+# Sign (ephemeral keychain, inside-out nested signing, hardened runtime + timestamp)
+better-update macos sign ./dist/MyApp.app [--entitlements ./entitlements.plist]
+
+# Sign and notarize in one go
+better-update macos sign ./dist/MyApp.app --notarize
+
+# Notarize + staple an already-signed artifact (.app auto-zipped; .dmg/.pkg/.zip as-is)
+better-update macos notarize ./dist/MyApp.dmg [--asc-key-id <id>]
+```
+
+Notary auth follows the same precedence as `submit`: ASC API key (vault-stored, `.p8` staged in a
+private temp dir) over Apple ID + app-specific password (`--apple-id` + `--team-id`, password from
+`EXPO_APPLE_APP_SPECIFIC_PASSWORD`). Rejections print Apple's notary developer log; acceptance
+staples and validates the ticket. Full flag reference: `references/cli.md#macos`.
 
 ## `submit` — upload to the stores
 

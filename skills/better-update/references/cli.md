@@ -20,7 +20,7 @@ Many booleans are citty-negatable — a `foo` flag with default on is disabled w
 - [credentials](#credentials) (signing + E2E vault)
 - [env](#env) · [environments](#environments)
 - [fingerprint](#fingerprint) · [analytics](#analytics) · [audit-logs](#audit-logs)
-- [apple](#apple) · [submit](#submit) · [testflight](#testflight) · [app-store](#app-store)
+- [apple](#apple) · [macos](#macos) · [submit](#submit) · [testflight](#testflight) · [app-store](#app-store)
 - [devices](#devices) · [webhooks](#webhooks)
 - [Exit codes](#exit-codes)
 
@@ -51,6 +51,7 @@ better-update
 ├── analytics                      adoption · updates · channels · platforms
 ├── audit-logs                     list
 ├── apple                          login · logout · whoami (Apple Developer session)
+├── macos                          sign · notarize — Developer ID signing + Apple notary service
 ├── submit                         Submit a build to App Store Connect / Google Play
 ├── testflight                     group (list/create/delete) — TestFlight beta groups
 ├── app-store                      version (list/create/set/localize) · submit · status ·
@@ -561,6 +562,38 @@ better-update apple sandbox delete --id <testerId>
   what's on Apple (distinct from the local `credentials list` vault); create with `credentials generate asc-key`,
   revoke with `credentials revoke asc-key`. The sandbox password is read from `--password` or
   `BETTER_UPDATE_SANDBOX_PASSWORD` and is never echoed.
+
+## macos
+
+```bash
+better-update macos sign <path-to.app|binary> [--certificate-id <id>] [--entitlements <plist>] \
+  [--notarize] [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
+better-update macos notarize <path-to .app|.dmg|.pkg|.zip> [--asc-key-id <id>] \
+  [--apple-id <email> --team-id <TEAMID>] [--wait=true] [--staple=true]
+```
+
+Signs and notarizes macOS apps distributed **outside** the Mac App Store, using the vault:
+
+- **`macos sign`** downloads + decrypts the stored **Developer ID Application** `.p12` (create one
+  with `credentials generate distribution-certificate --type developer-id`), imports it into an
+  ephemeral keychain (torn down on every exit path), then signs **inside-out**: every nested
+  framework / helper app / XPC service / dylib / loose Mach-O first, the outer bundle last — always
+  with the hardened runtime (`--options runtime`) + a secure timestamp, both required by
+  notarization. `--entitlements` applies to the outer bundle only. Ends with
+  `codesign --verify --deep --strict`. Cert resolution: `--certificate-id` › lone stored
+  Developer ID cert (printed) › interactive picker. A bare Mach-O binary (CLI tool) signs directly.
+  `--notarize` chains straight into the notarize flow below (wait + staple).
+- **`macos notarize`** submits to Apple's notary service via `xcrun notarytool`. An `.app` is
+  zipped automatically (`ditto -c -k --keepParent`); `.dmg`/`.pkg`/`.zip` upload as-is. Auth
+  mirrors `submit` (key over password): `--asc-key-id` (the `.p8` is decrypted and staged in a
+  private temp dir for the call) › `--apple-id` + `--team-id` with the app-specific password read
+  from `EXPO_APPLE_APP_SPECIFIC_PASSWORD` › the shared team-labeled ASC-key picker
+  (create-from-Apple-ID included; non-interactive runs fail with guidance). On **Accepted** it
+  staples the ticket (`stapler staple` + `validate`) — skipped for `.zip`, which cannot carry a
+  ticket (staple the `.app` inside instead). On **Invalid/Rejected** it fetches and prints the
+  notary developer log before failing. `--wait=false` uploads and returns the submission id
+  without polling. Exit codes: 2 validation, 5 missing vault credentials, 6 codesign/keychain/
+  notarization failure.
 
 ## submit
 
