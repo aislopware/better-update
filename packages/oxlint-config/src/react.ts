@@ -56,6 +56,11 @@ export default defineConfig({
     // are almost all non-actionable "Compilation Skipped: incompatible library" notices about
     // TanStack APIs that return functions — advisory noise rather than real defects here.
     "react/react-compiler": "off",
+    // Expressions over statements: components are arrow functions. New in oxlint 1.75.
+    "react/function-component-definition": [
+      "warn",
+      { namedComponents: "arrow-function", unnamedComponents: "arrow-function" },
+    ],
   },
   overrides: [
     {

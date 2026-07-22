@@ -44,5 +44,13 @@ export default defineConfig({
         "no-restricted-imports": "off",
       },
     },
+    {
+      // The bin entry is executed, never imported via require(esm), so the
+      // rule's loading concern doesn't apply. New in oxlint 1.75.
+      files: ["**/src/index.ts"],
+      rules: {
+        "node/no-top-level-await": "off",
+      },
+    },
   ],
 });

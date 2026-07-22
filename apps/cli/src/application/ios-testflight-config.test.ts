@@ -77,10 +77,12 @@ describe(classifyProcessingState, () => {
   it("maps VALID to valid", () => {
     expect(classifyProcessingState("VALID")).toBe("valid");
   });
+
   it("maps FAILED and INVALID to failed", () => {
     expect(classifyProcessingState("FAILED")).toBe("failed");
     expect(classifyProcessingState("INVALID")).toBe("failed");
   });
+
   it("treats PROCESSING, unknown, and null as still-processing", () => {
     expect(classifyProcessingState("PROCESSING")).toBe("processing");
     expect(classifyProcessingState("SOMETHING_ELSE")).toBe("processing");
@@ -117,6 +119,7 @@ describe(matchBetaGroupsByName, () => {
     expect(matched.map((grp) => grp.id)).toStrictEqual(["g1", "g2"]);
     expect(missing).toStrictEqual([]);
   });
+
   it("reports names with no matching group, case-sensitively", () => {
     const groups = [{ id: "g1", name: "Internal" }];
     const { matched, missing } = matchBetaGroupsByName(groups, ["internal", "Ghost"]);

@@ -1,6 +1,6 @@
-import { type ClassValue, clsx } from "clsx";
+import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
-}
+import type { ClassValue } from "clsx";
+
+export const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs));

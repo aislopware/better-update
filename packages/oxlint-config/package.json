@@ -10,6 +10,6 @@
     "./functional-plugin": "./src/functional-plugin.mjs"
   },
   "peerDependencies": {
-    "oxlint": "^1.74.0"
+    "oxlint": "^1.75.0"
   }
 }

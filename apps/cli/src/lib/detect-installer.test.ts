@@ -94,12 +94,15 @@ describe(installCommand, () => {
   it("bun", () => {
     expect(installCommand("bun")).toBe("bun add -g @better-update/cli@latest");
   });
+
   it("pnpm", () => {
     expect(installCommand("pnpm")).toBe("pnpm add -g @better-update/cli@latest");
   });
+
   it("yarn", () => {
     expect(installCommand("yarn")).toBe("yarn global add @better-update/cli@latest");
   });
+
   it("npm", () => {
     expect(installCommand("npm")).toBe("npm install -g @better-update/cli@latest");
   });
