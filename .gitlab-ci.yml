@@ -1,29 +1,46 @@
-# GitLab CI — primary pipeline on gitlab.jmango360.com.
+# GitLab CI — the project's whole pipeline. Nothing here names a particular
+# GitLab instance, registry, runner or Cloudflare account: everything that would
+# is a CI/CD variable, so a fork runs this file unmodified.
 #
-# GitHub (origin = aislopware/better-update) is now only a PUSH MIRROR. Every
-# workflow under .github/workflows is fully commented out, so nothing runs on
-# GitHub anymore — this file is the whole CI/CD.
+# RUNNERS. Most jobs are Linux Docker; two are macOS (the Apple bsdiff build and
+# its conformance gate) and need a runner with Xcode — a Tart VM, a self-hosted
+# Mac, or GitLab's SaaS macOS runners. Pin both with $BU_CI_LINUX_TAG /
+# $BU_CI_MACOS_TAG below. Give the Linux runner a persistent bun cache — mount a
+# docker volume at /root/.bun/install/cache in its config.toml — so `bun install`
+# hardlinks from a warm cache instead of re-extracting native tarballs every job.
+# That is what stops the recurring "Fail extracting tarball" flake; the retry
+# loop in bun_ci_install is only a seatbelt for a cold cache entry.
 #
-# Runners: Linux Docker runner tagged `office-runner-01` (all jobs except macOS)
-# + a macOS Tart runner tagged `office-mac-runner` (Apple build + conformance).
-# The Linux runner (config.toml runner name "office-1") mounts a persistent
-# `bun-cache-ci` docker volume at /root/.bun/install/cache so `bun install`
-# hardlinks from a warm cache instead of extracting native tarballs each job —
-# this is what stops the recurring "Fail extracting tarball" flake. If the runner
-# is ever re-provisioned, re-add that volume mount (see the bun_ci_install note).
-# @better-update/bsdiff ships prebuilt natives for 5 platforms: macOS arm64 (built
-# on the Mac runner) + Linux x64/arm64 in both gnu and musl (built on Linux via
-# napi-cross / cargo-zigbuild). Windows and Intel-mac are intentionally NOT built.
+# @better-update/bsdiff ships prebuilt natives for 5 platforms: macOS arm64
+# (built on the Mac runner) + Linux x64/arm64 in both gnu and musl (built on
+# Linux via napi-cross / cargo-zigbuild). Windows and Intel-mac are NOT built.
 #
-# Required CI/CD variables (Settings → CI/CD → Variables, masked + protected):
-#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID  — deploy-server / deploy-web
-#   NPM_TOKEN                                     — publish-cli (npm publish)
-#   GITLAB_RELEASE_TOKEN                          — release (project/group access
-#       token, scopes write_repository + api; pushes the version commit + tags AND
-#       creates GitLab Releases; pushing tags with a real token is what triggers
-#       the downstream deploy/publish pipelines).
-#   MACOS_TART_IMAGE (optional)                   — the Tart VM image for the macOS
-#       runner; defaults below. Set it to whatever `tart list` shows if different.
+# CI/CD VARIABLES (Settings → CI/CD → Variables). Project variables override the
+# `variables:` defaults below.
+#
+#   Deploy identity — the repository tracks NO deployment identity, so both
+#   deploy jobs need the BU_* keys that describe the target instance. The full
+#   list, with which are required, is `.env.deploy.example`; `config:gen:strict`
+#   fails the job if a required one is missing, so a misconfigured pipeline can
+#   never deploy a placeholder.
+#     required  BU_CF_ACCOUNT_ID BU_APP_HOST BU_ASSET_CDN_HOST BU_EMAIL_SENDER
+#               BU_D1_DATABASE_ID BU_KV_SESSION_ID BU_KV_BUILD_RESERVATIONS_ID
+#     as needed BU_CF_ZONE_ID BU_VAULT_HOST BU_*_WORKER_NAME
+#               BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_*_CLIENT_ID
+#
+#   Credentials (masked + protected)
+#     CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID  — deploy-server / deploy-web
+#     NPM_TOKEN                                    — publish-cli (npm publish)
+#     GITLAB_RELEASE_TOKEN                         — release (project/group access
+#         token, scopes write_repository + api; pushes the version commit + tags
+#         AND creates GitLab Releases; pushing tags with a real token is what
+#         triggers the downstream deploy/publish pipelines).
+#
+#   Pipeline knobs — BU_CI_*, documented at `variables:` below. These configure
+#   the RUNNERS, not the deployment; `config:gen` ignores them.
+#     required  BU_CI_LINUX_TAG BU_CI_MACOS_TAG  (the tracked values are
+#               placeholders — a job whose tag matches no runner never starts)
+#     optional  BU_CI_IMAGE BU_CI_MACOS_IMAGE
 
 stages:
   - test
@@ -34,14 +51,29 @@ stages:
   - publish
 
 variables:
-  # Prebuilt CI base image (node 24 + bun + rust + Linux cross targets + zig +
-  # cargo-zigbuild + node-gyp + libbz2 + jq) on Harbor — see ci/Dockerfile. Linux
-  # jobs pull this instead of node:22 + reinstalling the toolchain every run.
-  CI_IMAGE: "harbor.jmango360.dev/library/better-update-ci:node24"
-  # bun is baked into CI_IMAGE; BUN_VERSION is used ONLY by the macOS Tart jobs
-  # (they install bun in-job). Bumping bun on Linux = rebuild + repush CI_IMAGE.
+  # Image for the Linux jobs. The default is plain upstream node — `.ci-setup`
+  # then installs whatever the job needs (apt build deps, rustup + cross targets,
+  # zig) at the cost of a few minutes per job. Build `ci/Dockerfile` once, push
+  # it to a registry your runners can pull, and point this at it: every install
+  # step becomes a no-op.
+  BU_CI_IMAGE: "node:24-bookworm"
+  # Runner selection — SET THESE FIRST. The values below are placeholders; a job
+  # whose tag matches no runner sits pending forever, so override both with your
+  # own runners' tags. They cannot default to "no tag": a mixed Linux/macOS fleet
+  # has to be told apart, and GitLab does not document what an empty tag does.
+  BU_CI_LINUX_TAG: "linux"
+  BU_CI_MACOS_TAG: "macos"
+  # Image for the two macOS jobs. On a Tart runner this must already be present
+  # locally (`tart list`) or the runner pulls ~30GB. Ignored by runner executors
+  # that manage their own VM image.
+  BU_CI_MACOS_IMAGE: "ghcr.io/cirruslabs/macos-tahoe-xcode:26.5"
+  # bun is baked into a prebuilt BU_CI_IMAGE; this pins the version installed
+  # in-job when it is missing (plain node image, macOS runners).
   BUN_VERSION: "1.3.13"
-  # Cap bun's parallel downloads/extractions so concurrent jobs on the shared
+  # Zig, for the musl cross-builds (`napi build -x`). Also only installed in-job
+  # when missing; keep in sync with ci/Dockerfile.
+  ZIG_VERSION: "0.14.1"
+  # Cap bun's parallel downloads/extractions so concurrent jobs on the same
   # runner don't contend and fail tarball extraction (default is 256).
   BUN_CONFIG_MAX_HTTP_REQUESTS: "32"
   # Bun + Rust use DEFAULT homes (~/.bun, ~/.cargo, ~/.rustup), NOT project-dir
@@ -50,9 +82,6 @@ variables:
   # an in-project bun cache gets scanned by `oxfmt --check .` (the lint job + the
   # lefthook release commit) and fails on vendored files. HOME + PATH always pass
   # through, so default homes work; only bsdiff target/ is cached.
-  # macOS Tart VM image — must match an image already on the office-mac-runner so
-  # tart doesn't pull ~30GB. Override via a CI/CD variable when the runner updates.
-  MACOS_TART_IMAGE: "ghcr.io/cirruslabs/macos-tahoe-xcode:26.5"
 
 # Only build pipelines we care about: merge requests, tags, and the default
 # branch (whose pipeline carries the manual `release` job).
@@ -63,26 +92,77 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # ---------------------------------------------------------------------------
-# Linux jobs run on CI_IMAGE (ci/Dockerfile): node 24 + bun + rust + cross
-# targets + zig/cargo-zigbuild + node-gyp + libbz2 + jq, all prebaked. macOS
-# jobs run on the Tart VM and still install bun/rust in-job.
-# ---------------------------------------------------------------------------
-# Shared setup, pulled into each before_script via a single !reference:
+# Shared shell, pulled into every before_script via a single !reference. It only
+# DEFINES functions — each template calls the ones it needs.
+#
+# Every ensure_* function is idempotent and exits immediately when the tool is
+# already present, so they cost nothing on a prebuilt $BU_CI_IMAGE (ci/Dockerfile
+# bakes in bun + rust + cross targets + zig/cargo-zigbuild + node-gyp + libbz2 +
+# jq) and bootstrap a plain `node:24-bookworm` — or a macOS runner — on demand.
+#
 #  - bun_ci_install(): resilient `bun install`. The real fix for the recurring
 #    "Fail extracting tarball" flake (rspack/rolldown/tsgo native bindings, etc.)
-#    is a PERSISTENT bun cache: the office-1 runner mounts the `bun-cache-ci`
-#    docker volume at /root/.bun/install/cache (see [runners.docker] volumes in
-#    /etc/gitlab-runner/config.toml). A warm cache HARDLINKS packages into
-#    node_modules and skips tarball extraction entirely, so the flake can only
-#    occur on a COLD entry (a newly-bumped dep). This retry loop is the seatbelt
-#    for that cold case: a `timeout` kills any extraction hang, and — crucially —
-#    the first retry keeps the warm cache and only drops node_modules; the whole
-#    cache is cleared only as a LAST resort (nuking it would force a full cold
+#    is a PERSISTENT bun cache: mount a docker volume at
+#    /root/.bun/install/cache on the Linux runner (see [runners.docker] volumes
+#    in its config.toml). A warm cache HARDLINKS packages into node_modules and
+#    skips tarball extraction entirely, so the flake can only occur on a COLD
+#    entry (a newly-bumped dep). This retry loop is the seatbelt for that cold
+#    case: a `timeout` kills any extraction hang, and — crucially — the first
+#    retry keeps the warm cache and only drops node_modules; the whole cache is
+#    cleared only as a LAST resort (nuking it would force a full cold
 #    re-download and re-roll the extraction dice on every following job).
-#  - node-gyp guard: node-pty (a CLI dep) has no linux-x64 prebuild → compiles.
-#    Baked into CI_IMAGE so the guard no-ops on Linux; still installs on macOS.
+#  - ensure_build_deps(): node-pty (a CLI dep) has no linux-x64 prebuild, so it
+#    compiles → node-gyp + a C toolchain. Also libbz2 (bsdiff conformance links
+#    expo's bspatch.c) and jq (the release job).
 .ci-setup:
   before_script:
+    - |
+      # PATH goes on FIRST in both: on a persistent runner the toolchain already
+      # lives in $HOME but is not on a fresh job's PATH, and probing before the
+      # export would re-download it every single job.
+      ensure_bun() {
+        export PATH="$HOME/.bun/bin:$PATH"
+        if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
+          curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
+        fi
+      }
+
+      ensure_rust() {
+        export PATH="$HOME/.cargo/bin:$PATH"
+        if ! command -v rustup >/dev/null 2>&1; then
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain stable
+        fi
+        rustup default stable
+      }
+
+      ensure_build_deps() {
+        if command -v apt-get >/dev/null 2>&1 &&
+           { ! command -v node-gyp >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; }; then
+          apt-get update
+          apt-get install -y --no-install-recommends python3 make g++ libbz2-dev jq clang lld
+        fi
+        command -v node-gyp >/dev/null 2>&1 || npm install -g node-gyp || true
+      }
+
+      # musl cross-compilation only (`napi build -x`). Slow to install from
+      # scratch — a prebuilt $BU_CI_IMAGE already has it.
+      ensure_zig() {
+        command -v cargo-zigbuild >/dev/null 2>&1 && command -v zig >/dev/null 2>&1 && return 0
+        if command -v brew >/dev/null 2>&1; then
+          brew install zig
+        else
+          # The tarball is per-arch (zig-<arch>-linux-<ver>, arch BEFORE os) —
+          # never hardcode x86_64 or an arm64 runner gets "Exec format error".
+          zig_arch="$(uname -m)"
+          [ "$zig_arch" = "arm64" ] && zig_arch="aarch64"
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${zig_arch}-linux-${ZIG_VERSION}.tar.xz" \
+            | tar -xJ -C /usr/local
+          mv "/usr/local/zig-${zig_arch}-linux-${ZIG_VERSION}" /usr/local/zig
+          export PATH="/usr/local/zig:$PATH"
+        fi
+        cargo install --locked cargo-zigbuild
+      }
     - |
       bun_ci_install() {
         # `timeout` is GNU-only (Linux). macOS has it as `gtimeout` (coreutils) or
@@ -112,18 +192,11 @@ workflow:
         echo ">> bun install failed after 3 attempts" >&2
         return 1
       }
-    - |
-      if ! command -v node-gyp >/dev/null 2>&1; then
-        if command -v apt-get >/dev/null 2>&1; then
-          apt-get update && apt-get install -y --no-install-recommends python3 make g++
-        fi
-        npm install -g node-gyp || true
-      fi
 
 .base-bun:
-  image: $CI_IMAGE
+  image: $BU_CI_IMAGE
   tags:
-    - office-runner-01
+    - $BU_CI_LINUX_TAG
   interruptible: true
   # `bun install` can flake extracting big native tarballs (e.g. sharp/libvips);
   # retry the job, and bound any hang so it doesn't sit until the global timeout.
@@ -138,12 +211,18 @@ workflow:
     - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
     - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
     - !reference [.ci-setup, before_script]
+    - ensure_bun
+    - ensure_build_deps
+    # Only the Rust jobs pay for the toolchain; .base-rust flips this on.
+    - if [ "${NEEDS_RUST:-0}" = "1" ]; then ensure_rust; fi
     - bun --version
 
-# Rust (+ cross targets, zig, cargo-zigbuild) is already baked into CI_IMAGE, so
-# .base-rust just adds the cargo target/ cache and inherits .base-bun's setup.
+# Adds the Rust toolchain + the cargo target/ cache on top of .base-bun. Both
+# are no-ops on a prebuilt $BU_CI_IMAGE, which already has rust + cross targets.
 .base-rust:
   extends: .base-bun
+  variables:
+    NEEDS_RUST: "1"
   cache:
     - key:
         files:
@@ -151,12 +230,13 @@ workflow:
       paths:
         - packages/bsdiff/target
 
-# macOS Tart runner. Same bun + rustup bootstrap, but the VM image + tag select
-# the Mac, and there's no apt/cache (Tart VMs are ephemeral). Brew is preinstalled.
+# macOS runner (the two Apple bsdiff jobs). Same bootstrap, but the VM image +
+# tag select the Mac and there is no apt/cache — these VMs are ephemeral, so
+# nothing can be prebaked and every ensure_* actually runs.
 .macos-rust:
-  image: $MACOS_TART_IMAGE
+  image: $BU_CI_MACOS_IMAGE
   tags:
-    - office-mac-runner
+    - $BU_CI_MACOS_TAG
   interruptible: true
   # Generous: a cold pull of the ~30GB Tart VM image (if evicted from the runner)
   # can take a long time; once cached, real runs are minutes. Capped by the
@@ -171,25 +251,17 @@ workflow:
   before_script:
     - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
     - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
-    - export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
-    - |
-      if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
-        curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
-      fi
-    - |
-      if ! command -v rustup >/dev/null 2>&1; then
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable
-      fi
-      rustup default stable
     - !reference [.ci-setup, before_script]
+    - ensure_bun
+    - ensure_rust
+    - ensure_build_deps
     - bun --version && cargo --version
 
 # ---------------------------------------------------------------------------
 # test (merge requests)
 # ---------------------------------------------------------------------------
 
-# Mirrors the GitHub `check` job: lint + format + unit tests + build. `bun run
+# The merge-request gate: lint + format + unit tests + build. `bun run
 # test`/`build` fan out via turbo and compile the git-ignored bsdiff native
 # addon, hence Rust.
 lint-test-build:
@@ -224,7 +296,7 @@ e2e-server:
     - bun run typegen:cf
     - bun --filter @better-update/server test:e2e-pool
 
-# Mirrors GitHub `integrations`. Compiles bsdiff via turbo, hence Rust.
+# Integration suite. Compiles bsdiff via turbo, hence Rust.
 integrations:
   extends: .base-rust
   stage: test
@@ -235,8 +307,8 @@ integrations:
     - bun run typegen:cf
     - bun run test:integrations
 
-# bsdiff conformance gate (the @better-update/bsdiff SHIP GATE) — Linux + macOS,
-# mirroring the GitHub matrix. Builds the host .node addon, then proves the
+# bsdiff conformance gate (the @better-update/bsdiff SHIP GATE) — Linux + macOS.
+# Builds the host .node addon, then proves the
 # BSDIFF40 patch applies byte-identically through expo's vendored bspatch.c
 # (needs libbz2 + a C compiler). Runs when packages/bsdiff changes.
 conformance:
@@ -289,7 +361,7 @@ release:
     - bun run build
 
     - git config user.name "gitlab-ci"
-    - git config user.email "ci@gitlab.jmango360.com"
+    - git config user.email "ci@${CI_SERVER_HOST}"
     - git fetch --tags
     # Land on a real branch (CI checks out detached HEAD) so lerna's
     # allowBranch:main passes and we can push the version commit back.
@@ -309,8 +381,8 @@ release:
     - git push origin "HEAD:refs/heads/${CI_DEFAULT_BRANCH}"
 
     # Push each new tag individually + create a GitLab Release for the public
-    # packages (mirrors the GitHub release.yml loop; private server/web/api tags
-    # are versioned but get no Release entry).
+    # packages; the private server/web/api tags are versioned but get no Release
+    # entry.
     - |
       PUBLIC_PACKAGES="@better-update/cli @better-update/bsdiff"
       for tag in $(git tag --points-at HEAD); do
@@ -363,18 +435,29 @@ release:
 
 # ---------------------------------------------------------------------------
 # deploy (tag-triggered) — apply D1 migrations + wrangler deploy to Cloudflare.
+#
+# The repository tracks NO deployment identity, so both deploy jobs need the
+# BU_* CI variables that describe the target instance (see .env.deploy.example):
+#   required  BU_CF_ACCOUNT_ID BU_APP_HOST BU_EMAIL_SENDER
+#             BU_D1_DATABASE_ID BU_KV_SESSION_ID BU_KV_BUILD_RESERVATIONS_ID
+#   as needed BU_CF_ZONE_ID BU_VAULT_HOST BU_ASSET_CDN_HOST BU_*_WORKER_NAME
+#             BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_*_CLIENT_ID
+# `config:gen:strict` (run by both scripts below) fails the job if any required
+# one is missing, so a misconfigured pipeline cannot deploy a placeholder.
 # ---------------------------------------------------------------------------
 deploy-server:
   extends: .base-bun
   stage: deploy
   interruptible: false
-  resource_group: deploy-server # serialize, mirrors GH concurrency group
+  resource_group: deploy-server # serialize concurrent deploys
   rules:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/server@/
   script:
     - bun_ci_install
     - cd apps/server
-    - bunx wrangler d1 migrations apply better-update --remote
+    # Binding name, not database name — the D1 identity is rendered into
+    # wrangler.jsonc from the BU_* variables above.
+    - bun run d1:migrate:remote
     - bun run deploy
 
 deploy-web:
@@ -391,11 +474,11 @@ deploy-web:
 
 # ---------------------------------------------------------------------------
 # publish (tag @better-update/cli@*) — npm publish of @better-update/cli and,
-# when bumped, @better-update/bsdiff (main + its 8 prebuilt native stubs).
+# when bumped, @better-update/bsdiff (main + its 5 prebuilt native stubs).
 #
-# Flow mirrors the GitHub publish-cli.yml: gate (is bsdiff already on npm?) →
-# cross-build the 8 native targets only when needed → publish stubs then
-# `lerna publish from-package` (bsdiff main + cli).
+# Flow: gate (is bsdiff already on npm?) → cross-build the 5 native targets only
+# when needed → publish stubs then `lerna publish from-package` (bsdiff main +
+# cli).
 # ---------------------------------------------------------------------------
 
 # Decide whether bsdiff still needs publishing. A CLI tag is always present when
@@ -443,7 +526,8 @@ build-bsdiff-apple:
 
 # Linux targets: gnu via napi-cross (portable glibc baseline), musl via
 # cargo-zigbuild (`-x`). The cross targets + zig + cargo-zigbuild are baked into
-# CI_IMAGE; napi-cross is fetched by napi at build time.
+# a prebuilt $BU_CI_IMAGE (ensure_zig installs them otherwise); napi-cross is
+# fetched by napi at build time.
 build-bsdiff-linux:
   extends: .base-rust
   stage: build-native
@@ -463,6 +547,8 @@ build-bsdiff-linux:
   script:
     - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
     - bun_ci_install
+    - rustup target add "$TARGET"
+    - if [ "$FLAGS" = "-x" ]; then ensure_zig; fi
     - cd packages/bsdiff
     - bun run build --target "$TARGET" $FLAGS
   artifacts:
@@ -487,16 +573,22 @@ publish-cli:
   script:
     - bun_ci_install
     - bun run typegen:cf
+    # GitLab restores the build-job artifacts to packages/bsdiff/*.node, but
+    # `napi artifacts` collates from packages/bsdiff/artifacts/ — stage them
+    # there FIRST. It has to happen before `bun run build`: that rebuilds the
+    # HOST .node into the same directory and would clobber the linux-x64-gnu
+    # artifact napi-cross built against an old-glibc sysroot, silently raising
+    # the published baseline to the runner's own glibc.
+    - mkdir -p packages/bsdiff/artifacts
+    - mv packages/bsdiff/*.node packages/bsdiff/artifacts/ 2>/dev/null || true
+    # The CLI bakes its default server URL in at build time, so the published
+    # binary must never be built on placeholders.
+    - bun run config:gen:strict
     # `bun run build` rebuilds bsdiff's git-ignored host loader (index.js/.d.ts).
     - bun run build
     - printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
     - |
       if [ "$NEEDS_BSDIFF" = "true" ]; then
-        # GitLab restores the build-job artifacts to packages/bsdiff/*.node, but
-        # `napi artifacts` collates from packages/bsdiff/artifacts/ — stage them
-        # there first (GitHub's download-artifact placed them under artifacts/).
-        mkdir -p packages/bsdiff/artifacts
-        mv packages/bsdiff/*.node packages/bsdiff/artifacts/ 2>/dev/null || true
         # Collate per-platform .node artifacts into npm/<platform>/, pin the 5 stub
         # + main optionalDependency versions, verify invariants, publish the stubs.
         ( cd packages/bsdiff && bun run artifacts )

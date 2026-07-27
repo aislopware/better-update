@@ -1,9 +1,14 @@
-# Prebuilt CI base image for better-update's GitLab Linux jobs.
-# Push to Harbor so CI pulls one fast local image instead of node:22 from Docker
-# Hub + reinstalling the toolchain every run.
+# Prebuilt CI base image for the GitLab Linux jobs — OPTIONAL.
 #
-#   docker build -t harbor.jmango360.dev/<project>/better-update-ci:node24 ci
-#   docker push  harbor.jmango360.dev/<project>/better-update-ci:node24
+# The pipeline runs on a plain `node:24-bookworm` out of the box: `.ci-setup`
+# installs whatever is missing (apt build deps, rustup + cross targets, zig).
+# That costs several minutes per job. Build this image once, push it to a
+# registry your runners can pull, and point the `BU_CI_IMAGE` CI/CD variable at
+# it — every install step then no-ops.
+#
+#   docker build -t <your-registry>/better-update-ci:node24 ci
+#   docker push  <your-registry>/better-update-ci:node24
+#   # then set CI/CD variable BU_CI_IMAGE=<your-registry>/better-update-ci:node24
 #
 # Bumping BUN_VERSION / RUST / ZIG_VERSION → rebuild + push a new tag.
 #
@@ -39,8 +44,10 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     && cargo --version
 
 # zig + cargo-zigbuild (musl cross via `napi build -x`)
-RUN curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" \
+# The tarball is per-arch (zig-<arch>-linux-<ver>, arch BEFORE os).
+RUN ZIG_ARCH="$(uname -m)" \
+    && curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz" \
       | tar -xJ -C /usr/local \
-    && mv "/usr/local/zig-x86_64-linux-${ZIG_VERSION}" /usr/local/zig \
+    && mv "/usr/local/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}" /usr/local/zig \
     && cargo install --locked cargo-zigbuild \
     && zig version && cargo-zigbuild --version

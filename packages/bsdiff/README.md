@@ -35,17 +35,23 @@ bun run test:conformance   # the SHIP GATE — see below (needs build + libbz2 +
 The native artifacts (`*.node`, `index.js`, `index.d.ts`, `target/`) are
 git-ignored and rebuilt by `napi build`.
 
-## Cross-platform prebuilts (CI — FOLLOWUP)
+## Cross-platform prebuilts (CI)
 
-Only the **host** (darwin-arm64) binary is built locally. The other seven targets
-in `package.json` `napi.targets` (darwin-x64, linux x64/arm64 gnu+musl, win32
-x64/arm64 msvc) require CI runners / cross-compile and are produced by
-`.github/workflows/build-bsdiff.yml` (scaffolded, **not yet wired** into release).
+`bun run build` only produces the **host** binary. The five targets in
+`package.json` `napi.targets` (darwin-arm64 + linux x64/arm64 in both gnu and
+musl) need a mac runner and Linux cross-compilation, so they are built in CI by
+the `build-bsdiff-apple` / `build-bsdiff-linux` jobs in
+[`.gitlab-ci.yml`](../../.gitlab-ci.yml). Windows and Intel macOS are
+intentionally not built.
 
-The per-platform binaries publish as the `optionalDependencies` split packages
-(scaffolded under `npm/<platform>/`); the main package's auto-generated loader
-picks the right one at runtime. To ship: flip this package to `private: false`,
-run the publish job (`napi prepublish -t npm`), then publish the main package.
+Each binary publishes as an `optionalDependencies` split package under
+`npm/<platform>/`; the main package's auto-generated loader picks the right one
+at runtime. The `publish-cli` job collates the artifacts (`napi artifacts`),
+pins the stub versions (`scripts/sync-bsdiff-versions.mjs`), verifies the
+invariants (`bun run check:bsdiff`), publishes the stubs, then ships the main
+package. `publish-cli` runs on every `@better-update/cli@*` tag and always ships
+the CLI; that bsdiff half only runs when `bsdiff-gate` finds the version is not
+yet on npm.
 
 ## Conformance gate — the bsdiff ship-gate
 
@@ -84,7 +90,7 @@ bun run test:conformance   # == node conformance/run-conformance.mjs
 The gate compiles C against libbz2. The unit run (`bun run test`) must never
 compile C, so the harness is excluded in `vitest.config.ts`
 (`include: ["src/**/*.test.ts"]`, `exclude: ["conformance/**", …]`) and lives in
-the dedicated `test:conformance` script + the
-[`.github/workflows/conformance-bsdiff.yml`](../../.github/workflows/conformance-bsdiff.yml)
-CI job (ubuntu + macOS), which builds the addon, installs libbz2, and runs the
-gate. A non-zero exit blocks the merge/ship.
+the dedicated `test:conformance` script + the `conformance` / `conformance-macos`
+CI jobs in [`.gitlab-ci.yml`](../../.gitlab-ci.yml) (Linux + macOS), which build
+the addon, install libbz2, and run the gate. A non-zero exit blocks the
+merge/ship.
