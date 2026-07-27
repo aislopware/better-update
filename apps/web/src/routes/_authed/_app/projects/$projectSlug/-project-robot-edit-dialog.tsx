@@ -54,8 +54,9 @@ const EditForm = ({
     <>
       <FieldGroup>
         <Field>
-          <FieldLabel>Name</FieldLabel>
+          <FieldLabel htmlFor="robot-name">Name</FieldLabel>
           <Input
+            id="robot-name"
             value={name}
             onChange={(event) => {
               setName(event.target.value);
