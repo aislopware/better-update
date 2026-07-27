@@ -8,8 +8,8 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, PauseIcon, PlayIcon, RadioTowerIcon } from "lucide-react";

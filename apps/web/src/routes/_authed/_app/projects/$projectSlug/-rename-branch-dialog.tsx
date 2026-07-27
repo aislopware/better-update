@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { toast } from "@better-update/ui/components/ui/sonner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";

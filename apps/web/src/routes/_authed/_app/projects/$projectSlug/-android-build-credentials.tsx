@@ -24,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import {
   Table,
   TableBody,
@@ -33,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon, KeyRoundIcon } from "lucide-react";
 import { useState } from "react";

@@ -8,8 +8,8 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@better-update/ui/components/ui/item";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, KeyRoundIcon } from "lucide-react";

@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";

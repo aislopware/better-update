@@ -9,8 +9,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";

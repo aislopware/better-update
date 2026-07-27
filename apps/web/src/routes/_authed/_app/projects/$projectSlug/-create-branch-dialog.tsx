@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { toast } from "@better-update/ui/components/ui/sonner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";

@@ -11,9 +11,9 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 

@@ -35,7 +35,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Switch } from "@better-update/ui/components/ui/switch";
 import {
@@ -46,6 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";

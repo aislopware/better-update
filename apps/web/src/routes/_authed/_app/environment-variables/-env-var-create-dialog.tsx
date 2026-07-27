@@ -30,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";

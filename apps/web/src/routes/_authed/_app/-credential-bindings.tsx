@@ -35,8 +35,8 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@better-update/ui/components/ui/popover";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Switch } from "@better-update/ui/components/ui/switch";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { cn } from "@better-update/ui/lib/utils";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";

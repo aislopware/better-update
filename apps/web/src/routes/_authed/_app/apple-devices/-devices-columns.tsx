@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { toast } from "@better-update/ui/components/ui/sonner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";

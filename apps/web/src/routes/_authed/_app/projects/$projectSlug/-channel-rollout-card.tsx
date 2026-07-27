@@ -23,8 +23,8 @@ import {
   InputGroupText,
 } from "@better-update/ui/components/ui/input-group";
 import { Separator } from "@better-update/ui/components/ui/separator";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";

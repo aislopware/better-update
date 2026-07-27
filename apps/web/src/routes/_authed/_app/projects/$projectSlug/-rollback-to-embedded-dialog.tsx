@@ -9,8 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Undo2Icon } from "lucide-react";
 

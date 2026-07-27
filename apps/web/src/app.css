@@ -284,7 +284,9 @@
   }
 
   [data-slot="sidebar-gap"],
-  [data-slot="sidebar-container"] {
+  [data-slot="sidebar-container"],
+  [data-slot="toast"],
+  [data-slot="toast-content"] {
     transition: none !important;
   }
 

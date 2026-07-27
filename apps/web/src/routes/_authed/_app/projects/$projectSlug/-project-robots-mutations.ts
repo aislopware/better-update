@@ -1,5 +1,5 @@
 import { projectRobotAccountsQueryKey, updateRobotAccount } from "@better-update/api-client/react";
-import { toast } from "@better-update/ui/components/ui/sonner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 

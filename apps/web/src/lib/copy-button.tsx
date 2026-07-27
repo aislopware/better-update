@@ -1,5 +1,5 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { toast } from "@better-update/ui/components/ui/sonner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 

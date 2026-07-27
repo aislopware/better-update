@@ -9,8 +9,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { useState } from "react";
 
 import type { Button } from "@better-update/ui/components/ui/button";

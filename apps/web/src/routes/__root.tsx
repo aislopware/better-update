@@ -1,4 +1,5 @@
 import { useMountEffect } from "@better-update/react-hooks";
+import { Toaster } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
@@ -16,7 +17,6 @@ import { subscribeToSignoutBroadcast } from "../lib/logout";
 import { THEME_INIT_SCRIPT, getThemeSnapshotFromCookie, isResolvedTheme } from "../lib/theme";
 import { ThemeProvider } from "../lib/theme-context";
 import { getServerThemeSnapshot } from "../lib/theme-server";
-import { ThemedToaster } from "../lib/themed-toaster";
 
 import type { ResolvedTheme, ThemeSnapshot } from "../lib/theme";
 
@@ -114,11 +114,11 @@ const RootComponent = () => {
   useMountEffect(() => subscribeToSignoutBroadcast(queryClient));
   return (
     <ThemeProvider initialTheme={theme.theme} initialResolvedTheme={theme.resolvedTheme}>
-      <ThemedToaster>
+      <Toaster>
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
-      </ThemedToaster>
+      </Toaster>
     </ThemeProvider>
   );
 };

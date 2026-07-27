@@ -143,7 +143,9 @@ export const createProjectViaUI = async (
   },
 ): Promise<void> => {
   await page.getByRole("button", { name: "Create project" }).first().click();
-  const dialog = page.getByRole("dialog");
+  // Scope by slot, not role: Base UI toasts also expose role="dialog", so a
+  // toast still on screen from a previous step would make this resolve to two.
+  const dialog = page.locator('[data-slot="dialog-content"]');
   await dialog.getByLabel("Project name").fill(params.name);
   await dialog.getByLabel("Slug").fill(params.slug);
   await dialog.getByRole("button", { name: "Create project" }).click();

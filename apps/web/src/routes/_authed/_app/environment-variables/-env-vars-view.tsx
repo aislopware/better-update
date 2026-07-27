@@ -10,7 +10,6 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
-import { toast } from "@better-update/ui/components/ui/sonner";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
@@ -19,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
+import { toast } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FingerprintIcon, LockKeyholeIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
