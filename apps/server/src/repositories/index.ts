@@ -55,10 +55,7 @@ export {
   InvitationProjectGrantRepo,
   InvitationProjectGrantRepoLive,
 } from "./invitation-project-grants";
-export {
-  ProjectCredentialBindingRepo,
-  ProjectCredentialBindingRepoLive,
-} from "./project-credential-bindings";
+export { ProjectCredentialBindingRepoLive } from "./project-credential-bindings";
 export { ProjectMemberRepo, ProjectMemberRepoLive } from "./project-members";
 export {
   IosBundleConfigurationRepo,

@@ -7,5 +7,4 @@
 //
 // `domain/` stays pure: the package is a sync, total, no-I/O helper (URL parsing
 // only), matching how domain/ already consumes @better-update/expo-codesign etc.
-export { deriveScopeKey, normalizedURLOrigin } from "@better-update/expo-protocol";
-export type { DeriveScopeKeyInput } from "@better-update/expo-protocol";
+export { deriveScopeKey } from "@better-update/expo-protocol";

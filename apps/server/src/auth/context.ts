@@ -1,2 +1,2 @@
 export { AuthContext } from "@better-update/api";
-export type { Action, AuthContextShape, Resource, Role } from "@better-update/api";
+export type { AuthContextShape } from "@better-update/api";

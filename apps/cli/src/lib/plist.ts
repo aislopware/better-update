@@ -4,7 +4,7 @@ import type { PlistObject } from "@expo/plist";
 // eslint-disable-next-line import-plugin/no-namespace -- bplist-parser typings have no named export; used only as `typeof BplistParser` for the CJS require result
 import type * as BplistParser from "bplist-parser";
 
-export type { PlistObject, PlistValue } from "@expo/plist";
+export type { PlistObject } from "@expo/plist";
 
 // `@expo/plist`'s CJS build sets `exports.default = { parse, build }`. Node's
 // ESM-CJS interop does NOT auto-unwrap that `.default` (Bun does), so a plain

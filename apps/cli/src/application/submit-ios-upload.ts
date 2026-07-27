@@ -30,7 +30,7 @@ import type { ArchiveRef } from "./submit-flow";
 import type { IosUploadAuth } from "./submit-ios-altool";
 
 /** Auth shapes + the altool path live in submit-ios-altool; callers import from here. */
-export { APPLE_APP_SPECIFIC_PASSWORD_ENV, hasAppleAppSpecificPassword } from "./submit-ios-altool";
+export { hasAppleAppSpecificPassword } from "./submit-ios-altool";
 export type { IosUploadAuth } from "./submit-ios-altool";
 
 // ── iOS App Store Connect flow ───────────────────────────────────────────────

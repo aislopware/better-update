@@ -39,8 +39,6 @@ import type { EnvVaultRecipientKind } from "../vault-models";
 // eslint-disable-next-line import/no-namespace -- type-only namespace access to the generated schema module (45 table interfaces); aliasing each individually would be pure noise with no benefit
 import type * as Gen from "./schema.generated";
 
-export type { Generated } from "./schema.generated";
-
 /** Replace the keys of `Base` that appear in `Overrides` with the narrower types. */
 type Narrow<Base, Overrides> = Omit<Base, keyof Overrides> & Overrides;
 

@@ -46,7 +46,6 @@ export type {
   ProjectPrincipalType,
   ProjectRole,
   Resource,
-  Role,
 } from "./authz-models";
 
 export type EncryptionKeyKind = "device" | "recovery" | "machine";

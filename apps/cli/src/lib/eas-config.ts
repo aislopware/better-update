@@ -96,7 +96,6 @@ export interface EasBuildProfile {
 
 export type {
   EasAndroidSubmitProfile,
-  EasAndroidSubmitReleaseStatus,
   EasIosSubmitProfile,
   EasSubmitProfile,
 } from "./eas-submit-config";

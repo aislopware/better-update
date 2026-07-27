@@ -29,7 +29,7 @@ import { buildRows } from "./-members-row";
 import type { ManageProjectsTarget } from "./-member-projects-cell";
 import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members-row";
 
-export type { InvitationInput, MemberInput, MemberStatus };
+export type { InvitationInput, MemberInput };
 
 // Org role ladder (GITLAB-RBAC-SPEC §1): owner | admin | member.
 const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };

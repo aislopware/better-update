@@ -25,11 +25,7 @@ import type { ApiClient } from "../services/api-client";
 import type { AppleIdSetupReuse, IosSetupPath } from "./credentials-interactive-apple-id";
 import type { AscSetupReuse, IosSetupInput } from "./credentials-interactive-ios-asc";
 
-export type {
-  DistributionTypeValue,
-  IosSetupContext,
-  IosSetupInput,
-} from "./credentials-interactive-ios-asc";
+export type { IosSetupContext, IosSetupInput } from "./credentials-interactive-ios-asc";
 export {
   pickIosAscKey,
   pickIosCertificate,

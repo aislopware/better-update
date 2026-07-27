@@ -16,8 +16,6 @@ export { AssetsGroupLive } from "./assets";
 export { AuditLogsGroupLive } from "./audit-logs";
 export { BranchesGroupLive } from "./branches";
 export { handleBundleRequest } from "./bundle";
-export { handleBuildGc } from "./build-gc";
-export { handleOtaGc } from "./ota-gc";
 export { handleScheduled } from "./scheduled";
 export { matchBuildRoute } from "./build-routes";
 export { BuildCredentialsGroupLive } from "./build-credentials";

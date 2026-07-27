@@ -1,5 +1,3 @@
-import { openEnvValue, sealEnvValue } from "@better-update/credentials-crypto";
-
 import type { AccountKeyEscrow } from "@better-update/api";
 import type { AccountKeyEnvelope } from "@better-update/credentials-crypto";
 
@@ -8,8 +6,6 @@ import type { AccountKeyEnvelope } from "@better-update/credentials-crypto";
 // with a per-user account key whose private halves are passphrase-sealed in an
 // escrow the server stores opaquely; once unwrapped, env values seal/open exactly
 // as the CLI does (same envelope), so the two clients interoperate.
-
-export { openEnvValue, sealEnvValue };
 
 /**
  * Rebuild the crypto {@link AccountKeyEnvelope} from the server's escrow view. The

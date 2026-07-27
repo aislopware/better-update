@@ -27,9 +27,6 @@ import {
   chartSkeleton,
 } from "./-analytics-charts";
 
-export { PERIODS } from "./-analytics-charts";
-export type { AnalyticsPeriod } from "./-analytics-charts";
-
 export const analyticsSearchSchema = z.object({
   period: enumParam(PERIODS, "7d"),
   channel: optionalStringParam(),

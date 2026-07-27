@@ -8,14 +8,13 @@ import { ensureError } from "../lib/ensure-error";
 // route. The typed query helper lives in the api-client; re-exported here so
 // existing route imports keep their path. Members still come from better-auth
 // (its accept/role/remove flows are unchanged).
-export { invitationsQueryKey, invitationsQueryOptions } from "@better-update/api-client/react";
-export type { InvitationItem } from "@better-update/api-client/react";
+export { invitationsQueryOptions } from "@better-update/api-client/react";
 
 // The current actor + active org, including the per-action capabilities the
 // Members page gates on (canInviteMembers / canRemoveMembers).
 // Computed server-side so the UI never diverges from the authorization gate.
 // Re-exported here so route imports keep their path.
-export { meQueryKey, meQueryOptions } from "@better-update/api-client/react";
+export { meQueryOptions } from "@better-update/api-client/react";
 
 export type MemberItem = typeof authClient.$Infer.Member;
 

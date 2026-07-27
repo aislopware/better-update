@@ -1,2 +1,2 @@
-export { Forbidden, OrgRequired, Unauthorized } from "./errors/auth";
-export { BadRequest, Conflict, NotAcceptable, NotFound } from "./errors/common";
+export { Forbidden, Unauthorized } from "./errors/auth";
+export { BadRequest, Conflict, NotFound } from "./errors/common";
