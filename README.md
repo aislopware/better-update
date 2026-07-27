@@ -1,8 +1,30 @@
 # better-update
 
-Self-hosted mobile release platform — OTA updates, native builds, and store submissions for Expo, React Native, Kotlin Multiplatform, and native apps (any project type via custom build commands), running on Cloudflare Workers.
+Self-hosted mobile release platform — OTA updates, native builds, and store submissions for Expo, React Native, Kotlin Multiplatform, and native apps (any project type via custom build commands), running on Cloudflare Workers: served from one of the world's largest edge networks, with no egress fees and a free tier that covers most apps.
 
 What started as an OTA update server has grown into a full release pipeline: build your app locally with EAS-compatible config, manage signing credentials in an end-to-end encrypted vault, ship JS updates through channels with staged rollouts, and submit binaries to the App Store and Google Play — all against your own Cloudflare account.
+
+## Why Cloudflare
+
+OTA updates are a CDN problem: every app launch is a manifest check, and every
+release ships bundles and assets to every device. Running that on Cloudflare is
+what makes a self-hosted release server cheap enough to be worth self-hosting.
+
+- **Every request is served from the edge.** Workers run in 300+ cities
+  worldwide, so manifest checks and asset downloads are answered from a data
+  centre near the device instead of a single origin region — no CDN to bolt on,
+  no cache tier to configure, no multi-region rollout.
+- **No egress fees.** R2 stores update bundles, assets and build artifacts with
+  zero bandwidth charges. Bundle downloads are the dominant cost of any OTA
+  service, and on R2 they cost nothing to serve — which is exactly why hosted
+  alternatives meter them.
+- **The free tier covers real apps.** Workers (100k requests/day), D1 (5 GB) and
+  R2 (10 GB) fit a small-to-mid app entirely inside free limits; past that,
+  usage-based pricing means a few dollars a month, not a per-seat or per-MAU
+  plan.
+- **Nothing to operate.** No servers, containers or database to patch or scale —
+  the whole backend is a Worker, a D1 database, a KV namespace and an R2 bucket,
+  created by one bootstrap command.
 
 ## Features
 
