@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.70.1...%40better-update%2Fcli%400.71.0) (2026-07-27)
+
+### Features
+
+* **config:** render deployment identity from untracked BU_* values ([1ed97dd](https://github.com/better-update/better-update/commit/1ed97ddfba1d051f8fcf24de3f876a2b03cd796a))
+
+### Bug Fixes
+
+* **bsdiff:** license the crate and the published packages under MIT ([6895262](https://github.com/better-update/better-update/commit/68952626fb601ac4255bf95e2810a9aab7ebb0db))
+
 ## [0.70.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.70.0...%40better-update%2Fcli%400.70.1) (2026-07-27)
 
 **Note:** Version bump only for package @better-update/cli

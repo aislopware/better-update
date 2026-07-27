@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.57.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.56.4...%40better-update%2Fserver%400.57.0) (2026-07-27)
+
+### Features
+
+* **config:** render deployment identity from untracked BU_* values ([1ed97dd](https://github.com/better-update/better-update/commit/1ed97ddfba1d051f8fcf24de3f876a2b03cd796a))
+
 ## [0.56.4](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.56.3...%40better-update%2Fserver%400.56.4) (2026-07-27)
 
 **Note:** Version bump only for package @better-update/server

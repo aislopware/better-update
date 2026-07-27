@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.23](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fbsdiff%400.2.22...%40better-update%2Fbsdiff%400.2.23) (2026-07-27)
+
+### Bug Fixes
+
+* **bsdiff:** license the crate and the published packages under MIT ([6895262](https://gitlab.jmango360.com/mobile/better-update/commit/68952626fb601ac4255bf95e2810a9aab7ebb0db))
+
 ## [0.2.22](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fbsdiff%400.2.21...%40better-update%2Fbsdiff%400.2.22) (2026-07-27)
 
 **Note:** Version bump only for package @better-update/bsdiff

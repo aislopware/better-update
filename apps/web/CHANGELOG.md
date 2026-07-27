@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.69.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.68.0...%40better-update%2Fweb%400.69.0) (2026-07-27)
+
+### Features
+
+* **config:** render deployment identity from untracked BU_* values ([1ed97dd](https://github.com/better-update/better-update/commit/1ed97ddfba1d051f8fcf24de3f876a2b03cd796a))
+
+### Bug Fixes
+
+* **web:** label the robot edit dialog's name input ([3fec31b](https://github.com/better-update/better-update/commit/3fec31b26c0ced450ed14f0b049b5a909d4ebf57))
+
 ## [0.68.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.67.1...%40better-update%2Fweb%400.68.0) (2026-07-27)
 
 ### Features
