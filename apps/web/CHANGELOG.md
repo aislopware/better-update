@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.68.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.67.1...%40better-update%2Fweb%400.68.0) (2026-07-27)
+
+### Features
+
+* **ui:** replace sonner with the Base UI toast component ([6723fa6](https://github.com/better-update/better-update/commit/6723fa6dbcceb5e4eac3fe698d54f5a832d2eeda))
+
 ## [0.67.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.67.0...%40better-update%2Fweb%400.67.1) (2026-07-27)
 
 **Note:** Version bump only for package @better-update/web
