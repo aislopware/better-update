@@ -1,14 +1,16 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Command,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@better-update/ui/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@better-update/ui/components/ui/popover";
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
+} from "@better-update/ui/components/ui/combobox";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronsUpDownIcon } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import type { QueryFunction } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -127,76 +129,80 @@ export const ServerSearchCombobox = ({
   invalid,
   disabled,
 }: ServerSearchComboboxProps) => {
-  const [open, setOpen] = useState(false);
-  // The selected option can drop out of `options` when the search narrows, so
-  // remember its label at pick time to keep the trigger meaningful. A value
-  // set from outside (URL state) that is beyond the fetched page falls back to
-  // the raw value — honest, if less pretty than a label.
-  const [pickedLabel, setPickedLabel] = useState<string | null>(null);
-  const selectedLabel = value
-    ? (options.find((option) => option.value === value)?.label ?? pickedLabel ?? value)
-    : null;
+  // Base UI holds the selected *option* rather than its id, and resolves the
+  // trigger label from an explicit `label` on that object before consulting
+  // `items` — so remembering the option picked keeps the trigger meaningful
+  // once the search narrows it out of `options`. A value set from outside (URL
+  // state) that is beyond the fetched page falls back to the raw value —
+  // honest, if less pretty than a label.
+  const [picked, setPicked] = useState<ComboboxOption | null>(null);
+  const selected = useMemo(
+    () =>
+      value
+        ? (options.find((option) => option.value === value) ??
+          (picked?.value === value ? picked : { value, label: value }))
+        : null,
+    [value, options, picked],
+  );
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
+    <Combobox
+      items={options}
+      value={selected}
+      onValueChange={(next: ComboboxOption | null) => {
+        if (next) {
+          setPicked(next);
+          onValueChange(next.value);
+        }
+      }}
+      // The server already filtered; show every item it returned.
+      filter={null}
+      inputValue={search}
+      onInputValueChange={onSearchChange}
+      itemToStringLabel={(option: ComboboxOption) => option.label}
+      isItemEqualToValue={(option: ComboboxOption, other: ComboboxOption) =>
+        option.value === other.value
+      }
+      // Reset after the exit animation so the list does not flash the
+      // unfiltered page on the way out.
       onOpenChangeComplete={(next) => {
         if (!next) {
           onSearchChange("");
         }
       }}
+      disabled={disabled}
     >
-      <PopoverTrigger
-        disabled={disabled}
+      <ComboboxTrigger
         aria-label={ariaLabel}
         aria-invalid={invalid || undefined}
         render={
           <Button type="button" variant="outline" className="w-full justify-between font-normal" />
         }
       >
-        <span className={selectedLabel ? "truncate" : "text-muted-foreground truncate"}>
-          {selectedLabel ?? placeholder}
-        </span>
-        <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground size-4" />
-      </PopoverTrigger>
-      <PopoverContent className="w-(--anchor-width) min-w-56 p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={search}
-            onValueChange={onSearchChange}
-          />
-          <CommandList>
-            {/* CommandEmpty never fires with shouldFilter=false, so the empty
-                state is manual. */}
-            {options.length === 0 ? (
-              <div className="text-muted-foreground py-6 text-center text-sm">
-                {isPending ? "Searching…" : emptyMessage}
-              </div>
-            ) : null}
-            {options.map((option) => (
-              <CommandItem
-                key={option.value}
-                value={option.value}
-                data-checked={option.value === value}
-                onSelect={() => {
-                  setPickedLabel(option.label);
-                  onValueChange(option.value);
-                  setOpen(false);
-                }}
-              >
-                {option.content ?? <span className="truncate">{option.label}</span>}
-              </CommandItem>
-            ))}
-            {defaultListTruncated && !search ? (
-              <p className="text-muted-foreground border-t px-3 py-2 text-xs">
-                Showing the first {DROPDOWN_FETCH_LIMIT} — type to search all.
-              </p>
-            ) : null}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+        <ComboboxValue>
+          {(current: ComboboxOption | null) => (
+            <span className={current ? "truncate" : "text-muted-foreground truncate"}>
+              {current?.label ?? placeholder}
+            </span>
+          )}
+        </ComboboxValue>
+      </ComboboxTrigger>
+      <ComboboxContent className="min-w-56">
+        <ComboboxInput showTrigger={false} placeholder={searchPlaceholder} />
+        <ComboboxEmpty>{isPending ? "Searching…" : emptyMessage}</ComboboxEmpty>
+        <ComboboxList>
+          {(option: ComboboxOption) => (
+            <ComboboxItem key={option.value} value={option}>
+              {option.content ?? <span className="truncate">{option.label}</span>}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+        {defaultListTruncated && !search ? (
+          <p className="text-muted-foreground border-t px-3 py-2 text-xs">
+            Showing the first {DROPDOWN_FETCH_LIMIT} — type to search all.
+          </p>
+        ) : null}
+      </ComboboxContent>
+    </Combobox>
   );
 };

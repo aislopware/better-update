@@ -38,7 +38,7 @@ describe(ServerSearchCombobox, () => {
     const user = userEvent.setup();
     renderWithQuery(<Harness />);
 
-    const trigger = screen.getByRole("button", { name: "Project" });
+    const trigger = screen.getByRole("combobox", { name: "Project" });
     expect(trigger).toHaveTextContent("Select a project");
     await user.click(trigger);
 
@@ -47,7 +47,7 @@ describe(ServerSearchCombobox, () => {
 
     await user.click(screen.getByText("Beta App"));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Project" })).toHaveTextContent("Beta App");
+      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Beta App");
     });
   });
 
@@ -55,7 +55,7 @@ describe(ServerSearchCombobox, () => {
     const user = userEvent.setup();
     renderWithQuery(<Harness />);
 
-    await user.click(screen.getByRole("button", { name: "Project" }));
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
     await screen.findByText("Alpha App");
 
     await user.type(screen.getByPlaceholderText("Search…"), "needle");
@@ -67,7 +67,7 @@ describe(ServerSearchCombobox, () => {
     // The popover closed and cleared the search; the pick-time label cache
     // keeps the trigger meaningful even though the searched page is gone.
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Project" })).toHaveTextContent("Needle App");
+      expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Needle App");
     });
   });
 });

@@ -183,7 +183,7 @@ describe("mutation dialogs", () => {
     await user.type(within(dialog).getByLabelText("Name"), "production");
     // The branch picker is a server-search combobox; its option list renders
     // in a popover portal outside the dialog element.
-    await user.click(within(dialog).getByRole("button", { name: "Branch" }));
+    await user.click(within(dialog).getByRole("combobox", { name: "Branch" }));
     await user.click(await screen.findByRole("option", { name: "main" }));
     await user.click(within(dialog).getByRole("button", { name: "Create channel" }));
 
@@ -287,7 +287,7 @@ describe("mutation dialogs", () => {
 
     // The channel picker is a server-search combobox; its option list renders
     // in a popover portal outside the dialog element.
-    await user.click(screen.getByRole("button", { name: "Target channel" }));
+    await user.click(screen.getByRole("combobox", { name: "Target channel" }));
     await user.click(await screen.findByRole("option", { name: "production" }));
     await user.click(screen.getByRole("button", { name: "Promote" }));
 
