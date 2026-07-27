@@ -47,7 +47,7 @@ non-scoped checks.
 
 **Channel-scoped conversions** (recon `handler-scope-surface.md`): channel
 mutations + publish/republish to a channel + rollouts + channel↔branch mapping.
-Org-wide resources (member, project create, billing, apiKey, org-vault,
+Org-wide resources (member, project create, apiKey, org-vault,
 credentials, env-vars) keep plain `assertPermission`. Env-vars keep plain
 `assertPermission` — their `environment` enum is a SEPARATE axis; the grant model
 is generic enough to extend later (see §12 FOLLOW-UPS), NOT implemented now.

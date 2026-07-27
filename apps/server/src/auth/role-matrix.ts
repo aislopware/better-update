@@ -195,8 +195,10 @@ export const ORG_RULES: Partial<Readonly<Record<Token, OrgRequirement>>> = {
   "environment:update": "admin",
   "environment:delete": "admin",
 
-  "billing:read": "owner",
-  "billing:update": "owner",
+  // No token requires "owner" today: the owner-only actions (org delete,
+  // granting/revoking admin or owner) are handler guards, not matrix rows. The
+  // tier stays in `OrgRequirement` because the ladder is a domain concept —
+  // `meetsOrgRequirement` implements it and is tested directly.
 
   // Any org member may create a project; the creator is auto-added as its
   // maintainer (spec §2a-1, owner decision 2026-07-03).

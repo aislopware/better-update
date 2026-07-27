@@ -61,4 +61,4 @@ For most deployments (< 10,000 apps, < 100 updates/day), a single D1 database is
 | Cache invalidation        | Internal               | Cloudflare Cache Purge API (~150ms global)          |
 | Update groups             | Automatic              | Manual (groupId in publish)                         |
 | Multi-org / multi-project | Built-in               | Supported via projects table                        |
-| Pricing                   | Per-update-user/month  | Cloudflare usage-based (~$11/month @ 1M DAU)        |
+| Cost                      | Per-update-user/month  | Free + MIT; you pay your own Cloudflare bill        |

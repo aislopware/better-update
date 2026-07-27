@@ -30,7 +30,8 @@ describe(actorHolds, () => {
   it("owner + superadmin hold every capability", () => {
     expect(actorHolds(actor({ isOwner: true }), "invitation", "create")).toBe(true);
     expect(actorHolds(actor({ isSuperadmin: true }), "member", "delete")).toBe(true);
-    expect(actorHolds(actor({ isOwner: true }), "billing", "update")).toBe(true);
+    // Even a token the matrix has no rule for — the owner bypass is total.
+    expect(actorHolds(actor({ isOwner: true }), "organization", "delete")).toBe(true);
   });
 
   it("a plain member holds no admin capability (default-deny)", () => {
@@ -39,7 +40,7 @@ describe(actorHolds, () => {
     expect(actorHolds(actor({}), "vaultAccess", "read")).toBe(false);
   });
 
-  it("org admin holds the admin-tier capabilities but not owner-tier ones", () => {
+  it("org admin holds the admin-tier capabilities but not the root bypass", () => {
     const admin = actor({ orgRole: "admin" });
     expect(actorHolds(admin, "invitation", "create")).toBe(true);
     expect(actorHolds(admin, "member", "delete")).toBe(true);
@@ -47,7 +48,7 @@ describe(actorHolds, () => {
     expect(actorHolds(admin, "robotAccount", "create")).toBe(false);
     expect(actorHolds(admin, "credentialBinding", "create")).toBe(true);
     expect(actorHolds(admin, "organization", "update")).toBe(true);
-    expect(actorHolds(admin, "billing", "update")).toBe(false);
+    expect(actorHolds(admin, "organization", "delete")).toBe(false);
   });
 
   it("member-tier reads are held by every member", () => {

@@ -7,7 +7,7 @@ import { assertAccess, assertSuperadmin, assertVaultParticipant } from "./policy
 import type { Action, Resource } from "../models";
 
 // Org-level convenience over `assertAccess` (target defaults to `{ kind: "org" }`).
-// Use for genuinely org-scoped resources (member, billing, robotAccount, devices,
+// Use for genuinely org-scoped resources (member, invitation, devices,
 // webhooks, vault, org-shared credentials, audit). Object-scopeable resources call
 // `assertAccess` directly with a structured `ObjectRef`.
 export const assertPermission = (resource: Resource, action: Action) =>

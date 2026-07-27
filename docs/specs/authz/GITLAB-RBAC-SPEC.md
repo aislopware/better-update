@@ -49,7 +49,7 @@ Project role  (project_member.role)    maintainer | developer | reporter
 ```
 
 - **Owner** — org root. Unconditional, undeniable allow (unchanged from today,
-  `auth/owner.ts`). Billing, org delete, granting/revoking `admin`.
+  `auth/owner.ts`). Org delete, granting/revoking `admin`.
 - **Admin** — org management: members, invitations, robots, vault access,
   webhooks, audit log, org environments, protection toggles, org settings.
   Implicit **maintainer on every project**.
@@ -212,7 +212,6 @@ protected environment).
 | webhook                                             | ≥A                                                                                                                                                                                                                                                                                                                                             |
 | device                                              | ≥D⚓ via the device's team binding (read/create/update/delete); team-less registration requests: ≥A                                                                                                                                                                                                                                            |
 | environment (org env names + protection toggle)     | read: any member · create/update/delete/protect: ≥A                                                                                                                                                                                                                                                                                            |
-| billing                                             | O                                                                                                                                                                                                                                                                                                                                              |
 | appleCredential                                     | §3b — non-protected row: ≥D⚓ (read/update/download), delete ≥M⚓ · row-protected: ≥M⚓ (all actions) · create under a protected TEAM: ≥M⚓ · protect toggles: ≥A                                                                                                                                                                              |
 | androidCredential (org: upload keystores, GSA keys) | same ladder as appleCredential, per-row toggle + per-row binding                                                                                                                                                                                                                                                                               |
 | project:create                                      | any org member; creator is auto-added as its maintainer                                                                                                                                                                                                                                                                                        |

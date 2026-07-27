@@ -46,7 +46,7 @@ describe(assertAccess, () => {
   it.effect("owner bypasses (allow-all)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("billing", "delete").pipe(provide({ isOwner: true, orgRole: "owner" })),
+        assertAccess("organization", "delete").pipe(provide({ isOwner: true, orgRole: "owner" })),
       );
       expect(forbidden).toBe(false);
     }),
@@ -172,10 +172,12 @@ describe(assertAccess, () => {
     }),
   );
 
-  it.effect("owner-tier org rules stay above admin (billing)", () =>
+  // Org admin is not a root: only the owner/superadmin bypass clears a token
+  // the matrix has no rule for (org delete, granting admin — handler guards).
+  it.effect("an org token with no rule is denied even to an admin (default-deny)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("billing", "read").pipe(provide({ orgRole: "admin" })),
+        assertAccess("organization", "delete").pipe(provide({ orgRole: "admin" })),
       );
       expect(forbidden).toBe(true);
     }),
@@ -380,14 +382,14 @@ describe(matrixAllows, () => {
         "read",
         {
           kind: "appleCredential",
-          appleTeamId: "JMANGO1234",
+          appleTeamId: "ABCDE12345",
         },
       ),
     ).toBe(false);
     expect(
       matrixAllows({ orgRole: "admin", projectRoles: {} }, "appleCredential", "read", {
         kind: "appleCredential",
-        appleTeamId: "JMANGO1234",
+        appleTeamId: "ABCDE12345",
       }),
     ).toBe(false);
   });

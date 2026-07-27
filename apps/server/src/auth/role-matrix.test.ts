@@ -138,7 +138,9 @@ describe("matrix content matches spec §2", () => {
     expect(ORG_RULES["webhook:update"]).toBe("admin");
     expect(ORG_RULES["environment:read"]).toBe("member");
     expect(ORG_RULES["environment:update"]).toBe("admin");
-    expect(ORG_RULES["billing:read"]).toBe("owner");
+    // No row requires "owner": owner-only actions are handler guards, not
+    // matrix tokens. The tier itself is exercised by the ladder tests above.
+    expect(Object.values(ORG_RULES)).not.toContain("owner");
     expect(ORG_RULES["project:create"]).toBe("member");
     expect(ORG_RULES["project:delete"]).toBe("admin");
   });

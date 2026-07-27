@@ -9,8 +9,8 @@ Two fixed role ladders; no policy documents, no groups, no allow/deny statements
 
 **Org roles** (`owner | admin | member`):
 
-- **Owner** — org root (set at org creation). Unconditional allow; billing, org delete,
-  granting/revoking `admin`.
+- **Owner** — org root (set at org creation). Unconditional allow; org delete, granting/revoking
+  `admin`.
 - **Admin** — org management (members, invitations, robots, vault access, webhooks, audit log,
   environments + protection toggles, org settings) and an **implicit maintainer on every project**.
 - **Member** — baseline. Sees the org, but only the projects where they hold a project role

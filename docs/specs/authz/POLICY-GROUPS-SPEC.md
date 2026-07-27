@@ -78,7 +78,7 @@ policies. `isSuperadmin` (platform admin) bypass is unchanged.
 selectors with `*` wildcards. The acted-on object resolves to a canonical path; a
 statement applies when an action token matches AND a selector matches the path.
 Scopeable resource subtrees: **project, environment/channel, build, credentials,
-envVar, submission** (see §2). Org-level resources (member, invitation, billing,
+envVar, submission** (see §2). Org-level resources (member, invitation,
 apiKey, auditLog, organization, webhook, device, vaultAccess, IAM-management)
 resolve to path `org` and are matched only by `*` / `org` selectors.
 
@@ -135,7 +135,7 @@ Rules:
   `project/*/env/production` matches them (`*` matches `global`); to target ONLY
   org-wide vars use `project/global/...`.
 - **Listing / org-level reads** (e.g. `project:create`, `member:read`,
-  `billing:update`) use path `org`.
+  `auditLog:read`) use path `org`.
 - A path is matched by a selector iff the selector, segment-by-segment, is a
   **prefix** of the path with `*` matching exactly one segment (see §5). So
   `project/A` grants on the whole `project/A/...` subtree.
@@ -618,7 +618,7 @@ Replace EVERY `assertPermission(resource, action)` and
 
 | Surface | Old | New target |
 | ------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------- | ------------------------------ |
-| org-level (member/billing/apiKey/auditLog/org/webhook/device/vault) | `assertPermission` | `{ kind: "org" }` |
+| org-level (member/apiKey/auditLog/org/webhook/device/vault) | `assertPermission` | `{ kind: "org" }` |
 | project read/create/update/delete | `assertPermission` | `{ kind: "project", projectId }` (create → `org`) |
 | channel mutations + channel↔branch | `assertPermissionOn(channel)` | `{ kind: "channel", projectId, environment, channelId }` |
 | publish / republish to channel | `assertPermissionOn` | `{ kind: "update", … }` (or `channel` for the gate) |

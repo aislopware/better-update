@@ -68,7 +68,7 @@ erDiagram
         TEXT name
         TEXT slug UK
         TEXT logo "nullable"
-        TEXT metadata_json "nullable, e.g. plan info"
+        TEXT metadata_json "nullable"
         TEXT created_at
         TEXT updated_at
     }
@@ -115,12 +115,12 @@ After creating the first organization, backfill existing projects and add `NOT N
 
 Four roles, modeled after EAS:
 
-| Role          | Projects | Branches/Channels | Publish | Rollback/Rollout | Members | Billing | Org Settings |
-| ------------- | -------- | ----------------- | ------- | ---------------- | ------- | ------- | ------------ |
-| **Owner**     | CRUD     | CRUD              | Yes     | Yes              | CRUD    | Yes     | Yes          |
-| **Admin**     | CRUD     | CRUD              | Yes     | Yes              | CRU\*   | Yes     | Read         |
-| **Developer** | Create   | CRUD              | Yes     | Yes              | Read    | No      | No           |
-| **Viewer**    | Read     | Read              | No      | No               | Read    | No      | No           |
+| Role          | Projects | Branches/Channels | Publish | Rollback/Rollout | Members | Org Settings |
+| ------------- | -------- | ----------------- | ------- | ---------------- | ------- | ------------ |
+| **Owner**     | CRUD     | CRUD              | Yes     | Yes              | CRUD    | Yes          |
+| **Admin**     | CRUD     | CRUD              | Yes     | Yes              | CRU\*   | Read         |
+| **Developer** | Create   | CRUD              | Yes     | Yes              | Read    | No           |
+| **Viewer**    | Read     | Read              | No      | No               | Read    | No           |
 
 \* Admins can invite/remove members up to Admin role. Cannot grant Owner.
 
@@ -137,7 +137,6 @@ const permissions = {
     branch: ["read", "create", "update", "delete"],
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
-    billing: ["read", "update"],
     apiKey: ["read", "create", "delete"],
   },
   admin: {
@@ -149,7 +148,6 @@ const permissions = {
     branch: ["read", "create", "update", "delete"],
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
-    billing: ["read", "update"],
     apiKey: ["read", "create", "delete"],
   },
   developer: {
@@ -351,7 +349,7 @@ All management API endpoints require an organization context. Requests without o
 While the app is in development it must not be publicly usable. New users default to **not approved** and a **superadmin** must verify them before they can use any feature.
 
 - **`approved` (user column)** — Better Auth `additionalFields`, `defaultValue: false`, `input: false`. New sign-ups are unapproved; the column is never client-settable.
-- **Superadmin** — the Better Auth `admin` plugin adds a global `role` (`admin` | `user`). `role = "admin"` marks a superadmin (distinct from per-org membership roles). Bootstrapped on first sign-up for any email in `SUPERADMIN_EMAILS` (comma-separated `wrangler.jsonc` var; defaults to `cong.tran@jmango360.com`).
+- **Superadmin** — the Better Auth `admin` plugin adds a global `role` (`admin` | `user`). `role = "admin"` marks a superadmin (distinct from per-org membership roles). Bootstrapped on first sign-up for any email in `SUPERADMIN_EMAILS` (comma-separated `wrangler.jsonc` var, rendered from `BU_SUPERADMIN_EMAILS`; empty by default).
 - **Gate location** — `resolveSession` reads `approved`/`role` **straight from D1** (not the compact cookie cache, which may omit custom fields) right after `getSession`, before the active-org check. An unapproved, non-superadmin session → `403 Forbidden` ("Account pending superadmin approval"). Applies to both transports (browser cookie + CLI session bearer); API keys are minted by already-approved users.
 - **Org creation** — runs through Better Auth's own routes, not the HttpApi middleware, so it has its own gate: `organization.allowUserToCreateOrganization` checks approval in D1.
 - **Test mode** — email/password sign-ups (only enabled when `TEST_MODE=true`) are auto-approved so the e2e/integration suites run as approved users. Real (OAuth) sign-ups stay gated.

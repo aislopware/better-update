@@ -86,7 +86,7 @@ Three layers, all compiling to the existing statement engine:
 ```
 Layer 1  Org role        owner (root bypass) | admin (managed:admin) | member (baseline)
 Layer 2  Project role    maintainer | developer | viewer   × scope (one project | all projects)
-         Capabilities    credentials | auditor | billing   (org-wide add-on grants)
+         Capabilities    credentials | auditor             (org-wide add-on grants)
 Layer 3  Custom policies (existing builder — unchanged, demoted to "Advanced")
 ```
 
@@ -95,7 +95,7 @@ Layer 3  Custom policies (existing builder — unchanged, demoted to "Advanced")
 | Role       | Mechanism                        | Grants                                                                                                                                                                    |
 | ---------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Owner**  | `member.role === "owner"`        | root bypass, unchanged                                                                                                                                                    |
-| **Admin**  | attach `managed:admin`           | unchanged — full current `permissions.admin` map (members, invitations, IAM, projects, credentials, vault, robots, billing, webhooks, audit, environments)                |
+| **Admin**  | attach `managed:admin`           | unchanged — full current `permissions.admin` map (members, invitations, IAM, projects, credentials, vault, robots, webhooks, audit, environments)                         |
 | **Member** | implicit baseline, no attachment | `organization:read` + `environment:read` on `org` only (environment NAMES are org-structural metadata every project surface renders). Joining an org grants nothing else. |
 
 The member baseline is compiled in code during statement resolution (one
@@ -154,7 +154,6 @@ Static managed policies, org-scoped, attachable to any principal type:
 | ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `managed:cap-credentials` | Credentials manager | `appleCredential:*` (incl. download), `androidCredential:*`, `iosBundleConfiguration:*`, `iosAppMetadata:*`, `device:read/create/update/delete`, `vaultAccess:read` |
 | `managed:cap-auditor`     | Auditor             | `auditLog:read`                                                                                                                                                     |
-| `managed:cap-billing`     | Billing manager     | `billing:read`, `billing:update`                                                                                                                                    |
 
 Notes:
 
@@ -257,7 +256,7 @@ sweep rows app-side on invitation cancel/expiry handling and on accept.
 
 ```ts
 export type ProjectRoleName = "maintainer" | "developer" | "viewer";
-export type CapabilityName = "cap-credentials" | "cap-auditor" | "cap-billing";
+export type CapabilityName = "cap-credentials" | "cap-auditor";
 
 // managed:admin                                             (org role)
 // managed:developer | managed:viewer | managed:maintainer   (bare → alias of @* — §7)
@@ -462,7 +461,7 @@ The old org-wide presets `managed:developer` / `managed:viewer` are GONE:
 
 ### 8b. `handlers/policies.ts` (EDIT)
 
-- List endpoint: managed section now returns admin + 3 capabilities.
+- List endpoint: managed section now returns admin + 2 capabilities.
   Parameterized ids are NOT listed (they're a grammar, not rows) — the UI
   composes them.
 - Each managed entry gains `name`, `description`, `summary` (human strings
@@ -521,7 +520,7 @@ picker>] [role: Maintainer | Developer | Viewer]` + remove. Each role option
    shows its one-line description (from §8b summaries) and a "Developer
    cannot write protected environments" hint. Add row → attach parameterized
    id; remove → detach.
-3. **Capabilities** — three checkboxes with descriptions. The Credentials row
+3. **Capabilities** — two checkboxes with descriptions. The Credentials row
    additionally shows a **vault chip**: `In credential vault` /
    `Not in vault — grant access` (links to the existing vault-access grant
    flow). Detaching Credentials surfaces the existing revocation guidance
@@ -579,7 +578,7 @@ Developer-role consequence in one line.
   - `access list [--member <email> | --robot <name> | --group <name>]`
   - `access grant --member <email> --role developer [--project <id|slug|all>]`
     → composes the parameterized id and calls the attachments API. Also
-    `--capability credentials|auditor|billing`.
+    `--capability credentials|auditor`.
   - `access revoke …` (mirror).
 - `policies` / `groups` command groups unchanged (advanced path). Attach
   commands accept parameterized ids directly.

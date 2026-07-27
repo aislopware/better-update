@@ -20,7 +20,6 @@ export type Resource =
   | "environment"
   | "update"
   | "rollout"
-  | "billing"
   | "robotAccount"
   | "credentialBinding"
   | "build"
