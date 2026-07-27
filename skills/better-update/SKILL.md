@@ -8,7 +8,7 @@ description: >-
   Kotlin Multiplatform, and native apps (any project type via custom build commands). Use this
   whenever you are working in a project that uses better-update (an
   `@better-update/cli` dependency, a `better-update …` command, `expo.extra.betterUpdate.projectId`
-  in app.json, or an `updates.jmango360.dev` manifest URL), OR when the user asks to publish /
+  in app.json, or a better-update manifest URL), OR when the user asks to publish /
   ship an OTA update, stage a rollout or roll back a release, cut a release candidate, promote an
   update between channels, build an IPA/APK/AAB locally, manage keystores / distribution certs /
   provisioning profiles / APNs push keys, sign or notarize a macOS app with a Developer ID
@@ -61,12 +61,12 @@ better-update init                 # from the Expo project root: links app.json 
 
 `login` writes `~/.better-update/auth.json` (mode `0600`). `init` reads `app.json`, finds/creates a
 project by `expo.slug`, and writes the project id into `expo.extra.betterUpdate.projectId` — every
-other command reads it from there. Default server is `https://updates.jmango360.dev`; override with
+other command reads it from there. Default server is the one baked into the CLI build (its operator's instance); override with
 `BETTER_UPDATE_URL` / `BETTER_UPDATE_WEB_URL` or `~/.better-update/config.json`. Auth can also come
 from `BETTER_UPDATE_ROBOT` (a robot account, for CI). Full detail: **`references/getting-started.md`**.
 
 To know whether a project already uses better-update, look for `@better-update/cli` in
-package.json, `expo.extra.betterUpdate.projectId` in app.json, or an `updates.jmango360.dev`
+package.json, `expo.extra.betterUpdate.projectId` in app.json, or a better-update
 manifest URL in `expo.updates.url`.
 
 ## Command map

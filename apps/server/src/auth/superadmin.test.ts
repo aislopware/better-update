@@ -8,17 +8,17 @@ describe(parseSuperadminEmails, () => {
   });
 
   it("splits, trims, lowercases and drops empties", () => {
-    const set = parseSuperadminEmails(" Cong.Tran@JMango360.com , a@b.com ,,");
-    expect([...set]).toStrictEqual(["cong.tran@jmango360.com", "a@b.com"]);
+    const set = parseSuperadminEmails(" Owner.One@Example.com , a@b.com ,,");
+    expect([...set]).toStrictEqual(["owner.one@example.com", "a@b.com"]);
   });
 });
 
 describe(isSuperadminEmail, () => {
-  const superadmins = parseSuperadminEmails("cong.tran@jmango360.com");
+  const superadmins = parseSuperadminEmails("owner.one@example.com");
 
   it("matches case-insensitively after trimming", () => {
-    expect(isSuperadminEmail("Cong.Tran@jmango360.com", superadmins)).toBe(true);
-    expect(isSuperadminEmail("  cong.tran@jmango360.com ", superadmins)).toBe(true);
+    expect(isSuperadminEmail("Owner.One@example.com", superadmins)).toBe(true);
+    expect(isSuperadminEmail("  owner.one@example.com ", superadmins)).toBe(true);
   });
 
   it("rejects non-members and nullish", () => {

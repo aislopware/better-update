@@ -101,7 +101,7 @@ describe(materializeEnvFile, () => {
     Effect.gen(function* () {
       const project = setupProject({
         packageJson: RNC_PKG,
-        env: "APP_ID=com.echoparkpaper\nLOCAL_ONLY=keep-me\nAPI_ENDPOINT=https://old.example\n",
+        env: "APP_ID=com.example.demoapp\nLOCAL_ONLY=keep-me\nAPI_ENDPOINT=https://old.example\n",
       });
       try {
         yield* materializeEnvFile({
@@ -115,7 +115,7 @@ describe(materializeEnvFile, () => {
         // New server key appended.
         expect(env).toContain("KLAVIYO_PUBLIC_API_KEY=pk_123");
         // Untouched committed keys preserved.
-        expect(env).toContain("APP_ID=com.echoparkpaper");
+        expect(env).toContain("APP_ID=com.example.demoapp");
         expect(env).toContain("LOCAL_ONLY=keep-me");
       } finally {
         project.dispose();
@@ -129,10 +129,10 @@ describe(materializeEnvFile, () => {
       try {
         yield* materializeEnvFile({
           projectRoot: project.root,
-          envVars: { APP_ID: "com.echoparkpaper", VERSION_NAME_APP: "6.0.5" },
+          envVars: { APP_ID: "com.example.demoapp", VERSION_NAME_APP: "6.0.5" },
         });
         const env = readFileSync(project.envPath, "utf8");
-        expect(env).toContain("APP_ID=com.echoparkpaper");
+        expect(env).toContain("APP_ID=com.example.demoapp");
         expect(env).toContain("VERSION_NAME_APP=6.0.5");
       } finally {
         project.dispose();
@@ -148,7 +148,7 @@ describe(materializeEnvFile, () => {
       try {
         yield* materializeEnvFile({
           projectRoot: project.root,
-          envVars: { APP_ID: "com.echoparkpaper", SECRET: "should-not-be-written" },
+          envVars: { APP_ID: "com.example.demoapp", SECRET: "should-not-be-written" },
         });
         expect(existsSync(project.envPath)).toBe(false);
       } finally {
@@ -159,7 +159,7 @@ describe(materializeEnvFile, () => {
 
   it.effect("no-op when the env set is empty (safe before the vault is populated)", () =>
     Effect.gen(function* () {
-      const project = setupProject({ packageJson: RNC_PKG, env: "APP_ID=com.echoparkpaper\n" });
+      const project = setupProject({ packageJson: RNC_PKG, env: "APP_ID=com.example.demoapp\n" });
       try {
         const before = readFileSync(project.envPath, "utf8");
         yield* materializeEnvFile({ projectRoot: project.root, envVars: {} });

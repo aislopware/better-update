@@ -12,11 +12,14 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "config:gen": "bun ../../scripts/gen-config.ts",
+    "config:gen:strict": "bun ../../scripts/gen-config.ts --strict",
     "d1:codegen": "bun scripts/db-codegen.ts",
-    "d1:migrate": "wrangler d1 migrations apply DB --local",
-    "deploy": "vite build && wrangler deploy",
-    "dev": "PORTLESS=1 portless server.better-update vite dev",
-    "dev:local": "vite dev",
+    "d1:migrate": "bun run config:gen && wrangler d1 migrations apply DB --local",
+    "d1:migrate:remote": "bun run config:gen:strict && wrangler d1 migrations apply DB --remote",
+    "deploy": "bun run config:gen:strict && vite build && wrangler deploy",
+    "dev": "bun run config:gen && PORTLESS=1 portless server.better-update vite dev",
+    "dev:local": "bun run config:gen && vite dev",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "preview": "vite preview",
@@ -28,7 +31,7 @@
     "test:e2e-r2": "bash scripts/e2e-r2.sh",
     "test:integrations": "vitest run --project integration --maxWorkers 1 --fileParallelism false",
     "test:watch": "vitest --project unit",
-    "typegen:cf": "wrangler types"
+    "typegen:cf": "bun run config:gen && wrangler types"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.6.25",

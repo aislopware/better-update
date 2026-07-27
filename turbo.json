@@ -2,6 +2,7 @@
   "$schema": "./node_modules/turbo/schema.json",
   "globalPassThroughEnv": [
     "ACCOUNT_ID",
+    "BU_*",
     "ANDROID_HOME",
     "ANDROID_SDK_ROOT",
     "ASSETS_BUCKET_NAME",

@@ -8,6 +8,15 @@ Turborepo + bun workspaces (`apps/*`, `packages/*`). Run tasks from root — `bu
 - `bun run lint` = lint + typecheck (never run oxlint/tsc/tsgo directly). Format via `bun run format` (oxfmt, not prettier).
 - Deploy per app: `bun run deploy` inside `apps/server` / `apps/web`. Server dev runs behind portless proxy (`bun run dev:proxy` from root).
 
+## Deployment config
+
+- The repo is deployment-neutral: never commit an account id, zone id, hostname, resource id, or contact address. Values live in untracked `.env.deploy` / CI `BU_*` variables; add new keys to the `KEYS` registry in `scripts/deploy-config.ts` + `.env.deploy.example`.
+- `apps/*/wrangler.jsonc` and `*.generated.ts` are GENERATED + git-ignored — never edit them. Change config shape in `config/wrangler/*.ts`, then `bun run config:gen`.
+- Read deployment values from wrangler `vars` (server), `lib/site-config` (web), `service-defaults.generated` (CLI). Never hardcode them in app or CI code.
+- Deploy config holds non-secrets only; secrets go through `wrangler secret put`. See `docs/self-hosting.md`.
+- Neutrality covers fixtures, seed data and comments too: use `example.com` / `com.example.*` hosts, synthetic ids, fictional names. Never a real person, company, customer, bundle id, Apple team id or keystore alias — including in tests. Only `LICENSE.md`'s copyright and `apps/web/src/routes/{terms,privacy}.tsx` name the operator.
+- `.gitlab-ci.yml` is the whole pipeline and must stay instance-free: runner tags, images and registries are `BU_CI_*` variables, never literals.
+
 ## Server architecture (`apps/server/src/`): functional core, imperative shell
 
 - Each top-level dir = one layer. Respect boundaries — no cross-imports, no new top-level dirs, no "application service" class layer; stop + ask if you think you need one.

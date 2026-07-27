@@ -2,7 +2,7 @@ import { buildCacheKey } from "./manifest-cache";
 
 const baseParams = {
   cacheVersion: 3,
-  scopeKey: "https://updates.better-update.dev",
+  scopeKey: "https://updates.example.com",
   projectId: "proj_abc",
   channelName: "production",
   platform: "ios",
@@ -19,15 +19,15 @@ describe(buildCacheKey, () => {
 
   it("places scopeKey right after the cache version and before projectId", () => {
     expect(buildCacheKey(baseParams)).toBe(
-      "https://cache.internal/_cache/v3/scope/https%3A%2F%2Fupdates.better-update.dev/manifest/proj_abc/production/ios/1.0.0/branch_main/mp/nosig",
+      "https://cache.internal/_cache/v3/scope/https%3A%2F%2Fupdates.example.com/manifest/proj_abc/production/ios/1.0.0/branch_main/mp/nosig",
     );
   });
 
   it("encodeURIComponent-escapes the scopeKey so ':' and '/' do not create extra path segments", () => {
     const key = buildCacheKey(baseParams);
     // The origin must appear as a single escaped segment, never raw.
-    expect(key).toContain("/scope/https%3A%2F%2Fupdates.better-update.dev/manifest/");
-    expect(key).not.toContain("/scope/https://updates.better-update.dev/");
+    expect(key).toContain("/scope/https%3A%2F%2Fupdates.example.com/manifest/");
+    expect(key).not.toContain("/scope/https://updates.example.com/");
   });
 
   it("yields DIFFERENT keys for different scopeKeys with otherwise identical inputs", () => {

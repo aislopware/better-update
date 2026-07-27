@@ -367,7 +367,7 @@ export const commitStagingSnapshot = (stagingRoot: string): Effect.Effect<void> 
       "-c",
       "user.name=better-update",
       "-c",
-      "user.email=build@better-update.dev",
+      "user.email=build@better-update.invalid",
       "-c",
       "commit.gpgsign=false",
       "commit",

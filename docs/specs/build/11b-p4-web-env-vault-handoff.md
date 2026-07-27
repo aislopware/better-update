@@ -62,7 +62,7 @@ Contract / crypto / client:
 
 P4.6b–d (built 2026-06-29):
 
-- `apps/web/src/lib/env-vault/host.ts` — `isVaultHost()` host-gate (`updates-vault.jmango360.dev` + any `*.localhost` for dev).
+- `apps/web/src/lib/env-vault/host.ts` — `isVaultHost()` host-gate (`updates-vault.example.com` + any `*.localhost` for dev).
 - `apps/web/src/lib/env-vault/step-up.ts` — `runPasskeyStepUp()`: GET better-auth `generate-authenticate-options` (credentialed) → `@simplewebauthn/browser` `startAuthentication` → POST `{ response: assertion }` to `/api/web-vault/step-up`.
 - `apps/web/src/lib/env-vault/reveal.ts` — `revealEnvValue()`: `openEnvValue` with `credentialId = envelope.id` + swap-detection (compares sealed `key`/`environment` to the row), returns a typed result (no throw).
 - `apps/web/src/lib/env-vault/use-env-vault.ts` — `useEnvVault(orgId)` controller (`enabled`/`unlocked`/`onUnlocked`/`lock`); render-time state-adjust (no `useEffect`, which is lint-restricted).
@@ -71,7 +71,7 @@ P4.6b–d (built 2026-06-29):
 - `…/-env-var-row.tsx` + `-env-vars-view.tsx` — actions column + toolbar (Unlock / Add variable / **Re-verify** / Lock), host-gated; `invalidateEnvVars` predicate invalidates the global list + every project list.
 - `apps/web/package.json` — added `@simplewebauthn/browser` direct dep.
 - `apps/server/src/auth.ts` — flag-gated `trustedOrigins` (the vault origin) **and** flag-gated `crossSubDomainCookies` (see the P1 fix below); corrected the stale `vault.updates`/`vault.<host>` comments.
-- `apps/server/wrangler.jsonc` + `apps/web/wrangler.jsonc` — durable routes: `updates-vault.jmango360.dev/api/*` → server, `updates-vault.jmango360.dev/*` → web (the API-added web route would be wiped on the next `wrangler deploy`, so it now lives in config).
+- `apps/server/wrangler.jsonc` + `apps/web/wrangler.jsonc` — durable routes: `updates-vault.example.com/api/*` → server, `updates-vault.example.com/*` → web (the API-added web route would be wiped on the next `wrangler deploy`, so it now lives in config).
 
 ## Adversarial-review fixes (all applied)
 
@@ -88,14 +88,14 @@ P4.6b–d (built 2026-06-29):
 
 - **[P1] Vault origin can't obtain a session cookie** (triple-confirmed, the real
   blocker). better-auth cookies are host-only (no `crossSubDomainCookies`), and prod
-  login is OAuth-only whose callback lands host-only on `updates.jmango360.dev`. The
+  login is OAuth-only whose callback lands host-only on `updates.example.com`. The
   vault origin (a sibling) therefore never receives the session → `_authed` redirect
   loop → the whole feature is dead-on-arrival when enabled. **FIXED:** added
   `advanced.crossSubDomainCookies` gated on a new `WEBAUTHN_COOKIE_DOMAIN` env
   (unset = host-only, byte-identical prod default). See "Session on the vault origin"
   below for the A-vs-B decision + rollout caveat.
 - **[P3] Stale `vault.updates` / `vault.<host>` comments** in `auth.ts` (real host is
-  the sibling `updates-vault.jmango360.dev`; rpID must be the parent `jmango360.dev`).
+  the sibling `updates-vault.example.com`; rpID must be the parent `example.com`).
   **FIXED** (comments corrected).
 - **[P2/P3] Client "unlocked" state outlives the 10-min server step-up**; reveal
   showed a misleading "try again" with no recovery. **FIXED:** reveal now surfaces the
@@ -129,13 +129,13 @@ Documented, NOT changed in code (intentional — see reasoning):
 
 The vault origin needs an authenticated session to function. Two ways:
 
-- **A (implemented, default): shared cookie via `WEBAUTHN_COOKIE_DOMAIN=.jmango360.dev`.**
+- **A (implemented, default): shared cookie via `WEBAUTHN_COOKIE_DOMAIN=.example.com`.**
   One login on the dashboard carries to the vault origin. Simple, matches the
   already-provisioned sibling layout. **Tradeoff:** the session cookie is then sent to
-  ALL first-party `*.jmango360.dev` origins (openproject, gitlab, …) — it widens
+  ALL first-party `*.example.com` origins (openproject, gitlab, …) — it widens
   _cookie_ scope but NOT the raw-key isolation (the env-vault key stays in the vault
   origin's sessionStorage, never shared). **Rollout caveat:** enabling it flips every
-  user's cookie from host-only to `Domain=.jmango360.dev`; the old host-only cookie and
+  user's cookie from host-only to `Domain=.example.com`; the old host-only cookie and
   the new domain cookie can briefly coexist → **plan a one-time forced re-login** at
   cutover. The cookie prefix is `__Secure-` (not `__Host-`), so a Domain is allowed;
   SameSite=Lax is fine (same registrable site → cookie sent on the vault origin's
@@ -146,31 +146,34 @@ The vault origin needs an authenticated session to function. Two ways:
   shared with other subdomains) but needs new code + its own OAuth redirect URI.
 
 Default is **A** (lower complexity, the core key-isolation goal is preserved). Switch
-to **B** if cookie isolation across `*.jmango360.dev` is a hard requirement.
+to **B** if cookie isolation across `*.example.com` is a hard requirement.
 
-## Provisioned (prod, JMango360 account, 2026-06-29)
+## Provisioned (prod, 2026-06-29)
 
-Already set up on the live Cloudflare account — INERT until the P4 server code deploys:
+Already set up on the live Cloudflare account — INERT until the P4 server code deploys. Hostnames
+and resource ids below are written as `example.com` / `<zone-id>` placeholders: this repository
+tracks no deployment identity (see `docs/self-hosting.md`), so substitute your own `BU_APP_HOST` /
+`BU_VAULT_HOST` and the ids from your Cloudflare dashboard.
 
-- **Vault origin** `updates-vault.jmango360.dev` (a sibling of `updates.jmango360.dev`, not a sub-subdomain — operator preference). DNS = proxied AAAA `100::` (mirrors `updates.jmango360.dev`); TLS auto-provisioned + valid. The worker routes now live in **config** (`apps/web/wrangler.jsonc` web catch-all + `apps/server/wrangler.jsonc` `/api/*`), so they survive `wrangler deploy` — the earlier dashboard-added web route would have been reconciled away on the next deploy. The origin 404s until the web worker deploys.
-- **Server secrets** on `better-update-server` (Workers secrets API, no code redeploy): `WEBAUTHN_RP_ID=jmango360.dev` (registrable suffix covering BOTH `updates.jmango360.dev` and `updates-vault.jmango360.dev` — required because they're siblings), `WEBAUTHN_RP_NAME=Better Update` (cosmetic, re-tunable), `WEBAUTHN_ORIGINS=https://updates-vault.jmango360.dev,https://updates.jmango360.dev`.
-- **`WEBAUTHN_COOKIE_DOMAIN=.jmango360.dev` — SET (pre-staged 2026-06-29, option A chosen).** Inert with the currently-deployed (pre-P4) server build, and the P4 code that reads it is still uncommitted, so it cannot activate accidentally. It takes effect on the **first P4 server deploy**, which therefore IS the go-live: that deploy switches every user's session cookie from host-only to `Domain=.jmango360.dev` → **a one-time forced re-login**. Announce it. (To back out of A before go-live: delete this secret → cookies stay host-only and the vault origin stays unreachable.)
+- **Vault origin** `updates-vault.example.com` (a sibling of `updates.example.com`, not a sub-subdomain — operator preference). DNS = proxied AAAA `100::` (mirrors `updates.example.com`); TLS auto-provisioned + valid. The worker routes now live in **config** (`apps/web/wrangler.jsonc` web catch-all + `apps/server/wrangler.jsonc` `/api/*`), so they survive `wrangler deploy` — the earlier dashboard-added web route would have been reconciled away on the next deploy. The origin 404s until the web worker deploys.
+- **Server secrets** on `better-update-server` (Workers secrets API, no code redeploy): `WEBAUTHN_RP_ID=example.com` (registrable suffix covering BOTH `updates.example.com` and `updates-vault.example.com` — required because they're siblings), `WEBAUTHN_RP_NAME=Better Update` (cosmetic, re-tunable), `WEBAUTHN_ORIGINS=https://updates-vault.example.com,https://updates.example.com`.
+- **`WEBAUTHN_COOKIE_DOMAIN=.example.com` — SET (pre-staged 2026-06-29, option A chosen).** Inert with the currently-deployed (pre-P4) server build, and the P4 code that reads it is still uncommitted, so it cannot activate accidentally. It takes effect on the **first P4 server deploy**, which therefore IS the go-live: that deploy switches every user's session cookie from host-only to `Domain=.example.com` → **a one-time forced re-login**. Announce it. (To back out of A before go-live: delete this secret → cookies stay host-only and the vault origin stays unreachable.)
 - These secrets persist across `wrangler deploy` (secrets ≠ vars). They do nothing until the P4 server build is deployed.
 
 ## Go-live checklist (operator)
 
 1. ~~DNS + worker routes for the vault origin~~ — **DONE** (DNS live; routes now in `wrangler.jsonc`, apply on deploy).
 2. ~~Set `WEBAUTHN_RP_ID` / `WEBAUTHN_RP_NAME` / `WEBAUTHN_ORIGINS` secrets~~ — **DONE** (server worker).
-3. ~~Build the vault UI (P4.6b ceremony + P4.6c screens), host-gated to `updates-vault.jmango360.dev`~~ — **DONE** (needs on-device verification, step 7).
-4. ~~Decide A vs B + set `WEBAUTHN_COOKIE_DOMAIN`~~ — **DONE: A chosen, `WEBAUTHN_COOKIE_DOMAIN=.jmango360.dev` pre-staged on `better-update-server`.** Still **announce/plan the one-time re-login** — it fires on the first P4 server deploy (step 6).
-5. **CSP** — **Report-Only is LIVE** (CF response-header Transform Rule, zone `e36dbf0b…`, ruleset `6dd10c461d9942a8baadc37b276cafa9`, rule `ed89d369cbc34d01b7545c1963248c11`): `default-src 'self'; base-uri 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'` on `http.host eq "updates-vault.jmango360.dev"`. **At go-live:** load the real vault UI on a browser, check the console for CSP violations (likely needs adjusting — TanStack Start injects an **inline hydration `<script>`**, so `script-src 'self'` will probably need a nonce or hash; `connect-src 'self'` assumes same-origin `/api`), tune the directives, then **rename the header `Content-Security-Policy-Report-Only` → `Content-Security-Policy` (enforce) BEFORE/with the first vault-UI deploy.**
+3. ~~Build the vault UI (P4.6b ceremony + P4.6c screens), host-gated to `updates-vault.example.com`~~ — **DONE** (needs on-device verification, step 7).
+4. ~~Decide A vs B + set `WEBAUTHN_COOKIE_DOMAIN`~~ — **DONE: A chosen, `WEBAUTHN_COOKIE_DOMAIN=.example.com` pre-staged on `better-update-server`.** Still **announce/plan the one-time re-login** — it fires on the first P4 server deploy (step 6).
+5. **CSP** — **Report-Only is LIVE** (CF response-header Transform Rule, zone `<zone-id>`, ruleset `<ruleset-id>`, rule `<rule-id>`): `default-src 'self'; base-uri 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'` on `http.host eq "updates-vault.example.com"`. **At go-live:** load the real vault UI on a browser, check the console for CSP violations (likely needs adjusting — TanStack Start injects an **inline hydration `<script>`**, so `script-src 'self'` will probably need a nonce or hash; `connect-src 'self'` assumes same-origin `/api`), tune the directives, then **rename the header `Content-Security-Policy-Report-Only` → `Content-Security-Policy` (enforce) BEFORE/with the first vault-UI deploy.**
 6. Cut a release: applies migration **0072** to prod D1 + deploys server (activates the passkey plugin, step-up gate, `trustedOrigins`, and — if `WEBAUTHN_COOKIE_DOMAIN` is set — the shared cookie) + web (serves the vault origin).
-7. **Real-device test on `updates-vault.jmango360.dev`**: confirm a session is present (the A/B fix works) → enroll a passkey → unlock → reveal/create/edit/delete end-to-end on a real authenticator. Verify: wrong passphrase fails; a non-recipient gets a clear error; after ~10 min the **Re-verify** button restores access; reveal of a swapped/mismatched value is rejected.
+7. **Real-device test on `updates-vault.example.com`**: confirm a session is present (the A/B fix works) → enroll a passkey → unlock → reveal/create/edit/delete end-to-end on a real authenticator. Verify: wrong passphrase fails; a non-recipient gets a clear error; after ~10 min the **Re-verify** button restores access; reveal of a swapped/mismatched value is rejected.
 8. Per-org cutover (CLI `credentials env-vault migrate`) + each member `credentials account create` — only then does the org's env vault become browser-reachable. Sequence cutover AFTER the web UI is live (account keys are inert without it).
 9. CLI version floor (P5): warn/refuse old CLIs on cutover orgs (they lose env read).
 
 ## Notes / assumptions
 
 - Step-up exemption keys on `transport: "cookie"`. Safe only while the web app uses the httpOnly session cookie and never sends a raw `Authorization: Bearer <session>`. Do not refactor the web client to bearer.
-- The host gate (`lib/env-vault/host.ts`) also enables on any `*.localhost` for local dev; it can never enable on `updates.jmango360.dev` (the main origin stays read-only). The passkey plugin is still off in dev (no `WEBAUTHN_RP_ID`), so the ceremony only fully exercises against a deployed server.
+- The host gate (`lib/env-vault/host.ts`) also enables on any `*.localhost` for local dev; it can never enable on `updates.example.com` (the main origin stays read-only). The passkey plugin is still off in dev (no `WEBAUTHN_RP_ID`), so the ceremony only fully exercises against a deployed server.
 - `apps/web/src/lib/env-vault/*` is now consumed by the env-vars view, so knip no longer reports it unused.

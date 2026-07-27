@@ -2,6 +2,7 @@
   "name": "@better-update/cli",
   "version": "0.70.1",
   "homepage": "https://github.com/better-update/better-update",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/better-update/better-update.git",
@@ -22,8 +23,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsdown",
-    "build:watch": "tsdown --watch",
+    "build": "bun run config:gen && tsdown",
+    "build:watch": "bun run config:gen && tsdown --watch",
+    "config:gen": "bun ../../scripts/gen-config.ts",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "pretest:e2e": "tsdown",

@@ -6,7 +6,7 @@ describe(renderInviteEmail, () => {
     organizationName: "Acme Inc",
     recipientEmail: "bob@example.com",
     role: "admin",
-    acceptUrl: "https://better-update.dev/accept-invitation?id=inv_123",
+    acceptUrl: "https://updates.example.com/accept-invitation?id=inv_123",
   };
 
   it("subject contains organization name", () => {

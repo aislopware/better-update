@@ -4,6 +4,13 @@ lerna-debug.log*
 .env.*.local
 .dev.vars
 worker-configuration.d.ts
+
+# Deployment identity + everything rendered from it (`bun run config:gen`).
+# Values live in the untracked .env.deploy (or BU_* env), never in git.
+.env.deploy
+apps/*/wrangler.jsonc
+apps/web/src/lib/site-config.generated.ts
+apps/cli/src/services/service-defaults.generated.ts
 node_modules/
 dist/
 .turbo/

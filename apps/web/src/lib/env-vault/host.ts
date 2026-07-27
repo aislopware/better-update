@@ -1,10 +1,13 @@
+import { SITE } from "../site-config";
+
 // The env-vault unlock + CRUD UI is served only from a dedicated origin, isolated
 // from the main dashboard origin so the unlock JS — which handles the raw vault
 // key and the account passphrase — runs under its own CSP and never shares
-// storage (the sessionStorage key cache) with the rest of the app. In production
-// that origin is `updates-vault.jmango360.dev`; any `*.localhost` is also allowed
-// so the flow can be exercised in local development without a second hostname.
-export const VAULT_HOST = "updates-vault.jmango360.dev";
+// storage (the sessionStorage key cache) with the rest of the app. The origin is
+// per-deployment (`BU_VAULT_HOST`); any `*.localhost` is also allowed so the flow
+// can be exercised in local development without a second hostname. An empty
+// value means the deployment serves no separate vault origin.
+export const VAULT_HOST = SITE.vaultHost;
 
 const isLocalDevHost = (hostname: string): boolean =>
   hostname === "localhost" || hostname.endsWith(".localhost");
@@ -20,5 +23,5 @@ export const isVaultHost = (): boolean => {
     return false;
   }
   const { hostname } = globalThis.location;
-  return hostname === VAULT_HOST || isLocalDevHost(hostname);
+  return (VAULT_HOST.length > 0 && hostname === VAULT_HOST) || isLocalDevHost(hostname);
 };

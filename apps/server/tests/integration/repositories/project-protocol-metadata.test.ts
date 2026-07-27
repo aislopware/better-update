@@ -46,7 +46,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
   it("upsertServerDefinedHeaders then get returns the stored JSON for that scope", async () => {
     const projectId = `ppm-roundtrip-${crypto.randomUUID().slice(0, 8)}`;
     await insertProject(projectId);
-    const scopeKey = "https://updates.better-update.dev";
+    const scopeKey = "https://updates.example.com";
     const json = JSON.stringify({ "expo-extra-params": 'foo="bar"' });
 
     const row = await run(
@@ -68,7 +68,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
   it("a second upsert REPLACES (full-replace, not merge) and keeps exactly one row", async () => {
     const projectId = `ppm-replace-${crypto.randomUUID().slice(0, 8)}`;
     await insertProject(projectId);
-    const scopeKey = "https://updates.better-update.dev";
+    const scopeKey = "https://updates.example.com";
 
     const row = await run(
       Effect.gen(function* () {
@@ -100,7 +100,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
   it("can clear the stored headers by upserting NULL (clear semantics)", async () => {
     const projectId = `ppm-clear-${crypto.randomUUID().slice(0, 8)}`;
     await insertProject(projectId);
-    const scopeKey = "https://updates.better-update.dev";
+    const scopeKey = "https://updates.example.com";
 
     const row = await run(
       Effect.gen(function* () {
@@ -148,7 +148,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
   it("upsertManifestFilters writes the filters column without clobbering headers (P1 sibling)", async () => {
     const projectId = `ppm-filters-${crypto.randomUUID().slice(0, 8)}`;
     await insertProject(projectId);
-    const scopeKey = "https://updates.better-update.dev";
+    const scopeKey = "https://updates.example.com";
 
     const row = await run(
       Effect.gen(function* () {

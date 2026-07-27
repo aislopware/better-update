@@ -4,7 +4,7 @@ import path from "node:path";
 import { parseDotenvContent } from "@better-update/dotenv";
 
 const FALLBACKS = {
-  assetCdnUrl: "https://assets.better-update.dev",
+  assetCdnUrl: "https://cdn.example.com",
   betterAuthSecret: "e2e-test-secret-that-is-at-least-32-chars",
   betterAuthUrl: "http://localhost:6781",
   buildBucketName: "better-update",
@@ -122,11 +122,12 @@ export const createServerE2EEnvironment = (options?: {
       fallback: FALLBACKS.buildBucketName,
       secondary: "BUILD_BUCKET_NAME",
     }),
-    // wrangler.jsonc defines COOKIE_DOMAIN=".better-update.dev" for prod.
-    // In e2e the worker serves over plain HTTP on 127.0.0.1, so Set-Cookie
-    // with Domain=.better-update.dev + Secure gets dropped by browsers and
-    // fetch clients — breaking every subsequent authed request. Clearing it
-    // makes better-auth emit host-only cookies that ride the proxy cleanly.
+    // The generated wrangler.jsonc sets COOKIE_DOMAIN to the deployment's
+    // parent domain for prod. In e2e the worker serves over plain HTTP on
+    // 127.0.0.1, so Set-Cookie with a parent Domain= + Secure gets dropped by
+    // browsers and fetch clients — breaking every subsequent authed request.
+    // Clearing it makes better-auth emit host-only cookies that ride the proxy
+    // cleanly.
     COOKIE_DOMAIN: "",
     CLOUDFLARE_API_TOKEN: envValue({
       fileSource,

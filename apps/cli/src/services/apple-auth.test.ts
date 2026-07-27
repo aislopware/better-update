@@ -50,7 +50,7 @@ const makeAuthState = (
     availableProviders: readonly Session.SessionProvider[];
   }> = {},
 ): Session.AuthState => {
-  const username = overrides.username ?? "cong@example.com";
+  const username = overrides.username ?? "dev@example.com";
   const teamId = overrides.teamId ?? "TEAM1234";
   const providerId = overrides.providerId ?? 100;
   const providerName = overrides.providerName ?? "BC Org";
@@ -176,7 +176,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
     Effect.gen(function* () {
       const auth = yield* AppleAuth;
       const session = yield* auth.ensureLoggedIn();
-      expect(session.username).toBe("cong@example.com");
+      expect(session.username).toBe("dev@example.com");
       expect(session.teamId).toBe("TEAM1234");
       expect(session.providerId).toBe(100);
     }).pipe(
@@ -185,7 +185,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
           const { layer } = makeSessionStoreLayer({
             session: {
               cookies: COOKIES_FIXTURE,
-              username: "cong@example.com",
+              username: "dev@example.com",
             },
           });
           const appleUtils = makeAppleUtilsStub({
@@ -214,7 +214,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
           const { layer } = makeSessionStoreLayer({
             session: {
               cookies: COOKIES_FIXTURE,
-              username: "cong@example.com",
+              username: "dev@example.com",
             },
           });
           const appleUtils = makeAppleUtilsStub({
@@ -244,17 +244,17 @@ describe("AppleAuth.ensureLoggedIn", () => {
         const session = yield* auth.ensureLoggedIn();
         // publicProviderId is a UUID, so the real 10-char Team ID must come from getTeamsAsync.
         expect(session.providerId).toBe(200);
-        expect(session.teamId).toBe("LPZ7MF9QXQ");
+        expect(session.teamId).toBe("ABCDE12345");
       }).pipe(
         Effect.provide(
           (() => {
             const { layer } = makeSessionStoreLayer({
-              session: { cookies: COOKIES_FIXTURE, username: "cong@example.com" },
+              session: { cookies: COOKIES_FIXTURE, username: "dev@example.com" },
             });
             const uuidProvider = makeProvider(
               200,
-              "69a6de80-b33d-47e3-e053-5b8c7c11a4d1",
-              "JMango Operations B.V.",
+              "11111111-2222-3333-4444-555555555555",
+              "Example Team B.V.",
             );
             const appleUtils = makeAppleUtilsStub({
               loginWithCookies: async () =>
@@ -264,7 +264,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
                   availableProviders: [makeProvider(100, "TEAM100"), uuidProvider],
                 }),
               getTeams: async () => [
-                { teamId: "LPZ7MF9QXQ", name: "JMango Operations B.V." },
+                { teamId: "ABCDE12345", name: "Example Team B.V." },
                 { teamId: "OTHER12345", name: "Someone Else" },
               ],
             });
@@ -293,7 +293,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
             const { layer } = makeSessionStoreLayer({
               session: {
                 cookies: COOKIES_FIXTURE,
-                username: "cong@example.com",
+                username: "dev@example.com",
               },
             });
             const appleUtils = makeAppleUtilsStub({
@@ -381,7 +381,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
 
   it.effect("freshLogin skips the cached session and goes straight to interactive login", () => {
     const { layer } = makeSessionStoreLayer({
-      session: { cookies: COOKIES_FIXTURE, username: "cong@example.com" },
+      session: { cookies: COOKIES_FIXTURE, username: "dev@example.com" },
     });
     const restoreCalls: string[] = [];
     const appleUtils = makeAppleUtilsStub({
@@ -450,7 +450,7 @@ describe("AppleAuth.ensureLoggedIn", () => {
           const { layer } = makeSessionStoreLayer({
             session: {
               cookies: COOKIES_FIXTURE,
-              username: "cong@example.com",
+              username: "dev@example.com",
             },
           });
           const appleUtils = makeAppleUtilsStub({
@@ -501,7 +501,7 @@ describe("AppleAuth.whoami", () => {
           const { layer } = makeSessionStoreLayer({
             session: {
               cookies: COOKIES_FIXTURE,
-              username: "cong@example.com",
+              username: "dev@example.com",
             },
           });
           const appleUtils = makeAppleUtilsStub({
@@ -523,7 +523,7 @@ describe("AppleAuth.whoami", () => {
       const auth = yield* AppleAuth;
       const session = yield* auth.whoami;
       expect(session).not.toBeNull();
-      expect(session?.username).toBe("cong@example.com");
+      expect(session?.username).toBe("dev@example.com");
       expect(session?.teamId).toBe("TEAM-MEM");
       expect(session?.teamName).toBe("Memory Org");
     }).pipe(
@@ -532,7 +532,7 @@ describe("AppleAuth.whoami", () => {
           const { layer } = makeSessionStoreLayer({
             session: {
               cookies: COOKIES_FIXTURE,
-              username: "cong@example.com",
+              username: "dev@example.com",
             },
           });
           const appleUtils = makeAppleUtilsStub({
@@ -558,7 +558,7 @@ describe("AppleAuth.logout", () => {
     const { layer, state } = makeSessionStoreLayer({
       session: {
         cookies: COOKIES_FIXTURE,
-        username: "cong@example.com",
+        username: "dev@example.com",
       },
     });
     const logoutCalls: number[] = [];

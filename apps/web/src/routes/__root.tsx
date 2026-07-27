@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 
 import { ErrorBoundary } from "../lib/error-boundary";
 import { subscribeToSignoutBroadcast } from "../lib/logout";
+import { SITE } from "../lib/site-config";
 import { THEME_INIT_SCRIPT, getThemeSnapshotFromCookie, isResolvedTheme } from "../lib/theme";
 import { ThemeProvider } from "../lib/theme-context";
 import { getServerThemeSnapshot } from "../lib/theme-server";
@@ -85,8 +86,8 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
           property="og:description"
           content="OTA updates, native builds, and store submissions for your Expo, React Native, and native apps."
         />
-        <meta property="og:url" content="https://updates.jmango360.dev" />
-        <meta property="og:image" content="https://updates.jmango360.dev/og-image.svg" />
+        <meta property="og:url" content={SITE.url} />
+        <meta property="og:image" content={`${SITE.url}/og-image.svg`} />
         <meta property="og:image:type" content="image/svg+xml" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -97,7 +98,7 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
           name="twitter:description"
           content="OTA updates, native builds, and store submissions for your Expo, React Native, and native apps."
         />
-        <meta name="twitter:image" content="https://updates.jmango360.dev/og-image.svg" />
+        <meta name="twitter:image" content={`${SITE.url}/og-image.svg`} />
         <HeadContent />
       </head>
       <body>

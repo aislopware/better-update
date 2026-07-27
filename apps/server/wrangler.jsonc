@@ -1,99 +1,98 @@
+// GENERATED FILE — do not edit.
+// Rendered by `bun run config:gen`; change values in `.env.deploy`
+// (see `.env.deploy.example`) or the template under `config/`.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "better-update-server",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "compatibility_date": "2026-07-04",
   "main": "src/index.ts",
-  // Workers Cache: an HTTP cache in FRONT of the fetch handler — hits return
-  // without invoking the Worker (no CPU billed, no D1/R2 touched). Opt-in per
-  // response: only GET/HEAD responses with a cacheable Cache-Control are
-  // stored; `private`/`no-store`/`Set-Cookie` bypass, and src/index.ts stamps
-  // `no-store` on anything that says nothing. Today only full OTA bundles
-  // (public, immutable) and /api/config (max-age=60) opt in.
-  // `cross_version_cache` keeps entries across deploys: full bundles are
-  // content-addressed by hash so a new Worker version never changes their
-  // bytes, and flushing them on every release would re-pay a cold R2 read per
-  // bundle per colo. Escape hatch: ctx.cache.purge({ purgeEverything: true }).
   "cache": {
     "enabled": true,
-    "cross_version_cache": true,
+    "cross_version_cache": true
   },
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "better-update",
       "database_id": "55db4458-94be-42f3-b00e-4c5290d8f964",
-      "migrations_dir": "migrations",
-    },
+      "migrations_dir": "migrations"
+    }
   ],
   "kv_namespaces": [
     {
       "binding": "SESSION_KV",
-      "id": "6a752bc61d6e4768a9bd9cf7a804c0c1",
+      "id": "6a752bc61d6e4768a9bd9cf7a804c0c1"
     },
     {
       "binding": "BUILD_RESERVATIONS",
-      "id": "8f0bd716d9e94322aeda00d7de2e5616",
-    },
+      "id": "8f0bd716d9e94322aeda00d7de2e5616"
+    }
   ],
   "r2_buckets": [
     {
       "binding": "ASSETS_BUCKET",
       "bucket_name": "better-update-assets",
       "preview_bucket_name": "better-update-assets-e2e",
-      "remote": true,
+      "remote": true
     },
     {
       "binding": "BUILD_BUCKET",
       "bucket_name": "better-update-builds",
       "preview_bucket_name": "better-update-builds-e2e",
-      "remote": true,
+      "remote": true
     },
     {
-      // Binding name intentionally generic: this bucket stores Apple, Android,
-      // and Google credential artifacts. Physical bucket rename is deferred to
-      // an infra migration; the binding is the source of truth in code.
       "binding": "CREDENTIAL_ARTIFACTS",
       "bucket_name": "better-update-apple-credentials",
       "preview_bucket_name": "better-update-apple-credentials-e2e",
-      "remote": true,
-    },
+      "remote": true
+    }
   ],
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
-      "dataset": "update_events",
-    },
+      "dataset": "update_events"
+    }
   ],
   "send_email": [
     {
       "name": "EMAIL",
-      "allowed_sender_addresses": ["noreply@jmango360.dev"],
-    },
+      "allowed_sender_addresses": [
+        "noreply@jmango360.dev"
+      ]
+    }
   ],
   "durable_objects": {
     "bindings": [
       {
         "name": "PUBLISH_COORDINATOR",
-        "class_name": "PublishCoordinator",
+        "class_name": "PublishCoordinator"
       },
       {
         "name": "CREATE_BRANCH_COORDINATOR",
-        "class_name": "CreateBranchCoordinator",
-      },
-    ],
+        "class_name": "CreateBranchCoordinator"
+      }
+    ]
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["PublishCoordinator", "CreateBranchCoordinator"],
-    },
+      "new_sqlite_classes": [
+        "PublishCoordinator",
+        "CreateBranchCoordinator"
+      ]
+    }
   ],
   "triggers": {
-    "crons": ["0 3 * * *"],
+    "crons": [
+      "0 3 * * *"
+    ]
   },
   "vars": {
     "ACCOUNT_ID": "aaa05f0153bcd0fc4c7efb7f785401c8",
@@ -104,62 +103,42 @@
     "BUILD_RETENTION_DEVELOPMENT": "7",
     "UPDATE_RETENTION_DAYS": "90",
     "PATCH_RETENTION_DAYS": "30",
-    // Opt-in RFC-3229 `226 IM Used` for bsdiff patch responses. Default "false":
-    // 200 is the safe default (some non-delta-aware proxy caches mishandle 226;
-    // the device accepts both). Set "true" to emit a true 226 for patches.
     "EMIT_HTTP_226": "false",
-    // Remote killswitch: the CLI may run only if its version is STRICTLY newer
-    // than this value. It fetches this from `/api/config` at startup and
-    // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
-    // upgrade after a release, set this to the version you want to retire (that
-    // version and everything older are blocked). "0.0.0" blocks nothing (default).
-    // 0.69.1: retire CLI 0.69.1 and older — only versions strictly newer may run
-    // (macOS Developer ID signing + notarization: `macos sign` / `macos notarize`).
     "REQUIRE_CLI_VERSION_ABOVE": "0.69.1",
     "ENVIRONMENT": "production",
-    // Comma-separated allowlist of superadmin emails. A user signing in with a
-    // matching email is auto-promoted (global role "admin" + approved) on
-    // first login and can approve other users from the dashboard. The web app
-    // is in development and gated: everyone else starts unapproved.
     "SUPERADMIN_EMAILS": "cong.tran@jmango360.com",
+    "EMAIL_SENDER_ADDRESS": "noreply@jmango360.dev",
     "BETTER_AUTH_URL": "https://updates.jmango360.dev",
     "PUBLIC_API_URL": "https://updates.jmango360.dev",
     "ASSET_CDN_URL": "https://assets.updates.jmango360.dev",
     "GITHUB_CLIENT_ID": "Ov23liH7s8ndT7tk6M1f",
-    // Google OAuth client ID (non-secret). Set the matching GOOGLE_CLIENT_SECRET
-    // via `wrangler secret put GOOGLE_CLIENT_SECRET`. Leave empty to disable
-    // Google sign-in. Authorized redirect URI: https://updates.jmango360.dev/api/auth/callback/google
     "GOOGLE_CLIENT_ID": "830704615366-cbv95ftj88p3sv7loa8jo2ah5c32kkt0.apps.googleusercontent.com",
-    "R2_ACCESS_KEY_ID": "3007ce3225cf3b9858f00e112bfffc4b",
+    "R2_ACCESS_KEY_ID": "3007ce3225cf3b9858f00e112bfffc4b"
   },
   "routes": [
     {
       "pattern": "updates.jmango360.dev/api/*",
-      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
-    },
-    // Web env vault (P4): the vault UI lives on the independent origin
-    // updates-vault.jmango360.dev and calls the API same-origin, so /api/* there
-    // routes to this worker too (more specific than the web worker's catch-all).
-    // Inert until the vault UI ships + an org cuts over.
-    {
-      "pattern": "updates-vault.jmango360.dev/api/*",
-      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97"
     },
     {
       "pattern": "updates.jmango360.dev/manifest/*",
-      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97"
     },
     {
       "pattern": "updates.jmango360.dev/register-device/*",
-      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97"
     },
     {
       "pattern": "updates.jmango360.dev/docs",
-      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97"
     },
     {
       "pattern": "updates.jmango360.dev/openapi.json",
-      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97"
     },
-  ],
+    {
+      "pattern": "updates-vault.jmango360.dev/api/*",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97"
+    }
+  ]
 }

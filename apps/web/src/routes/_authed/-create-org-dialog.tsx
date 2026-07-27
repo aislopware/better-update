@@ -19,6 +19,7 @@ import { useRef, useState } from "react";
 import { SlugInput } from "../../components/slug-input";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
+import { SITE } from "../../lib/site-config";
 import { safeSubmit } from "../../lib/use-api-mutation";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
 
@@ -110,7 +111,7 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
               <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
                 <SlugInput
-                  addonStart="updates.jmango360.dev/"
+                  addonStart={`${SITE.host}/`}
                   id="create-org-slug"
                   placeholder="acme-inc"
                   aria-invalid={invalid || undefined}

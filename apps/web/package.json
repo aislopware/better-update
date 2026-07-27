@@ -12,9 +12,11 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "deploy": "vite build && wrangler deploy",
-    "dev": "PORTLESS=1 portless better-update vite dev",
-    "dev:local": "vite dev",
+    "config:gen": "bun ../../scripts/gen-config.ts",
+    "config:gen:strict": "bun ../../scripts/gen-config.ts --strict",
+    "deploy": "bun run config:gen:strict && vite build && wrangler deploy",
+    "dev": "bun run config:gen && PORTLESS=1 portless better-update vite dev",
+    "dev:local": "bun run config:gen && vite dev",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "pretest:e2e": "bunx playwright install chromium",
@@ -25,7 +27,7 @@
     "test:e2e:api": "vitest run --project e2e-api --retry 2",
     "test:e2e:browser": "vitest run --project e2e-browser --retry 2",
     "test:e2e:ci": "vitest run --project e2e-api --project e2e-browser --retry 1 --bail 1",
-    "typegen:cf": "wrangler types"
+    "typegen:cf": "bun run config:gen && wrangler types"
   },
   "dependencies": {
     "@better-update/api": "workspace:*",

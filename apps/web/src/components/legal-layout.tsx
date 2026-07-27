@@ -1,6 +1,7 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { Link } from "@tanstack/react-router";
 
+import { SITE } from "../lib/site-config";
 import { BrandWordmark } from "./brand-mark";
 
 export type LegalBlock =
@@ -76,10 +77,10 @@ const LegalFooter = () => (
     <p className="text-muted-foreground text-sm leading-relaxed">
       Questions about this page? Email{" "}
       <a
-        href="mailto:legal@jmango360.dev"
+        href={`mailto:${SITE.legalEmail}`}
         className="text-foreground underline-offset-4 hover:underline"
       >
-        legal@jmango360.dev
+        {SITE.legalEmail}
       </a>
       .
     </p>

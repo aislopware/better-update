@@ -34,12 +34,28 @@ What started as an OTA update server has grown into a full release pipeline: bui
 - User-defined environments alongside built-in development/preview/production
 - Audit log, analytics, webhooks, scoped API keys
 
+## Deploy your own instance
+
+No account id, hostname or resource id is tracked in this repository — it is not
+tied to any deployment. Point a clone at your own Cloudflare account with:
+
+```sh
+cp .env.deploy.example .env.deploy   # your account id + hostnames
+bun run bootstrap                    # create D1 + KV + R2 on your account
+bun run config:gen                   # render wrangler.jsonc + app config
+```
+
+Without that file the repo still installs, tests and runs locally on
+placeholders — only deploying requires real values.
+
+See [docs/self-hosting.md](./docs/self-hosting.md) for secrets, migrations and deploy.
+
 ## Monorepo
 
 | Path          | What it is                                                                          |
 | ------------- | ----------------------------------------------------------------------------------- |
 | `apps/server` | API on Cloudflare Workers (D1, KV, R2), Effect-based hexagonal core                 |
-| `apps/web`    | Dashboard at [better-update.dev](https://better-update.dev) (TanStack Start)        |
+| `apps/web`    | Dashboard SPA + SSR (TanStack Start)                                                |
 | `apps/cli`    | `better-update` CLI — builds, updates, credentials, env vars, submissions           |
 | `skills/*`    | Agent skills — `better-update` teaches an agent to drive the CLI end to end         |
 | `packages/*`  | Shared libraries: typed API client, Expo protocol, code signing, bsdiff, crypto, UI |

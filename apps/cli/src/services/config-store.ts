@@ -5,10 +5,13 @@ import { FileSystem } from "@effect/platform";
 import { Context, Data, Effect, Layer } from "effect";
 
 import { CliRuntime } from "./cli-runtime";
-
-const DEFAULT_BASE_URL = "https://updates.jmango360.dev";
-const DEFAULT_WEB_URL = "https://updates.jmango360.dev";
-const DEFAULT_ASSET_CDN_URL = "https://assets.updates.jmango360.dev";
+// Baked in at build time from the deployment config so a fork ships a CLI that
+// points at its own instance — `bun run config:gen` renders this file.
+import {
+  DEFAULT_ASSET_CDN_URL,
+  DEFAULT_BASE_URL,
+  DEFAULT_WEB_URL,
+} from "./service-defaults.generated";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly message: string;

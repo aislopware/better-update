@@ -17,8 +17,6 @@ import { EmailService } from "./domain/email-service";
 import { renderInviteEmail } from "./lib/email-templates";
 import { structuredLog } from "./middleware/logging";
 
-const INVITE_SENDER_FROM = "noreply@jmango360.dev";
-
 // Snake_case column mapping for the Better Auth `admin` plugin (role/banned use
 // matching column names; only these two need remapping, plus the session
 // impersonation back-reference). See migration 0053.
@@ -74,18 +72,18 @@ type AuthEnv = Env & {
   // WebAuthn / passkey config for the web env-vault step-up (P4). When
   // WEBAUTHN_RP_ID is unset the passkey plugin is NOT registered (prod default).
   // Passkeys are used ONLY on the vault origin (the step-up + enrollment both run
-  // there), so WEBAUTHN_RP_ID is that exact host — `updates-vault.jmango360.dev` —
+  // there), so WEBAUTHN_RP_ID is that exact host — the vault origin (BU_VAULT_HOST) —
   // which binds each credential to the vault origin alone (a passkey's rpID must be
   // a registrable suffix of the origin it is used on; the exact host is the most
   // restrictive valid value). It deliberately does NOT cover the dashboard
-  // `updates.jmango360.dev`: enrollment there is redirected to the vault origin.
+  // origin: enrollment there is redirected to the vault origin.
   readonly WEBAUTHN_RP_ID?: string;
   readonly WEBAUTHN_RP_NAME?: string;
   // Comma-separated allowed WebAuthn origins. With rpID scoped to the vault host
-  // this is just the vault origin, e.g. "https://updates-vault.jmango360.dev"; the
+  // this is just the vault origin, e.g. "https://vault.example.com"; the
   // dashboard origin stays a trusted origin via BETTER_AUTH_URL.
   readonly WEBAUTHN_ORIGINS?: string;
-  // Registrable domain to scope the session cookie to (e.g. ".jmango360.dev") so
+  // Registrable domain to scope the session cookie to (e.g. ".example.com") so
   // the vault origin — a sibling of the dashboard — carries the dashboard session.
   // UNSET = host-only cookies (the prod default, unchanged). Setting it is a
   // deliberate go-live step: it widens the session cookie to ALL first-party
@@ -314,7 +312,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
           const program = Effect.gen(function* () {
             const emailService = yield* EmailService;
             yield* emailService.send({
-              from: INVITE_SENDER_FROM,
+              from: env.EMAIL_SENDER_ADDRESS,
               to: data.email,
               subject: rendered.subject,
               html: rendered.html,
@@ -353,9 +351,9 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
       // WebAuthn / passkey: the second factor that gates web env-vault access (P4).
       // Registered only when WEBAUTHN_RP_ID is set so the prod auth surface is
       // unchanged until the org cuts over to the browser env vault. rpID is the
-      // vault origin host exactly (updates-vault.jmango360.dev) — passkeys are used
-      // only there (step-up + enrollment), so each credential is bound to that
-      // origin alone and is NOT usable on the dashboard (updates.jmango360.dev);
+      // vault origin host exactly — passkeys are used only there (step-up +
+      // enrollment), so each credential is bound to that origin alone and is
+      // NOT usable on the dashboard origin;
       // the `passkey` table already exists (migration 0072). See the web-vault
       // step-up handler + assert-web-env-step-up gate.
       ...(webauthnEnabled

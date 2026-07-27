@@ -28,8 +28,8 @@ import { discoverSignedTargets } from "../../lib/xcode-targets";
 
 const testLayer = Layer.mergeAll(NodeFileSystem.layer, makeOutputModeLayer(false));
 
-// ── iOS fixture: app `Jmango360` + extension `NotificationService`, Debug+Release ──
-const EPP_PBXPROJ = `// !$*UTF8*$!
+// ── iOS fixture: app `DemoApp` + extension `NotificationService`, Debug+Release ──
+const DEMO_PBXPROJ = `// !$*UTF8*$!
 {
 \tarchiveVersion = 1;
 \tclasses = {
@@ -38,12 +38,12 @@ const EPP_PBXPROJ = `// !$*UTF8*$!
 \tobjects = {
 
 /* Begin PBXNativeTarget section */
-\t\tA001 /* Jmango360 */ = {
+\t\tA001 /* DemoApp */ = {
 \t\t\tisa = PBXNativeTarget;
 \t\t\tbuildConfigurationList = B001;
 \t\t\tbuildPhases = ();
-\t\t\tname = Jmango360;
-\t\t\tproductName = Jmango360;
+\t\t\tname = DemoApp;
+\t\t\tproductName = DemoApp;
 \t\t\tproductReference = C001;
 \t\t\tproductType = "com.apple.product-type.application";
 \t\t};
@@ -81,7 +81,7 @@ const EPP_PBXPROJ = `// !$*UTF8*$!
 \t\tD001 /* Debug */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.echoparkpaper;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.example.demoapp;
 \t\t\t\tMARKETING_VERSION = 6.0.4;
 \t\t\t\tCURRENT_PROJECT_VERSION = 16;
 \t\t\t};
@@ -90,7 +90,7 @@ const EPP_PBXPROJ = `// !$*UTF8*$!
 \t\tD002 /* Release */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.echoparkpaper;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.example.demoapp;
 \t\t\t\tMARKETING_VERSION = 6.0.4;
 \t\t\t\tCURRENT_PROJECT_VERSION = 16;
 \t\t\t};
@@ -99,7 +99,7 @@ const EPP_PBXPROJ = `// !$*UTF8*$!
 \t\tD003 /* Debug */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.echoparkpaper.NotificationService;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.example.demoapp.NotificationService;
 \t\t\t\tMARKETING_VERSION = 6.0.4;
 \t\t\t\tCURRENT_PROJECT_VERSION = 16;
 \t\t\t};
@@ -108,7 +108,7 @@ const EPP_PBXPROJ = `// !$*UTF8*$!
 \t\tD004 /* Release */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.echoparkpaper.NotificationService;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.example.demoapp.NotificationService;
 \t\t\t\tMARKETING_VERSION = 6.0.4;
 \t\t\t\tCURRENT_PROJECT_VERSION = 16;
 \t\t\t};
@@ -120,7 +120,7 @@ const EPP_PBXPROJ = `// !$*UTF8*$!
 }
 `;
 
-const EPP_GRADLE = `android {
+const DEMO_GRADLE = `android {
     defaultConfig {
         applicationId project.env.get("APP_ID")
         versionCode project.env.get("VERSION_CODE_APP").toInteger()
@@ -132,21 +132,21 @@ const EPP_GRADLE = `android {
 const count = (haystack: string, needle: RegExp): number => (haystack.match(needle) ?? []).length;
 
 const setupIos = (pbxproj: string) => {
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "epp-ios-")));
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "demo-ios-")));
   const iosDir = path.join(root, "ios");
-  mkdirSync(path.join(iosDir, "Jmango360.xcodeproj"), { recursive: true });
-  const pbxprojPath = path.join(iosDir, "Jmango360.xcodeproj", "project.pbxproj");
+  mkdirSync(path.join(iosDir, "DemoApp.xcodeproj"), { recursive: true });
+  const pbxprojPath = path.join(iosDir, "DemoApp.xcodeproj", "project.pbxproj");
   writeFileSync(pbxprojPath, pbxproj);
   return { iosDir, pbxprojPath, dispose: () => rmSync(root, { recursive: true, force: true }) };
 };
 
 const RNC_PKG = JSON.stringify({
-  name: "echo-park-paper",
+  name: "demo-app",
   dependencies: { "react-native": "0.77.0", "react-native-config": "1.5.5" },
 });
 
 const setupAndroid = (gradle: string, env: string, packageJson?: string) => {
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "epp-android-")));
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "demo-android-")));
   mkdirSync(path.join(root, "android", "app"), { recursive: true });
   const gradlePath = path.join(root, "android", "app", "build.gradle");
   const envPath = path.join(root, ".env");
@@ -163,10 +163,10 @@ const setupAndroid = (gradle: string, env: string, packageJson?: string) => {
   };
 };
 
-describe("materialize eas.json version (EPP shape)", () => {
+describe("materialize eas.json version (bare RN + react-native-config shape)", () => {
   it.effect("iOS: version 18/6.0.5 lands on app AND extension Release, Debug untouched", () =>
     Effect.gen(function* () {
-      const project = setupIos(EPP_PBXPROJ);
+      const project = setupIos(DEMO_PBXPROJ);
       try {
         // 1. Real target discovery: app + extension, scoped to Release.
         const signedTargets = yield* discoverSignedTargets({
@@ -174,7 +174,7 @@ describe("materialize eas.json version (EPP shape)", () => {
           configurationName: "Release",
         });
         expect(signedTargets.map((target) => target.targetName).toSorted()).toStrictEqual([
-          "Jmango360",
+          "DemoApp",
           "NotificationService",
         ]);
 
@@ -217,8 +217,8 @@ describe("materialize eas.json version (EPP shape)", () => {
   it.effect("Android react-native-config: version 18/6.0.5 lands in .env, gradle untouched", () =>
     Effect.gen(function* () {
       const project = setupAndroid(
-        EPP_GRADLE,
-        "APP_ID=com.echoparkpaper\nVERSION_CODE_APP=16\nVERSION_NAME_APP=6.0.4\n",
+        DEMO_GRADLE,
+        "APP_ID=com.example.demoapp\nVERSION_CODE_APP=16\nVERSION_NAME_APP=6.0.4\n",
       );
       try {
         yield* applyAndroidVersion({
@@ -232,8 +232,8 @@ describe("materialize eas.json version (EPP shape)", () => {
         expect(env).not.toContain("VERSION_CODE_APP=16");
         expect(env).not.toContain("VERSION_NAME_APP=6.0.4");
         // Unrelated config preserved; the dynamic gradle is not rewritten.
-        expect(env).toContain("APP_ID=com.echoparkpaper");
-        expect(readFileSync(project.gradlePath, "utf8")).toBe(EPP_GRADLE);
+        expect(env).toContain("APP_ID=com.example.demoapp");
+        expect(readFileSync(project.gradlePath, "utf8")).toBe(DEMO_GRADLE);
       } finally {
         project.dispose();
       }
@@ -247,13 +247,13 @@ describe("materialize eas.json version (EPP shape)", () => {
         // The server env-vault carries the OLD version (10 / 6.0.3); eas.json says
         // 18 / 6.0.5. The build runs materializeEnvFile first, then applyAndroidVersion
         // (mirrors runPlatformBuild → runAndroidBuild). The override must win.
-        const project = setupAndroid(EPP_GRADLE, "", RNC_PKG);
+        const project = setupAndroid(DEMO_GRADLE, "", RNC_PKG);
         try {
           yield* materializeEnvFile({
             projectRoot: project.root,
             envVars: {
-              APP_ID: "com.echoparkpaper",
-              API_ENDPOINT: "https://api.echoparkpaper.com",
+              APP_ID: "com.example.demoapp",
+              API_ENDPOINT: "https://api.example.com",
               VERSION_CODE_APP: "10",
               VERSION_NAME_APP: "6.0.3",
             },
@@ -265,8 +265,8 @@ describe("materialize eas.json version (EPP shape)", () => {
           });
           const env = readFileSync(project.envPath, "utf8");
           // Non-version server config materialized verbatim.
-          expect(env).toContain("APP_ID=com.echoparkpaper");
-          expect(env).toContain("API_ENDPOINT=https://api.echoparkpaper.com");
+          expect(env).toContain("APP_ID=com.example.demoapp");
+          expect(env).toContain("API_ENDPOINT=https://api.example.com");
           // eas.json overrides the server's version, no stale value left behind.
           expect(env).toContain("VERSION_CODE_APP=18");
           expect(env).toContain("VERSION_NAME_APP=6.0.5");

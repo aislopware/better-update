@@ -143,6 +143,14 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
+  // No vault origin configured (`BU_VAULT_HOST` empty) ⇒ the web vault is off
+  // for this deployment, so there is nowhere a passkey ceremony could run and
+  // nothing it would unlock. Offer no enrolment; the existing keys stay
+  // listable, renamable and removable.
+  if (VAULT_HOST.length === 0) {
+    return null;
+  }
+
   // A passkey ceremony is only valid on the origin that matches the rpID (the
   // vault host). On any other origin, send the user there to enroll — list,
   // rename, and remove still work here since they are plain API calls.

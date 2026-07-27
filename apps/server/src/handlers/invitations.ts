@@ -21,9 +21,6 @@ import { ProjectRepo } from "../repositories/projects";
 import type { InvitationProjectGrantModel } from "../repositories/invitation-project-grants";
 import type { InvitationModel } from "../repositories/invitations";
 
-// Mirrors auth.ts: invite emails come from this verbatim sender.
-const INVITE_SENDER_FROM = "noreply@jmango360.dev";
-
 const DEFAULT_ROLE = "member";
 
 const toApiInvitation = (model: InvitationModel): Invitation =>
@@ -91,7 +88,8 @@ const sendInviteEmail = (params: {
       acceptUrl,
     });
     yield* emailService.send({
-      from: INVITE_SENDER_FROM,
+      // Mirrors auth.ts: the deployment's verified sender (wrangler `vars`).
+      from: env.EMAIL_SENDER_ADDRESS,
       to: params.recipientEmail,
       subject: rendered.subject,
       html: rendered.html,

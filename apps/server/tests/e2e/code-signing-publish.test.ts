@@ -14,8 +14,8 @@ import { seedAssetObject, setupE2EWorker } from "../helpers/e2e-worker-pool";
 const { get, parseCookies, post, postNoBody } = setupE2EWorker(".wrangler/state/e2e-code-signing");
 
 // PUBLIC_API_URL the worker serves + negotiates from (wrangler.jsonc var).
-const PUBLIC_API_URL = "https://better-update.dev";
-const ASSET_CDN_URL = "https://assets.better-update.dev";
+const PUBLIC_API_URL = "https://updates.example.com";
+const ASSET_CDN_URL = "https://assets.updates.example.com";
 
 const launchContent = "console.log('signed bundle')";
 const launchHash = createHash("sha256").update(launchContent).digest("base64url");

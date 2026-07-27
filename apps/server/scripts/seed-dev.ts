@@ -461,13 +461,13 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
     {
       id: sid("team-1"),
       appleTeamId: `AB12CD34E${orgIndex}`,
-      name: "JMango360 B.V.",
+      name: "Example Corp B.V.",
       type: "COMPANY_ORGANIZATION",
     },
     {
       id: sid("team-2"),
       appleTeamId: `ZY98XW76V${orgIndex}`,
-      name: "Cong Tran",
+      name: "An Nguyen",
       type: "INDIVIDUAL",
     },
   ];

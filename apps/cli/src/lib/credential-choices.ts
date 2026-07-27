@@ -31,7 +31,7 @@ export const makeAppleTeamLabeler = (
 };
 
 /**
- * Aliases collide across white-label apps (many keystores share `jmango`), so
+ * Aliases collide across white-label apps (many keystores share one alias), so
  * lead with the user-supplied name when present and keep the alias alongside it;
  * surface the type + creation date in the label and the SHA-1 fingerprint (which
  * matches the Play Console upload key) on the active-row hint.

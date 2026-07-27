@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { LegalLayout } from "../components/legal-layout";
+import { SITE } from "../lib/site-config";
 
 import type { LegalSectionData } from "../components/legal-layout";
 
@@ -27,12 +28,29 @@ const SECTIONS: readonly LegalSectionData[] = [
       },
       {
         kind: "p",
+        text: "The Service is provided free of charge, with no paid plans, usage fees, or billing of any kind. It is offered as a public good rather than a commercial product, and nothing in these Terms creates a paid subscription or entitles us to charge you.",
+      },
+      {
+        kind: "p",
         text: "We may add, change, suspend, or discontinue any part of the Service at any time. The Service is under active development and is provided on an “as is” and “as available” basis.",
       },
     ],
   },
   {
-    heading: "3. Your account",
+    heading: "3. Open source and self-hosting",
+    blocks: [
+      {
+        kind: "p",
+        text: "Better Update is open-source software released under the MIT License. The MIT License governs your use of the source code, including the rights to use, copy, modify, and redistribute it; these Terms govern only your use of this hosted instance.",
+      },
+      {
+        kind: "p",
+        text: "You are free to run your own instance on your own infrastructure at any time, for any purpose, without our permission and without any fee. If you do, these Terms do not apply to that instance — you become its operator and are responsible for it.",
+      },
+    ],
+  },
+  {
+    heading: "4. Your account",
     blocks: [
       {
         kind: "p",
@@ -40,12 +58,12 @@ const SECTIONS: readonly LegalSectionData[] = [
       },
       {
         kind: "p",
-        text: "You must be at least the age of majority in your jurisdiction and able to form a binding contract. Notify us at legal@jmango360.dev if you suspect any unauthorized use of your account.",
+        text: `You must be at least the age of majority in your jurisdiction and able to form a binding contract. Notify us at ${SITE.legalEmail} if you suspect any unauthorized use of your account.`,
       },
     ],
   },
   {
-    heading: "4. Organizations and members",
+    heading: "5. Organizations and members",
     blocks: [
       {
         kind: "p",
@@ -58,7 +76,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "5. Your content",
+    heading: "6. Your content",
     blocks: [
       {
         kind: "p",
@@ -71,7 +89,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "6. Your secrets and source code",
+    heading: "7. Your secrets and source code",
     blocks: [
       {
         kind: "p",
@@ -84,7 +102,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "7. Acceptable use",
+    heading: "8. Acceptable use",
     blocks: [
       { kind: "p", text: "You agree not to use the Service to:" },
       {
@@ -105,7 +123,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "8. Third-party services",
+    heading: "9. Third-party services",
     blocks: [
       {
         kind: "p",
@@ -114,25 +132,29 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "9. Plans and fees",
+    heading: "10. No fees",
     blocks: [
       {
         kind: "p",
-        text: "The Service is currently provided free of charge. We may introduce paid plans in the future; if we do, we will clearly disclose any applicable fees, and obtain any required consent, before they apply to you.",
+        text: "The Service is free. There are no paid plans, no usage-based charges, no trials that convert into a subscription, and no billing relationship between us. We do not collect payment details and we will never ask you for them.",
+      },
+      {
+        kind: "p",
+        text: "We have no plans to charge for the Service. If that ever changed, we would not apply fees to your existing use without clear advance notice and your explicit consent — and the source code would remain available under the MIT License, so you could always run your own instance instead.",
       },
     ],
   },
   {
-    heading: "10. Disclaimers",
+    heading: "11. Disclaimers",
     blocks: [
       {
         kind: "p",
-        text: "To the maximum extent permitted by law, the Service is provided without warranties of any kind, whether express, implied, or statutory, including warranties of merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or secure, or that updates will be delivered without delay or failure.",
+        text: "To the maximum extent permitted by law, the Service is provided without warranties of any kind, whether express, implied, or statutory, including warranties of merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or secure, or that updates will be delivered without delay or failure. The Service is offered free of charge, and these disclaimers reflect that: it is not a commercial product and carries no service-level commitment.",
       },
     ],
   },
   {
-    heading: "11. Limitation of liability",
+    heading: "12. Limitation of liability",
     blocks: [
       {
         kind: "p",
@@ -140,12 +162,12 @@ const SECTIONS: readonly LegalSectionData[] = [
       },
       {
         kind: "p",
-        text: "Our total aggregate liability for any claim arising out of or related to the Service will not exceed the greater of the amount you paid us in the twelve months before the claim or USD 100.",
+        text: "Because the Service is provided free of charge, our total aggregate liability for any claim arising out of or related to the Service will not exceed USD 100. Nothing in these Terms limits liability that cannot be limited under applicable law, such as liability for fraud, willful misconduct, or death or personal injury caused by negligence.",
       },
     ],
   },
   {
-    heading: "12. Indemnification",
+    heading: "13. Indemnification",
     blocks: [
       {
         kind: "p",
@@ -154,7 +176,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "13. Termination",
+    heading: "14. Termination",
     blocks: [
       {
         kind: "p",
@@ -163,7 +185,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "14. Changes to these terms",
+    heading: "15. Changes to these terms",
     blocks: [
       {
         kind: "p",
@@ -172,7 +194,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "15. Governing law",
+    heading: "16. Governing law",
     blocks: [
       {
         kind: "p",
@@ -185,11 +207,11 @@ const SECTIONS: readonly LegalSectionData[] = [
     ],
   },
   {
-    heading: "16. Contact",
+    heading: "17. Contact",
     blocks: [
       {
         kind: "p",
-        text: "Questions about these Terms can be sent to legal@jmango360.dev.",
+        text: `Questions about these Terms can be sent to ${SITE.legalEmail}.`,
       },
     ],
   },
@@ -198,8 +220,8 @@ const SECTIONS: readonly LegalSectionData[] = [
 const TermsPage = () => (
   <LegalLayout
     title="Terms of Service"
-    lastUpdated="21 May 2026"
-    intro="These terms govern your access to and use of Better Update. Please read them carefully."
+    lastUpdated="27 July 2026"
+    intro="These terms govern your access to and use of Better Update — a free, MIT-licensed service with no paid plans. Please read them carefully."
     sections={SECTIONS}
   />
 );

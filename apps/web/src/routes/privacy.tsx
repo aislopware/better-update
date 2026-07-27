@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { LegalLayout } from "../components/legal-layout";
+import { SITE } from "../lib/site-config";
 
 import type { LegalSectionData } from "../components/legal-layout";
 
@@ -11,6 +12,14 @@ const SECTIONS: readonly LegalSectionData[] = [
       {
         kind: "p",
         text: "Better Update (“we”, “us”) is operated by Trần Văn Công, an individual based in Vietnam. This Privacy Policy applies to the Better Update web app and related services (the “Service”). By using the Service, you agree to this policy.",
+      },
+      {
+        kind: "p",
+        text: "Better Update is free, MIT-licensed open-source software with no paid plans and no advertising. We do not monetise the Service or the data in it, which shapes everything below: we collect what is needed to run it, and nothing to sell.",
+      },
+      {
+        kind: "p",
+        text: "This policy covers the instance you are reading it on. If you run your own instance from the source code, you are its operator and this policy does not apply to it.",
       },
     ],
   },
@@ -45,6 +54,10 @@ const SECTIONS: readonly LegalSectionData[] = [
         kind: "p",
         text: "Cookies. We use a session cookie to keep you signed in. We do not use advertising or cross-site tracking cookies.",
       },
+      {
+        kind: "p",
+        text: "Payment information. None. The Service is free, so we operate no billing system and never collect card, bank, or billing-address details.",
+      },
     ],
   },
   {
@@ -78,7 +91,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     blocks: [
       {
         kind: "p",
-        text: "We do not sell your personal information. We share information only as follows:",
+        text: "We do not sell your personal information, and we do not share it for advertising, profiling, or any other commercial purpose — the Service earns no revenue, so there is nothing to monetise. We share information only as follows:",
       },
       {
         kind: "list",
@@ -86,7 +99,7 @@ const SECTIONS: readonly LegalSectionData[] = [
           "Service providers. We use vendors that help us run the Service, including Cloudflare for hosting, storage, and content delivery, and GitHub for authentication. They process data on our behalf under their own terms.",
           "App-distribution platforms. When you choose to use them, Apple and Google receive the information needed to distribute your apps.",
           "Legal and safety. We may disclose information where required by law or to protect the rights, safety, and security of users, the public, or Better Update.",
-          "Business transfers. Information may be transferred as part of a merger, acquisition, or sale of assets.",
+          "Change of operator. If responsibility for running this instance passes to someone else, information may be transferred to that operator, who remains bound by this policy or a materially equivalent one. We will notify you before that happens.",
         ],
       },
     ],
@@ -123,7 +136,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     blocks: [
       {
         kind: "p",
-        text: "Depending on where you live, you may have the right to access, correct, delete, export, or restrict the processing of your personal data, and to object to certain processing. To exercise these rights, contact legal@jmango360.dev. We will respond as required by applicable law, including Vietnam's Decree No. 13/2023/ND-CP on Personal Data Protection, and the GDPR or CCPA where they apply to you.",
+        text: `Depending on where you live, you may have the right to access, correct, delete, export, or restrict the processing of your personal data, and to object to certain processing. To exercise these rights, contact ${SITE.legalEmail}. We will respond as required by applicable law, including Vietnam's Decree No. 13/2023/ND-CP on Personal Data Protection, and the GDPR or CCPA where they apply to you.`,
       },
     ],
   },
@@ -150,7 +163,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     blocks: [
       {
         kind: "p",
-        text: "For privacy questions or requests, contact us at legal@jmango360.dev.",
+        text: `For privacy questions or requests, contact us at ${SITE.legalEmail}.`,
       },
     ],
   },
@@ -159,8 +172,8 @@ const SECTIONS: readonly LegalSectionData[] = [
 const PrivacyPage = () => (
   <LegalLayout
     title="Privacy Policy"
-    lastUpdated="21 May 2026"
-    intro="This policy explains what information Better Update collects, how we use it, and the choices you have."
+    lastUpdated="27 July 2026"
+    intro="This policy explains what information Better Update collects, how we use it, and the choices you have. There is no advertising, no data sale, and no billing — the Service is free and open source."
     sections={SECTIONS}
   />
 );

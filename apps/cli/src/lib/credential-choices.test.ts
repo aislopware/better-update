@@ -52,11 +52,9 @@ describe(keystoreChoice, () => {
 
   it("leads with the user-supplied name, keeping the alias alongside it", () => {
     const choice = keystoreChoice(
-      keystore({ name: "alphonso release upload key", keyAlias: "jmango", keystoreType: "JKS" }),
+      keystore({ name: "acme release upload key", keyAlias: "upload", keystoreType: "JKS" }),
     );
-    expect(choice.label).toBe(
-      "alphonso release upload key (alias jmango) (JKS, created 2026-01-02)",
-    );
+    expect(choice.label).toBe("acme release upload key (alias upload) (JKS, created 2026-01-02)");
   });
 });
 

@@ -58,7 +58,7 @@ const team = (id: string, appleTeamId: string, isProtected: boolean): AppleTeamM
   updatedAt: "2026-01-01T00:00:00.000Z",
 });
 
-const OPEN_TEAM = team("row-open", "JMANGO1234", false);
+const OPEN_TEAM = team("row-open", "ABCDE12345", false);
 const PROTECTED_TEAM = team("row-protected", "OTHER67890", true);
 const UNBOUND_TEAM = team("row-unbound", "LONER11111", false);
 

@@ -24,7 +24,7 @@ import type { ExpoConfig } from "./expo-config";
 import type { UpdatesConfigInput } from "./updates-config";
 
 const baseInput: UpdatesConfigInput = {
-  manifestUrl: "https://better-update.dev/manifest/proj_abc",
+  manifestUrl: "https://updates.example.com/manifest/proj_abc",
   runtimePolicy: CONFIGURE_DEFAULTS.runtimePolicy,
   enabled: CONFIGURE_DEFAULTS.enabled,
   checkAutomatically: CONFIGURE_DEFAULTS.checkAutomatically,
@@ -130,7 +130,7 @@ describe(buildUpdatesPatch, () => {
   it("includes the full expo-updates surface with SDK-56 defaults", () => {
     const { updates } = buildUpdatesPatch(baseInput);
     expect(updates).toStrictEqual({
-      url: "https://better-update.dev/manifest/proj_abc",
+      url: "https://updates.example.com/manifest/proj_abc",
       enabled: true,
       checkAutomatically: "ON_LOAD",
       fallbackToCacheTimeout: 0,
@@ -425,7 +425,7 @@ describe("configure write through writeExpoConfigPatch", () => {
       expect(updates["enableBsdiffPatchSupport"]).toBe(true);
       // anti-bricking measures stay active by default in the written file
       expect(updates["disableAntiBrickingMeasures"]).toBe(false);
-      expect(updates["url"]).toBe("https://better-update.dev/manifest/proj_abc");
+      expect(updates["url"]).toBe("https://updates.example.com/manifest/proj_abc");
       expect(updates["checkAutomatically"]).toBe("ON_LOAD");
       expect(updates["fallbackToCacheTimeout"]).toBe(0);
       // runtimeVersion policy written at top level
@@ -451,7 +451,7 @@ describe("configure write through writeExpoConfigPatch", () => {
         Effect.ensuring(Effect.sync(() => project.dispose())),
       );
       expect(config.updates?.enableBsdiffPatchSupport).toBe(true);
-      expect(config.updates?.url).toBe("https://better-update.dev/manifest/proj_abc");
+      expect(config.updates?.url).toBe("https://updates.example.com/manifest/proj_abc");
     }),
   );
 
@@ -468,7 +468,7 @@ describe("configure write through writeExpoConfigPatch", () => {
             extra: { betterUpdate: { projectId: "proj_abc" } },
             runtimeVersion: { policy: "fingerprint" },
             updates: {
-              url: "https://better-update.dev/manifest/proj_abc",
+              url: "https://updates.example.com/manifest/proj_abc",
               enabled: true,
               checkAutomatically: "WIFI_ONLY",
               fallbackToCacheTimeout: 12_000,
@@ -481,7 +481,7 @@ describe("configure write through writeExpoConfigPatch", () => {
         // emulate the command: read existing → build patch with only --enable-bsdiff → write
         const before = yield* readExpoConfig(project.dir);
         const patch = buildUpdatesPatch({
-          manifestUrl: "https://better-update.dev/manifest/proj_abc",
+          manifestUrl: "https://updates.example.com/manifest/proj_abc",
           enableBsdiffPatchSupport: true,
           existing: extractExistingUpdatesConfig(before),
         });

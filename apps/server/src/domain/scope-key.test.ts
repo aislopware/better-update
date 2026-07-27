@@ -59,17 +59,17 @@ describe(deriveScopeKey, () => {
   it("drops the /manifest/<projectId> path for better-update served projects", () => {
     expect(
       deriveScopeKey({
-        updateUrl: "https://updates.better-update.dev/manifest/proj_abc123",
+        updateUrl: "https://updates.example.com/manifest/proj_abc123",
       }),
-    ).toBe("https://updates.better-update.dev");
+    ).toBe("https://updates.example.com");
   });
 
   it("derives the same origin for two different projects on the same baseUrl", () => {
     const first = deriveScopeKey({
-      updateUrl: "https://updates.better-update.dev/manifest/proj_a",
+      updateUrl: "https://updates.example.com/manifest/proj_a",
     });
     const second = deriveScopeKey({
-      updateUrl: "https://updates.better-update.dev/manifest/proj_b",
+      updateUrl: "https://updates.example.com/manifest/proj_b",
     });
     expect(first).toBe(second);
   });
@@ -77,7 +77,7 @@ describe(deriveScopeKey, () => {
   it("derives distinct scopeKeys for distinct origins (custom domain vs default)", () => {
     const custom = deriveScopeKey({ updateUrl: "https://ota.acme.com/manifest/proj_a" });
     const standard = deriveScopeKey({
-      updateUrl: "https://updates.better-update.dev/manifest/proj_a",
+      updateUrl: "https://updates.example.com/manifest/proj_a",
     });
     expect(custom).not.toBe(standard);
   });

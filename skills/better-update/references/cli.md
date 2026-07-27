@@ -67,7 +67,7 @@ Server URL resolution (priority order):
 1. `BETTER_UPDATE_URL` env var (API base URL).
 2. `BETTER_UPDATE_WEB_URL` env var (web URL — for `login` callback).
 3. `~/.better-update/config.json` fields `baseUrl` and `webUrl`.
-4. Defaults: `https://updates.jmango360.dev` (API + web).
+4. Defaults: baked in at CLI build time (API + web).
 
 Auth token: `BETTER_UPDATE_ROBOT` env var — a robot account's bundled credential, used for both API
 auth (bearer half) and credential-vault decrypt (identity half) automatically wherever each is
@@ -404,7 +404,7 @@ post-cutover `grant` (and `device link`) wraps BOTH vault keys, credentials + en
 
 ### Browser env-vault: account keys (account / env-vault)
 
-Env-var values live in a separate env vault (EV) editable from the web (`updates-vault.jmango360.dev`),
+Env-var values live in a separate env vault (EV) editable from the web (the instance's vault origin),
 leaving signing credentials CLI-only. Orgs are **born forked** at `identity init` — there is no
 "migrate" step. The account key + the env-access grant each have a browser path (see
 `references/credentials.md`); the CLI commands below are the CLI equivalents.
