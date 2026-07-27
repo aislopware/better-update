@@ -28,28 +28,38 @@ const parseCookies = (response: Response): string => {
     .join("; ");
 };
 
+// better-auth force-validates the Origin as soon as a request carries any
+// Sec-Fetch-* hint, and Node's fetch always sends `sec-fetch-mode: cors`.
+// Without an Origin these calls get 403 MISSING_OR_NULL_ORIGIN; the web origin
+// is the trusted one (it is better-auth's baseURL under the e2e env), so send
+// it and look like the browser calls these stand in for.
+const withOrigin = (headers?: Record<string, string>): Record<string, string> => ({
+  origin: getSharedEnv().baseUrl,
+  ...headers,
+});
+
 export const setupE2EDashboard = () => {
   const post = async (path: string, body: unknown, headers?: Record<string, string>) =>
     fetch(`${getSharedEnv().baseUrl}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json", ...headers },
+      headers: withOrigin({ "content-type": "application/json", ...headers }),
       body: JSON.stringify(body),
     });
 
   const get = async (path: string, headers?: Record<string, string>) =>
-    fetch(`${getSharedEnv().baseUrl}${path}`, headers ? { headers } : {});
+    fetch(`${getSharedEnv().baseUrl}${path}`, { headers: withOrigin(headers) });
 
   const del = async (path: string, body: unknown, headers?: Record<string, string>) =>
     fetch(`${getSharedEnv().baseUrl}${path}`, {
       method: "DELETE",
-      headers: { "content-type": "application/json", ...headers },
+      headers: withOrigin({ "content-type": "application/json", ...headers }),
       body: JSON.stringify(body),
     });
 
   const patch = async (path: string, body: unknown, headers?: Record<string, string>) =>
     fetch(`${getSharedEnv().baseUrl}${path}`, {
       method: "PATCH",
-      headers: { "content-type": "application/json", ...headers },
+      headers: withOrigin({ "content-type": "application/json", ...headers }),
       body: JSON.stringify(body),
     });
 

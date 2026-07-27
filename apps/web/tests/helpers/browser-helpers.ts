@@ -86,7 +86,12 @@ export const signUpViaUI = async (
   },
 ): Promise<void> => {
   const password = params.password ?? DEFAULT_PASSWORD;
+  // Playwright's APIRequestContext is not a page fetch, so it sends no Origin
+  // of its own — and better-auth's CSRF gate rejects that on its sign-in /
+  // sign-up routes. Spell out the web origin, which is what the browser would
+  // have sent here anyway.
   const response = await page.context().request.post(`${baseUrl}/api/auth/sign-up/email`, {
+    headers: { origin: baseUrl },
     data: { name: params.name, email: params.email, password },
   });
   if (!response.ok()) {
@@ -94,6 +99,16 @@ export const signUpViaUI = async (
   }
   await page.goto(`${baseUrl}/onboarding`);
   await page.waitForURL(/\/onboarding$/u);
+};
+
+/**
+ * Resolves once the app has left onboarding for the authenticated shell.
+ * Which route that is has moved before (`/projects`, now the `/` overview), so
+ * assert on "no longer onboarding" instead of pinning a destination.
+ */
+export const waitForOnboarded = async (page: Page): Promise<void> => {
+  await page.waitForURL((url) => !url.pathname.startsWith("/onboarding"));
+  await page.getByRole("link", { name: "Projects", exact: true }).first().waitFor();
 };
 
 export const completeOnboardingViaUI = async (
@@ -108,7 +123,7 @@ export const completeOnboardingViaUI = async (
   await page.getByLabel("Organization name").fill(params.organizationName);
   await page.getByLabel("URL slug").fill(params.organizationSlug);
   await page.getByRole("button", { name: "Create organization" }).click();
-  await page.waitForURL(/\/projects(?:$|\/|\?)/u);
+  await waitForOnboarded(page);
 };
 
 export const loginViaUI = async (
@@ -121,6 +136,7 @@ export const loginViaUI = async (
 ): Promise<void> => {
   const password = params.password ?? DEFAULT_PASSWORD;
   const response = await page.context().request.post(`${baseUrl}/api/auth/sign-in/email`, {
+    headers: { origin: baseUrl },
     data: { email: params.email, password },
   });
   if (!response.ok()) {
@@ -142,6 +158,9 @@ export const createProjectViaUI = async (
     readonly slug: string;
   },
 ): Promise<void> => {
+  // Onboarding now lands on the org overview, which only links to projects —
+  // the "Create project" button lives on the projects route itself.
+  await page.getByRole("link", { name: "Projects", exact: true }).first().click();
   await page.getByRole("button", { name: "Create project" }).first().click();
   // Scope by slot, not role: Base UI toasts also expose role="dialog", so a
   // toast still on screen from a previous step would make this resolve to two.

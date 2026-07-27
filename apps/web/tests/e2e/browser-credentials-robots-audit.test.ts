@@ -28,7 +28,8 @@ const slug = `admin-${suffix}`;
 let context: BrowserContext;
 let page: Page;
 
-const apiKeyName = `CI Key ${suffix}`;
+const robotName = `ci-robot-${suffix}`;
+const renamedRobot = `ci-robot-${suffix}-renamed`;
 
 beforeAll(async () => {
   await runtime.setup();
@@ -61,11 +62,54 @@ const pushKeySection = () => page.locator("section").filter({ hasText: "APNs Pus
 const googleSaSection = () =>
   page.locator("section").filter({ hasText: "Google Service Account Keys" });
 
+// A sidebar link shares its accessible name with the breadcrumb trail once the
+// page is open, so a bare role lookup is ambiguous on a retry. The sidebar
+// entry comes first in the DOM and is the only clickable one.
+const gotoSidebar = async (name: string): Promise<void> => {
+  await page.getByRole("link", { name }).first().click();
+};
+
+// Robot accounts are minted from the CLI — the age keypair is generated on a
+// maintainer's device — so the browser flow seeds one through the API with the
+// session the page already holds. The public key below is a fixture standing in
+// for that half; nothing here decrypts a vault.
+const browserCookieHeader = async (): Promise<string> => {
+  const cookies = await context.cookies();
+  return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
+};
+
+const seedRobotAccount = async (): Promise<void> => {
+  const cookie = await browserCookieHeader();
+  const projectsResponse = await dashboard.get("/api/projects", { cookie });
+  const { items } = (await projectsResponse.json()) as {
+    items: readonly { id: string; slug: string }[];
+  };
+  const project = items.find((item) => item.slug === slug);
+  if (!project) {
+    throw new Error(`seedRobotAccount: project "${slug}" not found`);
+  }
+
+  const response = await dashboard.post(
+    "/api/robot-accounts",
+    {
+      name: robotName,
+      projectId: project.id,
+      role: "developer",
+      publicKey: `age1e2efixture${suffix}`,
+      fingerprint: `SHA256:e2e-fixture-${suffix}`,
+    },
+    { cookie },
+  );
+  if (response.status !== 201) {
+    throw new Error(`seedRobotAccount failed: ${response.status} ${await response.text()}`);
+  }
+};
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
-describe("dashboard credentials + API keys + audit log (browser)", () => {
+describe("dashboard credentials + robot accounts + audit log (browser)", () => {
   it("renders credentials read-only — no upload/delete, CLI hints shown", async () => {
-    await page.getByRole("link", { name: "Credentials" }).click();
+    await gotoSidebar("Credentials");
     await page.waitForURL(/\/credentials$/u);
 
     // Read-only dashboard: no credential mutation affordances anywhere.
@@ -74,63 +118,53 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
 
     // Empty sections point to the CLI instead of opening an upload dialog.
     await pushKeySection()
-      .getByText(/use the cli to upload/iu)
+      .getByText(/from the cli/iu)
       .first()
       .waitFor();
     await googleSaSection()
-      .getByText(/use the cli to upload/iu)
+      .getByText(/from the cli/iu)
       .first()
       .waitFor();
   });
 
-  // ── API Keys ─────────────────────────────────────────────────────────────
+  // ── Robot accounts ───────────────────────────────────────────────────────
 
-  it("creates an API key via the 2-step dialog and reveals the secret", async () => {
-    await page.getByRole("link", { name: "API Keys" }).click();
-    await page.waitForURL(/\/api-keys$/u);
+  it("robot accounts are CLI-only — the empty state hands over the command", async () => {
+    await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/robot-accounts`);
 
-    await page.getByRole("button", { name: "Create API key" }).click();
-    // Scope to the dialog content by slot to keep lookups unambiguous.
-    const dialog = page.locator('[data-slot="dialog-content"]');
-    await dialog.getByRole("heading", { name: "Create an API key" }).waitFor();
-    await dialog.getByLabel("Name").fill(apiKeyName);
-    await dialog.getByRole("button", { name: "Create key" }).click();
-    await expectToast(page, "API key created");
+    await page.getByText("No robot accounts yet").waitFor();
+    await page.getByText(/credentials robot create/u).waitFor();
 
-    // Step 2: title swaps to the reveal view. Scope to the dialog title slot —
-    // the success toast renders the same "API key created" text, so a bare
-    // heading lookup is ambiguous.
-    await dialog.locator('[data-slot="dialog-title"]', { hasText: "API key created" }).waitFor();
-    // The key is revealed in a read-only input (InputGroupInput), not a <code>.
-    const keyInput = dialog.locator("input[readonly]");
-    await keyInput.waitFor();
-    const revealedKey = await keyInput.inputValue();
-    expect(revealedKey.length).toBeGreaterThan(10);
-
-    await dialog.getByRole("button", { name: "Done" }).click();
-    await dialog.waitFor({ state: "detached" });
-
-    // The keys list renders as <ul>/<li>, so match the list item, not a table cell.
-    await page.getByRole("listitem").filter({ hasText: apiKeyName }).waitFor();
+    // Minting, rotating and revoking stay on the CLI — the page offers neither.
+    await expect(page.getByRole("button", { name: /create robot/iu }).count()).resolves.toBe(0);
+    await expect(page.getByRole("button", { name: /revoke/iu }).count()).resolves.toBe(0);
   });
 
-  it("revokes an API key via the dropdown menu and confirm dialog", async () => {
-    const row = page.getByRole("listitem").filter({ hasText: apiKeyName });
-    await row.getByRole("button", { name: "Key actions" }).click();
-    await page.getByRole("menuitem", { name: "Revoke key" }).click();
+  it("renames a robot account through the row menu dialog", async () => {
+    await seedRobotAccount();
+    await page.reload();
 
+    await page.getByRole("cell", { name: robotName }).first().waitFor();
+    await page.getByRole("button", { name: "Robot account actions" }).first().click();
+    await page.getByRole("menuitem", { name: "Edit" }).click();
+
+    // Scope to the dialog content by slot: Base UI toasts also expose
+    // role="dialog", so a role lookup could resolve to two.
     const dialog = page.locator('[data-slot="dialog-content"]');
-    await dialog.getByRole("heading", { name: "Revoke API key" }).waitFor();
-    await dialog.getByRole("button", { name: "Revoke key" }).click();
-    await expectToast(page, "API key revoked");
-    await page.getByRole("listitem").filter({ hasText: apiKeyName }).waitFor({ state: "detached" });
+    await dialog.getByRole("heading", { name: "Edit robot account" }).waitFor();
+    await dialog.getByLabel("Name").fill(renamedRobot);
+    await dialog.getByRole("button", { name: "Save changes" }).click();
+
+    await expectToast(page, "Robot account updated");
+    await page.getByRole("cell", { name: renamedRobot }).first().waitFor();
   });
 
   // ── Audit Log ────────────────────────────────────────────────────────────
 
   it("audit log shows seeded events and filters by resource type", async () => {
-    await page.getByRole("link", { name: "Audit log" }).click();
-    await page.waitForURL(/\/audit-log/u);
+    // Straight to the org route: the preceding test leaves the page inside a
+    // project, whose sidebar carries the project nav, not the org's.
+    await page.goto(`${dashboard.getBaseUrl()}/audit-log`);
 
     // The "Audit log" page header is always present once the view loads.
     await page.getByRole("heading", { name: "Audit log" }).waitFor();
@@ -144,8 +178,11 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
     await page.getByRole("option", { name: "Project", exact: true }).click();
     await page.getByRole("heading", { name: "Audit log" }).waitFor();
 
-    await page.getByRole("button", { name: /^Resource/u }).click();
-    await page.getByRole("option", { name: "Clear filters" }).click();
+    // Clear through the toolbar's Reset, which only appears while a filter is
+    // set. The popover's own "Clear filters" option is re-created when the
+    // filtered query resolves, so clicking it races the re-render.
+    await page.getByRole("button", { name: "Reset" }).click();
+    await page.getByRole("button", { name: "Reset" }).waitFor({ state: "detached" });
     await page.getByRole("heading", { name: "Audit log" }).waitFor();
   });
 

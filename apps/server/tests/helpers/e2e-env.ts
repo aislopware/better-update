@@ -103,11 +103,19 @@ export const createServerE2EEnvironment = (options?: {
       primary: "BETTER_AUTH_SECRET",
       fallback: FALLBACKS.betterAuthSecret,
     }),
-    BETTER_AUTH_URL: envValue({
-      fileSource,
-      primary: "BETTER_AUTH_URL",
-      fallback: FALLBACKS.betterAuthUrl,
-    }),
+    // better-auth defaults `trustedOrigins` to `[baseURL]` and its CSRF gate
+    // rejects any state-changing request whose Origin is not on that list. The
+    // e2e browser (and the API tests, which proxy through the same host) speak
+    // to the web origin, so that — not the developer's `.env.local` dev domain
+    // — is the auth base URL here. Mirrors prod, where the dashboard and
+    // `/api/auth/*` share a single origin.
+    BETTER_AUTH_URL:
+      options?.webUrl ??
+      envValue({
+        fileSource,
+        primary: "BETTER_AUTH_URL",
+        fallback: FALLBACKS.betterAuthUrl,
+      }),
     BUILD_BUCKET_NAME: envValue({
       fileSource,
       primary: "E2E_BUILD_BUCKET_NAME",

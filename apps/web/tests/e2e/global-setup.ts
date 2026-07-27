@@ -75,7 +75,7 @@ const waitForChildExit = async (child: ReturnType<typeof spawn>): Promise<void> 
   await Promise.race([once(child, "exit"), sleep(3000)]);
 };
 
-export default async function setup() {
+const startStack = async (): Promise<() => Promise<void>> => {
   const persistPath = path.resolve(API_DIR, PERSIST_DIR);
   rmSync(persistPath, { recursive: true, force: true });
 
@@ -174,5 +174,36 @@ export default async function setup() {
     await worker.dispose();
     restoreProcessEnv();
     rmSync(persistPath, { recursive: true, force: true });
+  };
+};
+
+const SHARED_STACK_KEY = "__betterUpdateWebE2EStack";
+
+interface SharedStack {
+  readonly ready: Promise<() => Promise<void>>;
+  refCount: number;
+}
+
+/**
+ * Both the `e2e-api` and `e2e-browser` projects name this file as their
+ * globalSetup, and vitest runs it once per project inside the same process.
+ * Left unguarded the second run wipes the D1 state the first one is already
+ * serving from and loses the race for the `--strictPort` web port, which reads
+ * downstream as every authenticated request failing. Share one stack instead
+ * and tear it down once the last project has released it.
+ */
+export default async function setup(): Promise<() => Promise<void>> {
+  const host = globalThis as unknown as Record<string, SharedStack | undefined>;
+  const shared = (host[SHARED_STACK_KEY] ??= { ready: startStack(), refCount: 0 });
+  shared.refCount += 1;
+  const stop = await shared.ready;
+
+  return async () => {
+    shared.refCount -= 1;
+    if (shared.refCount > 0) {
+      return;
+    }
+    host[SHARED_STACK_KEY] = undefined;
+    await stop();
   };
 }

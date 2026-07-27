@@ -7,6 +7,7 @@ import {
   loginViaUI,
   shortId,
   uniqueEmail,
+  waitForOnboarded,
 } from "../helpers/browser-helpers";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 import { seedUserOrgProject } from "../helpers/web-seeder";
@@ -50,7 +51,7 @@ beforeAll(async () => {
   page = await context.newPage();
   page.setDefaultTimeout(E2E_DEFAULT_TIMEOUT_MS);
   await loginViaUI(page, dashboard.getBaseUrl(), { email: ownerEmail });
-  await page.waitForURL(/\/projects(?:$|\/|\?)/u);
+  await waitForOnboarded(page);
   await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}`);
   await page
     .getByRole("button", { name: new RegExp(projectName, "u") })
@@ -82,8 +83,10 @@ VALUES
 
     await gotoTabViaUI(page, "Env Variables");
 
-    // The seeded variable renders as a metadata row…
-    await page.getByRole("cell", { name: envKey }).waitFor();
+    // The seeded variable renders as a metadata row… (`.first()`: the row's
+    // trailing actions cell is named "Actions for <key>", so the key matches
+    // two cells)
+    await page.getByRole("cell", { name: envKey }).first().waitFor();
     // …the managed-from-CLI read-only notice is shown…
     await page
       .getByText(/managed from the CLI/iu)

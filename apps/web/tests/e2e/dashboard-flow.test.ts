@@ -1,9 +1,9 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, parseCookies } = setupE2EDashboard();
+const { post, get, del, parseCookies } = setupE2EDashboard();
 
 describe("dashboard full journey", () => {
-  const state = { cookies: "", organizationId: "", apiKeyId: "" };
+  const state = { cookies: "", organizationId: "", projectId: "", robotAccountId: "" };
 
   it("registers a new user", async () => {
     const response = await post("/api/auth/sign-up/email", {
@@ -61,6 +61,7 @@ describe("dashboard full journey", () => {
     expect(body).toHaveProperty("id");
     expect(body.name).toBe("Flow Project");
     expect(body.slug).toBe("flow");
+    state.projectId = body.id;
   });
 
   it("lists projects - project appears", async () => {
@@ -72,45 +73,57 @@ describe("dashboard full journey", () => {
     expect(body.items.some((proj: { name: string }) => proj.name === "Flow Project")).toBe(true);
   });
 
-  it("creates an API key", async () => {
+  // Machine credentials are project-scoped robot accounts (the better-auth
+  // api-key plugin they replaced is gone). The age keypair is generated
+  // client-side, so the fixture below only stands in for its public half —
+  // nothing here decrypts a vault.
+  it("creates a robot account", async () => {
     const response = await post(
-      "/api/auth/api-key/create",
-      { name: "flow-test-key", organizationId: state.organizationId },
+      "/api/robot-accounts",
+      {
+        name: "flow-test-robot",
+        projectId: state.projectId,
+        role: "maintainer",
+        publicKey: "age1e2efixtureflowtestrobot",
+        fingerprint: "SHA256:e2e-fixture-flow-test-robot",
+      },
       { cookie: state.cookies },
     );
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.key).toBeDefined();
-    expect(body.key).toMatch(/^bu_/);
-    state.apiKeyId = body.id;
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    expect(body.projectId).toBe(state.projectId);
+    expect(body.role).toBe("maintainer");
+    state.robotAccountId = body.id;
   });
 
-  it("lists API keys - key appears", async () => {
-    const response = await get(`/api/auth/api-key/list?organizationId=${state.organizationId}`, {
+  it("lists robot accounts - robot appears without its secret", async () => {
+    const response = await get(`/api/robot-accounts?projectId=${state.projectId}`, {
       cookie: state.cookies,
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    const keys = body.apiKeys ?? body;
-    expect(keys.some((key: { id: string }) => key.id === state.apiKeyId)).toBe(true);
+    const robot = body.items.find((item: { id: string }) => item.id === state.robotAccountId);
+    expect(robot).toBeDefined();
+    // Only the first few plaintext characters are exposed, so a masked CI
+    // variable can be matched back to its robot — never the secret itself.
+    expect(robot.bearerStart).toMatch(/^bu_/);
+    expect(robot).not.toHaveProperty("bearerSecret");
   });
 
-  it("deletes the API key", async () => {
-    const response = await post(
-      "/api/auth/api-key/delete",
-      { keyId: state.apiKeyId },
-      { cookie: state.cookies },
-    );
+  it("revokes the robot account", async () => {
+    const response = await del(`/api/robot-accounts/${state.robotAccountId}`, undefined, {
+      cookie: state.cookies,
+    });
     expect(response.status).toBe(200);
   });
 
-  it("deleted key no longer in list", async () => {
-    const response = await get(`/api/auth/api-key/list?organizationId=${state.organizationId}`, {
+  it("revoked robot no longer in list", async () => {
+    const response = await get(`/api/robot-accounts?projectId=${state.projectId}`, {
       cookie: state.cookies,
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    const keys = body.apiKeys ?? body;
-    expect(keys.some((key: { id: string }) => key.id === state.apiKeyId)).toBe(false);
+    expect(body.items.some((item: { id: string }) => item.id === state.robotAccountId)).toBe(false);
   });
 });
