@@ -69,10 +69,10 @@ variables:
   BU_CI_MACOS_IMAGE: "ghcr.io/cirruslabs/macos-tahoe-xcode:26.5"
   # bun is baked into a prebuilt BU_CI_IMAGE; this pins the version installed
   # in-job when it is missing (plain node image, macOS runners).
-  BUN_VERSION: "1.3.13"
+  BUN_VERSION: "1.3.14"
   # Zig, for the musl cross-builds (`napi build -x`). Also only installed in-job
   # when missing; keep in sync with ci/Dockerfile.
-  ZIG_VERSION: "0.14.1"
+  ZIG_VERSION: "0.16.0"
   # Cap bun's parallel downloads/extractions so concurrent jobs on the same
   # runner don't contend and fail tarball extraction (default is 256).
   BUN_CONFIG_MAX_HTTP_REQUESTS: "32"
