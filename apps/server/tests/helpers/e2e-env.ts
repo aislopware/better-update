@@ -44,25 +44,27 @@ const envValue = (options: {
   readonly fallback: string;
   readonly secondary?: string;
 }) => {
+  // Within the dotenv files the E2E-scoped key (`primary`, e.g.
+  // `E2E_R2_ACCESS_KEY_ID`) MUST beat the generic dev one (`secondary`,
+  // `R2_ACCESS_KEY_ID`): a developer's `.env` holds credentials for their own
+  // Cloudflare account, while the account id and bucket names alongside them
+  // resolve to the `E2E_*` values. Mixing the two signs presigned R2 URLs with
+  // one account's key against another account's endpoint — R2 answers 403
+  // AccessDenied and every publish flow fails. Process-env order is left alone
+  // so CI can still force a value with the generic name.
   const candidates = [
     options.secondary ? process.env[options.secondary] : undefined,
     process.env[options.primary],
-    options.secondary ? options.fileSource[options.secondary] : undefined,
     options.fileSource[options.primary],
+    options.secondary ? options.fileSource[options.secondary] : undefined,
   ];
   const found = candidates.find((value) => value !== undefined && value !== "");
   return found ?? options.fallback;
 };
 
-const toPlainTextBindings = (values: Record<string, string>) =>
-  Object.fromEntries(
-    Object.entries(values).map(([key, value]) => [key, { type: "plain_text", value }] as const),
-  );
-
 export interface ServerE2EEnvironment {
-  readonly processOverrides: Record<string, string>;
-  readonly workerBindings: Record<string, { readonly type: "plain_text"; readonly value: string }>;
-  readonly wranglerEnv: NodeJS.ProcessEnv;
+  /** Worker `vars` for the e2e run — fed to `createTestHarness` as inline config. */
+  readonly vars: Record<string, string>;
 }
 
 export const createServerE2EEnvironment = (options?: {
@@ -80,13 +82,8 @@ export const createServerE2EEnvironment = (options?: {
     secondary: "ACCOUNT_ID",
   });
 
-  const processOverrides = {
+  const vars = {
     ACCOUNT_ID: accountId,
-    // Wrangler's `unstable_startWorker` reads CLOUDFLARE_ACCOUNT_ID from the
-    // environment to disambiguate between multiple authenticated accounts.
-    // Without it, the local runtime errors out when the user has more than one
-    // account and then silently fails to serve HTTP requests.
-    CLOUDFLARE_ACCOUNT_ID: accountId,
     ASSETS_BUCKET_NAME: envValue({
       fileSource,
       primary: "E2E_ASSETS_BUCKET_NAME",
@@ -193,32 +190,5 @@ export const createServerE2EEnvironment = (options?: {
     REQUIRE_CLI_VERSION_ABOVE: "0.0.0",
   } satisfies Record<string, string>;
 
-  return {
-    processOverrides,
-    workerBindings: toPlainTextBindings(processOverrides),
-    wranglerEnv: {
-      ...process.env,
-      ...processOverrides,
-    },
-  };
-};
-
-export const applyProcessEnv = (overrides: Record<string, string>) => {
-  const previousValues = new Map<string, string | undefined>();
-
-  for (const [key, value] of Object.entries(overrides)) {
-    previousValues.set(key, process.env[key]);
-    process.env[key] = value;
-  }
-
-  return () => {
-    for (const [key, value] of previousValues.entries()) {
-      if (value === undefined) {
-        delete process.env[key];
-        continue;
-      }
-
-      process.env[key] = value;
-    }
-  };
+  return { vars };
 };

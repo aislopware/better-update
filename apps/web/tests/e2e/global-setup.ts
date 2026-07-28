@@ -1,48 +1,18 @@
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import path from "node:path";
 import { env } from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { chromium } from "playwright";
-import { unstable_startWorker } from "wrangler";
 
 import type { BrowserServer } from "playwright";
 
-import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
+import { startServerE2EStack } from "../../../server/tests/helpers/e2e-harness";
+import { E2E_BROWSER_WS_ENV, E2E_WEB_URL_ENV } from "../helpers/e2e-shared-env";
 
-const API_DIR = path.resolve(import.meta.dirname, "../../../server");
 const WEB_DIR = path.resolve(import.meta.dirname, "../..");
 const WEB_PORT = 6780;
-const PERSIST_DIR = ".wrangler/state/e2e-web-shared";
-
-const pickFreePort = async () =>
-  new Promise<number>((resolvePort, rejectPort) => {
-    const srv = createServer();
-    srv.unref();
-    srv.on("error", rejectPort);
-    srv.listen(0, "127.0.0.1", () => {
-      const address = srv.address();
-      if (address === null || typeof address === "string") {
-        srv.close();
-        rejectPort(new Error("Failed to acquire free port"));
-        return;
-      }
-      const { port } = address;
-      srv.close(() => resolvePort(port));
-    });
-  });
-
-export const ENV_FILE = path.resolve(import.meta.dirname, ".e2e-shared-env.json");
-
-export interface SharedE2EEnv {
-  readonly baseUrl: string;
-  readonly workerUrl: string;
-  readonly browserWSEndpoint: string;
-  readonly persistDir: string;
-}
 
 const waitForWeb = async () => {
   const deadline = Date.now() + 30_000;
@@ -76,52 +46,12 @@ const waitForChildExit = async (child: ReturnType<typeof spawn>): Promise<void> 
 };
 
 const startStack = async (): Promise<() => Promise<void>> => {
-  const persistPath = path.resolve(API_DIR, PERSIST_DIR);
-  rmSync(persistPath, { recursive: true, force: true });
-
-  const workerPort = await pickFreePort();
-  const publicApiUrl = `http://127.0.0.1:${String(workerPort)}`;
-  const e2eEnv = createServerE2EEnvironment({
-    projectRoot: API_DIR,
-    webUrl: `http://127.0.0.1:${String(WEB_PORT)}`,
-    publicApiUrl,
-  });
-  const restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
-
-  // ── D1 migrations ──────────────────────────────────────────────────────
-  // Discard stdout, inherit stderr. `wrangler d1 migrations apply` prints a row
-  // per migration; with 60+ migrations that table exceeds execSync's default
-  // 1 MiB maxBuffer and throws ENOBUFS. The output is never read (execSync still
-  // throws on a non-zero exit), so dropping the buffer is the root-cause fix.
-  execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${PERSIST_DIR}`, {
-    cwd: API_DIR,
-    env: e2eEnv.wranglerEnv,
-    stdio: ["ignore", "ignore", "inherit"],
-  });
-
-  // ── Wrangler Worker ────────────────────────────────────────────────────
-  const originalCwd = process.cwd();
-  process.chdir(API_DIR);
-  let worker: Awaited<ReturnType<typeof unstable_startWorker>>;
-  try {
-    worker = await unstable_startWorker({
-      config: path.resolve(API_DIR, "wrangler.jsonc"),
-      envFiles: [],
-      bindings: e2eEnv.workerBindings,
-      build: { nodejsCompatMode: "v2" },
-      dev: {
-        server: { port: workerPort },
-        inspector: false,
-        logLevel: "error",
-        persist: persistPath,
-      },
-    });
-  } finally {
-    process.chdir(originalCwd);
-  }
-
-  const url = await worker.url;
-  const apiBaseUrl = url.href.replace(/\/$/, "").replace("localhost", "127.0.0.1");
+  // ── API Worker (wrangler test harness: D1 migrations + real HTTP port) ──
+  // better-auth's baseURL — and therefore the only trusted Origin — must be the
+  // web origin, because every request the browser and the API tests make
+  // originates there and reaches the worker through the vite dev proxy.
+  const stack = await startServerE2EStack({ webUrl: `http://127.0.0.1:${String(WEB_PORT)}` });
+  const apiBaseUrl = stack.baseUrl;
 
   // ── Vite dev server ────────────────────────────────────────────────────
   const webDev = spawn(
@@ -147,18 +77,15 @@ const startStack = async (): Promise<() => Promise<void>> => {
   // ── Chromium ───────────────────────────────────────────────────────────
   const browserServer: BrowserServer = await chromium.launchServer();
 
-  // ── Write shared env for test files ────────────────────────────────────
-  const sharedEnv: SharedE2EEnv = {
-    baseUrl: `http://127.0.0.1:${String(WEB_PORT)}`,
-    workerUrl: apiBaseUrl,
-    browserWSEndpoint: browserServer.wsEndpoint(),
-    persistDir: PERSIST_DIR,
-  };
-  writeFileSync(ENV_FILE, JSON.stringify(sharedEnv));
+  // ── Publish the stack for the test workers ─────────────────────────────
+  // `process.env`, not a file on disk: vitest snapshots it when it forks each
+  // project's workers, and it does so after globalSetup resolves. The server
+  // Worker's own URLs are published by `startServerE2EStack`.
+  env[E2E_WEB_URL_ENV] = `http://127.0.0.1:${String(WEB_PORT)}`;
+  env[E2E_BROWSER_WS_ENV] = browserServer.wsEndpoint();
 
   // ── Teardown ───────────────────────────────────────────────────────────
   return async () => {
-    rmSync(ENV_FILE, { force: true });
     await browserServer.close();
 
     const child = webDev;
@@ -171,9 +98,7 @@ const startStack = async (): Promise<() => Promise<void>> => {
       await waitForChildExit(child);
     }
 
-    await worker.dispose();
-    restoreProcessEnv();
-    rmSync(persistPath, { recursive: true, force: true });
+    await stack.stop();
   };
 };
 

@@ -99,7 +99,7 @@ describe("dashboard updates and builds flow", () => {
   });
 
   it("surfaces compatibility matrix and install links through dashboard proxy", async () => {
-    seedSql(`
+    await seedSql(`
 INSERT INTO "builds" (
   "id", "project_id", "platform", "profile", "distribution", "runtime_version",
   "app_version", "build_number", "bundle_id", "git_ref", "git_commit",

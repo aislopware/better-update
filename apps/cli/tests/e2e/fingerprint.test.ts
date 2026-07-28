@@ -120,14 +120,14 @@ const computeLocalHash = (): string => {
 // ── Tests ────────────────────────────────────────────────────────
 
 describe("fingerprint generate + compare e2e", () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     // Seed three builds with KNOWN fingerprint hashes so the server-vs-server
     // compare paths have something to resolve. The harness-seeded build
     // (cli.getSeededBuildId()) has fingerprint_hash = NULL and is used only for
     // the no-recorded-hash error case. Single multi-row INSERT — seedSql splits
     // on ';' so NO semicolons may appear inside the string literals.
     const projectId = cli.getProjectId();
-    cli.seedSql(
+    await cli.seedSql(
       `INSERT INTO "builds" ("id","project_id","platform","profile","distribution","runtime_version","app_version","build_number","bundle_id","git_ref","git_commit","message","metadata_json","fingerprint_hash","created_at") VALUES ('fp-build-a','${projectId}','ios','production','ad-hoc','1.0.0','1.0.0','1','com.example.fingerprintcli','main','aaaaaaa','seed a','{}','fp_hash_aaaa','2024-04-01T00:00:00Z'),('fp-build-a2','${projectId}','ios','production','ad-hoc','1.0.0','1.0.0','1','com.example.fingerprintcli','main','aaaaaa2','seed a2','{}','fp_hash_aaaa','2024-04-01T00:00:00Z'),('fp-build-b','${projectId}','ios','production','ad-hoc','1.0.0','1.0.0','1','com.example.fingerprintcli','main','bbbbbbb','seed b','{}','fp_hash_bbbb','2024-04-01T00:00:00Z')`,
     );
   });

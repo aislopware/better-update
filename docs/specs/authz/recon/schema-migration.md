@@ -130,7 +130,7 @@ Both `integration` and `e2e-pool` projects share this setup file. New migrations
 
 Same mechanism as integration: `readD1Migrations` + `setup-d1.ts`. The `e2e-pool` and `e2e-pool-r2` vitest projects both use `setupFiles: ["./tests/setup-d1.ts"]`.
 
-CLI e2e (the separate `unstable_startWorker`-based suite) applies migrations via `wrangler d1 migrations apply` before the worker starts — handled by the E2E env helper (`tests/helpers/e2e-env.ts`).
+CLI e2e and web e2e (the out-of-process suites) apply migrations in-process via the harness's `worker.applyD1Migrations("DB")` — handled by `startServerE2EStack()` in `tests/helpers/e2e-harness.ts`. No `wrangler d1 migrations apply` subprocess is involved any more.
 
 ---
 

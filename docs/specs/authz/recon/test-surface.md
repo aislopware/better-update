@@ -123,21 +123,22 @@ These create an API key via `POST /api/auth/api-key/create` and then drive reque
 
 ### Test infrastructure
 
-| File                               | Role                                                                                                                 |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `tests/helpers/e2e-worker-pool.ts` | `setupE2EWorker()` — HTTP client backed by `worker.fetch`; `parseCookies()`; `seedAssetObject()`                     |
-| `tests/helpers/seed-d1.ts`         | `seedD1(sql)` — splits on `;`, batch-executes against `env.DB` (integration tests only, not e2e-pool)                |
-| `tests/helpers/runtime.ts`         | `runWithEnv`, `runWithLayerAndEnv` — runs Effect programs in the Cloudflare env (integration helpers)                |
-| `tests/helpers/e2e-env.ts`         | `createServerE2EEnvironment()` — builds `processOverrides + workerBindings` for `unstable_startWorker`-based CLI e2e |
-| `tests/helpers/mock-d1.ts`         | Mock D1 bindings for unit tests                                                                                      |
-| `tests/setup-d1.ts`                | `applyD1Migrations(env.DB, env.TEST_MIGRATIONS)` — one-liner, all migrations auto-applied                            |
+| File                               | Role                                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tests/helpers/e2e-worker-pool.ts` | `setupE2EWorker()` — HTTP client backed by `worker.fetch`; `parseCookies()`; `seedAssetObject()`                          |
+| `tests/helpers/seed-d1.ts`         | `seedD1(sql)` — splits on `;`, batch-executes against `env.DB` (integration tests only, not e2e-pool)                     |
+| `tests/helpers/runtime.ts`         | `runWithEnv`, `runWithLayerAndEnv` — runs Effect programs in the Cloudflare env (integration helpers)                     |
+| `tests/helpers/e2e-env.ts`         | `createServerE2EEnvironment()` — builds the Worker `vars` for the out-of-process CLI + web e2e stacks                     |
+| `tests/helpers/e2e-harness.ts`     | `startServerE2EStack()` — boots the Worker on wrangler `createTestHarness` (real port, in-memory D1) + seed control plane |
+| `tests/helpers/mock-d1.ts`         | Mock D1 bindings for unit tests                                                                                           |
+| `tests/setup-d1.ts`                | `applyD1Migrations(env.DB, env.TEST_MIGRATIONS)` — one-liner, all migrations auto-applied                                 |
 
 ### CLI e2e infrastructure
 
-| File                                 | Role                                                                                                                                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/cli/tests/helpers/cli-e2e.ts`  | `setupCliE2E(testId, { userEmail, orgSlug })` — signs up a user, creates org, sets active, creates project, creates API key; exposes `runCli`, `seedSql`, `getAuthorized`, `postAuthorized`, etc. |
-| `apps/cli/tests/e2e/global-setup.ts` | Starts the shared `unstable_startWorker` server; writes `.wrangler/.e2e-cli-shared-env.json`                                                                                                      |
+| File                                 | Role                                                                                                                                                                                                                   |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/cli/tests/helpers/cli-e2e.ts`  | `setupCliE2E(testId, { userEmail, orgSlug })` — signs up a user, creates org, sets active, creates project, mints a project-scoped robot account; exposes `runCli`, `seedSql`, `getAuthorized`, `postAuthorized`, etc. |
+| `apps/cli/tests/e2e/global-setup.ts` | Starts the shared `createTestHarness` server via `startServerE2EStack({ remoteR2: true })`; writes `.wrangler/.e2e-cli-shared-env.json` (`baseUrl` + `controlUrl`)                                                     |
 
 ---
 

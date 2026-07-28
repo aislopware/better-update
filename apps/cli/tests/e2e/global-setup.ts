@@ -1,90 +1,20 @@
-import { execSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
-import path from "node:path";
+import { startServerE2EStack } from "../../../server/tests/helpers/e2e-harness";
 
-import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
-
-import type { unstable_startWorker } from "../../../server/node_modules/wrangler";
-
-const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
-const PERSIST_DIR = ".wrangler/state/e2e-cli-shared";
-const ENV_FILE = path.resolve(SERVER_DIR, ".wrangler/.e2e-cli-shared-env.json");
-
-export interface SharedCliE2EEnv {
-  readonly baseUrl: string;
-  readonly persistDir: string;
-}
-
-const pickFreePort = async () =>
-  new Promise<number>((resolvePort, rejectPort) => {
-    const srv = createServer();
-    srv.unref();
-    srv.on("error", rejectPort);
-    srv.listen(0, "127.0.0.1", () => {
-      const address = srv.address();
-      if (address === null || typeof address === "string") {
-        srv.close();
-        rejectPort(new Error("Failed to acquire free port"));
-        return;
-      }
-      const { port } = address;
-      srv.close(() => resolvePort(port));
-    });
-  });
-
-export default async function setup() {
-  const persistPath = path.resolve(SERVER_DIR, PERSIST_DIR);
-  rmSync(persistPath, { recursive: true, force: true });
-
-  const port = await pickFreePort();
-  const publicApiUrl = `http://127.0.0.1:${String(port)}`;
-  const e2eEnv = createServerE2EEnvironment({ projectRoot: SERVER_DIR, publicApiUrl });
-  const restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
-
-  // Discard stdout, inherit stderr. `wrangler d1 migrations apply` prints a row
-  // per migration; with 60+ migrations that table now exceeds execSync's default
-  // 1 MiB maxBuffer and threw ENOBUFS. We never read the output — execSync still
-  // throws on a non-zero exit — so dropping the buffer is the root-cause fix
-  // (keeping stderr visible for genuine failures).
-  execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${PERSIST_DIR}`, {
-    cwd: SERVER_DIR,
-    env: e2eEnv.wranglerEnv,
-    stdio: ["ignore", "ignore", "inherit"],
-  });
-
-  const originalCwd = process.cwd();
-  process.chdir(SERVER_DIR);
-  let worker: Awaited<ReturnType<typeof unstable_startWorker>>;
-  try {
-    const { unstable_startWorker: startWorker } =
-      await import("../../../server/node_modules/wrangler");
-    worker = await startWorker({
-      config: path.resolve(SERVER_DIR, "wrangler.jsonc"),
-      envFiles: [],
-      bindings: e2eEnv.workerBindings,
-      build: { nodejsCompatMode: "v2" },
-      dev: {
-        server: { port },
-        inspector: false,
-        logLevel: "error",
-        persist: persistPath,
-      },
-    });
-  } finally {
-    process.chdir(originalCwd);
-  }
-
-  const url = await worker.url;
-  const baseUrl = url.href.replace(/\/$/, "");
-
-  const sharedEnv: SharedCliE2EEnv = { baseUrl, persistDir: PERSIST_DIR };
-  writeFileSync(ENV_FILE, JSON.stringify(sharedEnv));
-
-  return async () => {
-    rmSync(ENV_FILE, { force: true });
-    await worker.dispose();
-    restoreProcessEnv();
-    rmSync(persistPath, { recursive: true, force: true });
-  };
+/**
+ * Boots one server Worker for the whole CLI e2e run. The CLI under test is a
+ * real subprocess (`dist/index.mjs`) speaking real HTTP, so it needs a listening
+ * port — `createTestHarness` provides one; the in-runtime `vitest-pool-workers`
+ * path the server's own suites use cannot.
+ *
+ * `update publish` / `build upload` PUT bytes to a presigned
+ * `*.r2.cloudflarestorage.com` URL and the Worker then reads the object back
+ * through its binding, so the binding has to point at the same real bucket —
+ * hence `remoteR2`.
+ *
+ * The stack publishes its URLs on `process.env`; test files read them through
+ * `e2e-harness-client`, which is why nothing is written to disk here.
+ */
+export default async function setup(): Promise<() => Promise<void>> {
+  const stack = await startServerE2EStack({ remoteR2: true });
+  return stack.stop;
 }

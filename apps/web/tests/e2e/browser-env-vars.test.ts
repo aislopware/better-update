@@ -69,7 +69,7 @@ describe("dashboard environment variables (browser, read-only)", () => {
     const envKey = `EXPO_PUBLIC_API_URL_${suffix.toUpperCase()}`;
     // Seed one encrypted project env var with a single revision. The ciphertext /
     // wrapped DEK are opaque placeholders — the dashboard reads metadata only.
-    dashboard.seedSql(`
+    await dashboard.seedSql(`
 INSERT INTO "env_vars"
   ("id","organization_id","project_id","scope","environment","key","visibility","current_revision_id","created_at","updated_at")
 VALUES

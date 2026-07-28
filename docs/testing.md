@@ -43,16 +43,16 @@ Exit code is non-zero iff any tier failed. `.self-verify/` is git-ignored.
 Wall-clock figures are from one local run (Apple silicon) for rough ordering,
 not a benchmark.
 
-| id              | runtime                                             | autonomous | ≈ time      | notes                                               |
-| --------------- | --------------------------------------------------- | ---------- | ----------- | --------------------------------------------------- |
-| `lint`          | oxlint + tsgolint                                   | ✅ yes     | ~7s         | lint + typecheck, all packages                      |
-| `unit`          | node/bun via turbo                                  | ✅ yes     | ~15s        | every app + package                                 |
-| `integration`   | `@cloudflare/vitest-pool-workers`, local D1/R2      | ✅ yes     | ~2m         | real worker, local bindings                         |
-| `e2e-server`    | vitest-pool-workers, **local** D1/R2                | ✅ yes     | ~1m45s      | pure-API OTA flows (~440 tests); no Cloudflare auth |
-| `e2e-server-r2` | vitest-pool-workers, **remote** R2 binding          | ✅ yes\*   | ~20s        | the single direct-upload checksum contract          |
-| `e2e-cli`       | `unstable_startWorker` (local) + real `expo export` | ✅ yes     | several min | publish / rollout / rollback / env / codesign       |
-| `e2e-web`       | `unstable_startWorker` + vite + chromium, all local | ⚠️ broken  | several min | API + browser dashboard flows — see below           |
-| `cli-slow`      | real Android Gradle build                           | ❌ no      | minutes     | needs the Android SDK; `--include-slow` only        |
+| id              | runtime                                           | autonomous | ≈ time      | notes                                               |
+| --------------- | ------------------------------------------------- | ---------- | ----------- | --------------------------------------------------- |
+| `lint`          | oxlint + tsgolint                                 | ✅ yes     | ~7s         | lint + typecheck, all packages                      |
+| `unit`          | node/bun via turbo                                | ✅ yes     | ~15s        | every app + package                                 |
+| `integration`   | `@cloudflare/vitest-pool-workers`, local D1/R2    | ✅ yes     | ~2m         | real worker, local bindings                         |
+| `e2e-server`    | vitest-pool-workers, **local** D1/R2              | ✅ yes     | ~1m45s      | pure-API OTA flows (~440 tests); no Cloudflare auth |
+| `e2e-server-r2` | vitest-pool-workers, **remote** R2 binding        | ✅ yes\*   | ~20s        | the single direct-upload checksum contract          |
+| `e2e-cli`       | wrangler `createTestHarness` + real `expo export` | ✅ yes     | several min | publish / rollout / rollback / env / codesign       |
+| `e2e-web`       | `createTestHarness` + vite + chromium, all local  | ✅ yes     | several min | API + browser dashboard flows                       |
+| `cli-slow`      | real Android Gradle build                         | ❌ no      | minutes     | needs the Android SDK; `--include-slow` only        |
 
 \* `e2e-server-r2` reaches the real `*-e2e` R2 bucket via an **API token** read
 from `apps/server/.env.local` (`E2E_CF_ACCOUNT_ID` + `E2E_CLOUDFLARE_API_TOKEN`,
@@ -69,6 +69,65 @@ contract is the one thing miniflare cannot simulate, so this file alone runs on
 the `e2e-pool-r2` project with `remote: true`. Every other e2e flow seeds local
 R2 directly (`seedAssetObject`) and runs fully local on `e2e-pool`. See the
 header comment in `apps/server/vitest.config.ts`.
+
+### How the out-of-process tiers boot the worker
+
+`e2e-cli` and `e2e-web` cannot run inside workerd: the CLI under test is a real
+subprocess and the browser is a real browser, so both need a listening port.
+They boot the server Worker through `startServerE2EStack()`
+(`apps/server/tests/helpers/e2e-harness.ts`), built on wrangler's
+`createTestHarness` — the supported replacement for the deprecated
+`unstable_startWorker`. Three things that API forces:
+
+- **No on-disk storage.** The harness hardcodes `persist: false`, so D1 lives in
+  the globalSetup process's memory. Seeding therefore cannot shell out to
+  `wrangler d1 execute --persist-to` any more (that used to spawn one `bunx
+wrangler` per seed). `startServerE2EStack` exposes a loopback **seed control
+  plane** instead; `seedSql()` in both suites POSTs SQL to it and it runs
+  in-process against the live binding. `seedSql` is consequently **async** —
+  `await` it.
+- **No `remote: true`.** Any remote binding makes the harness open a proxy
+  session against the real Cloudflare account, and `listen()` hard-fails without
+  credentials. The helper feeds wrangler an inline config with the flag stripped,
+  so the suites stay hermetic. (`apps/*/wrangler.jsonc` itself is generated —
+  never edit it.)
+- **No `envFiles` opt-out.** The harness auto-loads `.env` / `.env.local` and
+  those values _beat_ config `vars`, so a developer's `BETTER_AUTH_URL` used to
+  leak in and make better-auth reject every Origin as `INVALID_ORIGIN`. The
+  helper sets `CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false` to restore the old
+  `envFiles: []` behaviour.
+
+The port is always ephemeral (`port: 0` is hardcoded), so the stack starts, reads
+its own URL, then `update()`s the Worker with the URL-derived vars — `update()`
+preserves both the port and the D1 contents, which `reset()` would not.
+
+Every request that carries a cookie or a `Sec-Fetch-*` hint needs an `Origin`
+header that matches better-auth's `baseURL`; both suites' helpers add it
+automatically. For `e2e-cli` that origin is the Worker itself; for `e2e-web` it
+is the vite dev server, because that is where its requests come from.
+
+### Two principals in `e2e-cli`
+
+`setupCliE2E` signs up an org **owner** and mints a **project-scoped robot**, and
+which one a command runs as is load-bearing. A robot is one project + one project
+role by design (GITLAB-RBAC-SPEC §1b), so it can never clear the org-admin
+`ORG_RULES` (`webhook:*`, `auditLog:read`, `vaultAccess:*`) nor the v2 binding
+gate for an org resource with no project binding (a team-less device). Those are
+not test bugs to route around:
+
+- whole file → `cliAuth: "user"` (runs as the owner's session token, exactly what
+  `better-update login` writes to `~/.better-update/auth.json`);
+- one call → merge `cli.userAuthEnv` into `runCliWithEnv`;
+- vault-sealed data → `await cli.bootstrapOrgVault()` in `beforeAll`. It seals a
+  device identity for the owner (`identity init` refuses an env-sourced key on
+  purpose), then grants the robot both vaults, after which the robot needs no
+  extra env — `BETTER_UPDATE_ROBOT` already carries its age key.
+
+Publishes are byte-reproducible, and assets are content-addressed **globally**
+(an `assets` row carries no project), so two exports of the unchanged shared
+fixture collapse onto one hash across files. A test that needs a fresh upload, or
+v1 content distinguishable from v2, calls `cli.stampBundleMarker(<unique>)` first;
+the fixture's `bundle-marker.js` is restored in `afterAll`.
 
 ## Agent / background protocol
 
@@ -156,15 +215,18 @@ Genuinely out of autonomous reach (documented, not a gap to silently skip):
   (use the `agent-device` skill); the e2e suites verify the wire contract, not
   the device runtime.
 
-### Known issue: `e2e-web` dev-proxy
+### Resolved: the `e2e-web` dev-proxy failure
 
-`e2e-web` currently fails headlessly. Every request — including `POST
-/api/auth/sign-up/email` — returns `# SERVER_ERROR: internal error … { remote:
-true }`. The e2e-api tests hit the apps/web vite dev server (port 6780), whose
-workerd runtime proxies `/api` to the API worker via `WEB_API_PROXY_TARGET`; that
-outbound proxy fetch fails. It is **not** a remote-R2 credential problem
-(exporting `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` from the working E2E
-token does not fix it) and **not** an OTA/API product bug (the same sign-up works
-in `e2e-cli` against the same worker). It looks like a web-dev-proxy/workerd
-regression (vite 8 / miniflare 4 / wrangler bump). Tracked as a separate
-web-infra task; the OTA, signing, and dashboard _flows_ themselves are unaffected.
+`e2e-web` used to fail headlessly — every request returned `# SERVER_ERROR:
+internal error … { remote: true }`, later a `502 … ECONNREFUSED` from the vite
+proxy. Root cause: `unstable_startWorker` resolved a URL but never bound the
+port, because the API worker's R2 buckets carry `remote: true` and the
+remote-binding proxy session was refused. The failure was silent — nothing threw,
+so the suite only saw a dead upstream.
+
+The `createTestHarness` migration fixed it: `listen()` surfaces a
+remote-proxy failure as a real rejection (and `server.debug()` prints the runtime
+timeline), and the web stack boots local-only R2 because none of its flows upload
+to a presigned URL. The `e2e-cli` stack asks for `remoteR2: true` instead, since
+`update publish` really does PUT to R2 and read the object back through the
+binding. See `startServerE2EStack` in `apps/server/tests/helpers/e2e-harness.ts`.

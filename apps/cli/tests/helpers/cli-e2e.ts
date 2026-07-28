@@ -1,31 +1,44 @@
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { generateIdentity } from "@better-update/credentials-crypto";
+import {
+  generateIdentity,
+  sealIdentity,
+  unwrapVaultKey,
+  wrapVaultKey,
+} from "@better-update/credentials-crypto";
+import { fromBase64, toBase64 } from "@better-update/encoding";
 
+import {
+  seedServerE2ESql,
+  serverE2EBaseUrl,
+} from "../../../server/tests/helpers/e2e-harness-client";
 import { serializeRobotEnv } from "../../src/lib/robot-env";
 
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
-const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
-const SHARED_ENV_FILE = path.resolve(SERVER_DIR, ".wrangler/.e2e-cli-shared-env.json");
 
-interface SharedCliE2EEnv {
-  readonly baseUrl: string;
-  readonly persistDir: string;
-}
+/** Fixture module whose exported constant is rendered by the fixture's `App.js`. */
+const BUNDLE_MARKER_FILE = "bundle-marker.js";
 
-let cachedSharedEnv: SharedCliE2EEnv | undefined;
-
-const readSharedEnv = (): SharedCliE2EEnv => {
-  if (cachedSharedEnv) {
-    return cachedSharedEnv;
-  }
-  cachedSharedEnv = JSON.parse(readFileSync(SHARED_ENV_FILE, "utf8")) as SharedCliE2EEnv;
-  return cachedSharedEnv;
-};
+/**
+ * Env overlay that makes the CLI authenticate with the on-disk session token
+ * (what `better-update login` writes) instead of the robot bearer: `AuthStore`
+ * prefers `BETTER_UPDATE_ROBOT` whenever it is non-empty, so blanking it is the
+ * switch. See {@link SetupCliE2EOptions.cliAuth} for when that is the right
+ * principal.
+ */
+const USER_AUTH_ENV: Readonly<Record<string, string>> = { BETTER_UPDATE_ROBOT: "" };
 
 export interface SetupCliE2EOptions {
   /** Use an existing directory as the CLI project root instead of creating a temp dir. */
@@ -56,6 +69,21 @@ export interface SetupCliE2EOptions {
    * `userEmail` — `organizations.slug` is globally unique.
    */
   readonly orgSlug: string;
+  /**
+   * Which principal the CLI runs as by default.
+   *
+   * `"robot"` (default) is the CI shape: a PROJECT-scoped robot account holding
+   * maintainer on this file's project. Robots are one project + one project role
+   * by design (GITLAB-RBAC-SPEC §1b), so they can never satisfy the org-admin
+   * ORG_RULES — webhooks, audit logs, vault administration — nor the v2 binding
+   * gate for org resources with no project binding (a team-less device).
+   *
+   * `"user"` runs as the org OWNER's session token, exactly what
+   * `better-update login` leaves in `~/.better-update/auth.json`. Use it for
+   * files that exercise org administration; per-call, merge
+   * {@link CliE2EContext.userAuthEnv} into `runCliWithEnv` instead.
+   */
+  readonly cliAuth?: "robot" | "user";
 }
 
 /**
@@ -150,6 +178,16 @@ export interface CliE2EContext {
   readonly readAppJson: () => Record<string, unknown>;
   readonly runCli: (...args: readonly string[]) => CliCommandResult;
   /**
+   * Rewrites the fixture's `bundle-marker.js` so the next `expo export` emits
+   * genuinely different bytes. Server assets are content-addressed globally, and
+   * every e2e file publishes the same shared fixture — without a per-file (or
+   * per-publish) marker, "fresh upload" and "v1 content ≠ v2 content" are not
+   * observable. The original file is restored in `afterAll`.
+   *
+   * Only valid for fixture-backed projects (`projectDir`); throws otherwise.
+   */
+  readonly stampBundleMarker: (marker: string) => void;
+  /**
    * Like {@link runCli} but with extra environment variables layered on top of
    * the base CLI env. Used to drive the non-interactive credential-vault flow
    * via `BETTER_UPDATE_IDENTITY` (the CI identity path — a raw age private key,
@@ -159,7 +197,25 @@ export interface CliE2EContext {
     env: Record<string, string>,
     ...args: readonly string[]
   ) => CliCommandResult;
-  readonly seedSql: (sql: string) => void;
+  /**
+   * Env overlay that switches a single {@link runCliWithEnv} call to the org
+   * owner's user session — for files that are robot-driven except for the one
+   * org-administration step (e.g. bootstrapping the org vault). Whole-file
+   * switching is {@link SetupCliE2EOptions.cliAuth} instead.
+   */
+  readonly userAuthEnv: Readonly<Record<string, string>>;
+  /**
+   * Bootstraps the org's credential + env vaults and grants this file's robot
+   * access to both — the real two-step onboarding, driven through the CLI.
+   *
+   * `identity init` deliberately refuses an env-sourced key ("bootstrap from an
+   * admin's own device identity, not a robot's"), so this seals a device
+   * identity for the org owner first. Call it once from `beforeAll` in files
+   * whose commands read or write vault-sealed data; afterwards the robot needs
+   * no extra env, because `BETTER_UPDATE_ROBOT` already carries its age key.
+   */
+  readonly bootstrapOrgVault: () => Promise<void>;
+  readonly seedSql: (sql: string) => Promise<void>;
   readonly post: (
     path: string,
     body: unknown,
@@ -206,34 +262,47 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     projectId: "",
     robotBearer: "",
     robotEnv: "",
+    robotEncryptionKeyId: "",
+    robotPublicKey: "",
     projectDir: "",
     homeDir: "",
     originalAppJson: undefined as string | undefined,
+    originalBundleMarker: undefined as string | undefined,
   };
 
   const seedFileId = testId.replaceAll(/[^a-zA-Z0-9]+/gu, "-");
-  const seedFile = path.resolve(SERVER_DIR, `.wrangler/seed-${seedFileId}.sql`);
   const seededBuildId = `${seedFileId}-build-1`;
+
+  // better-auth force-validates the Origin the moment a request carries any
+  // Sec-Fetch-* hint, and Node's fetch always sends `sec-fetch-mode: cors`.
+  // Without an Origin these calls get 403 MISSING_OR_NULL_ORIGIN; with a
+  // foreign one, 403 INVALID_ORIGIN. The worker's own origin is better-auth's
+  // baseURL for this suite (`startServerE2EStack` defaults `webUrl` to it), so
+  // that is the trusted value to send.
+  const withOrigin = (headers?: Record<string, string>): Record<string, string> => ({
+    origin: state.baseUrl,
+    ...headers,
+  });
 
   const post = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
     requestWithRetry(async () =>
       fetch(`${state.baseUrl}${requestPath}`, {
         method: "POST",
-        headers: { "content-type": "application/json", ...headers },
+        headers: withOrigin({ "content-type": "application/json", ...headers }),
         body: JSON.stringify(body),
       }),
     );
 
   const get = async (requestPath: string, headers?: Record<string, string>) =>
     requestWithRetry(async () =>
-      fetch(`${state.baseUrl}${requestPath}`, headers ? { headers } : {}),
+      fetch(`${state.baseUrl}${requestPath}`, { headers: withOrigin(headers) }),
     );
 
   const patch = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
     requestWithRetry(async () =>
       fetch(`${state.baseUrl}${requestPath}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json", ...headers },
+        headers: withOrigin({ "content-type": "application/json", ...headers }),
         body: JSON.stringify(body),
       }),
     );
@@ -242,26 +311,12 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     requestWithRetry(async () =>
       fetch(`${state.baseUrl}${requestPath}`, {
         method: "DELETE",
-        headers: { "content-type": "application/json", ...headers },
+        headers: withOrigin({ "content-type": "application/json", ...headers }),
         body: JSON.stringify(body),
       }),
     );
 
-  const seedSql = (sql: string) => {
-    const { persistDir } = readSharedEnv();
-    writeFileSync(seedFile, sql);
-    try {
-      execSync(
-        `bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${seedFile}`,
-        {
-          cwd: SERVER_DIR,
-          stdio: "pipe",
-        },
-      );
-    } finally {
-      rmSync(seedFile, { force: true });
-    }
-  };
+  const seedSql = seedServerE2ESql;
 
   const requestWithRetry = async (run: () => Promise<Response>): Promise<Response> => {
     const maxAttempts = 4;
@@ -384,6 +439,7 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
         CI: "1",
         FORCE_COLOR: "0",
         NO_COLOR: "1",
+        ...(options.cliAuth === "user" ? USER_AUTH_ENV : {}),
         ...extraEnv,
       },
       encoding: "utf8",
@@ -398,8 +454,125 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
 
   const runCli = (...args: readonly string[]): CliCommandResult => runCliWithEnv({}, ...args);
 
+  // A bare `expect(exitCode).toBe(0)` on a setup command reports "expected 2 to
+  // be 0" and hides the CLI's own message, which is the only useful part when a
+  // whole file's beforeAll dies. Throw with it instead.
+  const assertCliSucceeded = (result: CliCommandResult, label: string) => {
+    if (result.exitCode !== 0) {
+      throw new Error(`${label} failed (exit ${String(result.exitCode)}): ${result.stderr.trim()}`);
+    }
+  };
+
+  const bootstrapOrgVault = async () => {
+    // Seal an identity for the org owner the way `credentials identity create`
+    // would. Done here rather than through the CLI because `create` prompts for
+    // a new passphrase and the e2e CLI runs non-interactive (CI=1).
+    const adminIdentity = await generateIdentity();
+    const sealed = await sealIdentity({
+      privateKey: adminIdentity.privateKey,
+      passphrase: "e2e-device-passphrase",
+    });
+    writeFileSync(
+      path.join(state.homeDir, ".better-update", "identity.json"),
+      `${JSON.stringify(sealed, null, 2)}\n`,
+    );
+
+    // Bootstrapping only wraps the vault key TO the device recipient, so it
+    // needs the public half alone — no passphrase prompt is reached.
+    const init = runCliWithEnv(
+      USER_AUTH_ENV,
+      "credentials",
+      "identity",
+      "init",
+      "--label",
+      "E2E Admin Device",
+    );
+    assertCliSucceeded(init, "credentials identity init");
+
+    // Granting DOES unlock, which would prompt for the device passphrase — but
+    // an env-sourced key unlocks non-interactively, and this env key is the very
+    // recipient the vault was just wrapped to. `--yes` skips the out-of-band
+    // fingerprint confirmation, which is the other interactive step.
+    const adminEnv = { ...USER_AUTH_ENV, BETTER_UPDATE_IDENTITY: adminIdentity.privateKey };
+    const grant = runCliWithEnv(
+      adminEnv,
+      "credentials",
+      "access",
+      "grant",
+      state.robotEncryptionKeyId,
+      "--yes",
+    );
+    assertCliSucceeded(grant, "credentials access grant");
+
+    // Orgs are born forked, so the env vault is a SECOND, independent key the
+    // credentials grant above does not cover. `credentials robot grant-env`
+    // would do it, but it unlocks the env vault through the ADMIN's wrap, which
+    // is keyed by `(recipientKind, keyId)` — and a key handed over in the env
+    // resolves as `machine`, while this one is registered as a `device`. The
+    // only CLI route to a device's env wrap is the passphrase prompt, which
+    // cannot run under CI=1. So re-wrap the env key here, exactly as
+    // `grantEnvRecipient` does, with the same two API calls.
+    await grantRobotEnvVaultAccess(adminIdentity);
+  };
+
+  const grantRobotEnvVaultAccess = async (adminIdentity: {
+    readonly publicKey: string;
+    readonly privateKey: string;
+  }) => {
+    const keysResponse = await get("/api/encryption-keys", { cookie: state.cookies });
+    expect(keysResponse.status).toBe(200);
+    const { items } = (await keysResponse.json()) as {
+      items: { id: string; publicKey: string }[];
+    };
+    const adminKey = items.find((key) => key.publicKey === adminIdentity.publicKey);
+    expect(adminKey).toBeDefined();
+
+    const wrapResponse = await get(`/api/env-vault/wraps/device/${adminKey!.id}`, {
+      cookie: state.cookies,
+    });
+    expect(wrapResponse.status).toBe(200);
+    const adminWrap = (await wrapResponse.json()) as {
+      wrappedKey: string;
+      envVaultVersion: number;
+    };
+
+    const envVaultKey = await unwrapVaultKey({
+      wrapped: fromBase64(adminWrap.wrappedKey),
+      privateKey: adminIdentity.privateKey,
+    });
+    const wrappedForRobot = await wrapVaultKey({
+      vaultKey: envVaultKey,
+      recipient: state.robotPublicKey,
+    });
+
+    const addResponse = await post(
+      "/api/env-vault/wraps",
+      {
+        envVaultVersion: adminWrap.envVaultVersion,
+        wrap: {
+          recipientKind: "machine",
+          recipientId: state.robotEncryptionKeyId,
+          wrappedKey: toBase64(wrappedForRobot),
+        },
+      },
+      { cookie: state.cookies },
+    );
+    expect(addResponse.status).toBe(201);
+  };
+
+  const stampBundleMarker = (marker: string) => {
+    const markerPath = path.join(state.projectDir, BUNDLE_MARKER_FILE);
+    if (!existsSync(markerPath)) {
+      throw new Error(
+        `stampBundleMarker requires a fixture project shipping ${BUNDLE_MARKER_FILE} (looked in ${state.projectDir}).`,
+      );
+    }
+    state.originalBundleMarker ??= readFileSync(markerPath, "utf8");
+    writeFileSync(markerPath, `export const BUNDLE_MARKER = ${JSON.stringify(marker)};\n`);
+  };
+
   beforeAll(async () => {
-    state.baseUrl = readSharedEnv().baseUrl;
+    state.baseUrl = serverE2EBaseUrl();
     state.homeDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-home-"));
 
     if (useExternalProjectDir) {
@@ -431,6 +604,21 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     });
     expect(signUpResponse.status).toBe(200);
     state.cookies = parseCookies(signUpResponse);
+
+    // better-auth's `bearer` plugin returns the raw session token here; the
+    // server accepts it as `Authorization: Bearer <token>` and resolves a real
+    // user session (auth/middleware `resolveFromBearer`). Persist it the way
+    // `better-update login` does so `cliAuth: "user"` / `userAuthEnv` calls run
+    // as this org's owner. Written before `set-active`, but the token addresses
+    // the session ROW — the active organization set below applies to it too.
+    const sessionToken = signUpResponse.headers.get("set-auth-token");
+    expect(sessionToken).toStrictEqual(expect.any(String));
+    const authDir = path.join(state.homeDir, ".better-update");
+    mkdirSync(authDir, { recursive: true });
+    writeFileSync(
+      path.join(authDir, "auth.json"),
+      `${JSON.stringify({ token: sessionToken }, null, 2)}\n`,
+    );
 
     const createOrgResponse = await post(
       "/api/auth/organization/create",
@@ -482,6 +670,10 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     expect(createRobotResponse.status).toBe(201);
     const createRobotBody = await createRobotResponse.json();
     state.robotBearer = createRobotBody.bearerSecret;
+    // The robot's age keypair is registered as a machine-kind vault recipient at
+    // creation, but holds no vault wrap yet — `bootstrapOrgVault` grants it.
+    state.robotEncryptionKeyId = createRobotBody.userEncryptionKeyId;
+    state.robotPublicKey = robotIdentity.publicKey;
     state.robotEnv = serializeRobotEnv({
       bearer: createRobotBody.bearerSecret,
       identity: robotIdentity.privateKey,
@@ -498,7 +690,7 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     // API POST (the value must be sealed client-side under the org vault key).
     // The env-var e2e flow bootstraps a vault and exercises set/pull itself.
 
-    seedSql(`
+    await seedSql(`
 INSERT INTO "builds" (
   "id", "project_id", "platform", "profile", "distribution", "runtime_version",
   "app_version", "build_number", "bundle_id", "git_ref", "git_commit",
@@ -541,6 +733,11 @@ VALUES (
       if (state.originalAppJson !== undefined) {
         writeFileSync(path.join(state.projectDir, "app.json"), state.originalAppJson);
       }
+      // Fixture dirs are shared across e2e files (and tracked in git), so a
+      // stamped marker must not leak into the next file or the working tree.
+      if (state.originalBundleMarker !== undefined) {
+        writeFileSync(path.join(state.projectDir, BUNDLE_MARKER_FILE), state.originalBundleMarker);
+      }
     } else {
       rmSync(state.projectDir, { recursive: true, force: true });
     }
@@ -559,6 +756,9 @@ VALUES (
       >,
     runCli,
     runCliWithEnv,
+    userAuthEnv: USER_AUTH_ENV,
+    bootstrapOrgVault,
+    stampBundleMarker,
     seedSql,
     post,
     get,

@@ -1,20 +1,8 @@
-import { execSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import nodePath from "node:path";
-
-import { ENV_FILE } from "../e2e/global-setup";
-
-import type { SharedE2EEnv } from "../e2e/global-setup";
-
-const API_DIR = nodePath.resolve(import.meta.dirname, "../../../server");
-
-let cachedEnv: SharedE2EEnv | undefined;
-
-const getSharedEnv = (): SharedE2EEnv => {
-  cachedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
-  return cachedEnv;
-};
+import {
+  seedServerE2ESql,
+  serverE2EBaseUrl,
+} from "../../../server/tests/helpers/e2e-harness-client";
+import { webE2EBaseUrl } from "./e2e-shared-env";
 
 const parseCookies = (response: Response): string => {
   const raw = response.headers.get("set-cookie") ?? "";
@@ -34,59 +22,45 @@ const parseCookies = (response: Response): string => {
 // is the trusted one (it is better-auth's baseURL under the e2e env), so send
 // it and look like the browser calls these stand in for.
 const withOrigin = (headers?: Record<string, string>): Record<string, string> => ({
-  origin: getSharedEnv().baseUrl,
+  origin: webE2EBaseUrl(),
   ...headers,
 });
 
 export const setupE2EDashboard = () => {
   const post = async (path: string, body: unknown, headers?: Record<string, string>) =>
-    fetch(`${getSharedEnv().baseUrl}${path}`, {
+    fetch(`${webE2EBaseUrl()}${path}`, {
       method: "POST",
       headers: withOrigin({ "content-type": "application/json", ...headers }),
       body: JSON.stringify(body),
     });
 
   const get = async (path: string, headers?: Record<string, string>) =>
-    fetch(`${getSharedEnv().baseUrl}${path}`, { headers: withOrigin(headers) });
+    fetch(`${webE2EBaseUrl()}${path}`, { headers: withOrigin(headers) });
 
   const del = async (path: string, body: unknown, headers?: Record<string, string>) =>
-    fetch(`${getSharedEnv().baseUrl}${path}`, {
+    fetch(`${webE2EBaseUrl()}${path}`, {
       method: "DELETE",
       headers: withOrigin({ "content-type": "application/json", ...headers }),
       body: JSON.stringify(body),
     });
 
   const patch = async (path: string, body: unknown, headers?: Record<string, string>) =>
-    fetch(`${getSharedEnv().baseUrl}${path}`, {
+    fetch(`${webE2EBaseUrl()}${path}`, {
       method: "PATCH",
       headers: withOrigin({ "content-type": "application/json", ...headers }),
       body: JSON.stringify(body),
     });
 
-  const seedSql = (sql: string) => {
-    const { persistDir } = getSharedEnv();
-    // Unique per call: e2e-api files run concurrently and several seed via this
-    // helper, so a shared file path would race (one file's writeFileSync clobbers
-    // another's before its execSync reads it, seeding the wrong rows). randomUUID
-    // keeps each seed write isolated even across vitest worker processes.
-    const seedFile = nodePath.resolve(API_DIR, `.wrangler/seed-dashboard-${randomUUID()}.sql`);
-    writeFileSync(seedFile, sql);
-    try {
-      execSync(
-        `bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${seedFile}`,
-        {
-          cwd: API_DIR,
-          stdio: "pipe",
-        },
-      );
-    } finally {
-      rmSync(seedFile, { force: true });
-    }
-  };
+  // The harness keeps D1 in memory inside the globalSetup process, so seeding no
+  // longer shells out to `wrangler d1 execute --persist-to` (one subprocess per
+  // call, and a temp .sql file that had to be uniquely named to survive
+  // concurrent e2e-api files). Post the SQL to the stack's control plane
+  // instead — no subprocess, no temp file, no cross-process race.
+  const seedSql = seedServerE2ESql;
 
   return {
-    getBaseUrl: () => getSharedEnv().baseUrl,
-    getWorkerUrl: () => getSharedEnv().workerUrl,
+    getBaseUrl: webE2EBaseUrl,
+    getWorkerUrl: serverE2EBaseUrl,
     post,
     get,
     del,

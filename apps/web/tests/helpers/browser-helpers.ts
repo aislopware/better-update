@@ -1,13 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 
 import { chromium } from "playwright";
 
 import type { Browser, BrowserContext, Page } from "playwright";
 
-import { ENV_FILE } from "../e2e/global-setup";
-
-import type { SharedE2EEnv } from "../e2e/global-setup";
+import { webE2EBrowserWSEndpoint } from "./e2e-shared-env";
 
 export const DEFAULT_PASSWORD = "SecureP@ss123";
 
@@ -26,13 +23,6 @@ export interface BrowserRuntime {
   readonly withPage: (run: (page: Page, context: BrowserContext) => Promise<void>) => Promise<void>;
 }
 
-let cachedEnv: SharedE2EEnv | undefined;
-
-const getSharedEnv = (): SharedE2EEnv => {
-  cachedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
-  return cachedEnv;
-};
-
 /**
  * Connects to the shared Chromium instance launched by globalSetup.
  * `teardown()` disconnects without killing the browser process.
@@ -48,8 +38,7 @@ export const createSharedBrowserRuntime = (): BrowserRuntime => {
       return browser;
     },
     setup: async () => {
-      const { browserWSEndpoint } = getSharedEnv();
-      browser = await chromium.connect(browserWSEndpoint);
+      browser = await chromium.connect(webE2EBrowserWSEndpoint());
     },
     teardown: async () => {
       // Disconnect only — the shared browser is managed by globalSetup.

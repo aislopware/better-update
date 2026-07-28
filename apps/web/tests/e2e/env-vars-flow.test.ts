@@ -68,7 +68,7 @@ describe("dashboard environment variables flow (read-only)", () => {
     // and never decrypts, so real sealing is unnecessary here.
     const orgId = sql(state.organizationId);
     const projectId = sql(state.projectId);
-    seedSql(`
+    await seedSql(`
 INSERT INTO "env_vars"
   ("id","organization_id","project_id","scope","environment","key","visibility","current_revision_id","created_at","updated_at")
 VALUES
