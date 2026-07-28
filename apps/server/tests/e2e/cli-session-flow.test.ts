@@ -105,10 +105,13 @@ describe("CLI session auth (bearer + one-time-token)", () => {
     const res = await post("/api/encryption-keys", deviceKeyBody("CI runner"), {
       authorization: `Bearer ${robotBearer}`,
     });
-    // After the authz unification (8b464b3, feat(authz)!), a robot account with no
-    // resolved user is rejected by the policy gate as Forbidden (403) rather than
-    // a 400 — registering a user-owned device key requires a user. (In dev/test
-    // the server also remaps 401 → 403.)
-    expect(res.status).toBe(403);
+    // NOT an authorization denial: a robot holding ≥ developer on some project is
+    // a legitimate vault participant (VAULT_PARTICIPANT_MIN_ROLE — "humans and
+    // robots alike"), so `assertVaultParticipant` passes. What it can never
+    // satisfy is the invariant that a `device` key is owned by a user, and a
+    // robot resolves no user — a request-shape error, so 400 with that exact
+    // message rather than 403.
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toContain("Device keys require an interactive user session");
   });
 });
