@@ -1,38 +1,24 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { generateIdentity } from "@better-update/credentials-crypto";
-
 import { setupCliE2E } from "../helpers/cli-e2e";
 
-// Env var CLI commands live in their own e2e file (not the big command journey in
-// commands.test.ts) so they get a dedicated API key. Every CLI call authenticates
-// with it, and the per-key rate limit (120 req / 60s, see apps/server/src/auth.ts)
-// would otherwise be shared with — and tipped over by — that long journey.
+// Env var CLI commands live in their own e2e file (not the big command journey
+// in commands.test.ts) so they get their own org, project and robot: the suite
+// shares one D1, and a self-contained file is far easier to run alone and to
+// read than another branch of that journey.
 const cli = setupCliE2E("e2e-cli-env", {
   userEmail: "cli-e2e-env@example.com",
   orgSlug: "cli-e2e-env-org",
 });
 
 describe("cLI env var commands", () => {
-  // Env var values are sealed under the org vault, so bootstrap an identity +
-  // vault once (the CI path: a raw age key via BETTER_UPDATE_IDENTITY), then link
-  // the project so the commands can resolve its id.
-  let credsEnv: Record<string, string> = {};
+  // Env var values are sealed under the org vault: the org owner bootstraps it
+  // and grants this file's robot, then link the project so the commands can
+  // resolve its id. Every command below runs as the robot, whose age key rides
+  // on BETTER_UPDATE_ROBOT.
   beforeAll(async () => {
-    const identity = await generateIdentity();
-    credsEnv = { BETTER_UPDATE_IDENTITY: identity.privateKey };
-
-    const init = cli.runCliWithEnv(
-      credsEnv,
-      "credentials",
-      "identity",
-      "init",
-      "--label",
-      "CI Machine",
-    );
-    expect(init.exitCode).toBe(0);
-    expect(init.stdout).toContain("vault bootstrapped");
+    await cli.bootstrapOrgVault();
 
     const link = cli.runCli("init");
     expect(link.exitCode).toBe(0);
@@ -48,14 +34,7 @@ describe("cLI env var commands", () => {
 
     // Two keys × two environments = 4 upserts. push auto-classifies EXPO_PUBLIC_*
     // as plaintext and everything else as sensitive.
-    const pushResult = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "push",
-      pushFile,
-      "--environment",
-      "development,preview",
-    );
+    const pushResult = cli.runCli("env", "push", pushFile, "--environment", "development,preview");
     expect(pushResult.exitCode).toBe(0);
     expect(pushResult.stdout).toContain("Pushed to development,preview");
     expect(pushResult.stdout).toContain("4 created");
@@ -70,46 +49,24 @@ describe("cLI env var commands", () => {
 
     // pull --stdout decrypts the preview values too — proving the fan-out sealed
     // both environments, including the sensitive (unmasked on pull) entry.
-    const pullResult = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "pull",
-      "--environment",
-      "preview",
-      "--stdout",
-    );
+    const pullResult = cli.runCli("env", "pull", "--environment", "preview", "--stdout");
     expect(pullResult.exitCode).toBe(0);
     expect(pullResult.stdout).toContain("export EXPO_PUBLIC_PUSH_URL='https://push.example.com'");
     expect(pullResult.stdout).toContain("export PUSH_SECRET='super-secret'");
 
     // Re-pushing the same file upserts existing (key, environment) pairs.
-    const rePush = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "push",
-      pushFile,
-      "--environment",
-      "development,preview",
-    );
+    const rePush = cli.runCli("env", "push", pushFile, "--environment", "development,preview");
     expect(rePush.exitCode).toBe(0);
     expect(rePush.stdout).toContain("4 updated");
   });
 
   it("updates an env var's value and visibility, and rejects an empty update", () => {
-    const setResult = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "set",
-      "UPDATE_ME=v1",
-      "--environment",
-      "development",
-    );
+    const setResult = cli.runCli("env", "set", "UPDATE_ME=v1", "--environment", "development");
     expect(setResult.exitCode).toBe(0);
     expect(setResult.stdout).toContain("1 created");
 
     // Change value + visibility in one shot — a new sealed revision.
-    const updateBoth = cli.runCliWithEnv(
-      credsEnv,
+    const updateBoth = cli.runCli(
       "env",
       "update",
       "UPDATE_ME",
@@ -124,8 +81,7 @@ describe("cLI env var commands", () => {
     expect(updateBoth.stdout).toContain("Updated value + visibility for UPDATE_ME (development).");
 
     // The new value round-trips; sensitive values need --include-sensitive to reveal.
-    const getResult = cli.runCliWithEnv(
-      credsEnv,
+    const getResult = cli.runCli(
       "env",
       "get",
       "UPDATE_ME",
@@ -188,8 +144,7 @@ describe("cLI env var commands", () => {
   });
 
   it("execs a command with decrypted env vars injected", () => {
-    const setResult = cli.runCliWithEnv(
-      credsEnv,
+    const setResult = cli.runCli(
       "env",
       "set",
       "EXEC_VAR=hello-exec",
@@ -199,8 +154,7 @@ describe("cLI env var commands", () => {
     expect(setResult.exitCode).toBe(0);
 
     // exec decrypts the project's env vars and injects them into the child process.
-    const execResult = cli.runCliWithEnv(
-      credsEnv,
+    const execResult = cli.runCli(
       "env",
       "exec",
       "development",
@@ -213,8 +167,7 @@ describe("cLI env var commands", () => {
     expect(execResult.stdout).toContain("hello-exec");
 
     // The wrapped command's exit code propagates back through the CLI.
-    const exitCodeResult = cli.runCliWithEnv(
-      credsEnv,
+    const exitCodeResult = cli.runCli(
       "env",
       "exec",
       "development",

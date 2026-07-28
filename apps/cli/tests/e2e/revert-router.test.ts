@@ -141,14 +141,20 @@ describe("update revert router: --type published (republish previous) vs --type 
   });
 
   it("publishes v1 then v2 with distinct bundle content", async () => {
+    // The export is byte-reproducible, so republishing an unchanged project
+    // yields the SAME launch asset hash. Edit the fixture between the two
+    // publishes: only then does "the revert served v1's content, not v2's"
+    // below distinguish anything.
+    cli.stampBundleMarker("revert-router-v1");
     state.v1GroupId = publishIos();
     state.v1 = await fetchServedManifest();
 
+    cli.stampBundleMarker("revert-router-v2");
     state.v2GroupId = publishIos("v2 update");
     state.v2 = await fetchServedManifest();
 
-    // Two genuinely distinct updates: different rows AND different bundle bytes
-    // (Hermes export is non-deterministic), so a later content match is meaningful.
+    // Two genuinely distinct updates: different rows AND different bundle bytes,
+    // so a later content match is meaningful.
     expect(state.v2GroupId).not.toBe(state.v1GroupId);
     expect(state.v2.id).not.toBe(state.v1.id);
     expect(state.v2.launchHash).not.toBe(state.v1.launchHash);

@@ -14,6 +14,10 @@ const cli = setupCliE2E("e2e-cli-webhooks-lifecycle", {
   },
   userEmail: "cli-e2e-webhooks-lifecycle@example.com",
   orgSlug: "cli-e2e-webhooks-lifecycle-org",
+  // `webhook:*` is org administration (ORG_RULES ≥ admin). A robot is scoped to
+  // one project and one project role by design, so this whole surface is only
+  // reachable as a logged-in org admin — run the CLI the way a human does.
+  cliAuth: "user",
 });
 
 // ── Helpers ──────────────────────────────────────────────────────

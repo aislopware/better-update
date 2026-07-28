@@ -29,13 +29,18 @@ const devicesAppJsonTemplate = {
   },
 };
 
-// Devices are ORG-scoped (resolved from the API key's active org via CurrentActor
+// Devices are ORG-scoped (resolved from the actor's active org via CurrentActor
 // on the server), never project-scoped — no `init`, and they do not bundle, so
 // OMIT projectDir and let the harness create a fresh temp dir.
 const cli = setupCliE2E("e2e-cli-devices", {
   appJsonTemplate: devicesAppJsonTemplate,
   userEmail: "cli-e2e-devices@example.com",
   orgSlug: "cli-e2e-devices-org",
+  // `device:*` runs through the v2 binding gate: the rank must be held on some
+  // project the device's Apple team is BOUND to, so a device with NO team (every
+  // device here) is admin-only. A project-scoped robot can never clear that —
+  // run as the org owner, which is who registers team-less devices in practice.
+  cliAuth: "user",
 });
 
 // A lowercase 40-hex UDID. The server `normalizeIdentifier` trims + lowercases

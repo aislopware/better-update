@@ -54,6 +54,14 @@ const androidRowPattern =
   /^android\s+(?<updateId>[0-9a-f-]+)\s+1\.0\.0\s+(?<uploaded>\d+)\s+(?<reused>\d+)(?=\s|$)/m;
 
 describe("CLI publish journey", () => {
+  beforeAll(() => {
+    // Every e2e file publishes the same shared fixture and server assets are
+    // content-addressed globally, so an earlier file's export would otherwise
+    // make this file's *first* publish a pure dedup hit. Stamp a marker unique
+    // to this file so "fresh assets" below is a real assertion.
+    cli.stampBundleMarker("publish-journey");
+  });
+
   it("links the fixture app to the seeded project", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
@@ -117,9 +125,11 @@ describe("CLI publish journey", () => {
 
     const iosRow = iosRowPattern.exec(result.stdout);
     expect(iosRow).toBeDefined();
-    // Hermes bytecode is non-deterministic, so bundle hash changes each export.
-    // Verify table structure without asserting exact dedup counts.
-    expect(Number(iosRow![2]) + Number(iosRow![3])).toBeGreaterThan(0);
+    // Nothing changed in the project between the two publishes and the export is
+    // byte-reproducible, so this re-publish must be a pure content-addressed
+    // dedup hit: a new update group over the previous publish's assets.
+    expect(Number(iosRow![2])).toBe(0);
+    expect(Number(iosRow![3])).toBeGreaterThan(0);
   });
 
   it("publishes all platforms in a single group", () => {

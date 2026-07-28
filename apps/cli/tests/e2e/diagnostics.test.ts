@@ -66,14 +66,17 @@ describe("diagnostics: whoami / doctor / logout / projects list / audit-logs lis
     expect(result.exitCode).toBe(4);
   });
 
-  it("whoami (human) shows the api-key actor + active organization", () => {
+  it("whoami (human) shows the robot actor + active organization", () => {
     const result = cli.runCli("whoami");
     expect(result.exitCode).toBe(0);
-    // api-key auth → user is null, so the "Actor" branch renders (NOT User ID /
-    // Name / Email), with both Actor and Source values "api-key".
+    // Robot-bearer auth → user is null, so the "Actor" branch renders (NOT User
+    // ID / Name / Email). The actor label carries WHICH robot acted
+    // (`robot:<name>`, see auth/middleware `resolveFromBearer`) and Source is
+    // the bare principal kind.
     expect(result.stdout).toContain("Actor");
-    expect(result.stdout).toContain("api-key");
+    expect(result.stdout).toContain("robot:e2e-cli-diagnostics-robot");
     expect(result.stdout).toContain("Source");
+    expect(result.stdout).toContain("robot");
     expect(result.stdout).not.toContain("User ID");
     // Active organization rows.
     expect(result.stdout).toContain("Organization");
@@ -92,8 +95,8 @@ describe("diagnostics: whoami / doctor / logout / projects list / audit-logs lis
     const envelope = parseEnvelope(result.stdout);
     expect(envelope.ok).toBe(true);
     expect(envelope.command).toBe("whoami");
-    expect(envelope.data["source"]).toBe("api-key");
-    expect(envelope.data["actorEmail"]).toBe("api-key");
+    expect(envelope.data["source"]).toBe("robot");
+    expect(envelope.data["actorEmail"]).toBe("robot:e2e-cli-diagnostics-robot");
     expect(envelope.data["user"]).toBeNull();
     const activeOrg = envelope.data["activeOrganization"] as Record<string, unknown>;
     expect(activeOrg["slug"]).toBe("cli-e2e-diagnostics-org");
@@ -120,8 +123,8 @@ describe("diagnostics: whoami / doctor / logout / projects list / audit-logs lis
     expect(result.stdout).toContain("Server reachable");
     expect(result.stdout).toContain("returned 200");
     expect(result.stdout).toContain("Auth token");
-    // who = me.actorEmail since user is null → "Valid (api-key)".
-    expect(result.stdout).toContain("Valid (api-key)");
+    // who = me.actorEmail since user is null → "Valid (robot:<name>)".
+    expect(result.stdout).toContain("Valid (robot:e2e-cli-diagnostics-robot)");
     expect(result.stdout).toContain("Node.js version");
     expect(result.stdout).toContain("Project linked");
     expect(result.stdout).toContain("projectId=");
@@ -167,8 +170,11 @@ describe("diagnostics: whoami / doctor / logout / projects list / audit-logs lis
     expect(seeded!["Name"]).toBe("Diagnostics App Project");
   });
 
+  // `auditLog:read` is org administration (ORG_RULES ≥ admin) and a robot is
+  // project-scoped by design, so these two run as the org owner — the rest of
+  // this file deliberately stays on the robot to assert its actor rendering.
   it("audit-logs list (human) shows the seeded project.create entry", () => {
-    const result = cli.runCli("audit-logs", "list");
+    const result = cli.runCliWithEnv(cli.userAuthEnv, "audit-logs", "list");
     expect(result.exitCode).toBe(0);
     // printList header columns.
     expect(result.stdout).toContain("Action");
@@ -179,7 +185,7 @@ describe("diagnostics: whoami / doctor / logout / projects list / audit-logs lis
   });
 
   it("audit-logs list --json emits the audit-logs.list envelope with data.items", () => {
-    const result = cli.runCli("--json", "audit-logs", "list");
+    const result = cli.runCliWithEnv(cli.userAuthEnv, "--json", "audit-logs", "list");
     expect(result.exitCode).toBe(0);
     const envelope = parseEnvelope(result.stdout);
     expect(envelope.ok).toBe(true);

@@ -12,7 +12,6 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { generateIdentity } from "@better-update/credentials-crypto";
 import { buildExpoSignatureHeader } from "@better-update/expo-codesign";
 import forge from "node-forge";
 
@@ -149,10 +148,10 @@ const fetchWithRetry = async (url: string, init: RequestInit): Promise<Response>
   throw new Error("fetchWithRetry exhausted unexpectedly");
 };
 
-const seedDestinationChannel = (name: string) => {
+const seedDestinationChannel = async (name: string) => {
   const branchId = `${name}-branch`;
   const channelId = `${name}-channel`;
-  cli.seedSql(`
+  await cli.seedSql(`
 INSERT INTO "branches" ("id", "project_id", "name", "created_at")
 VALUES (${sqlString(branchId)}, ${sqlString(cli.getProjectId())}, ${sqlString(name)}, '2026-04-14T00:00:00Z');
 
@@ -280,22 +279,11 @@ const cliState = {
 
 describe("cLI command journey", () => {
   // Bootstrap the org vault once for the whole journey — env var values and
-  // credentials are both sealed under it. Driven non-interactively via
-  // BETTER_UPDATE_IDENTITY (the CI identity path: a raw age key, no passphrase).
-  let credsEnv: Record<string, string> = {};
+  // credentials are both sealed under it. The org owner sets it up and grants
+  // the robot; the journey below then runs as the robot, whose age key rides on
+  // BETTER_UPDATE_ROBOT (no separate BETTER_UPDATE_IDENTITY needed).
   beforeAll(async () => {
-    const identity = await generateIdentity();
-    credsEnv = { BETTER_UPDATE_IDENTITY: identity.privateKey };
-    const init = cli.runCliWithEnv(
-      credsEnv,
-      "credentials",
-      "identity",
-      "init",
-      "--label",
-      "CI Machine",
-    );
-    expect(init.exitCode).toBe(0);
-    expect(init.stdout).toContain("vault bootstrapped");
+    await cli.bootstrapOrgVault();
   });
 
   it("links the current Expo app to the existing project", () => {
@@ -341,32 +329,24 @@ describe("cLI command journey", () => {
     const envFile = path.join(cli.getProjectDir(), ".env.preview");
     writeFileSync(envFile, "EXPO_PUBLIC_API_URL=https://preview.example.com\nFEATURE_FLAG=true\n");
 
-    const importResult = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "import",
-      envFile,
-      "--environment",
-      "preview",
-    );
+    const importResult = cli.runCli("env", "import", envFile, "--environment", "preview");
     expect(importResult.exitCode).toBe(0);
     expect(importResult.stdout).toContain("Imported: 2 created, 0 updated, 0 skipped");
 
     // pull decrypts the sealed values back — the round-trip through the vault.
-    const pullResult = cli.runCliWithEnv(credsEnv, "env", "pull", "--environment", "preview");
+    const pullResult = cli.runCli("env", "pull", "--environment", "preview");
     expect(pullResult.exitCode).toBe(0);
     expect(pullResult.stdout).toContain("Wrote 2 env vars to");
     const pulledDotenv = readFileSync(path.join(cli.getProjectDir(), ".env.local"), "utf8");
     expect(pulledDotenv).toContain('EXPO_PUBLIC_API_URL="https://preview.example.com"');
     expect(pulledDotenv).toContain('FEATURE_FLAG="true"');
 
-    const exportResult = cli.runCliWithEnv(credsEnv, "env", "export", "--environment", "preview");
+    const exportResult = cli.runCli("env", "export", "--environment", "preview");
     expect(exportResult.exitCode).toBe(0);
     expect(exportResult.stdout).toContain("EXPO_PUBLIC_API_URL='https://preview.example.com'");
 
     // set then change the value → two revisions.
-    const createResult = cli.runCliWithEnv(
-      credsEnv,
+    const createResult = cli.runCli(
       "env",
       "set",
       "APP_PUBLIC_URL=https://app.example.com",
@@ -377,8 +357,7 @@ describe("cLI command journey", () => {
     expect(createResult.stdout).toContain("Set APP_PUBLIC_URL");
     expect(createResult.stdout).toContain("1 created");
 
-    const updateResult = cli.runCliWithEnv(
-      credsEnv,
+    const updateResult = cli.runCli(
       "env",
       "set",
       "APP_PUBLIC_URL=https://app-v2.example.com",
@@ -388,20 +367,12 @@ describe("cLI command journey", () => {
     expect(updateResult.exitCode).toBe(0);
     expect(updateResult.stdout).toContain("1 updated");
 
-    const getResult = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "get",
-      "APP_PUBLIC_URL",
-      "--environment",
-      "production",
-    );
+    const getResult = cli.runCli("env", "get", "APP_PUBLIC_URL", "--environment", "production");
     expect(getResult.exitCode).toBe(0);
     expect(getResult.stdout).toContain("https://app-v2.example.com");
 
     // history lists the revisions; roll back to the first and confirm via get.
-    const historyResult = cli.runCliWithEnv(
-      credsEnv,
+    const historyResult = cli.runCli(
       "env",
       "history",
       "APP_PUBLIC_URL",
@@ -411,8 +382,7 @@ describe("cLI command journey", () => {
     expect(historyResult.exitCode).toBe(0);
     expect(historyResult.stdout).toContain("current");
 
-    const rollbackResult = cli.runCliWithEnv(
-      credsEnv,
+    const rollbackResult = cli.runCli(
       "env",
       "rollback",
       "APP_PUBLIC_URL",
@@ -424,14 +394,7 @@ describe("cLI command journey", () => {
     expect(rollbackResult.exitCode).toBe(0);
     expect(rollbackResult.stdout).toContain("Rolled back APP_PUBLIC_URL");
 
-    const afterRollback = cli.runCliWithEnv(
-      credsEnv,
-      "env",
-      "get",
-      "APP_PUBLIC_URL",
-      "--environment",
-      "production",
-    );
+    const afterRollback = cli.runCli("env", "get", "APP_PUBLIC_URL", "--environment", "production");
     expect(afterRollback.stdout).toContain("https://app.example.com");
 
     // list shows metadata only — never the decrypted value (read-only/no vault).
@@ -576,8 +539,7 @@ describe("cLI command journey", () => {
       generateSelfSignedP12(p12Password, "/OU=CLIE2ETEAM/CN=Apple Distribution: CLI E2E"),
     );
 
-    const uploadResult = cli.runCliWithEnv(
-      credsEnv,
+    const uploadResult = cli.runCli(
       "credentials",
       "upload",
       "--platform",
@@ -606,8 +568,7 @@ describe("cLI command journey", () => {
     expect(listAfterUpload.stdout).toContain("ios");
 
     const downloadDir = path.join(cli.getProjectDir(), "downloaded-cert.p12");
-    const downloadResult = cli.runCliWithEnv(
-      credsEnv,
+    const downloadResult = cli.runCli(
       "credentials",
       "download",
       uploadedCredentialId!,
@@ -703,7 +664,7 @@ describe("cLI command journey", () => {
     );
 
     const targetName = `preview-${Date.now()}`;
-    seedDestinationChannel(targetName);
+    await seedDestinationChannel(targetName);
 
     const promotableUpdate = await createPromotableUpdate();
 
@@ -745,7 +706,7 @@ describe("cLI command journey", () => {
 
   it("promotes a signed update from the CLI using replacement signed files", async () => {
     const targetName = `signed-preview-${Date.now()}`;
-    seedDestinationChannel(targetName);
+    await seedDestinationChannel(targetName);
 
     // Both signed manifests must carry a commitTime newer than the updates
     // already published on branch "main" earlier in this journey, or the
