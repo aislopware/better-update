@@ -1,6 +1,6 @@
 {
   "name": "@better-update/api",
-  "version": "0.45.2",
+  "version": "0.45.3",
   "private": true,
   "type": "module",
   "exports": {

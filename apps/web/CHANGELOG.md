@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.69.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.69.0...%40better-update%2Fweb%400.69.1) (2026-07-29)
+
+### Bug Fixes
+
+* **ui:** hold the dialog backdrop at zero opacity until it unmounts ([673d47f](https://github.com/better-update/better-update/commit/673d47f7351cd0ed7e4bbfa9b07c3b85ae489514))
+
 ## [0.69.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.68.0...%40better-update%2Fweb%400.69.0) (2026-07-27)
 
 ### Features
