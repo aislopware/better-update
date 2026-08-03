@@ -129,6 +129,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
             appleTeamId: urlParams.appleTeamId,
             appleTeamIdIn: readableTeams === "all" ? undefined : readableTeams,
             query: urlParams.query,
+            synced: urlParams.synced === undefined ? undefined : urlParams.synced === "true",
           });
 
           return { items: items.map(toApiDevice), total, page, limit };

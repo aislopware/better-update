@@ -48,6 +48,8 @@ export interface DeviceRepository {
      */
     readonly appleTeamIdIn?: readonly string[] | undefined;
     readonly query?: string | undefined;
+    /** Apple-portal sync state: true = has a portal id, false = not registered yet. */
+    readonly synced?: boolean | undefined;
   }) => Effect.Effect<{ readonly items: readonly DeviceModel[]; readonly total: number }>;
 
   readonly findAllByOrg: (params: {
@@ -154,6 +156,20 @@ const teamScopeExpression = (
   return eb("devices.apple_team_id", "in", [...appleTeamIdIn]);
 };
 
+// "Synced" = registered on the Apple Developer Portal (portal id set), the
+// same source of truth the dashboard's Apple-sync column reads.
+const syncStateExpression = (
+  eb: ExpressionBuilder<DB, "devices">,
+  synced: boolean | undefined,
+): Expression<SqlBool> | null => {
+  if (synced === undefined) {
+    return null;
+  }
+  return synced
+    ? eb("devices.apple_device_portal_id", "is not", null)
+    : eb("devices.apple_device_portal_id", "is", null);
+};
+
 // Combine the always-present org scope with the optional class / team / search
 // predicates. SECURITY: only the search *value* is user-controlled; it is
 // parameterized by `sql`/the query builder, never concatenated.
@@ -164,6 +180,7 @@ const deviceFilter =
     readonly appleTeamId: readonly string[] | undefined;
     readonly appleTeamIdIn: readonly string[] | undefined;
     readonly query: string | undefined;
+    readonly synced: boolean | undefined;
   }) =>
   (eb: ExpressionBuilder<DB, "devices">): Expression<SqlBool> => {
     const conditions = [
@@ -176,6 +193,7 @@ const deviceFilter =
         : eb("devices.apple_team_id", "in", [...filters.appleTeamId]),
       teamScopeExpression(eb, filters.appleTeamIdIn),
       searchExpression(eb, filters.query),
+      syncStateExpression(eb, filters.synced),
     ].filter((condition): condition is Expression<SqlBool> => condition !== null);
     return eb.and(conditions);
   };
@@ -238,6 +256,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
         appleTeamId: params.appleTeamId,
         appleTeamIdIn: params.appleTeamIdIn,
         query: params.query,
+        synced: params.synced,
       });
 
       const countRow = yield* Effect.promise(async () =>
@@ -280,6 +299,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
               appleTeamId: params.appleTeamId === undefined ? undefined : [params.appleTeamId],
               appleTeamIdIn: undefined,
               query: undefined,
+              synced: undefined,
             }),
           )
           .orderBy("devices.created_at", "desc")

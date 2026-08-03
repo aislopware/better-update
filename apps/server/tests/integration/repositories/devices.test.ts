@@ -42,6 +42,7 @@ const insertDevice = (device: {
   name: string;
   deviceClass: string;
   createdAt: string;
+  portalId?: string;
 }) =>
   env.DB.prepare(
     `INSERT INTO "devices" ("id", "organization_id", "apple_team_id", "identifier", "name", "model", "device_class", "enabled", "apple_device_portal_id", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -55,7 +56,7 @@ const insertDevice = (device: {
       null,
       device.deviceClass,
       1,
-      null,
+      device.portalId ?? null,
       device.createdAt,
       device.createdAt,
     )
@@ -89,6 +90,7 @@ beforeAll(async () => {
     name: "Carol Mac",
     deviceClass: "MAC",
     createdAt: "2026-02-01T00:00:00Z",
+    portalId: "PORTAL-MAC-01",
   });
   await insertDevice({
     id: "dev-other",
@@ -150,6 +152,34 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
     );
     expect(short.total).toBe(1);
     expect(short.items.map((device) => device.id)).toEqual(["dev-mac"]);
+  });
+
+  it("filters by Apple-portal sync state (portal id presence)", async () => {
+    const unsynced = await call((repo) =>
+      repo.findByOrg({
+        organizationId: "io-org",
+        sort: "createdAt",
+        order: "desc",
+        limit: 10,
+        offset: 0,
+        synced: false,
+      }),
+    );
+    expect(unsynced.total).toBe(2);
+    expect(unsynced.items.map((device) => device.id)).toEqual(["dev-iphone", "dev-ipad"]);
+
+    const synced = await call((repo) =>
+      repo.findByOrg({
+        organizationId: "io-org",
+        sort: "createdAt",
+        order: "desc",
+        limit: 10,
+        offset: 0,
+        synced: true,
+      }),
+    );
+    expect(synced.total).toBe(1);
+    expect(synced.items.map((device) => device.id)).toEqual(["dev-mac"]);
   });
 
   it("finds a device by COALESCE'd identifier match and rejects a team mismatch", async () => {

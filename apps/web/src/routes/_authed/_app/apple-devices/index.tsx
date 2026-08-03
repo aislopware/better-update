@@ -1,4 +1,5 @@
 import { appleTeamsQueryOptions, devicesQueryOptions } from "@better-update/api-client/react";
+import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -11,7 +12,7 @@ import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-qu
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { SmartphoneIcon } from "lucide-react";
+import { SmartphoneIcon, TriangleAlertIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -57,12 +58,17 @@ const DEFAULT_SORT = "-createdAt" as const;
 
 const DEVICE_CLASSES = ["IPHONE", "IPAD", "MAC", "UNKNOWN"] as const;
 
+const SYNC_STATES = ["synced", "unsynced"] as const;
+
+type SyncStateValue = (typeof SYNC_STATES)[number];
+
 const devicesSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
   query: queryParam(),
   deviceClass: enumArrayParam(DEVICE_CLASSES),
   appleTeamId: freeStringArrayParam(),
+  synced: enumArrayParam(SYNC_STATES),
 });
 
 // Faceted-filter options — an empty selection means "all classes" (deviceClass
@@ -74,8 +80,18 @@ const CLASS_FILTER_OPTIONS = [
   { value: "UNKNOWN", label: "Unknown" },
 ] as const;
 
+// Both selected = both states = no filter, so there is no "ALL" pseudo-option
+// here either; a single selection maps onto the API's boolean `synced` param.
+const SYNC_FILTER_OPTIONS = [
+  { value: "synced", label: "Synced" },
+  { value: "unsynced", label: "Not synced" },
+] as const;
+
 const isDeviceClass = (value: unknown): value is DeviceClassValue =>
   (DEVICE_CLASSES as readonly unknown[]).includes(value);
+
+const isSyncState = (value: unknown): value is SyncStateValue =>
+  (SYNC_STATES as readonly unknown[]).includes(value);
 
 // Low-value columns opted into hiding via DataTableViewOptions. Applied here
 // (not in -devices-columns) so the shared column defs stay presentation-neutral.
@@ -104,16 +120,45 @@ const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode 
 
 const DevicesSkeleton = () => (
   <div className="flex flex-col gap-3">
-    <FilterBarSkeleton hasSearch selectCount={3} />
+    <FilterBarSkeleton hasSearch selectCount={4} />
     <TableSkeleton columns={8} rows={5} />
   </div>
 );
+
+// Standing warning above the table when any visible device is missing its
+// Apple portal registration: such devices are absent from ad-hoc provisioning
+// profiles until a `devices sync` runs. Counted with a one-row probe query
+// (only `total` matters) so the warning is independent of the table's current
+// filters and pagination; team visibility scoping still applies server-side.
+const UnsyncedDevicesBanner = ({ orgId }: { orgId: string }) => {
+  const { data } = useQuery(devicesQueryOptions(orgId, { limit: 1, synced: false }));
+  const count = data?.total ?? 0;
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <Alert variant="warning">
+      <TriangleAlertIcon />
+      <AlertTitle>
+        {count} {pluralize(count, "device")} not synced with Apple
+      </AlertTitle>
+      <AlertDescription>
+        Devices without an Apple Developer portal registration are left out of ad-hoc provisioning
+        profiles. Run{" "}
+        <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">
+          better-update devices sync
+        </code>{" "}
+        to register them.
+      </AlertDescription>
+    </Alert>
+  );
+};
 
 const DevicesContent = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const routeNavigate = Route.useNavigate();
-  const { page, sort, query: urlQuery, deviceClass, appleTeamId } = Route.useSearch();
+  const { page, sort, query: urlQuery, deviceClass, appleTeamId, synced } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
@@ -141,6 +186,7 @@ const DevicesContent = () => {
     readonly query?: string;
     readonly deviceClass?: DeviceClassValue[];
     readonly appleTeamId?: string[];
+    readonly synced?: SyncStateValue[];
   }): void => {
     fireAndForget(
       routeNavigate({
@@ -157,12 +203,17 @@ const DevicesContent = () => {
     [teams.items],
   );
 
+  // Selecting both sync states filters nothing, so only a single selection
+  // narrows the list (the API param is a boolean).
+  const syncedFilter = synced.length === 1 ? synced[0] === "synced" : undefined;
+
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...devicesQueryOptions(orgId, {
       page,
       limit: PAGE_SIZE,
       ...(deviceClass.length > 0 ? { deviceClass } : {}),
       ...(appleTeamId.length > 0 ? { appleTeamId } : {}),
+      ...(syncedFilter === undefined ? {} : { synced: syncedFilter }),
       ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
@@ -193,7 +244,8 @@ const DevicesContent = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const filtersActive = deviceClass.length > 0 || appleTeamId.length > 0 || urlQuery.length > 0;
+  const filtersActive =
+    deviceClass.length > 0 || appleTeamId.length > 0 || synced.length > 0 || urlQuery.length > 0;
 
   if (isLoading || data === undefined) {
     if (error) {
@@ -222,6 +274,7 @@ const DevicesContent = () => {
 
   return (
     <div className="flex flex-col gap-3">
+      <UnsyncedDevicesBanner orgId={orgId} />
       <DataTableToolbar
         search={{
           value: searchDraft,
@@ -231,7 +284,7 @@ const DevicesContent = () => {
         isFiltered={filtersActive}
         onReset={() => {
           handleSearchChange("");
-          applyFilters({ query: "", deviceClass: [], appleTeamId: [] });
+          applyFilters({ query: "", deviceClass: [], appleTeamId: [], synced: [] });
         }}
         actions={<DataTableViewOptions table={table} />}
       >
@@ -249,6 +302,14 @@ const DevicesContent = () => {
           selected={appleTeamId}
           onChange={(next) => {
             applyFilters({ appleTeamId: [...next] });
+          }}
+        />
+        <DataTableFacetedFilter
+          title="Apple sync"
+          options={SYNC_FILTER_OPTIONS}
+          selected={synced}
+          onChange={(next) => {
+            applyFilters({ synced: next.filter(isSyncState) });
           }}
         />
       </DataTableToolbar>

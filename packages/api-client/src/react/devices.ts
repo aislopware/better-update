@@ -25,7 +25,17 @@ export interface DevicesFilters {
   readonly limit?: number;
   readonly query?: string;
   readonly sort?: DeviceSort;
+  /** Apple-portal sync state: true = synced, false = not registered on the portal yet. */
+  readonly synced?: boolean;
 }
+
+// The wire param is a string literal ("true" | "false"), the filter a boolean.
+const toBooleanParam = (value: boolean | undefined): "true" | "false" | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  return value ? "true" : "false";
+};
 
 export const devicesQueryOptions = (orgId: string, filters?: DevicesFilters) =>
   queryOptions({
@@ -41,6 +51,7 @@ export const devicesQueryOptions = (orgId: string, filters?: DevicesFilters) =>
               limit: filters?.limit,
               query: filters?.query,
               sort: filters?.sort,
+              synced: toBooleanParam(filters?.synced),
             }),
           }),
         signal,

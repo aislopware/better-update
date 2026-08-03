@@ -106,6 +106,11 @@ export const ListDevicesParams = Schema.Struct({
   appleTeamId: Schema.optional(csvList(Id)),
   query: Schema.optional(Schema.String),
   sort: Schema.optional(DeviceSort),
+  /**
+   * Apple-portal sync state: "true" = registered on the Apple Developer
+   * Portal (`appleDevicePortalId` set), "false" = not registered yet.
+   */
+  synced: Schema.optional(Schema.Literal("true", "false")),
 });
 
 export class DeviceRegistrationRequest extends Schema.Class<DeviceRegistrationRequest>(
