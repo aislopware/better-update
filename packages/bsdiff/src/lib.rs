@@ -58,7 +58,7 @@ pub fn diff_sync(old_path: String, new_path: String, out_path: String) -> Result
 /// Convenience for callers that already hold the bundles in memory or want to
 /// avoid temp files; the on-disk `diffSync` is the primary publish-time entry.
 #[napi]
-pub fn diff_buffer(old: Buffer, new: Buffer) -> Result<Buffer> {
-  let patch = diff_bytes(old.as_ref(), new.as_ref())?;
+pub fn diff_buffer(old_data: Buffer, new_data: Buffer) -> Result<Buffer> {
+  let patch = diff_bytes(old_data.as_ref(), new_data.as_ref())?;
   Ok(patch.into())
 }
