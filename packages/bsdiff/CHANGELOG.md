@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.25](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fbsdiff%400.2.24...%40better-update%2Fbsdiff%400.2.25) (2026-08-03)
+
+### Bug Fixes
+
+* **bsdiff:** rename diffBuffer params to avoid a TS reserved word ([f2b8554](https://gitlab.jmango360.com/mobile/better-update/commit/f2b8554342f71522cf68e67ae4b7415ef47611fc))
+
 ## [0.2.24](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fbsdiff%400.2.23...%40better-update%2Fbsdiff%400.2.24) (2026-07-29)
 
 **Note:** Version bump only for package @better-update/bsdiff

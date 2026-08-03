@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.45.3...%40better-update%2Fapi%400.46.0) (2026-08-03)
+
+### Features
+
+* **devices:** surface Apple-portal sync state as a banner and filter ([1cfb215](https://gitlab.jmango360.com/mobile/better-update/commit/1cfb2154da569ccaaf6b7fe41f8855435e0c7a84))
+* **members:** carry an org-wide all-projects grant on invitations ([f21cf66](https://gitlab.jmango360.com/mobile/better-update/commit/f21cf66b503b1a2306c8f7ede308771611352947))
+
 ## [0.45.3](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.45.2...%40better-update%2Fapi%400.45.3) (2026-07-29)
 
 **Note:** Version bump only for package @better-update/api

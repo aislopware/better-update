@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.34.3...%40better-update%2Fapi-client%400.35.0) (2026-08-03)
+
+### Features
+
+* **devices:** surface Apple-portal sync state as a banner and filter ([1cfb215](https://gitlab.jmango360.com/mobile/better-update/commit/1cfb2154da569ccaaf6b7fe41f8855435e0c7a84))
+
 ## [0.34.3](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.34.2...%40better-update%2Fapi-client%400.34.3) (2026-07-29)
 
 **Note:** Version bump only for package @better-update/api-client
