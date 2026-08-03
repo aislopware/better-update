@@ -113,7 +113,9 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    REQUIRE_CLI_VERSION_ABOVE: "0.69.1",
+    // 0.71.2 and older capture the wrong Android proguard-mapping file
+    // (resources.txt instead of mapping.txt) — retire them all.
+    REQUIRE_CLI_VERSION_ABOVE: "0.71.2",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
