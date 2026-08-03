@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.3](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.2...%40better-update%2Fcli%400.71.3) (2026-08-03)
+
+### Bug Fixes
+
+* **cli:** capture the Android proguard mapping by exact file name ([3d66db5](https://github.com/better-update/better-update/commit/3d66db554a3c1979afdc72043cd24589dff6f695))
+
 ## [0.71.2](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.1...%40better-update%2Fcli%400.71.2) (2026-08-03)
 
 **Note:** Version bump only for package @better-update/cli
