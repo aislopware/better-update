@@ -2,7 +2,7 @@ import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Option } from "effect";
 
-import { findAndroidArtifact, findIosArtifact } from "./artifact-finder";
+import { findAndroidArtifact, findIosArtifact, findNewestFileUnder } from "./artifact-finder";
 import { ArtifactNotFoundError } from "./exit-codes";
 import { failureError } from "./test-utils";
 
@@ -107,6 +107,56 @@ describe(findIosArtifact, () => {
       });
       const result = yield* findIosArtifact({ exportPath: "/export" }).pipe(Effect.provide(fs));
       expect(result).toBe("/export/nested/inner.ipa");
+    }),
+  );
+});
+
+// ── findNewestFileUnder tests ─────────────────────────────────────
+
+describe(findNewestFileUnder, () => {
+  it.effect("with a fileName matcher, ignores newer same-extension siblings", () =>
+    Effect.gen(function* () {
+      const fs = makeFakeFs({
+        "/mapping": { type: "Directory" },
+        "/mapping/release": { type: "Directory" },
+        "/mapping/release/mapping.txt": { type: "File", mtimeMs: 100 },
+        "/mapping/release/resources.txt": { type: "File", mtimeMs: 900 },
+        "/mapping/release/foo-mapping.txt": { type: "File", mtimeMs: 950 },
+      });
+      const result = yield* findNewestFileUnder({
+        root: "/mapping",
+        matcher: { fileName: "mapping.txt" },
+      }).pipe(Effect.provide(fs));
+      expect(result).toBe("/mapping/release/mapping.txt");
+    }),
+  );
+
+  it.effect("with an extension matcher, returns the newest match", () =>
+    Effect.gen(function* () {
+      const fs = makeFakeFs({
+        "/maps": { type: "Directory" },
+        "/maps/old.map": { type: "File", mtimeMs: 100 },
+        "/maps/new.map": { type: "File", mtimeMs: 900 },
+      });
+      const result = yield* findNewestFileUnder({
+        root: "/maps",
+        matcher: { extension: ".map" },
+      }).pipe(Effect.provide(fs));
+      expect(result).toBe("/maps/new.map");
+    }),
+  );
+
+  it.effect("returns null when nothing matches", () =>
+    Effect.gen(function* () {
+      const fs = makeFakeFs({
+        "/mapping": { type: "Directory" },
+        "/mapping/resources.txt": { type: "File", mtimeMs: 900 },
+      });
+      const result = yield* findNewestFileUnder({
+        root: "/mapping",
+        matcher: { fileName: "mapping.txt" },
+      }).pipe(Effect.provide(fs));
+      expect(result).toBeNull();
     }),
   );
 });

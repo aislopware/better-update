@@ -33,9 +33,22 @@ interface FoundFile {
   readonly mtimeMs: number;
 }
 
+/**
+ * Case-insensitive filename filter: match by trailing extension, or by the
+ * exact file name for outputs whose directory holds same-extension siblings
+ * (e.g. R8 writes mapping/seeds/usage/configuration/resources `.txt` files
+ * side by side — only `mapping.txt` is the symbolication artifact).
+ */
+export type FileNameMatcher = { readonly extension: string } | { readonly fileName: string };
+
+const toPredicate = (matcher: FileNameMatcher): ((entryLowerCase: string) => boolean) =>
+  "fileName" in matcher
+    ? (entryLowerCase) => entryLowerCase === matcher.fileName.toLowerCase()
+    : (entryLowerCase) => entryLowerCase.endsWith(matcher.extension.toLowerCase());
+
 const walkAndFind = (
   root: string,
-  extension: string,
+  matches: (entryLowerCase: string) => boolean,
 ): Effect.Effect<readonly FoundFile[], PlatformError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -50,9 +63,9 @@ const walkAndFind = (
       if (Option.isSome(stat)) {
         const info = stat.value;
         if (info.type === "Directory") {
-          const nested = yield* walkAndFind(fullPath, extension);
+          const nested = yield* walkAndFind(fullPath, matches);
           results.push(...nested);
-        } else if (info.type === "File" && entry.toLowerCase().endsWith(extension)) {
+        } else if (info.type === "File" && matches(entry.toLowerCase())) {
           results.push({
             path: fullPath,
             mtimeMs: Option.match(info.mtime, {
@@ -80,7 +93,7 @@ export const findIosArtifact = ({
   FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
-    const files = yield* walkAndFind(exportPath, ".ipa");
+    const files = yield* walkAndFind(exportPath, toPredicate({ extension: ".ipa" }));
     const picked = newest(files);
     if (!picked) {
       return yield* new ArtifactNotFoundError({
@@ -91,18 +104,18 @@ export const findIosArtifact = ({
   });
 
 /**
- * Optional variant of the finders above: newest file with `extension` under
+ * Optional variant of the finders above: newest file matching `matcher` under
  * `root`, or `null` when nothing (recent enough) is there. Used for
  * best-effort debug-artifact capture, where a missing output is normal
  * (e.g. no ProGuard mapping when minification is off).
  */
 export const findNewestFileUnder = (params: {
   readonly root: string;
-  readonly extension: string;
+  readonly matcher: FileNameMatcher;
   readonly minMtimeMs?: number;
 }): Effect.Effect<string | null, PlatformError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
-    const files = yield* walkAndFind(params.root, params.extension);
+    const files = yield* walkAndFind(params.root, toPredicate(params.matcher));
     const picked = newest(files, params.minMtimeMs);
     return picked ? picked.path : null;
   });
@@ -153,7 +166,7 @@ export const findArtifactByGlob = ({
       : "";
     const searchRoot = prefixDir === "" ? baseDir : path.join(baseDir, prefixDir);
 
-    const files = yield* walkAndFind(searchRoot, extension);
+    const files = yield* walkAndFind(searchRoot, toPredicate({ extension }));
     const picked = newest(files, minMtimeMs);
     if (!picked) {
       return yield* new ArtifactNotFoundError({
@@ -181,13 +194,13 @@ export const findAndroidArtifact = ({
     const variantDir = flavor ? `${flavor}${capitalize(buildType)}` : buildType;
     const expectedDir = path.join(outputsRoot, subdir, variantDir);
 
-    const direct = yield* walkAndFind(expectedDir, `.${format}`);
+    const direct = yield* walkAndFind(expectedDir, toPredicate({ extension: `.${format}` }));
     const pickedDirect = newest(direct, minMtimeMs);
     if (pickedDirect) {
       return pickedDirect.path;
     }
 
-    const fallback = yield* walkAndFind(outputsRoot, `.${format}`);
+    const fallback = yield* walkAndFind(outputsRoot, toPredicate({ extension: `.${format}` }));
     const pickedFallback = newest(fallback, minMtimeMs);
     if (!pickedFallback) {
       return yield* new ArtifactNotFoundError({

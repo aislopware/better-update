@@ -34,17 +34,19 @@ export const collectAndroidDebugArtifacts = (params: {
       {
         type: "proguard-mapping",
         root: path.join(buildDir, "outputs", "mapping"),
-        extension: ".txt",
+        // R8 writes resources/seeds/usage/configuration `.txt` reports next to
+        // mapping.txt — an extension match would grab whichever was written last.
+        matcher: { fileName: "mapping.txt" },
       },
       {
         type: "js-sourcemap",
         root: path.join(buildDir, "generated", "sourcemaps", "react"),
-        extension: ".map",
+        matcher: { extension: ".map" },
       },
       {
         type: "native-symbols",
         root: path.join(buildDir, "outputs", "native-debug-symbols"),
-        extension: ".zip",
+        matcher: { extension: ".zip" },
       },
     ] as const;
 
@@ -52,7 +54,7 @@ export const collectAndroidDebugArtifacts = (params: {
     const found = yield* Effect.forEach(candidates, (candidate) =>
       findNewestFileUnder({
         root: candidate.root,
-        extension: candidate.extension,
+        matcher: candidate.matcher,
         minMtimeMs: params.minMtimeMs,
       }).pipe(
         Effect.map((filePath): CapturedDebugArtifact | null =>

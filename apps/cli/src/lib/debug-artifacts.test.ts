@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
@@ -38,6 +38,30 @@ describe(collectAndroidDebugArtifacts, () => {
         "native-symbols",
         "proguard-mapping",
       ]);
+    }),
+  );
+
+  it.effect("captures mapping.txt even when sibling R8 reports are newer", () =>
+    Effect.gen(function* () {
+      const mappingRelease = "android/app/build/outputs/mapping/release";
+      const tree = withAndroidTree([
+        `${mappingRelease}/configuration.txt`,
+        `${mappingRelease}/mapping.txt`,
+        `${mappingRelease}/resources.txt`,
+        `${mappingRelease}/seeds.txt`,
+        `${mappingRelease}/usage.txt`,
+      ]);
+      const mappingPath = nodePath.join(tree.root, mappingRelease, "mapping.txt");
+      const olderThanSiblings = new Date(Date.now() - 60_000);
+      utimesSync(mappingPath, olderThanSiblings, olderThanSiblings);
+
+      const artifacts = yield* collectAndroidDebugArtifacts({
+        projectRoot: tree.root,
+        module: "app",
+        minMtimeMs: 0,
+      }).pipe(Effect.provide(NodeFileSystem.layer), Effect.ensuring(Effect.sync(tree.dispose)));
+
+      expect(artifacts).toStrictEqual([{ type: "proguard-mapping", path: mappingPath }]);
     }),
   );
 
