@@ -32,7 +32,7 @@
     "apps/cli": {
       "entry": ["tests/interactive/harness/**/*.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": ["wrangler", "expo"],
+      "ignoreDependencies": ["expo"],
       "ignoreBinaries": ["openssl", "keytool"]
     },
     "packages/api": {
