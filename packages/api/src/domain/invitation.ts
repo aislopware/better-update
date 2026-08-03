@@ -52,6 +52,14 @@ export const CreateInvitationBody = Schema.Struct({
    * may grant roles up to maintainer on THEIR projects only.
    */
   projects: Schema.optional(Schema.Array(InvitationProjectGrant).pipe(Schema.maxItems(100))),
+  /**
+   * Org-wide ("all projects") membership granted when the invitation is
+   * accepted — every project, present and future, materialized as an
+   * `org_project_member` row (the invitation analog of the members
+   * set-all-projects endpoint). Org administration, so the inviter must hold
+   * `member:update` (org admin/owner) — a project maintainer cannot grant it.
+   */
+  allProjectsRole: Schema.optional(ProjectRoleLiteral),
 });
 
 export const InvitationList = Schema.Struct({ items: Schema.Array(Invitation) });

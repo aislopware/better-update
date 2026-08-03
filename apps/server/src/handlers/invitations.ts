@@ -1,4 +1,5 @@
 import { Invitation } from "@better-update/api";
+import { compact, toDbNull, toOptional } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -18,6 +19,7 @@ import { InvitationProjectGrantRepo } from "../repositories/invitation-project-g
 import { InvitationRepo } from "../repositories/invitations";
 import { ProjectRepo } from "../repositories/projects";
 
+import type { ProjectRole } from "../models";
 import type { InvitationProjectGrantModel } from "../repositories/invitation-project-grants";
 import type { InvitationModel } from "../repositories/invitations";
 
@@ -63,6 +65,49 @@ const validateProjectGrants = (grants: readonly InvitationProjectGrantModel[]) =
         }),
       ),
     );
+  });
+
+// Persist the grants an invitation carries (per-project + org-wide) plus one
+// audit row covering both kinds. No-op when the invitation grants nothing.
+const writeInvitationGrants = (params: {
+  readonly invitationId: string;
+  readonly email: string;
+  readonly grants: readonly InvitationProjectGrantModel[];
+  readonly allProjectsRole: ProjectRole | null;
+}) =>
+  Effect.gen(function* () {
+    if (params.grants.length === 0 && params.allProjectsRole === null) {
+      return;
+    }
+    const ctx = yield* CurrentActor;
+    const grantRepo = yield* InvitationProjectGrantRepo;
+    const grantedAt = new Date().toISOString();
+    if (params.grants.length > 0) {
+      yield* grantRepo.setForInvitation({
+        invitationId: params.invitationId,
+        organizationId: ctx.organizationId,
+        grants: params.grants,
+        createdAt: grantedAt,
+      });
+    }
+    if (params.allProjectsRole !== null) {
+      yield* grantRepo.setAllProjectsForInvitation({
+        invitationId: params.invitationId,
+        organizationId: ctx.organizationId,
+        role: params.allProjectsRole,
+        createdAt: grantedAt,
+      });
+    }
+    yield* logAudit({
+      action: "invitation.grants_set",
+      resourceType: "invitation",
+      resourceId: params.invitationId,
+      metadata: compact({
+        email: params.email,
+        projects: params.grants.length > 0 ? params.grants : undefined,
+        allProjectsRole: toOptional(params.allProjectsRole),
+      }),
+    });
   });
 
 // Build + send the invite email, reusing auth.ts's template + EmailService.
@@ -160,6 +205,14 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
           ];
           yield* validateProjectGrants(grants);
 
+          // An org-wide ("all projects") grant spans projects the inviter may
+          // not maintain — including future ones — so it is org administration:
+          // same member:update gate as the members set-all-projects endpoint.
+          const allProjectsRole = toDbNull(payload.allProjectsRole);
+          if (allProjectsRole !== null) {
+            yield* assertAccess("member", "update");
+          }
+
           const metaRepo = yield* AuthMetaRepo;
           const repo = yield* InvitationRepo;
 
@@ -170,21 +223,12 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
             inviterUserId: ctx.userId,
           });
 
-          if (grants.length > 0) {
-            const grantRepo = yield* InvitationProjectGrantRepo;
-            yield* grantRepo.setForInvitation({
-              invitationId: created.id,
-              organizationId: ctx.organizationId,
-              grants,
-              createdAt: new Date().toISOString(),
-            });
-            yield* logAudit({
-              action: "invitation.grants_set",
-              resourceType: "invitation",
-              resourceId: created.id,
-              metadata: { email: created.email, projects: grants },
-            });
-          }
+          yield* writeInvitationGrants({
+            invitationId: created.id,
+            email: created.email,
+            grants,
+            allProjectsRole,
+          });
 
           const inviter = yield* metaRepo.findUserById(ctx.userId);
           const organization = yield* metaRepo.findOrganizationById(ctx.organizationId);

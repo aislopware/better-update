@@ -1,4 +1,4 @@
-import { createInvitation, projectsQueryOptions } from "@better-update/api-client/react";
+import { createInvitation } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -12,32 +12,27 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon, Trash2Icon, UserPlusIcon } from "lucide-react";
+import { UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
 
-import {
-  ServerSearchCombobox,
-  useServerSearchList,
-} from "../../../components/server-search-combobox";
 import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
-import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 import { invitationsQueryOptions } from "../../../queries/org";
+import { ProjectGrantsSection, SelectField } from "./-invite-project-access";
+
+import type { ProjectGrantDraft } from "./-invite-project-access";
+
+// The project-access building blocks live in -invite-project-access.tsx;
+// existing importers keep reaching them through this module.
+export { PROJECT_ROLE_LABELS } from "./-invite-project-access";
+export type { ProjectGrantDraft } from "./-invite-project-access";
 
 const emailSchema = z.string().check(z.email("Please enter a valid email"));
 
@@ -45,210 +40,38 @@ export type InviteOrgRole = "member" | "admin";
 
 const ORG_ROLE_LABELS: Record<InviteOrgRole, string> = { member: "Member", admin: "Admin" };
 
-export const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
-  maintainer: "Maintainer",
-  developer: "Developer",
-  reporter: "Reporter",
-};
-
-const isProjectRole = (value: string): value is ProjectMemberRoleValue =>
-  value in PROJECT_ROLE_LABELS;
-
 const isInviteOrgRole = (value: string): value is InviteOrgRole =>
   value === "member" || value === "admin";
 
-/** One draft (project, role) grant row in the invite form. */
-export interface ProjectGrantDraft {
-  key: number;
-  projectId: string | null;
-  role: ProjectMemberRoleValue;
-}
-
 // Pure payload builder (unit-tested): drops rows where no project was picked
-// and omits `projects` entirely when no grant survives, so the API sees the
-// same body the CLI would send.
+// and omits `projects` / `allProjectsRole` entirely when nothing was granted,
+// so the API sees the same body the CLI would send.
 export const buildInvitationPayload = (
   email: string,
   role: InviteOrgRole,
   grants: readonly ProjectGrantDraft[],
+  allProjectsRole: ProjectMemberRoleValue | null = null,
 ): Parameters<typeof createInvitation>[0] => {
   const projects = grants.flatMap((grant) =>
     grant.projectId ? [{ projectId: grant.projectId, role: grant.role }] : [],
   );
-  return projects.length === 0 ? { email, role } : { email, role, projects };
+  return {
+    email,
+    role,
+    ...(projects.length === 0 ? {} : { projects }),
+    ...(allProjectsRole === null ? {} : { allProjectsRole }),
+  };
 };
-
-const SelectField = ({
-  label,
-  ariaLabel,
-  value,
-  items,
-  placeholder,
-  className,
-  onChange,
-}: {
-  label?: string;
-  ariaLabel?: string;
-  value: string | null;
-  items: Record<string, string>;
-  placeholder?: string;
-  className?: string;
-  onChange: (next: string) => void;
-}) => (
-  <Field className={className}>
-    {label === undefined ? null : <FieldLabel>{label}</FieldLabel>}
-    <Select
-      items={items}
-      value={value}
-      onValueChange={(next) => {
-        if (next !== null) {
-          onChange(next);
-        }
-      }}
-    >
-      <SelectTrigger className="w-full" aria-label={ariaLabel ?? label}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {Object.entries(items).map(([itemValue, itemLabel]) => (
-            <SelectItem key={itemValue} value={itemValue}>
-              {itemLabel}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  </Field>
-);
-
-// Server-searched project picker: orgs can outgrow the dropdown fetch limit,
-// so the option list is the first page and typing searches the whole org.
-const ProjectGrantPicker = ({
-  orgId,
-  value,
-  onChange,
-}: {
-  orgId: string;
-  value: string | null;
-  onChange: (next: string) => void;
-}) => {
-  const list = useServerSearchList((query) =>
-    projectsQueryOptions(
-      orgId,
-      query ? { limit: DROPDOWN_FETCH_LIMIT, query } : { limit: DROPDOWN_FETCH_LIMIT },
-    ),
-  );
-  return (
-    <Field className="min-w-0 flex-1">
-      <ServerSearchCombobox
-        value={value === null ? "" : value}
-        onValueChange={onChange}
-        options={list.items.map((project) => ({ value: project.id, label: project.name }))}
-        search={list.search}
-        onSearchChange={list.handleSearchChange}
-        isPending={list.isPending}
-        defaultListTruncated={list.defaultListTruncated}
-        placeholder="Select a project"
-        searchPlaceholder="Search projects…"
-        emptyMessage="No projects found."
-        ariaLabel="Project"
-      />
-    </Field>
-  );
-};
-
-const ProjectGrantRow = ({
-  orgId,
-  grant,
-  onChange,
-  onRemove,
-}: {
-  orgId: string;
-  grant: ProjectGrantDraft;
-  onChange: (patch: Partial<Pick<ProjectGrantDraft, "projectId" | "role">>) => void;
-  onRemove: () => void;
-}) => (
-  <div className="flex items-start gap-2">
-    <ProjectGrantPicker
-      orgId={orgId}
-      value={grant.projectId}
-      onChange={(next) => {
-        onChange({ projectId: next });
-      }}
-    />
-    <SelectField
-      ariaLabel="Project role"
-      value={grant.role}
-      items={PROJECT_ROLE_LABELS}
-      className="w-36"
-      onChange={(next) => {
-        if (isProjectRole(next)) {
-          onChange({ role: next });
-        }
-      }}
-    />
-    <Button
-      variant="ghost"
-      size="icon"
-      className="text-muted-foreground/70 hover:text-destructive"
-      aria-label="Remove project access"
-      onClick={onRemove}
-    >
-      <Trash2Icon strokeWidth={2} className="size-4" />
-    </Button>
-  </div>
-);
-
-const ProjectGrantsSection = ({
-  orgId,
-  grants,
-  onAdd,
-  onChange,
-  onRemove,
-}: {
-  orgId: string;
-  grants: readonly ProjectGrantDraft[];
-  onAdd: () => void;
-  onChange: (key: number, patch: Partial<Pick<ProjectGrantDraft, "projectId" | "role">>) => void;
-  onRemove: (key: number) => void;
-}) => (
-  // Same panel framing as the credential-bindings All-projects toggle
-  // (-credential-bindings.tsx): rounded-md border p-3 with a title + hint stack.
-  <div className="flex flex-col gap-3 rounded-md border p-3">
-    <div className="grid gap-0.5">
-      <span className="text-sm font-medium">Project access</span>
-      <span className="text-muted-foreground text-xs">
-        Optional — grants apply when the invitation is accepted.
-      </span>
-    </div>
-    {grants.map((grant) => (
-      <ProjectGrantRow
-        key={grant.key}
-        orgId={orgId}
-        grant={grant}
-        onChange={(patch) => {
-          onChange(grant.key, patch);
-        }}
-        onRemove={() => {
-          onRemove(grant.key);
-        }}
-      />
-    ))}
-    <Button type="button" variant="outline" size="sm" className="self-start" onClick={onAdd}>
-      <PlusIcon strokeWidth={2} data-icon="inline-start" />
-      Add project
-    </Button>
-  </div>
-);
 
 const InviteFormContent = ({
   orgId,
   isOwner,
+  canGrantAllProjects,
   onSuccess,
 }: {
   orgId: string;
   isOwner: boolean;
+  canGrantAllProjects: boolean;
   onSuccess: () => void;
 }) => {
   const queryClient = useQueryClient();
@@ -258,6 +81,7 @@ const InviteFormContent = ({
   const orgRoleItems = isOwner ? ORG_ROLE_LABELS : { member: ORG_ROLE_LABELS.member };
   const [orgRole, setOrgRole] = useState<InviteOrgRole>("member");
   const [grants, setGrants] = useState<readonly ProjectGrantDraft[]>([]);
+  const [allProjectsRole, setAllProjectsRole] = useState<ProjectMemberRoleValue | null>(null);
 
   const addGrant = (): void => {
     setGrants((prev) => [
@@ -290,7 +114,9 @@ const InviteFormContent = ({
     defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
       await safeSubmit(
-        inviteMutation.mutateAsync(buildInvitationPayload(value.email, orgRole, grants)),
+        inviteMutation.mutateAsync(
+          buildInvitationPayload(value.email, orgRole, grants, allProjectsRole),
+        ),
       );
     },
   });
@@ -350,6 +176,9 @@ const InviteFormContent = ({
         <ProjectGrantsSection
           orgId={orgId}
           grants={grants}
+          allProjectsRole={allProjectsRole}
+          canGrantAllProjects={canGrantAllProjects}
+          onAllProjectsChange={setAllProjectsRole}
           onAdd={addGrant}
           onChange={changeGrant}
           onRemove={removeGrant}
@@ -381,7 +210,15 @@ const InviteFormContent = ({
   );
 };
 
-export const InviteDialog = ({ orgId, isOwner }: { orgId: string; isOwner: boolean }) => {
+export const InviteDialog = ({
+  orgId,
+  isOwner,
+  canGrantAllProjects,
+}: {
+  orgId: string;
+  isOwner: boolean;
+  canGrantAllProjects: boolean;
+}) => {
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
@@ -408,6 +245,7 @@ export const InviteDialog = ({ orgId, isOwner }: { orgId: string; isOwner: boole
           key={resetKey}
           orgId={orgId}
           isOwner={isOwner}
+          canGrantAllProjects={canGrantAllProjects}
           onSuccess={() => {
             setOpen(false);
           }}

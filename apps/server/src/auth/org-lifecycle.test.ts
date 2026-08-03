@@ -13,7 +13,10 @@ interface RecordedCall {
   readonly args: readonly unknown[];
 }
 
-const makeFakeD1 = (grantRows: readonly { project_id: string; role: string }[]) => {
+const makeFakeD1 = (
+  grantRows: readonly { project_id: string; role: string }[],
+  orgGrantRow: { role: string } | null = null,
+) => {
   const calls: RecordedCall[] = [];
   const statement = (sql: string, args: readonly unknown[]) => ({
     bind: (...bound: unknown[]) => statement(sql, bound),
@@ -24,6 +27,10 @@ const makeFakeD1 = (grantRows: readonly { project_id: string; role: string }[]) 
     all: async () => {
       calls.push({ sql, args });
       return { results: grantRows };
+    },
+    first: async () => {
+      calls.push({ sql, args });
+      return orgGrantRow;
     },
   });
   const db = {
@@ -68,6 +75,26 @@ describe(applyInvitationGrants, () => {
     expect(insert?.args).toContain("member-1");
   });
 
+  it("materializes the org-wide grant as an org_project_member row", async () => {
+    const { db, calls } = makeFakeD1([], { role: "maintainer" });
+    await applyInvitationGrants(db, {
+      invitationId: "inv-4",
+      organizationId: "org-1",
+      memberId: "member-4",
+      actorEmail: "new@example.com",
+    });
+    const sqls = calls.map((call) => call.sql);
+    expect(sqls.some((sql) => sql.includes('INSERT INTO "project_member"'))).toBe(false);
+    expect(sqls.some((sql) => sql.includes('DELETE FROM "invitation_org_project_grant"'))).toBe(
+      true,
+    );
+    const insert = calls.find((call) => call.sql.includes('INSERT INTO "org_project_member"'));
+    expect(insert?.args).toContain("member-4");
+    expect(insert?.args).toContain("maintainer");
+    const audit = calls.find((call) => call.sql.includes("'member.grants_applied'"));
+    expect(String(audit?.args.at(-1))).toContain('"allProjectsRole":"maintainer"');
+  });
+
   it("just sweeps when the invitation carried no grants", async () => {
     const { db, calls } = makeFakeD1([]);
     await applyInvitationGrants(db, {
@@ -77,17 +104,20 @@ describe(applyInvitationGrants, () => {
       actorEmail: "new@example.com",
     });
     const writes = calls.filter((call) => !call.sql.trimStart().startsWith("SELECT"));
-    expect(writes).toHaveLength(1);
+    expect(writes).toHaveLength(2);
     expect(writes[0]?.sql).toContain('DELETE FROM "invitation_project_grant"');
+    expect(writes[1]?.sql).toContain('DELETE FROM "invitation_org_project_grant"');
   });
 });
 
 describe(sweepInvitationGrants, () => {
-  it("deletes the invitation's grant rows", async () => {
+  it("deletes the invitation's grant rows in both tables", async () => {
     const { db, calls } = makeFakeD1([]);
     await sweepInvitationGrants(db, "inv-3");
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
     expect(calls[0]?.sql).toContain('DELETE FROM "invitation_project_grant"');
+    expect(calls[1]?.sql).toContain('DELETE FROM "invitation_org_project_grant"');
     expect(calls[0]?.args).toStrictEqual(["inv-3"]);
+    expect(calls[1]?.args).toStrictEqual(["inv-3"]);
   });
 });

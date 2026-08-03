@@ -100,6 +100,10 @@ export type EnvVars = WithNonNullId<
 >;
 export type GoogleServiceAccountKeys = WithNonNullId<Gen.GoogleServiceAccountKeys>;
 export type Invitation = WithNonNullId<Gen.Invitation>;
+export type InvitationOrgProjectGrant = Narrow<
+  Gen.InvitationOrgProjectGrant,
+  { role: ProjectRole }
+>;
 export type InvitationProjectGrant = WithNonNullId<
   Narrow<Gen.InvitationProjectGrant, { role: ProjectRole }>
 >;
@@ -183,6 +187,7 @@ export interface DB {
   environments: Environments;
   google_service_account_keys: GoogleServiceAccountKeys;
   invitation: Invitation;
+  invitation_org_project_grant: InvitationOrgProjectGrant;
   invitation_project_grant: InvitationProjectGrant;
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;

@@ -388,6 +388,13 @@ export interface Invitation {
   status: string;
 }
 
+export interface InvitationOrgProjectGrant {
+  created_at: Generated<string>;
+  invitation_id: string;
+  organization_id: string;
+  role: string;
+}
+
 export interface InvitationProjectGrant {
   created_at: Generated<string>;
   invitation_id: string;
@@ -726,6 +733,7 @@ export interface DB {
   environments: Environments;
   google_service_account_keys: GoogleServiceAccountKeys;
   invitation: Invitation;
+  invitation_org_project_grant: InvitationOrgProjectGrant;
   invitation_project_grant: InvitationProjectGrant;
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;

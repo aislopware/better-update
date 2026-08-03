@@ -24,6 +24,18 @@ export interface InvitationProjectGrantRepository {
     readonly createdAt: string;
   }) => Effect.Effect<void>;
 
+  /**
+   * Set the invitation's org-wide ("all projects") grant — at most one row per
+   * invitation, materialized as an org_project_member row on accept.
+   */
+  readonly setAllProjectsForInvitation: (params: {
+    readonly invitationId: string;
+    readonly organizationId: string;
+    readonly role: ProjectRole;
+    readonly createdAt: string;
+  }) => Effect.Effect<void>;
+
+  /** Sweep every grant the invitation carries (per-project + org-wide). */
   readonly deleteForInvitation: (params: { readonly invitationId: string }) => Effect.Effect<void>;
 }
 
@@ -63,12 +75,35 @@ export const InvitationProjectGrantRepoLive = Layer.succeed(InvitationProjectGra
       );
     }),
 
+  setAllProjectsForInvitation: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .insertInto("invitation_org_project_grant")
+          .values({
+            invitation_id: params.invitationId,
+            organization_id: params.organizationId,
+            role: params.role,
+            created_at: params.createdAt,
+          })
+          .onConflict((oc) => oc.column("invitation_id").doUpdateSet({ role: params.role }))
+          .execute(),
+      );
+    }),
+
   deleteForInvitation: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
         db
           .deleteFrom("invitation_project_grant")
+          .where("invitation_id", "=", params.invitationId)
+          .execute(),
+      );
+      yield* Effect.promise(async () =>
+        db
+          .deleteFrom("invitation_org_project_grant")
           .where("invitation_id", "=", params.invitationId)
           .execute(),
       );

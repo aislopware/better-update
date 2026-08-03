@@ -65,7 +65,11 @@ const InviteHeaderAction = () => {
   const { activeOrg } = Route.useRouteContext();
   const { data: me } = useSuspenseQuery(meQueryOptions());
   return me.canInviteMembers ? (
-    <InviteDialog orgId={activeOrg.id} isOwner={me.orgRole === "owner"} />
+    <InviteDialog
+      orgId={activeOrg.id}
+      isOwner={me.orgRole === "owner"}
+      canGrantAllProjects={me.canManageMembers}
+    />
   ) : null;
 };
 
@@ -157,7 +161,9 @@ const MembersContent = () => {
     () => (activeOnly ? [] : pendingInvitations),
     [activeOnly, pendingInvitations],
   );
-  const inviteCta = canInviteMembers ? <InviteDialog orgId={orgId} isOwner={isOwner} /> : undefined;
+  const inviteCta = canInviteMembers ? (
+    <InviteDialog orgId={orgId} isOwner={isOwner} canGrantAllProjects={canManageMembers} />
+  ) : undefined;
   const countLabel = memberCountLabel(filteredMembers.length + filteredInvitations.length);
 
   const isOrgEmpty =

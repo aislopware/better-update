@@ -45,6 +45,23 @@ describe(buildInvitationPayload, () => {
       role: "member",
     });
   });
+
+  it("carries the org-wide all-projects role alongside per-project grants", () => {
+    const grants: ProjectGrantDraft[] = [{ key: 1, projectId: "proj-1", role: "maintainer" }];
+    expect(buildInvitationPayload("a@b.co", "member", grants, "developer")).toStrictEqual({
+      email: "a@b.co",
+      role: "member",
+      projects: [{ projectId: "proj-1", role: "maintainer" }],
+      allProjectsRole: "developer",
+    });
+  });
+
+  it("omits `allProjectsRole` when the switch was left off", () => {
+    expect(buildInvitationPayload("a@b.co", "member", [], null)).toStrictEqual({
+      email: "a@b.co",
+      role: "member",
+    });
+  });
 });
 
 // ── RemoveDialog (pure props) ─────────────────────────────────────

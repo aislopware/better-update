@@ -110,6 +110,15 @@ describe("CreateInvitationBody payload", () => {
     expect(Either.isRight(result)).toBe(true);
   });
 
+  it("accepts an org-wide all-projects grant", () => {
+    const result = decode({
+      email: "new@example.com",
+      allProjectsRole: "developer",
+      projects: [{ projectId: "p1", role: "maintainer" }],
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
   it("rejects owner as an invitable role and unknown project roles", () => {
     expect(Either.isLeft(decode({ email: "new@example.com", role: "owner" }))).toBe(true);
     expect(
@@ -117,6 +126,9 @@ describe("CreateInvitationBody payload", () => {
         decode({ email: "new@example.com", projects: [{ projectId: "p1", role: "admin" }] }),
       ),
     ).toBe(true);
+    expect(Either.isLeft(decode({ email: "new@example.com", allProjectsRole: "admin" }))).toBe(
+      true,
+    );
   });
 
   it("rejects malformed emails", () => {

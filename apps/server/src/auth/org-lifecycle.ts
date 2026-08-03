@@ -22,8 +22,10 @@ export const seedProtectedEnvironments = async (
 
 // Apply the project grants an invitation carries (GITLAB-RBAC-SPEC §4c): each
 // grant was validated against the INVITER when the invitation was created, so
-// accept just materializes them as project_member rows on the new member and
-// consumes the grant rows. One D1 batch keeps apply+sweep atomic.
+// accept just materializes them — per-project grants as project_member rows,
+// the org-wide ("all projects") grant as an org_project_member row — on the
+// new member and consumes the grant rows. One D1 batch keeps apply+sweep
+// atomic.
 export const applyInvitationGrants = async (
   db: D1Database,
   params: {
@@ -40,12 +42,24 @@ export const applyInvitationGrants = async (
     )
     .bind(params.invitationId, params.organizationId)
     .all<{ project_id: string; role: string }>();
+  const orgGrant = await db
+    .prepare(
+      `SELECT "role" FROM "invitation_org_project_grant"
+       WHERE "invitation_id" = ? AND "organization_id" = ?`,
+    )
+    .bind(params.invitationId, params.organizationId)
+    .first<{ role: string }>();
   const rows = grants.results;
-  const sweep = db
-    .prepare(`DELETE FROM "invitation_project_grant" WHERE "invitation_id" = ?`)
-    .bind(params.invitationId);
-  if (rows.length === 0) {
-    await sweep.run();
+  const sweeps = [
+    db
+      .prepare(`DELETE FROM "invitation_project_grant" WHERE "invitation_id" = ?`)
+      .bind(params.invitationId),
+    db
+      .prepare(`DELETE FROM "invitation_org_project_grant" WHERE "invitation_id" = ?`)
+      .bind(params.invitationId),
+  ];
+  if (rows.length === 0 && orgGrant === null) {
+    await db.batch(sweeps);
     return;
   }
   const now = new Date().toISOString();
@@ -68,6 +82,19 @@ export const applyInvitationGrants = async (
           now,
         ),
     ),
+    ...(orgGrant === null
+      ? []
+      : [
+          db
+            .prepare(
+              `INSERT INTO "org_project_member"
+                 ("id", "organization_id", "principal_type", "principal_id", "role", "created_at")
+               VALUES (?, ?, 'member', ?, ?, ?)
+               ON CONFLICT ("organization_id", "principal_type", "principal_id")
+               DO UPDATE SET "role" = excluded."role", "updated_at" = excluded."created_at"`,
+            )
+            .bind(crypto.randomUUID(), params.organizationId, params.memberId, orgGrant.role, now),
+        ]),
     db
       .prepare(
         `INSERT INTO "audit_logs"
@@ -82,9 +109,10 @@ export const applyInvitationGrants = async (
         JSON.stringify({
           invitationId: params.invitationId,
           projects: rows.map((row) => ({ projectId: row.project_id, role: row.role })),
+          ...(orgGrant === null ? {} : { allProjectsRole: orgGrant.role }),
         }),
       ),
-    sweep,
+    ...sweeps,
   ]);
 };
 
@@ -94,8 +122,12 @@ export const sweepInvitationGrants = async (
   db: D1Database,
   invitationId: string,
 ): Promise<void> => {
-  await db
-    .prepare(`DELETE FROM "invitation_project_grant" WHERE "invitation_id" = ?`)
-    .bind(invitationId)
-    .run();
+  await db.batch([
+    db
+      .prepare(`DELETE FROM "invitation_project_grant" WHERE "invitation_id" = ?`)
+      .bind(invitationId),
+    db
+      .prepare(`DELETE FROM "invitation_org_project_grant" WHERE "invitation_id" = ?`)
+      .bind(invitationId),
+  ]);
 };
