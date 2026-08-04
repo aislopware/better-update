@@ -113,10 +113,15 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    // 0.71.3 and older hard-fail a headless build the moment the Apple device
-    // roster moves: they gate stale-profile regeneration on an interactive
-    // session instead of the team's ASC API key — retire them all.
-    REQUIRE_CLI_VERSION_ABOVE: "0.71.3",
+    // 0.71.4 and older ship a binary that cannot tell the server which channel
+    // it is on: for any project whose `projectType` is not "expo", channel
+    // injection was gated on the build strategy, so `expo-channel-name` was
+    // never baked in and the device silently reads the DEFAULT channel — an
+    // update publishes green and reaches nobody. The same gate also left every
+    // such build without a runtimeVersion, so `builds compatibility-matrix`
+    // could not warn about it either. Neither failure is visible without
+    // unpacking the artifact, so retire them all rather than let them ship.
+    REQUIRE_CLI_VERSION_ABOVE: "0.71.4",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
