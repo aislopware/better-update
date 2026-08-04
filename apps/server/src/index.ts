@@ -116,6 +116,14 @@ const routeRequest = async (
         assetCdnUrl: env.ASSET_CDN_URL,
         // Remote killswitch: the CLI must be strictly newer than this to run. It
         // hard-blocks at startup when its version is <= this. "0.0.0" blocks nothing.
+        //
+        // The value is authored in `config/wrangler/server.ts`, which sits
+        // OUTSIDE every versioned package — so a commit that only raises the
+        // threshold produces no `@better-update/server@` tag, and `deploy-server`
+        // (tag-gated) never runs. Raising it therefore does NOT ship it: pair the
+        // bump with a commit touching this package, or the deployed Worker keeps
+        // serving the previous threshold indefinitely. Verify the live value with
+        // `GET /api/config`, never by reading the repo.
         requireCliVersionAbove: env.REQUIRE_CLI_VERSION_ABOVE,
       },
       {
