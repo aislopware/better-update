@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.5](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.4...%40better-update%2Fcli%400.71.5) (2026-08-04)
+
+### Bug Fixes
+
+* **cli:** cover the custom iOS strategy and gate OTA config reads on expo-updates ([c570bf8](https://github.com/better-update/better-update/commit/c570bf816d1bf5a32722852785b3da599c67856f))
+* **cli:** derive runtimeVersion and update channel from the Expo config, not the project type ([0cf09d4](https://github.com/better-update/better-update/commit/0cf09d47a90b9fd7e339fc959f569142ae18a4e8)), references [#1469](https://github.com/better-update/better-update/issues/1469)
+* **cli:** warn instead of failing when the OTA channel has no injection target ([e71b2ca](https://github.com/better-update/better-update/commit/e71b2caa8748694d32b2db2609d9cfe571c0be51))
+
 ## [0.71.4](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.3...%40better-update%2Fcli%400.71.4) (2026-08-04)
 
 ### Bug Fixes
