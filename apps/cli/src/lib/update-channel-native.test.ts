@@ -127,6 +127,41 @@ describe(setAndroidUpdateChannel, () => {
     }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
   });
 
+  // Injection now runs on committed trees, not just on what prebuild emitted,
+  // so a Kotlin-Multiplatform layout is a legitimate target too. The
+  // `@expo/config-plugins` helper cannot find this one — it hard-codes
+  // `android/app/src/main/`.
+  it.effect("finds a Kotlin-Multiplatform manifest outside android/app/src/main", () => {
+    const { dir, dispose } = makeDir();
+    return Effect.gen(function* () {
+      const manifestDir = nodePath.join(dir, "composeApp", "src", "androidMain");
+      mkdirSync(manifestDir, { recursive: true });
+      const manifestPath = nodePath.join(manifestDir, "AndroidManifest.xml");
+      writeFileSync(manifestPath, ANDROID_MANIFEST);
+      yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "production" });
+      expect(readFileSync(manifestPath, "utf8")).toContain("expo-channel-name");
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+  });
+
+  // `getAndroidManifestAsync` only asserts the android/ DIRECTORY exists, so an
+  // android/ without a manifest used to yield a bare read error from a path the
+  // project never used. Fail with the actionable message instead.
+  it.effect("fails actionably when android/ exists but carries no manifest", () =>
+    Effect.gen(function* () {
+      const { dir, dispose } = makeDir();
+      mkdirSync(nodePath.join(dir, "android"), { recursive: true });
+      const result = yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "x" }).pipe(
+        Effect.either,
+        Effect.ensuring(Effect.sync(dispose)),
+      );
+      expect(result._tag).toBe("Left");
+      if (result._tag === "Left") {
+        expect(result.left.message).toContain("No AndroidManifest.xml found");
+        expect(result.left.message).toContain("default channel");
+      }
+    }).pipe(Effect.provide(NodeContext.layer)),
+  );
+
   it.effect("fails when no android project exists", () =>
     Effect.gen(function* () {
       const { dir, dispose } = makeDir();
@@ -160,6 +195,28 @@ describe(setIosUpdateChannel, () => {
         "expo-channel-name": "production",
       });
       expect(root["EXUpdatesURL"]).toBe("https://example.com/manifest/p1");
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+  });
+
+  // Committed iOS projects often keep Expo.plist directly under the target
+  // group, without the `Supporting/` folder prebuild generates.
+  it.effect("finds an Expo.plist kept directly under the target group", () => {
+    const { dir, dispose } = makeDir();
+    return Effect.gen(function* () {
+      const targetDir = nodePath.join(dir, "ios", "MyApp");
+      mkdirSync(targetDir, { recursive: true });
+      const plistPath = nodePath.join(targetDir, "Expo.plist");
+      writeFileSync(plistPath, IOS_EXPO_PLIST);
+      yield* setIosUpdateChannel({ iosDir: nodePath.join(dir, "ios"), channel: "preview" });
+      const parsed: unknown = parsePlistXml(readFileSync(plistPath, "utf8"));
+      const root = isRecord(parsed) ? parsed : {};
+      const headers = isRecord(root["EXUpdatesRequestHeaders"])
+        ? root["EXUpdatesRequestHeaders"]
+        : {};
+      expect({ ...headers }).toStrictEqual({
+        "x-custom": "kept",
+        "expo-channel-name": "preview",
+      });
     }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
   });
 

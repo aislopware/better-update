@@ -59,10 +59,16 @@ const hasExpoDependency = (projectRoot: string) =>
  * update channel: both were gated on `projectType === "expo"` (or on the build
  * strategy) even though reading `app.json` never requires prebuild. Callers
  * that only need config DATA should gate on this, not on the project type.
+ *
+ * The candidate list mirrors what `readExpoConfig` actually resolves, so this
+ * gate cannot report "no config" for a file `@expo/config` would have loaded.
+ * A bare truthy result is NOT sufficient reason to read the config: the plain
+ * React Native template ships an `app.json` too. Pair it with a signal that the
+ * project wants OTA at all (`isExpoUpdatesInstalled`).
  */
 export const hasAnyExpoConfigFile = (projectRoot: string) =>
   Effect.gen(function* () {
-    for (const name of ["app.json", "app.config.js", "app.config.ts"]) {
+    for (const name of ["app.json", "app.config.json", "app.config.js", "app.config.ts"]) {
       if (yield* exists(path.join(projectRoot, name))) {
         return true;
       }

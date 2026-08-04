@@ -120,11 +120,14 @@ export const prepareIosNative = (params: {
     }
 
     // Bake the OTA channel AFTER prebuild (which regenerates `ios/`) and BEFORE
-    // the archive — for EVERY strategy, not just "expo". A committed Expo.plist
-    // is just as valid an injection target as a generated one. This used to sit
-    // inside the prebuild branch above, so bare/native/kmp/custom builds shipped
-    // with an empty EXUpdatesRequestHeaders and silently fell back to the
-    // server's default channel.
+    // the archive — for every strategy that comes through here, not just "expo".
+    // A committed Expo.plist is just as valid an injection target as a generated
+    // one. This used to sit inside the prebuild branch above, so bare/native/kmp
+    // builds shipped with an empty EXUpdatesRequestHeaders and silently fell
+    // back to the server's default channel.
+    //
+    // The `custom` strategy never reaches this function — `runIosBuild` routes
+    // it straight to `runIosCustom`, which does its own injection.
     if (params.updateChannel !== undefined) {
       yield* setIosUpdateChannel({ iosDir: params.iosDir, channel: params.updateChannel });
     }

@@ -1,10 +1,8 @@
 import { Effect } from "effect";
 
-import { hasAnyExpoConfigFile } from "../lib/detect-project-type";
-import { extractRawRuntimeVersion, readExpoConfig } from "../lib/expo-config";
-import { formatCause } from "../lib/format-error";
+import { extractRawRuntimeVersion } from "../lib/expo-config";
+import { readOtaExpoConfig } from "../lib/ota-expo-config";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
-import { printWarn } from "../lib/warning-style";
 import { resolveAppMeta } from "./resolve-app-meta";
 
 import type { Platform } from "../lib/build-profile";
@@ -32,6 +30,10 @@ import type { BuildProfile } from "./platform-build";
  * asymmetry with the Expo path, which errors on a missing runtimeVersion —
  * there it is a genuine misconfiguration, here it is the norm.
  *
+ * The config is only consulted when the project actually ships expo-updates
+ * (see `readOtaExpoConfig`) — an `app.json` alone means nothing, the plain
+ * React Native template has one.
+ *
  * autoIncrement is NOT applied here: it is a read-modify-write of app.json, and
  * on these project types the version of record lives in the native files.
  */
@@ -50,16 +52,11 @@ export const resolveNativeBuildMeta = (params: {
       projectRoot: userCwd,
       profile,
     });
-    if (!(yield* hasAnyExpoConfigFile(userCwd))) {
-      return { appMeta, runtimeVersion: undefined };
-    }
-    const expoConfig = yield* readExpoConfig(userCwd, envVars).pipe(
-      Effect.catchAll((cause) =>
-        printWarn(
-          `Found an Expo config but could not read it, so no OTA runtimeVersion will be recorded for this build: ${formatCause(cause)}`,
-        ).pipe(Effect.as(undefined)),
-      ),
-    );
+    const expoConfig = yield* readOtaExpoConfig({
+      projectRoot: userCwd,
+      envVars,
+      subject: "build",
+    });
     if (expoConfig === undefined) {
       return { appMeta, runtimeVersion: undefined };
     }

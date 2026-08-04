@@ -65,6 +65,8 @@ const setupProject = (options: {
   readonly easJson?: Record<string, unknown>;
   readonly createArtifact?: boolean;
   readonly artifactBytes?: Buffer;
+  /** Extra package.json dependencies — `expo-updates` gates the OTA config read. */
+  readonly dependencies?: Record<string, string>;
 }): ProjectFixture => {
   // realpathSync mirrors expo-config.test.ts — @expo/config rejects symlinked
   // project roots on macOS (`/var/folders` is itself a symlink to `/private/var`).
@@ -76,7 +78,15 @@ const setupProject = (options: {
   // @expo/config requires a package.json in the project root.
   writeFileSync(
     nodePath.join(dir, "package.json"),
-    JSON.stringify({ name: "upload-workflow-test", version: "1.0.0" }, null, 2),
+    JSON.stringify(
+      {
+        name: "upload-workflow-test",
+        version: "1.0.0",
+        ...(options.dependencies === undefined ? {} : { dependencies: options.dependencies }),
+      },
+      null,
+      2,
+    ),
   );
   const artifactPath = nodePath.join(dir, "artifact.ipa");
   if (options.createArtifact !== false) {
@@ -369,6 +379,88 @@ describe(runUploadWorkflow, () => {
       expect(completeArgs?.payload.sha256).toBe(sha256);
 
       expect(putFilePath).toBe(project.artifactPath);
+    }),
+  );
+
+  // ── non-Expo projectType with an Expo config ──────────────────────
+  //
+  // The reported bug: `resolveUploadMeta` gated the config read on
+  // `projectType === "expo"`, so a bare tree shipping expo-updates uploaded a
+  // build record with no runtimeVersion. That is what made
+  // `builds compatibility-matrix` answer "No compatibility data found".
+
+  /** eas.json forcing the bare path, with ios metadata from the profile override. */
+  const bareEasJson = {
+    projectType: "bare",
+    build: {
+      production: {
+        environment: "production",
+        ios: {
+          distribution: "ad-hoc",
+          bundleIdentifier: "com.example.upload",
+          buildNumber: "42",
+        },
+        android: { distribution: "direct", format: "apk" },
+      },
+    },
+  };
+
+  const reserveCapture = (): {
+    readonly api: ApiClient;
+    readonly payload: () => Record<string, unknown> | undefined;
+  } => {
+    let captured: Record<string, unknown> | undefined;
+    const api = makeApi({
+      reserve: ({ payload }) => {
+        captured = payload;
+        return Effect.succeed({
+          id: "build_bare",
+          uploadMode: "single" as const,
+          uploadUrl: "https://example.com/upload",
+          uploadExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          uploadHeaders: { "content-type": "application/octet-stream" },
+        });
+      },
+    });
+    return { api, payload: () => captured };
+  };
+
+  it.effect("records the runtimeVersion for a bare project shipping expo-updates", () =>
+    Effect.gen(function* () {
+      const project = setupProject({
+        easJson: bareEasJson,
+        dependencies: { "expo-updates": "~29.0.0" },
+      });
+      const { api, payload } = reserveCapture();
+
+      yield* runWorkflow(project, api, {
+        platform: "ios",
+        profileName: "production",
+        artifactPath: project.artifactPath,
+        message: undefined,
+      });
+
+      expect(payload()?.["runtimeVersion"]).toBe("1.2.3");
+      // App metadata still comes from the profile override, not the config.
+      expect(payload()?.["bundleId"]).toBe("com.example.upload");
+      expect(payload()?.["buildNumber"]).toBe("42");
+    }),
+  );
+
+  it.effect("records no runtimeVersion when a bare project does not use expo-updates", () =>
+    Effect.gen(function* () {
+      const project = setupProject({ easJson: bareEasJson });
+      const { api, payload } = reserveCapture();
+
+      yield* runWorkflow(project, api, {
+        platform: "ios",
+        profileName: "production",
+        artifactPath: project.artifactPath,
+        message: undefined,
+      });
+
+      expect(payload()?.["runtimeVersion"]).toBeUndefined();
+      expect(payload()?.["bundleId"]).toBe("com.example.upload");
     }),
   );
 });

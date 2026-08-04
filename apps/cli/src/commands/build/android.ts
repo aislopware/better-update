@@ -300,9 +300,13 @@ export const runAndroidBuild = (input: RunAndroidBuildInput) =>
     // one, and a custom command reads that same file. This used to live inside
     // the branch above, so bare/native/kmp/custom builds shipped with no
     // channel at all and silently fell back to the server's default channel.
+    // Anchored on a custom block's `cwd` so a sub-project build injects into
+    // the tree it actually builds.
     if (input.updateChannel !== undefined) {
+      const customCwd = input.strategy === "custom" ? input.customCommand?.cwd : undefined;
       yield* setAndroidUpdateChannel({
-        projectRoot: input.projectRoot,
+        projectRoot:
+          customCwd === undefined ? input.projectRoot : path.join(input.projectRoot, customCwd),
         channel: input.updateChannel,
       });
     }

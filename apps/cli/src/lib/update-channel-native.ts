@@ -79,43 +79,102 @@ export const isExpoUpdatesInstalled = (
   });
 
 /**
- * Write the channel into the prebuilt `android/` project: merge it into the
+ * Android manifests that are NOT at the path `@expo/config-plugins` assumes
+ * (`android/app/src/main/`). Prebuild always emits that layout, but this
+ * function now also runs on committed trees, where a Kotlin-Multiplatform or
+ * root-level native module puts its manifest elsewhere.
+ */
+const ANDROID_MANIFEST_CANDIDATES = [
+  // What prebuild emits, and what `@expo/config-plugins` assumes.
+  "android/app/src/main/AndroidManifest.xml",
+  "composeApp/src/androidMain/AndroidManifest.xml",
+  "androidApp/src/main/AndroidManifest.xml",
+  "app/src/main/AndroidManifest.xml",
+] as const;
+
+/**
+ * Resolve the manifest to inject into.
+ *
+ * Note this does NOT use `AndroidConfig.Paths.getAndroidManifestAsync`: that
+ * helper only asserts the `android/` DIRECTORY exists and then returns
+ * `android/app/src/main/AndroidManifest.xml` unconditionally, existent or not.
+ * Injection now runs on committed trees too, so the path has to be verified —
+ * otherwise a KMP layout gets a confusing read error from a path it never used.
+ */
+const findAndroidManifest = (
+  projectRoot: string,
+): Effect.Effect<string, BuildFailedError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    for (const relative of ANDROID_MANIFEST_CANDIDATES) {
+      const candidate = path.join(projectRoot, relative);
+      const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
+      if (exists) {
+        return candidate;
+      }
+    }
+    return yield* new BuildFailedError({
+      step: "set android update channel",
+      exitCode: 1,
+      message:
+        `No AndroidManifest.xml found under ${projectRoot} (looked in ` +
+        `${ANDROID_MANIFEST_CANDIDATES.join(", ")}). This build profile sets an update ` +
+        `"channel" and the project depends on expo-updates, so the channel has to be baked into ` +
+        `the binary — a build without it silently reads the server's default channel. Point the ` +
+        `build at a project containing an Android manifest, or drop "channel" from the profile if ` +
+        `this platform does not do OTA.`,
+    });
+  });
+
+/**
+ * Write the channel into the `android/` project: merge it into the
  * request-headers JSON carried by the manifest meta-data entry (creating the
- * entry when prebuild emitted none).
+ * entry when none is present).
+ *
+ * Runs for every build strategy, not just prebuild, so the manifest may be a
+ * committed file rather than a generated one — same injection either way.
  */
 export const setAndroidUpdateChannel = (params: {
   readonly projectRoot: string;
   readonly channel: string;
-}): Effect.Effect<void, BuildFailedError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const manifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(params.projectRoot);
-      const manifest = await AndroidConfig.Manifest.readAndroidManifestAsync(manifestPath);
-      const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
-      const existing = AndroidConfig.Manifest.getMainApplicationMetaDataValue(
-        manifest,
-        ANDROID_REQUEST_HEADERS_META_KEY,
-      );
-      const headers = withChannelHeader(
-        existing === null ? undefined : safeJsonParse(existing),
-        params.channel,
-      );
-      AndroidConfig.Manifest.addMetaDataItemToMainApplication(
-        mainApplication,
-        ANDROID_REQUEST_HEADERS_META_KEY,
-        JSON.stringify(headers),
-      );
-      await AndroidConfig.Manifest.writeAndroidManifestAsync(manifestPath, manifest);
-    },
-    catch: (cause) =>
-      new BuildFailedError({
-        step: "set android update channel",
-        exitCode: 1,
-        message: `Failed to write the update channel into AndroidManifest.xml: ${formatCause(cause)}`,
-      }),
+}): Effect.Effect<void, BuildFailedError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const manifestPath = yield* findAndroidManifest(params.projectRoot);
+    return yield* Effect.tryPromise({
+      try: async () => {
+        const manifest = await AndroidConfig.Manifest.readAndroidManifestAsync(manifestPath);
+        const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
+        const existing = AndroidConfig.Manifest.getMainApplicationMetaDataValue(
+          manifest,
+          ANDROID_REQUEST_HEADERS_META_KEY,
+        );
+        const headers = withChannelHeader(
+          existing === null ? undefined : safeJsonParse(existing),
+          params.channel,
+        );
+        AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+          mainApplication,
+          ANDROID_REQUEST_HEADERS_META_KEY,
+          JSON.stringify(headers),
+        );
+        await AndroidConfig.Manifest.writeAndroidManifestAsync(manifestPath, manifest);
+      },
+      catch: (cause) =>
+        new BuildFailedError({
+          step: "set android update channel",
+          exitCode: 1,
+          message: `Failed to write the update channel into ${manifestPath}: ${formatCause(cause)}`,
+        }),
+    });
   });
 
-/** Locate `ios/<target>/Supporting/Expo.plist` in a prebuilt iOS project. */
+/**
+ * Locate the target's `Expo.plist`.
+ *
+ * Prebuild always emits `ios/<target>/Supporting/Expo.plist`, but this now also
+ * runs on committed trees, where the file is often kept directly under the
+ * target group without the `Supporting/` folder — so both layouts are searched.
+ */
 const findExpoPlist = (
   iosDir: string,
 ): Effect.Effect<string, BuildFailedError, FileSystem.FileSystem> =>
@@ -123,16 +182,27 @@ const findExpoPlist = (
     const fs = yield* FileSystem.FileSystem;
     const entries = yield* fs.readDirectory(iosDir).pipe(Effect.orElseSucceed(() => []));
     for (const entry of entries) {
-      const candidate = path.join(iosDir, entry, "Supporting", "Expo.plist");
-      const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
-      if (exists) {
-        return candidate;
+      for (const relative of [
+        path.join(entry, "Supporting", "Expo.plist"),
+        path.join(entry, "Expo.plist"),
+      ]) {
+        const candidate = path.join(iosDir, relative);
+        const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
+        if (exists) {
+          return candidate;
+        }
       }
     }
     return yield* new BuildFailedError({
       step: "set ios update channel",
       exitCode: 1,
-      message: `No Supporting/Expo.plist found under ${iosDir} after prebuild — is "expo-updates" installed?`,
+      message:
+        `No Expo.plist found under ${iosDir} (looked for <target>/Supporting/Expo.plist and ` +
+        `<target>/Expo.plist). This build profile sets an update "channel" and the project ` +
+        `depends on expo-updates, so the channel has to be baked into the binary — a build ` +
+        `without it silently reads the server's default channel. Add an Expo.plist to the iOS ` +
+        `target (\`npx expo prebuild --platform ios\` generates one), or drop "channel" from the ` +
+        `profile if iOS does not do OTA.`,
     });
   });
 
