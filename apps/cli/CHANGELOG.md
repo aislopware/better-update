@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.4](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.3...%40better-update%2Fcli%400.71.4) (2026-08-04)
+
+### Bug Fixes
+
+* **cli:** regenerate stale provisioning profiles without a session ([13689e4](https://github.com/better-update/better-update/commit/13689e4ea491e99477a38a7591d1ac11b6c8c8d6))
+
 ## [0.71.3](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.2...%40better-update%2Fcli%400.71.3) (2026-08-03)
 
 ### Bug Fixes
