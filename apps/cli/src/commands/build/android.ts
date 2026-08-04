@@ -301,13 +301,19 @@ export const runAndroidBuild = (input: RunAndroidBuildInput) =>
     // the branch above, so bare/native/kmp/custom builds shipped with no
     // channel at all and silently fell back to the server's default channel.
     // Anchored on a custom block's `cwd` so a sub-project build injects into
-    // the tree it actually builds.
+    // the tree it actually builds, and on the profile's Gradle module so a
+    // project assembling `:mobile` is not written into a stale `:app`.
+    //
+    // A custom command that regenerates the manifest itself (`expo prebuild`,
+    // a codegen step) will overwrite this — it owns its pipeline, so it also
+    // owns the channel from that point on. Nothing can be done from here.
     if (input.updateChannel !== undefined) {
       const customCwd = input.strategy === "custom" ? input.customCommand?.cwd : undefined;
       yield* setAndroidUpdateChannel({
         projectRoot:
           customCwd === undefined ? input.projectRoot : path.join(input.projectRoot, customCwd),
         channel: input.updateChannel,
+        module: input.androidProfile.module,
       });
     }
 

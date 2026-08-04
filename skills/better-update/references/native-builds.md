@@ -112,10 +112,23 @@ Set it per profile in `eas.json`:
 }
 ```
 
+**Where the channel is written.** Injection looks for `android/<profile module>/src/main/`, then
+`android/app/src/main/`, then the Kotlin-Multiplatform and root-module layouts; on iOS it prefers
+`ios/<target>/Supporting/Expo.plist` across every target before falling back to
+`ios/<target>/Expo.plist`, so a multi-target project does not get the channel baked into an app clip.
+A `custom` block's `cwd` is honoured, and an explicit `workspace` / `project` in the iOS profile wins
+over both — so a build pointing at a sub-project writes into the tree it actually builds.
+
+If **no** manifest or plist is reachable, the build **warns loudly and continues**. The layout of a
+committed or custom tree is not something this tool can know, so an unreachable target means "not
+injectable from here", not "misconfigured" — but the warning names the channel, says the binary will
+fall back to the server's default, and tells you what to do about it. A command that regenerates the
+native project itself (`expo prebuild`, codegen) overwrites the injection and owns the channel from
+that point on.
+
 The `runtimeVersion` side is **best-effort**: no Expo config, an unreadable one, or one that declares
 no `runtimeVersion` all leave the field empty and print a warning at most — a project that does not
-publish OTA never gets a red build over bookkeeping. Custom `cwd` is honoured for injection, so a
-`custom` block pointing at a sub-project writes into the tree it actually builds.
+publish OTA never gets a red build over bookkeeping.
 
 ### Flags
 

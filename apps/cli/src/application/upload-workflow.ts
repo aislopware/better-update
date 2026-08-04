@@ -12,7 +12,7 @@ import { extractRawRuntimeVersion, readAppMeta, readExpoConfig } from "../lib/ex
 import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
-import { readOtaExpoConfig } from "../lib/ota-expo-config";
+import { readOtaExpoConfig, resolveOtaRuntimeVersion } from "../lib/ota-expo-config";
 import { printHuman, printKeyValue } from "../lib/output";
 import { readProjectId } from "../lib/project-link";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
@@ -22,7 +22,7 @@ import { CliRuntime } from "../services/cli-runtime";
 import { resolveAppMeta } from "./resolve-app-meta";
 
 import type { BuildTarget } from "../commands/build/reserve-and-upload";
-import type { AppMeta, BuildProfile, Platform } from "../lib/build-profile";
+import type { AppMeta, BuildProfile, Platform, RawRuntimeVersion } from "../lib/build-profile";
 
 export interface RunUploadWorkflowOptions {
   readonly platform: Platform;
@@ -134,28 +134,31 @@ const resolveUploadMeta = (params: {
       profile,
       ...compact({ expoConfig: isExpoProject ? expoConfig : undefined, expoAppMeta }),
     });
+    // The asymmetry is the point. On the Expo path `resolveRuntimeVersion` is
+    // called even when `raw` is undefined, because its "No runtimeVersion
+    // configured in expo section of app.json." error is the correct, actionable
+    // answer for a managed project — short-circuiting on undefined here would
+    // upload a build row with an empty runtime version instead. Everywhere else
+    // a missing runtimeVersion is the norm, and resolution itself is allowed to
+    // fail (the fingerprint policy shells out), so both stay best-effort.
     // `appMeta.rawRuntimeVersion` is only populated on the Expo path, so read it
     // straight off the config for everyone else.
-    const readRawRuntimeVersion = () => {
-      if (expoConfig === undefined) {
-        return undefined;
-      }
-      return isExpoProject
-        ? appMeta.rawRuntimeVersion
-        : extractRawRuntimeVersion(expoConfig, platform);
-    };
-    const rawRuntimeVersion = readRawRuntimeVersion();
-    const runtimeVersion =
-      expoConfig === undefined || rawRuntimeVersion === undefined
-        ? undefined
-        : yield* resolveRuntimeVersion({
-            raw: rawRuntimeVersion,
-            appVersion: appMeta.appVersion,
-            projectRoot,
-            platform,
-            buildNumber: appMeta.buildNumber,
-            sdkVersion: expoConfig.sdkVersion,
-          });
+    const runtimeVersionOptions = (raw: RawRuntimeVersion | undefined) => ({
+      raw,
+      appVersion: appMeta.appVersion,
+      projectRoot,
+      platform,
+      buildNumber: appMeta.buildNumber,
+      sdkVersion: expoConfig?.sdkVersion,
+    });
+    const runtimeVersion = isExpoProject
+      ? yield* resolveRuntimeVersion(runtimeVersionOptions(appMeta.rawRuntimeVersion))
+      : yield* resolveOtaRuntimeVersion({
+          ...runtimeVersionOptions(
+            expoConfig === undefined ? undefined : extractRawRuntimeVersion(expoConfig, platform),
+          ),
+          subject: "upload",
+        });
     // Named for what it is: the fingerprint probe below needs an Expo config,
     // NOT an Expo project. Calling it `isExpo` was how the two got conflated in
     // the first place.

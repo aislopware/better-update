@@ -3,8 +3,11 @@ import { Effect } from "effect";
 import { hasAnyExpoConfigFile } from "./detect-project-type";
 import { readExpoConfig } from "./expo-config";
 import { formatCause } from "./format-error";
+import { resolveRuntimeVersion } from "./runtime-version";
 import { isExpoUpdatesInstalled } from "./update-channel-native";
 import { printWarn } from "./warning-style";
+
+import type { ResolveRuntimeVersionOptions } from "./runtime-version";
 
 /**
  * Whether a non-Expo project should be asked for OTA metadata via its Expo
@@ -61,3 +64,31 @@ export const readOtaExpoConfig = (params: {
       ),
     );
   });
+
+/**
+ * Best-effort runtimeVersion resolution for a non-Expo project.
+ *
+ * Same contract as `readOtaExpoConfig`: never fails. Resolution is not a pure
+ * lookup — the `fingerprint` policy shells out to `@expo/fingerprint` and the
+ * `sdkVersion` policy needs a resolvable `expo` install, so on a project that
+ * merely happens to declare one, an offline runner or a missing package would
+ * otherwise turn a bookkeeping field into a red build that was green before.
+ *
+ * The Expo path does NOT come through here: there a missing or unresolvable
+ * runtimeVersion is a real misconfiguration and must stay fatal.
+ */
+export const resolveOtaRuntimeVersion = (
+  params: ResolveRuntimeVersionOptions & {
+    /** Names the operation in the warning, e.g. "build" or "upload". */
+    readonly subject: string;
+  },
+) =>
+  params.raw === undefined
+    ? Effect.succeed(undefined)
+    : resolveRuntimeVersion(params).pipe(
+        Effect.catchAll((cause) =>
+          printWarn(
+            `Could not resolve the OTA runtime version, so none will be recorded for this ${params.subject}: ${formatCause(cause)}`,
+          ).pipe(Effect.as(undefined)),
+        ),
+      );

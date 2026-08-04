@@ -7,7 +7,6 @@ import { Effect, Either } from "effect";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { runStep } from "../commands/build/run-step";
 import { uploadDebugArtifacts } from "../commands/build/upload-debug-artifacts";
-import { applyAutoIncrement } from "../lib/auto-increment";
 import { runBuildHook } from "../lib/build-hooks";
 import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
@@ -15,32 +14,32 @@ import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { warnIfDevClientMissing } from "../lib/dev-client-check";
 import { readEasProjectType } from "../lib/eas-json";
 import { pullEnvVars } from "../lib/env-exporter";
-import { BuildProfileError } from "../lib/exit-codes";
-import { readAppMeta, readExpoConfig } from "../lib/expo-config";
+import { readExpoConfig } from "../lib/expo-config";
 import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { withOptionalPermit } from "../lib/optional-mutex";
+import { wantsOtaExpoConfig } from "../lib/ota-expo-config";
 import { printHuman, printKeyValue } from "../lib/output";
 import { detectPlatform, detectPlatformGeneric } from "../lib/platform-detect";
 import { readProjectId } from "../lib/project-link";
 import { prepareStagingProject } from "../lib/project-staging";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveProfileName } from "../lib/resolve-profile-name";
-import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { printWarn } from "../lib/warning-style";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
+import { exportArtifact } from "./build-artifact-output";
 import { runAutoSubmit } from "./build-auto-submit";
 import { runPlatformBuild } from "./platform-build";
-import { resolveAppMeta } from "./resolve-app-meta";
+import { resolveExpoBuildMeta } from "./resolve-expo-build-meta";
 import { resolveNativeBuildMeta } from "./resolve-native-build-meta";
 import { resolveUpdateChannel } from "./resolve-update-channel";
 
 import type { Platform } from "../lib/build-profile";
 import type { PackageManager } from "../lib/project-staging";
-import type { AppMeta, BuildProfile } from "./platform-build";
+import type { BuildMeta } from "./resolve-expo-build-meta";
 
 export interface RunBuildWorkflowOptions {
   readonly platform: Platform | undefined;
@@ -67,56 +66,6 @@ const dirExists = (root: string, name: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     return yield* fs.exists(path.join(root, name)).pipe(Effect.orElseSucceed(() => false));
-  });
-
-interface BuildMeta {
-  readonly appMeta: AppMeta;
-  readonly runtimeVersion: string | undefined;
-}
-
-/**
- * Expo metadata path: read app.json (with the env overlay so dynamic configs
- * resolve), apply autoIncrement to the user's tree, re-read, then derive the OTA
- * runtimeVersion. Mirrors the original managed flow.
- */
-const resolveExpoBuildMeta = (params: {
-  readonly userCwd: string;
-  readonly platform: Platform;
-  readonly profile: BuildProfile;
-  readonly envVars: Record<string, string>;
-}) =>
-  Effect.gen(function* () {
-    const { userCwd, platform, profile, envVars } = params;
-    const expoConfig = yield* readExpoConfig(userCwd, envVars);
-    yield* applyAutoIncrement({
-      projectRoot: userCwd,
-      platform,
-      config: expoConfig,
-      ...(platform === "ios" && profile.ios?.autoIncrement !== undefined
-        ? { iosMode: profile.ios.autoIncrement }
-        : {}),
-      ...(platform === "android" && profile.android?.autoIncrement !== undefined
-        ? { androidMode: profile.android.autoIncrement }
-        : {}),
-    });
-    const bumpedConfig = yield* readExpoConfig(userCwd, envVars);
-    const expoAppMeta = yield* readAppMeta(bumpedConfig, platform);
-    const appMeta = yield* resolveAppMeta({
-      projectType: "expo",
-      platform,
-      projectRoot: userCwd,
-      profile,
-      expoAppMeta,
-    });
-    const runtimeVersion = yield* resolveRuntimeVersion({
-      raw: appMeta.rawRuntimeVersion,
-      appVersion: appMeta.appVersion,
-      projectRoot: userCwd,
-      platform,
-      buildNumber: appMeta.buildNumber,
-      sdkVersion: bumpedConfig.sdkVersion,
-    });
-    return { appMeta, runtimeVersion };
   });
 
 /**
@@ -182,6 +131,33 @@ const runExpoDoctor = (params: {
       printWarn("expo-doctor reported issues or timed out — continuing (warning only)."),
     ),
   );
+
+/**
+ * Per-platform fingerprint (matching EAS) so the recorded build hash lines up
+ * with the per-platform `fingerprint`-policy runtime version and with updates
+ * fingerprinted the same way. Best-effort: a failure records no hash.
+ *
+ * Gated on the project doing OTA at all, NOT on it being Expo-managed: a bare
+ * tree shipping expo-updates can use the `fingerprint` policy too, and
+ * recording its runtime version without the hash to correlate against leaves
+ * `builds compatibility-matrix` unable to answer for exactly the builds this
+ * gate exists to cover. Matches the gate in `upload-workflow`, so `build` and
+ * `upload` record the same fields.
+ */
+const resolveFingerprintHash = (params: {
+  readonly isExpo: boolean;
+  readonly userCwd: string;
+  readonly platform: Platform;
+}) =>
+  Effect.gen(function* () {
+    const doesOta = params.isExpo || (yield* wantsOtaExpoConfig(params.userCwd));
+    return doesOta
+      ? yield* runFingerprintForPlatform(params.userCwd, params.platform).pipe(
+          Effect.map((entry) => entry.hash),
+          Effect.orElseSucceed(() => undefined),
+        )
+      : undefined;
+  });
 
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
@@ -285,7 +261,14 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             profile,
             projectType,
             envVars: envWithBuildId,
-          });
+          }).pipe(
+            // Same permit as the Expo path, for a different hazard: reading the
+            // Expo config overlays `process.env` and evicts `require.cache`
+            // around the call, so two platform fibers doing it concurrently can
+            // restore each other's snapshot and leak the wrong platform's
+            // variables into the build steps that follow.
+            withOptionalPermit(options.mutex),
+          );
 
       // Platform version env (EAS_BUILD_IOS_* / EAS_BUILD_ANDROID_* parity).
       const buildEnvVars = {
@@ -376,30 +359,14 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
 
       yield* printHuman(`Artifact produced: ${build.artifactPath}`);
 
-      let exportedArtifactPath: string | undefined = undefined;
-      if (options.output !== undefined) {
-        const fs = yield* FileSystem.FileSystem;
-        const outputPath = path.resolve(userCwd, options.output);
-        const outputDir = path.dirname(outputPath);
-        yield* fs.makeDirectory(outputDir, { recursive: true }).pipe(
-          Effect.mapError(
-            (cause) =>
-              new BuildProfileError({
-                message: `Failed to create output directory: ${formatCause(cause)}`,
-              }),
-          ),
-        );
-        yield* fs.copyFile(build.artifactPath, outputPath).pipe(
-          Effect.mapError(
-            (cause) =>
-              new BuildProfileError({
-                message: `Failed to copy artifact to ${outputPath}: ${formatCause(cause)}`,
-              }),
-          ),
-        );
-        exportedArtifactPath = outputPath;
-        yield* printHuman(`Copied artifact to ${outputPath}`);
-      }
+      const exportedArtifactPath =
+        options.output === undefined
+          ? undefined
+          : yield* exportArtifact({
+              artifactPath: build.artifactPath,
+              userCwd,
+              output: options.output,
+            });
 
       if (options.noUpload) {
         yield* printKeyValue([
@@ -418,16 +385,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         dirty: rawGitContext.dirty,
       });
 
-      // Per-platform fingerprint (matching EAS) so the recorded build hash lines
-      // up with the per-platform `fingerprint`-policy RTV and with updates
-      // fingerprinted the same way. Expo-only — non-Expo builds have no OTA, so
-      // there is nothing to fingerprint.
-      const fingerprintHash = isExpo
-        ? yield* runFingerprintForPlatform(userCwd, platform).pipe(
-            Effect.map((entry) => entry.hash),
-            Effect.orElseSucceed(() => undefined),
-          )
-        : undefined;
+      const fingerprintHash = yield* resolveFingerprintHash({ isExpo, userCwd, platform });
 
       const result = yield* reserveAndUpload(api, {
         target,

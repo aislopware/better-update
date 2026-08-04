@@ -338,6 +338,32 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
   });
 
 /**
+ * Best guess at the directory holding the custom build's Xcode targets.
+ *
+ * An explicit `workspace`/`project` in the profile is authoritative — it names
+ * the container that ships, wherever it lives (`iosApp/`, a monorepo package).
+ * Otherwise fall back to the custom block's `cwd`, accepting a `cwd` that is
+ * already the ios dir. Guessing wrong is not fatal: `setIosUpdateChannel` warns
+ * rather than failing when it finds no Expo.plist.
+ *
+ * Takes the three values it reads rather than the whole build input: the rest
+ * of `runIosCustom` needs credentials, a command executor and a real artifact
+ * on disk, so this is the only part of the injection a test can pin down.
+ */
+export const resolveCustomIosDir = (params: {
+  readonly projectRoot: string;
+  /** Profile `workspace` ?? `project`, relative to the project root. */
+  readonly container: string | undefined;
+  /** Directory the custom command runs in. */
+  readonly cwd: string;
+}): string => {
+  if (params.container !== undefined) {
+    return path.dirname(path.resolve(params.projectRoot, params.container));
+  }
+  return path.basename(params.cwd) === "ios" ? params.cwd : path.join(params.cwd, "ios");
+};
+
+/**
  * Custom-command iOS build. The resolved p12 + provisioning profiles are written
  * to `tempDir` and their paths exposed via `BETTER_UPDATE_IOS_*` env vars; the
  * user's command performs the actual signing/archive. The artifact is located
@@ -385,12 +411,18 @@ const runIosCustom = (input: RunIosBuildInput) =>
       custom.cwd === undefined ? input.projectRoot : path.join(input.projectRoot, custom.cwd);
 
     // Bake the OTA channel BEFORE handing control to the user's command — it
-    // reads the same Expo.plist an xcodebuild archive would. Anchor on the
-    // custom block's `cwd` so a sub-project build injects into the tree it
-    // actually builds, and accept a `cwd` that already IS the ios dir.
+    // reads the same Expo.plist an xcodebuild archive would. A custom build may
+    // have no `ios/` at all (detectPlatformGeneric permits it), so the dir is
+    // derived from the profile's workspace/project when set, then the custom
+    // block's `cwd`, and a `cwd` that already IS the ios dir is accepted.
+    // Nothing found only warns — see `setIosUpdateChannel`.
     if (input.updateChannel !== undefined) {
       yield* setIosUpdateChannel({
-        iosDir: path.basename(cwd) === "ios" ? cwd : path.join(cwd, "ios"),
+        iosDir: resolveCustomIosDir({
+          projectRoot: input.projectRoot,
+          container: input.iosProfile.workspace ?? input.iosProfile.project,
+          cwd,
+        }),
         channel: input.updateChannel,
       });
     }

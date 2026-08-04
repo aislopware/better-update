@@ -5,8 +5,9 @@ import nodePath from "node:path";
 import { isRecord } from "@better-update/type-guards";
 import { NodeContext } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 
+import { makeOutputModeLayer } from "./output-mode";
 import { buildPlistXml, parsePlistXml } from "./plist";
 import {
   isExpoUpdatesInstalled,
@@ -14,6 +15,8 @@ import {
   setIosUpdateChannel,
   withChannelHeader,
 } from "./update-channel-native";
+
+const TestLayer = Layer.mergeAll(NodeContext.layer, makeOutputModeLayer(false));
 
 const makeDir = (): { readonly dir: string; readonly dispose: () => void } => {
   const dir = mkdtempSync(nodePath.join(tmpdir(), "bu-update-channel-"));
@@ -81,7 +84,7 @@ describe(isExpoUpdatesInstalled, () => {
         Effect.ensuring(Effect.sync(dispose)),
       );
       expect(installed).toBe(true);
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(TestLayer)),
   );
 
   it.effect("returns false without the dependency or without a package.json", () =>
@@ -97,7 +100,7 @@ describe(isExpoUpdatesInstalled, () => {
       );
       expect(missingFile).toBe(false);
       expect(missingDep).toBe(false);
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(TestLayer)),
   );
 });
 
@@ -111,7 +114,7 @@ describe(setAndroidUpdateChannel, () => {
       expect(written).toContain("expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY");
       expect(written).toContain("expo-channel-name");
       expect(written).toContain("production");
-    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
   });
 
   it.effect("merges with existing headers instead of clobbering them", () => {
@@ -124,7 +127,7 @@ describe(setAndroidUpdateChannel, () => {
       expect(written).toContain("kept");
       expect(written).toContain("preview");
       expect(written).not.toContain("old");
-    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
   });
 
   // Injection now runs on committed trees, not just on what prebuild emitted,
@@ -140,13 +143,32 @@ describe(setAndroidUpdateChannel, () => {
       writeFileSync(manifestPath, ANDROID_MANIFEST);
       yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "production" });
       expect(readFileSync(manifestPath, "utf8")).toContain("expo-channel-name");
-    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
   });
 
-  // `getAndroidManifestAsync` only asserts the android/ DIRECTORY exists, so an
-  // android/ without a manifest used to yield a bare read error from a path the
-  // project never used. Fail with the actionable message instead.
-  it.effect("fails actionably when android/ exists but carries no manifest", () =>
+  // The profile's Gradle module is the one that ships. Writing into a stale
+  // `app` module would leave the released AAB with no channel header at all,
+  // and nothing in the build log would say so.
+  it.effect("prefers the profile's Gradle module over a stale app module", () => {
+    const { dir, dispose } = makeDir();
+    return Effect.gen(function* () {
+      const stalePath = writeAndroidManifest(dir, ANDROID_MANIFEST);
+      const moduleDir = nodePath.join(dir, "android", "mobile", "src", "main");
+      mkdirSync(moduleDir, { recursive: true });
+      const modulePath = nodePath.join(moduleDir, "AndroidManifest.xml");
+      writeFileSync(modulePath, ANDROID_MANIFEST);
+      yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "production", module: "mobile" });
+      expect(readFileSync(modulePath, "utf8")).toContain("expo-channel-name");
+      expect(readFileSync(stalePath, "utf8")).not.toContain("expo-channel-name");
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
+  });
+
+  // Injection runs on trees whose layout this code cannot know (committed,
+  // custom, sub-project). A target it cannot reach means "not injectable here",
+  // not "misconfigured" — failing would redden builds that were green before,
+  // with nothing the user could change. Warning already ends the silence that
+  // was the actual bug.
+  it.effect("warns instead of failing when no Android manifest is reachable", () =>
     Effect.gen(function* () {
       const { dir, dispose } = makeDir();
       mkdirSync(nodePath.join(dir, "android"), { recursive: true });
@@ -154,23 +176,19 @@ describe(setAndroidUpdateChannel, () => {
         Effect.either,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain("No AndroidManifest.xml found");
-        expect(result.left.message).toContain("default channel");
-      }
-    }).pipe(Effect.provide(NodeContext.layer)),
+      expect(result._tag).toBe("Right");
+    }).pipe(Effect.provide(TestLayer)),
   );
 
-  it.effect("fails when no android project exists", () =>
+  it.effect("warns instead of failing when no android project exists", () =>
     Effect.gen(function* () {
       const { dir, dispose } = makeDir();
       const result = yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "x" }).pipe(
         Effect.either,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Left");
-    }).pipe(Effect.provide(NodeContext.layer)),
+      expect(result._tag).toBe("Right");
+    }).pipe(Effect.provide(TestLayer)),
   );
 });
 
@@ -195,7 +213,7 @@ describe(setIosUpdateChannel, () => {
         "expo-channel-name": "production",
       });
       expect(root["EXUpdatesURL"]).toBe("https://example.com/manifest/p1");
-    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
   });
 
   // Committed iOS projects often keep Expo.plist directly under the target
@@ -217,10 +235,27 @@ describe(setIosUpdateChannel, () => {
         "x-custom": "kept",
         "expo-channel-name": "preview",
       });
-    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
   });
 
-  it.effect("fails when no Expo.plist exists under ios/", () =>
+  // Directory order is alphabetical, so a per-directory search would hand
+  // `AppClip/Expo.plist` the channel and leave the app that actually ships
+  // without one. The prebuild layout has to win across ALL targets first.
+  it.effect("prefers the prebuild layout over an earlier target's bare plist", () => {
+    const { dir, dispose } = makeDir();
+    return Effect.gen(function* () {
+      const clipDir = nodePath.join(dir, "ios", "AppClip");
+      mkdirSync(clipDir, { recursive: true });
+      const clipPlist = nodePath.join(clipDir, "Expo.plist");
+      writeFileSync(clipPlist, IOS_EXPO_PLIST);
+      const mainPlist = writeExpoPlist(dir, IOS_EXPO_PLIST);
+      yield* setIosUpdateChannel({ iosDir: nodePath.join(dir, "ios"), channel: "production" });
+      expect(readFileSync(mainPlist, "utf8")).toContain("expo-channel-name");
+      expect(readFileSync(clipPlist, "utf8")).not.toContain("expo-channel-name");
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(TestLayer));
+  });
+
+  it.effect("warns instead of failing when no Expo.plist exists under ios/", () =>
     Effect.gen(function* () {
       const { dir, dispose } = makeDir();
       mkdirSync(nodePath.join(dir, "ios"), { recursive: true });
@@ -228,10 +263,7 @@ describe(setIosUpdateChannel, () => {
         iosDir: nodePath.join(dir, "ios"),
         channel: "production",
       }).pipe(Effect.either, Effect.ensuring(Effect.sync(dispose)));
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain("Expo.plist");
-      }
-    }).pipe(Effect.provide(NodeContext.layer)),
+      expect(result._tag).toBe("Right");
+    }).pipe(Effect.provide(TestLayer)),
   );
 });

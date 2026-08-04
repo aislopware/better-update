@@ -51,7 +51,45 @@ const hasExpoDependency = (projectRoot: string) =>
   });
 
 /**
- * Whether the project carries an Expo config file at all.
+ * Config files that make a project look Expo-MANAGED.
+ *
+ * Deliberately NARROWER than the set `@expo/config` can load, and deliberately
+ * frozen: `detectProjectType` decides from this whether to run
+ * `expo prebuild --clean`, so adding an entry here reclassifies real projects
+ * and throws away their committed `android/` + `ios/`. Widening the OTA gate is
+ * not a reason to touch this list — see `EXPO_CONFIG_FILES` below.
+ */
+const PROJECT_TYPE_CONFIG_FILES = ["app.json", "app.config.js", "app.config.ts"] as const;
+
+/**
+ * Every config file `@expo/config` resolves: the static forms plus each
+ * dynamic-config extension in its `DYNAMIC_CONFIG_EXTS`. Kept in sync with that
+ * list so the OTA gate below can never report "no config" for a file
+ * `readExpoConfig` would have loaded.
+ */
+const EXPO_CONFIG_FILES = [
+  "app.json",
+  "app.config.json",
+  "app.config.ts",
+  "app.config.mts",
+  "app.config.cts",
+  "app.config.mjs",
+  "app.config.cjs",
+  "app.config.js",
+] as const;
+
+const hasAnyOf = (projectRoot: string, names: readonly string[]) =>
+  Effect.gen(function* () {
+    for (const name of names) {
+      if (yield* exists(path.join(projectRoot, name))) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+/**
+ * Whether the project carries an Expo config file `@expo/config` could load.
  *
  * Exported because "can we read an Expo config?" is a DIFFERENT question from
  * "is this an Expo-managed project?". Conflating the two is what made
@@ -60,21 +98,12 @@ const hasExpoDependency = (projectRoot: string) =>
  * strategy) even though reading `app.json` never requires prebuild. Callers
  * that only need config DATA should gate on this, not on the project type.
  *
- * The candidate list mirrors what `readExpoConfig` actually resolves, so this
- * gate cannot report "no config" for a file `@expo/config` would have loaded.
- * A bare truthy result is NOT sufficient reason to read the config: the plain
- * React Native template ships an `app.json` too. Pair it with a signal that the
+ * A truthy result is NOT sufficient reason to read the config: the plain React
+ * Native template ships an `app.json` too. Pair it with a signal that the
  * project wants OTA at all (`isExpoUpdatesInstalled`).
  */
 export const hasAnyExpoConfigFile = (projectRoot: string) =>
-  Effect.gen(function* () {
-    for (const name of ["app.json", "app.config.json", "app.config.js", "app.config.ts"]) {
-      if (yield* exists(path.join(projectRoot, name))) {
-        return true;
-      }
-    }
-    return false;
-  });
+  hasAnyOf(projectRoot, EXPO_CONFIG_FILES);
 
 const looksKmp = (projectRoot: string) =>
   Effect.gen(function* () {
@@ -114,7 +143,8 @@ export const detectProjectType = (
     const expoInstalled = isExpoConfigInstalled();
     if (
       expoInstalled &&
-      ((yield* hasExpoDependency(projectRoot)) || (yield* hasAnyExpoConfigFile(projectRoot)))
+      ((yield* hasExpoDependency(projectRoot)) ||
+        (yield* hasAnyOf(projectRoot, PROJECT_TYPE_CONFIG_FILES)))
     ) {
       return "expo";
     }

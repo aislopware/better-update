@@ -15,6 +15,9 @@ import { Effect } from "effect";
 import { BuildFailedError } from "./exit-codes";
 import { formatCause } from "./format-error";
 import { buildPlistXml, parsePlistXml } from "./plist";
+import { printWarn } from "./warning-style";
+
+import type { OutputMode } from "./output-mode";
 
 const { AndroidConfig } = configPlugins;
 
@@ -79,21 +82,47 @@ export const isExpoUpdatesInstalled = (
   });
 
 /**
- * Android manifests that are NOT at the path `@expo/config-plugins` assumes
- * (`android/app/src/main/`). Prebuild always emits that layout, but this
- * function now also runs on committed trees, where a Kotlin-Multiplatform or
- * root-level native module puts its manifest elsewhere.
+ * Warn — loudly — that the channel could not be baked in.
+ *
+ * NOT an error, deliberately. Injection runs for every strategy now, including
+ * committed and custom trees whose layout this code cannot know, so a
+ * not-found target is "we could not reach it here", not "the project is
+ * misconfigured": failing would turn builds that were green on the previous
+ * release red, with nothing the user can change short of restructuring. The
+ * bug being fixed was SILENCE, and a warning already ends that.
  */
-const ANDROID_MANIFEST_CANDIDATES = [
+const warnChannelNotInjected = (params: {
+  readonly platform: "Android" | "iOS";
+  readonly searched: string;
+  readonly channel: string;
+}) =>
+  printWarn(
+    `Could not bake the update channel "${params.channel}" into the ${params.platform} build: ` +
+      `${params.searched}. The binary will fall back to the server's DEFAULT channel at runtime, ` +
+      `so updates published to "${params.channel}" may never reach it. Point the build at the ` +
+      `native project that ships, inject "expo-channel-name" yourself, or drop "channel" from the ` +
+      `profile if this platform does not do OTA.`,
+  );
+
+/**
+ * Manifest locations to try, most specific first. Prebuild always emits
+ * `android/app/src/main/`, but injection also runs on committed trees, where a
+ * Gradle module override, a Kotlin-Multiplatform layout or a root-level native
+ * module puts the manifest elsewhere.
+ */
+const androidManifestCandidates = (module: string | undefined): readonly string[] => [
+  // The Gradle module actually assembled, when the profile names one — it is
+  // the module that ships, so its manifest is the only correct target.
+  ...(module === undefined ? [] : [`android/${module}/src/main/AndroidManifest.xml`]),
   // What prebuild emits, and what `@expo/config-plugins` assumes.
   "android/app/src/main/AndroidManifest.xml",
   "composeApp/src/androidMain/AndroidManifest.xml",
   "androidApp/src/main/AndroidManifest.xml",
   "app/src/main/AndroidManifest.xml",
-] as const;
+];
 
 /**
- * Resolve the manifest to inject into.
+ * Resolve the manifest to inject into, or `undefined` when none is reachable.
  *
  * Note this does NOT use `AndroidConfig.Paths.getAndroidManifestAsync`: that
  * helper only asserts the `android/` DIRECTORY exists and then returns
@@ -103,27 +132,18 @@ const ANDROID_MANIFEST_CANDIDATES = [
  */
 const findAndroidManifest = (
   projectRoot: string,
-): Effect.Effect<string, BuildFailedError, FileSystem.FileSystem> =>
+  candidates: readonly string[],
+): Effect.Effect<string | undefined, never, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    for (const relative of ANDROID_MANIFEST_CANDIDATES) {
+    for (const relative of candidates) {
       const candidate = path.join(projectRoot, relative);
       const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
       if (exists) {
         return candidate;
       }
     }
-    return yield* new BuildFailedError({
-      step: "set android update channel",
-      exitCode: 1,
-      message:
-        `No AndroidManifest.xml found under ${projectRoot} (looked in ` +
-        `${ANDROID_MANIFEST_CANDIDATES.join(", ")}). This build profile sets an update ` +
-        `"channel" and the project depends on expo-updates, so the channel has to be baked into ` +
-        `the binary — a build without it silently reads the server's default channel. Point the ` +
-        `build at a project containing an Android manifest, or drop "channel" from the profile if ` +
-        `this platform does not do OTA.`,
-    });
+    return undefined;
   });
 
 /**
@@ -132,14 +152,25 @@ const findAndroidManifest = (
  * entry when none is present).
  *
  * Runs for every build strategy, not just prebuild, so the manifest may be a
- * committed file rather than a generated one — same injection either way.
+ * committed file rather than a generated one — same injection either way. A
+ * write that FAILS is still fatal; only a target that cannot be found warns.
  */
 export const setAndroidUpdateChannel = (params: {
   readonly projectRoot: string;
   readonly channel: string;
-}): Effect.Effect<void, BuildFailedError, FileSystem.FileSystem> =>
+  /** Gradle module being assembled (profile `android.module`), if overridden. */
+  readonly module?: string | undefined;
+}): Effect.Effect<void, BuildFailedError, FileSystem.FileSystem | OutputMode> =>
   Effect.gen(function* () {
-    const manifestPath = yield* findAndroidManifest(params.projectRoot);
+    const candidates = androidManifestCandidates(params.module);
+    const manifestPath = yield* findAndroidManifest(params.projectRoot, candidates);
+    if (manifestPath === undefined) {
+      return yield* warnChannelNotInjected({
+        platform: "Android",
+        channel: params.channel,
+        searched: `no AndroidManifest.xml under ${params.projectRoot} (looked in ${candidates.join(", ")})`,
+      });
+    }
     return yield* Effect.tryPromise({
       try: async () => {
         const manifest = await AndroidConfig.Manifest.readAndroidManifestAsync(manifestPath);
@@ -169,54 +200,58 @@ export const setAndroidUpdateChannel = (params: {
   });
 
 /**
- * Locate the target's `Expo.plist`.
+ * Locate the main target's `Expo.plist`, or `undefined` when there is none.
  *
- * Prebuild always emits `ios/<target>/Supporting/Expo.plist`, but this now also
+ * Prebuild always emits `ios/<target>/Supporting/Expo.plist`, but this also
  * runs on committed trees, where the file is often kept directly under the
- * target group without the `Supporting/` folder — so both layouts are searched.
+ * target group. The two layouts are searched in SEPARATE passes, not
+ * interleaved per directory: in a multi-target project an extension or app
+ * clip may carry its own plist, and directory order is alphabetical, so a
+ * per-entry search could return `ios/AppClip/Expo.plist` ahead of the app's
+ * `ios/MyApp/Supporting/Expo.plist` and bake the channel into the wrong
+ * binary. Preferring the prebuild layout across all targets keeps the main app
+ * winning wherever it uses the generated shape.
  */
 const findExpoPlist = (
   iosDir: string,
-): Effect.Effect<string, BuildFailedError, FileSystem.FileSystem> =>
+): Effect.Effect<string | undefined, never, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const entries = yield* fs.readDirectory(iosDir).pipe(Effect.orElseSucceed(() => []));
-    for (const entry of entries) {
-      for (const relative of [
-        path.join(entry, "Supporting", "Expo.plist"),
-        path.join(entry, "Expo.plist"),
-      ]) {
-        const candidate = path.join(iosDir, relative);
+    for (const segments of [["Supporting", "Expo.plist"], ["Expo.plist"]]) {
+      for (const entry of entries) {
+        const candidate = path.join(iosDir, entry, ...segments);
         const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
         if (exists) {
           return candidate;
         }
       }
     }
-    return yield* new BuildFailedError({
-      step: "set ios update channel",
-      exitCode: 1,
-      message:
-        `No Expo.plist found under ${iosDir} (looked for <target>/Supporting/Expo.plist and ` +
-        `<target>/Expo.plist). This build profile sets an update "channel" and the project ` +
-        `depends on expo-updates, so the channel has to be baked into the binary — a build ` +
-        `without it silently reads the server's default channel. Add an Expo.plist to the iOS ` +
-        `target (\`npx expo prebuild --platform ios\` generates one), or drop "channel" from the ` +
-        `profile if iOS does not do OTA.`,
-    });
+    return undefined;
   });
 
 /**
- * Write the channel into the prebuilt `ios/` project: merge it into the
- * `EXUpdatesRequestHeaders` dict of the generated Expo.plist.
+ * Write the channel into the `ios/` project: merge it into the
+ * `EXUpdatesRequestHeaders` dict of the target's Expo.plist.
+ *
+ * Runs for every build strategy, so the plist may be committed rather than
+ * generated. A write that FAILS is still fatal; only a target that cannot be
+ * found warns — see `warnChannelNotInjected`.
  */
 export const setIosUpdateChannel = (params: {
   readonly iosDir: string;
   readonly channel: string;
-}): Effect.Effect<void, BuildFailedError, FileSystem.FileSystem> =>
+}): Effect.Effect<void, BuildFailedError, FileSystem.FileSystem | OutputMode> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const plistPath = yield* findExpoPlist(params.iosDir);
+    if (plistPath === undefined) {
+      return yield* warnChannelNotInjected({
+        platform: "iOS",
+        channel: params.channel,
+        searched: `no Expo.plist under ${params.iosDir} (looked for <target>/Supporting/Expo.plist and <target>/Expo.plist)`,
+      });
+    }
     const failure = (cause: unknown) =>
       new BuildFailedError({
         step: "set ios update channel",

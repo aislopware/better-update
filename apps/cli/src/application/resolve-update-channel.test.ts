@@ -5,7 +5,6 @@ import nodePath from "node:path";
 import { NodeContext } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { describe, expect } from "vitest";
 
 import { makeOutputModeLayer } from "../lib/output-mode";
 import { resolveUpdateChannel } from "./resolve-update-channel";

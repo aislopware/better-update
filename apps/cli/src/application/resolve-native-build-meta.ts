@@ -1,8 +1,7 @@
 import { Effect } from "effect";
 
 import { extractRawRuntimeVersion } from "../lib/expo-config";
-import { readOtaExpoConfig } from "../lib/ota-expo-config";
-import { resolveRuntimeVersion } from "../lib/runtime-version";
+import { readOtaExpoConfig, resolveOtaRuntimeVersion } from "../lib/ota-expo-config";
 import { resolveAppMeta } from "./resolve-app-meta";
 
 import type { Platform } from "../lib/build-profile";
@@ -60,17 +59,14 @@ export const resolveNativeBuildMeta = (params: {
     if (expoConfig === undefined) {
       return { appMeta, runtimeVersion: undefined };
     }
-    const raw = extractRawRuntimeVersion(expoConfig, platform);
-    if (raw === undefined) {
-      return { appMeta, runtimeVersion: undefined };
-    }
-    const runtimeVersion = yield* resolveRuntimeVersion({
-      raw,
+    const runtimeVersion = yield* resolveOtaRuntimeVersion({
+      raw: extractRawRuntimeVersion(expoConfig, platform),
       appVersion: appMeta.appVersion,
       projectRoot: userCwd,
       platform,
       buildNumber: appMeta.buildNumber,
       sdkVersion: expoConfig.sdkVersion,
+      subject: "build",
     });
     return { appMeta, runtimeVersion };
   });
