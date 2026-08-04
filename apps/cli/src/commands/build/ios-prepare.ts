@@ -106,9 +106,6 @@ export const prepareIosNative = (params: {
         },
         "expo prebuild ios",
       );
-      if (params.updateChannel !== undefined) {
-        yield* setIosUpdateChannel({ iosDir: params.iosDir, channel: params.updateChannel });
-      }
     } else if (params.iosProfile.podInstall !== false) {
       const fs = yield* FileSystem.FileSystem;
       const hasPodfile = yield* fs
@@ -121,6 +118,17 @@ export const prepareIosNative = (params: {
         );
       }
     }
+
+    // Bake the OTA channel AFTER prebuild (which regenerates `ios/`) and BEFORE
+    // the archive — for EVERY strategy, not just "expo". A committed Expo.plist
+    // is just as valid an injection target as a generated one. This used to sit
+    // inside the prebuild branch above, so bare/native/kmp/custom builds shipped
+    // with an empty EXUpdatesRequestHeaders and silently fell back to the
+    // server's default channel.
+    if (params.updateChannel !== undefined) {
+      yield* setIosUpdateChannel({ iosDir: params.iosDir, channel: params.updateChannel });
+    }
+
     yield* runBuildHook({
       name: "eas-build-post-install",
       projectRoot: params.projectRoot,

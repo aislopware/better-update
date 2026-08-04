@@ -4,18 +4,20 @@ import { Effect } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readBuildProfile } from "../lib/build-profile";
-import { asProjectType, detectProjectType } from "../lib/detect-project-type";
+import { asProjectType, detectProjectType, hasAnyExpoConfigFile } from "../lib/detect-project-type";
 import { readEasProjectType } from "../lib/eas-json";
 import { pullEnvVars } from "../lib/env-exporter";
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
-import { readAppMeta, readExpoConfig } from "../lib/expo-config";
+import { extractRawRuntimeVersion, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { runFingerprintForPlatform } from "../lib/fingerprint";
+import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { printHuman, printKeyValue } from "../lib/output";
 import { readProjectId } from "../lib/project-link";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File } from "../lib/sha256";
+import { printWarn } from "../lib/warning-style";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { resolveAppMeta } from "./resolve-app-meta";
@@ -82,7 +84,23 @@ const resolveAndroidTarget = (profile: BuildProfile, appMeta: AppMeta, projectRo
     return { target, bundleId };
   });
 
-/** Resolve app metadata + OTA runtimeVersion for an upload (project-type aware). */
+/**
+ * Resolve app metadata + OTA runtimeVersion for an upload.
+ *
+ * Two SEPARATE questions, previously answered by one flag:
+ *
+ *   1. Where does app metadata come from?  -> the project type. An Expo project
+ *      reads app.json; bare/native/kmp read the native files. Unchanged.
+ *   2. Is there an OTA runtimeVersion?     -> whether an Expo config exists and
+ *      declares one. A bare project can ship expo-updates and commit its own
+ *      `ios/`+`android/`; gating this on the project type recorded an empty
+ *      runtime version for exactly those builds, which is what made
+ *      `builds compatibility-matrix` report "No compatibility data found".
+ *
+ * Reading the Expo config is best-effort here: a project that merely happens to
+ * have an app.json must not start failing its uploads because that file is
+ * unreadable. It falls back to the previous behaviour (no runtimeVersion).
+ */
 const resolveUploadMeta = (params: {
   readonly projectType: Effect.Effect.Success<ReturnType<typeof detectProjectType>>;
   readonly platform: Platform;
@@ -92,28 +110,54 @@ const resolveUploadMeta = (params: {
 }) =>
   Effect.gen(function* () {
     const { projectType, platform, projectRoot, profile, envVars } = params;
-    const expoConfig =
-      projectType === "expo" ? yield* readExpoConfig(projectRoot, envVars) : undefined;
+    const isExpo = projectType === "expo";
+    const hasConfigFile = yield* hasAnyExpoConfigFile(projectRoot);
+    // An Expo project whose config will not parse cannot be uploaded at all —
+    // its app metadata comes from that very file — so keep failing there.
+    // Everyone else only forgoes the runtimeVersion, which must not become a
+    // hard failure for projects that never asked for OTA in the first place.
+    const onUnreadableConfig = (cause: unknown) =>
+      isExpo
+        ? Effect.fail(cause)
+        : printWarn(
+            `Found an Expo config but could not read it, so no OTA runtimeVersion will be recorded for this upload: ${formatCause(cause)}`,
+          ).pipe(Effect.as(undefined));
+    const expoConfig = hasConfigFile
+      ? yield* readExpoConfig(projectRoot, envVars).pipe(Effect.catchAll(onUnreadableConfig))
+      : undefined;
+    // Only an Expo project takes its app metadata from the config; for the
+    // others the native files remain the source of truth.
     const expoAppMeta =
-      expoConfig === undefined ? undefined : yield* readAppMeta(expoConfig, platform);
+      !isExpo || expoConfig === undefined ? undefined : yield* readAppMeta(expoConfig, platform);
     const appMeta = yield* resolveAppMeta({
       projectType,
       platform,
       projectRoot,
       profile,
-      ...compact({ expoConfig, expoAppMeta }),
+      ...compact({ expoConfig: isExpo ? expoConfig : undefined, expoAppMeta }),
     });
+    // `appMeta.rawRuntimeVersion` is only populated on the Expo path, so read it
+    // straight off the config for everyone else.
+    const readRawRuntimeVersion = () => {
+      if (expoConfig === undefined) {
+        return undefined;
+      }
+      return isExpo ? appMeta.rawRuntimeVersion : extractRawRuntimeVersion(expoConfig, platform);
+    };
+    const rawRuntimeVersion = readRawRuntimeVersion();
     const runtimeVersion =
-      expoConfig === undefined
+      expoConfig === undefined || rawRuntimeVersion === undefined
         ? undefined
         : yield* resolveRuntimeVersion({
-            raw: appMeta.rawRuntimeVersion,
+            raw: rawRuntimeVersion,
             appVersion: appMeta.appVersion,
             projectRoot,
             platform,
             buildNumber: appMeta.buildNumber,
             sdkVersion: expoConfig.sdkVersion,
           });
+    // Drives the fingerprint probe below: it needs an Expo config, not an Expo
+    // project.
     return { appMeta, runtimeVersion, isExpo: expoConfig !== undefined };
   });
 

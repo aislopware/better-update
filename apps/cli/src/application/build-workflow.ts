@@ -35,6 +35,7 @@ import { CliRuntime } from "../services/cli-runtime";
 import { runAutoSubmit } from "./build-auto-submit";
 import { runPlatformBuild } from "./platform-build";
 import { resolveAppMeta } from "./resolve-app-meta";
+import { resolveNativeBuildMeta } from "./resolve-native-build-meta";
 import { resolveUpdateChannel } from "./resolve-update-channel";
 
 import type { Platform } from "../lib/build-profile";
@@ -239,12 +240,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             hasIosDir: yield* dirExists(userCwd, "ios"),
           });
 
-      const updateChannel = yield* resolveUpdateChannel({
-        userCwd,
-        platform,
-        profile,
-        projectType,
-      });
+      const updateChannel = yield* resolveUpdateChannel({ userCwd, profile });
 
       // Best-effort git context — used for build metadata at upload time and
       // exposed to subprocesses (EAS_BUILD_GIT_COMMIT_HASH parity).
@@ -274,23 +270,22 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
 
       // Resolve app metadata + OTA runtimeVersion. Expo reads app.json (with the
       // env overlay), applies autoIncrement to the user's tree, and derives a
-      // runtimeVersion. Non-Expo reads native files / profile overrides and has
-      // no runtimeVersion (no eas-updates).
+      // runtimeVersion. Non-Expo reads app metadata from the native files /
+      // profile overrides — but still derives a runtimeVersion when an Expo
+      // config is present, because a bare project can ship expo-updates too.
       const { appMeta, runtimeVersion }: BuildMeta = isExpo
         ? yield* resolveExpoBuildMeta({ userCwd, platform, profile, envVars: envWithBuildId }).pipe(
             // autoIncrement is a read-modify-write of the user's app.json —
             // parallel platform builds must not interleave it.
             withOptionalPermit(options.mutex),
           )
-        : {
-            appMeta: yield* resolveAppMeta({
-              projectType,
-              platform,
-              projectRoot: userCwd,
-              profile,
-            }),
-            runtimeVersion: undefined,
-          };
+        : yield* resolveNativeBuildMeta({
+            userCwd,
+            platform,
+            profile,
+            projectType,
+            envVars: envWithBuildId,
+          });
 
       // Platform version env (EAS_BUILD_IOS_* / EAS_BUILD_ANDROID_* parity).
       const buildEnvVars = {

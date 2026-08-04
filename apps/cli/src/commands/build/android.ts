@@ -292,12 +292,19 @@ export const runAndroidBuild = (input: RunAndroidBuildInput) =>
         },
         "expo prebuild android",
       );
-      if (input.updateChannel !== undefined) {
-        yield* setAndroidUpdateChannel({
-          projectRoot: input.projectRoot,
-          channel: input.updateChannel,
-        });
-      }
+    }
+
+    // Bake the OTA channel AFTER prebuild (which regenerates `android/`) and
+    // BEFORE any build step — for EVERY strategy, not just "expo". A committed
+    // AndroidManifest.xml is just as valid an injection target as a generated
+    // one, and a custom command reads that same file. This used to live inside
+    // the branch above, so bare/native/kmp/custom builds shipped with no
+    // channel at all and silently fell back to the server's default channel.
+    if (input.updateChannel !== undefined) {
+      yield* setAndroidUpdateChannel({
+        projectRoot: input.projectRoot,
+        channel: input.updateChannel,
+      });
     }
 
     // Custom commands own their full pipeline; the managed strategies run the

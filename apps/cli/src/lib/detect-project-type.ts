@@ -50,7 +50,17 @@ const hasExpoDependency = (projectRoot: string) =>
     return deps?.["expo"] !== undefined || devDeps?.["expo"] !== undefined;
   });
 
-const hasAnyExpoConfigFile = (projectRoot: string) =>
+/**
+ * Whether the project carries an Expo config file at all.
+ *
+ * Exported because "can we read an Expo config?" is a DIFFERENT question from
+ * "is this an Expo-managed project?". Conflating the two is what made
+ * bare/native/custom projects silently lose their OTA runtimeVersion and their
+ * update channel: both were gated on `projectType === "expo"` (or on the build
+ * strategy) even though reading `app.json` never requires prebuild. Callers
+ * that only need config DATA should gate on this, not on the project type.
+ */
+export const hasAnyExpoConfigFile = (projectRoot: string) =>
   Effect.gen(function* () {
     for (const name of ["app.json", "app.config.js", "app.config.ts"]) {
       if (yield* exists(path.join(projectRoot, name))) {
