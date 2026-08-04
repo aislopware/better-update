@@ -175,6 +175,13 @@ better-update credentials sync pull [--platform ios|android|all] [--keys-dir <di
   is the last one. The Apple ID setup path (`build` first-run wizard) makes the same offer. With
   `--all`, both offers are asked **once per run** (bind answers remembered per Apple team and applied
   to the remaining bundle configs), not once per bundle.
+- **A run that cannot prompt (`--non-interactive`, `--freeze-credentials`, CI) still regenerates**, as
+  long as _some_ ASC API key exists for the bundle's Apple team: no binding, no prompt, no Apple ID —
+  the key is picked exactly the way the server resolves it (bundle's own binding, else the team's
+  newest key) and used for that run only, so the config's binding is never silently rewritten. Only a
+  team with **no stored key at all** fails, telling you to run `credentials upload-asc-key` (or
+  `credentials generate asc-key` interactively) once. Stale ≠ missing: a moved device roster no longer
+  breaks a CI build that has the key to fix it.
 - `configure` is the non-build wizard to bind/rebind which credential each bundle/package uses. When
   it (or the `build` first-run wizard) walks multiple signed targets (main app + extensions), the
   shared answers — setup path, distribution certificate, ASC key — are asked once for the first

@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import {
   makeAscBindingMemo,
   regenerateProvisioningProfile,
-} from "../../application/credentials-interactive";
+} from "../../application/credentials-interactive-profile";
 import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError, MissingCredentialsError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
@@ -12,7 +12,7 @@ import { readAppMetaOptional, readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
-import type { AscBindingMemo } from "../../application/credentials-interactive";
+import type { AscBindingMemo } from "../../application/credentials-interactive-profile";
 import type { IosDistribution } from "../../lib/build-profile";
 import type { ApiClient } from "../../services/api-client";
 
@@ -53,7 +53,7 @@ const regenerateOne = (
         bundleIdentifier,
         distribution,
       },
-      memo,
+      { memo },
     );
     yield* printHumanKeyValue([
       ["Bundle", bundleIdentifier],

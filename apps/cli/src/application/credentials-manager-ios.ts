@@ -13,10 +13,10 @@ import {
   ensureIosCredentials,
   pickIosAscKey,
   pickIosCertificate,
-  regenerateProvisioningProfile,
   resolveIosProfileId,
 } from "./credentials-interactive";
 import { createApnsKeyViaAppleId, defaultApnsKeyName } from "./credentials-interactive-apple-id";
+import { regenerateProvisioningProfile } from "./credentials-interactive-profile";
 import { iosAscKeysMenu } from "./credentials-manager-ios-asc";
 import { revokeIosDistributionCert, revokeIosPushKey } from "./credentials-manager-ios-revoke";
 import {

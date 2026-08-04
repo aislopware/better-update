@@ -252,20 +252,20 @@ better-update build configure [--force]      # scaffold/top-up eas.json default 
 ios and android **in parallel** (output lines are tagged `[ios]` / `[android]`); not combinable with
 `--json` or `--output`.
 
-| Flag                                | Default      | Notes                                                                    |
-| ----------------------------------- | ------------ | ------------------------------------------------------------------------ |
-| `--platform <ios\|android\|all>`    | auto         | Auto-detected when omitted; `all` = both platforms in parallel.          |
-| `--profile <name>`                  | `production` | Build profile (matches `eas.json` profile names).                        |
-| `--message <text>`                  | —            | Free-form description on the build record.                               |
-| `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                    |
-| `--output <path>`                   | —            | Copy the built artifact to this path.                                    |
-| `--raw-output`                      | off          | Raw Gradle/Xcode output instead of the formatted spinner.                |
-| `--clear-cache`                     | off          | Clear project-scoped build caches before building.                       |
-| `--freeze-credentials`              | off          | Fail fast if credentials are missing instead of prompting (CI).          |
-| `--allow-dirty`                     | off          | Proceed even with uncommitted git changes.                               |
-| `--auto-submit`, `-s`               | off          | After upload, submit using the eas.json submit profile of the same name. |
-| `--auto-submit-with-profile <name>` | —            | After upload, submit using a specific submit profile.                    |
-| `--what-to-test <text>`             | —            | iOS-only TestFlight changelog when auto-submitting.                      |
+| Flag                                | Default      | Notes                                                                                                                            |
+| ----------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `--platform <ios\|android\|all>`    | auto         | Auto-detected when omitted; `all` = both platforms in parallel.                                                                  |
+| `--profile <name>`                  | `production` | Build profile (matches `eas.json` profile names).                                                                                |
+| `--message <text>`                  | —            | Free-form description on the build record.                                                                                       |
+| `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                                                                            |
+| `--output <path>`                   | —            | Copy the built artifact to this path.                                                                                            |
+| `--raw-output`                      | off          | Raw Gradle/Xcode output instead of the formatted spinner.                                                                        |
+| `--clear-cache`                     | off          | Clear project-scoped build caches before building.                                                                               |
+| `--freeze-credentials`              | off          | Fail fast if credentials are missing instead of prompting (CI). A stale profile still regenerates headless given a team ASC key. |
+| `--allow-dirty`                     | off          | Proceed even with uncommitted git changes.                                                                                       |
+| `--auto-submit`, `-s`               | off          | After upload, submit using the eas.json submit profile of the same name.                                                         |
+| `--auto-submit-with-profile <name>` | —            | After upload, submit using a specific submit profile.                                                                            |
+| `--what-to-test <text>`             | —            | iOS-only TestFlight changelog when auto-submitting.                                                                              |
 
 ## builds
 
