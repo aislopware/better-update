@@ -1,15 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-  ComboboxValue,
-} from "@better-update/ui/components/ui/combobox";
+import { Combobox } from "@better-update/ui/components/combobox";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ChevronDownIcon } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import type { QueryFunction } from "@tanstack/react-query";
@@ -172,7 +164,7 @@ export const ServerSearchCombobox = ({
       }}
       disabled={disabled}
     >
-      <ComboboxTrigger
+      <Combobox.Trigger
         aria-label={ariaLabel}
         aria-invalid={invalid || undefined}
         render={
@@ -183,30 +175,35 @@ export const ServerSearchCombobox = ({
           />
         }
       >
-        <ComboboxValue>
+        <Combobox.Value>
           {(current: ComboboxOption | null) => (
-            <span className={current ? "truncate" : "text-muted-foreground truncate"}>
+            <span className={current ? "truncate" : "text-kumo-placeholder truncate"}>
               {current?.label ?? placeholder}
             </span>
           )}
-        </ComboboxValue>
-      </ComboboxTrigger>
-      <ComboboxContent className="min-w-56">
-        <ComboboxInput showTrigger={false} placeholder={searchPlaceholder} />
-        <ComboboxEmpty>{isPending ? "Searching…" : emptyMessage}</ComboboxEmpty>
-        <ComboboxList>
+        </Combobox.Value>
+        <Combobox.Icon className="text-kumo-subtle flex shrink-0 items-center">
+          <ChevronDownIcon strokeWidth={2} className="size-4" />
+        </Combobox.Icon>
+      </Combobox.Trigger>
+      {/* Matches the trigger's width the way a Select's list does, with a floor
+          so a narrow field still gets a readable list. */}
+      <Combobox.Content className="w-(--anchor-width) min-w-56">
+        <Combobox.Input placeholder={searchPlaceholder} />
+        <Combobox.Empty>{isPending ? "Searching…" : emptyMessage}</Combobox.Empty>
+        <Combobox.List>
           {(option: ComboboxOption) => (
-            <ComboboxItem key={option.value} value={option}>
+            <Combobox.Item key={option.value} value={option}>
               {option.content ?? <span className="truncate">{option.label}</span>}
-            </ComboboxItem>
+            </Combobox.Item>
           )}
-        </ComboboxList>
+        </Combobox.List>
         {defaultListTruncated && !search ? (
-          <p className="text-muted-foreground border-t px-3 py-2 text-xs">
+          <p className="text-kumo-subtle border-kumo-hairline border-t px-3 py-2 text-xs">
             Showing the first {DROPDOWN_FETCH_LIMIT} — type to search all.
           </p>
         ) : null}
-      </ComboboxContent>
+      </Combobox.Content>
     </Combobox>
   );
 };
