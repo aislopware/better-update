@@ -9,8 +9,7 @@ export default defineConfig({
   // re-export, though a bundler pulls only the one component) and `import/export`
   // (oxlint cannot follow Kumo's `.d.ts` re-export chain). Every hand-written
   // neighbour is negated back in, so it stays under type-aware lint; add new
-  // ones here. src/components/ui/ is the last of the shadcn (base-nova) surface
-  // still being retired — only the recharts wrapper is left.
+  // ones here.
   ignorePatterns: [
     "src/components/*.tsx",
     "!src/components/avatar.tsx",
@@ -26,6 +25,5 @@ export default defineConfig({
     "!src/components/skeleton.tsx",
     "!src/components/table.tsx",
     "!src/components/toast.tsx",
-    "src/components/ui/",
   ],
 });

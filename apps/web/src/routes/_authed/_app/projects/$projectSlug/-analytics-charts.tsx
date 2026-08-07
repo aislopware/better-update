@@ -6,37 +6,34 @@ import {
   updateAnalyticsQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
-import { Skeleton } from "@better-update/ui/components/skeleton";
 import {
-  ChartContainer,
+  Chart,
   ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@better-update/ui/components/ui/chart";
+  ChartPalette,
+  TimeseriesChart,
+} from "@better-update/ui/components/chart";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-import type { ChartConfig } from "@better-update/ui/components/ui/chart";
 
 import {
   ServerSearchCombobox,
   useServerSearchList,
 } from "../../../../../components/server-search-combobox";
-import { formatChartTimestamp } from "../../../../../lib/format-date";
+import { echarts } from "../../../../../lib/echarts";
 import { truncateId } from "../../../../../lib/truncate-id";
+import { useTheme } from "../../../../../lib/use-theme";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
+import {
+  axisTimestampFormat,
+  CHART_HEIGHT,
+  compactNumber,
+  donutOptions,
+  numberFormatter,
+  PLATFORM_LABELS,
+  platformColor,
+  rankedBarOptions,
+} from "./-analytics-chart-options";
 
 export const PERIODS = ["1d", "7d", "30d", "90d"] as const;
 
@@ -49,50 +46,24 @@ export const PERIOD_LABELS: Record<string, string> = {
 
 export type AnalyticsPeriod = (typeof PERIODS)[number];
 
-// Overview-row cards share one fixed chart height so the grid stays level.
-const CHART_HEIGHT = "h-[180px]";
+const useIsDarkMode = (): boolean => useTheme().resolvedTheme === "dark";
 
-const ADOPTION_CHART_CONFIG = {
-  devices: { label: "Devices", color: "var(--chart-1)" },
-} satisfies ChartConfig;
-
-// iOS ↔ chart-1 (blue) and Android ↔ chart-2 (green) — the same mapping every
-// chart in the app uses; unexpected platforms fall back to the tail hues.
-const PLATFORM_CHART_CONFIG = {
-  ios: { label: "iOS", color: "var(--chart-1)" },
-  android: { label: "Android", color: "var(--chart-2)" },
-} satisfies ChartConfig;
-
-const PLATFORM_FALLBACK_COLORS = ["var(--chart-3)", "var(--chart-4)", "var(--chart-5)"] as const;
-
-const platformFill = (platform: string, index: number): string =>
-  platform in PLATFORM_CHART_CONFIG
-    ? `var(--color-${platform})`
-    : (PLATFORM_FALLBACK_COLORS[index % PLATFORM_FALLBACK_COLORS.length] ?? "var(--chart-5)");
-
-const CHANNEL_HEALTH_CHART_CONFIG = {
-  value: { label: "Requests", color: "var(--chart-1)" },
-} satisfies ChartConfig;
-
-const TRAFFIC_CHART_CONFIG = {
-  requests: { label: "Requests", color: "var(--chart-1)" },
-} satisfies ChartConfig;
-
-export const chartSkeleton = <Skeleton className={`${CHART_HEIGHT} w-full rounded-md`} />;
+export const chartSkeleton = <Skeleton className="h-45 w-full rounded-md" />;
 
 // Prefer the human message over an opaque id in the update picker.
 const updateLabel = (updateItem: { readonly id: string; readonly message: string }) =>
   updateItem.message || truncateId(updateItem.id);
 
 const ChartEmptyState = ({ message }: { message: string }) => (
-  <p className={`text-muted-foreground flex ${CHART_HEIGHT} items-center justify-center text-sm`}>
+  <p className="text-kumo-subtle flex h-45 items-center justify-center text-center text-sm">
     {message}
   </p>
 );
 
 const ChartSummary = ({ requests, devices }: { requests: number; devices: number }) => (
-  <p className="text-muted-foreground text-sm">
-    {requests} requests &middot; {devices} unique devices
+  <p className="text-kumo-subtle text-sm">
+    {numberFormatter.format(requests)} requests &middot; {numberFormatter.format(devices)} unique
+    devices
   </p>
 );
 
@@ -106,6 +77,7 @@ export const AdoptionChart = ({
   period: AnalyticsPeriod;
 }) => {
   const { data } = useSuspenseQuery(adoptionQueryOptions(orgId, projectId, period));
+  const isDarkMode = useIsDarkMode();
 
   if (data.updates.length === 0) {
     return (
@@ -113,21 +85,18 @@ export const AdoptionChart = ({
     );
   }
 
-  const chartData = data.updates.map((entry) => ({
-    name: truncateId(entry.updateId),
-    devices: entry.devices,
-  }));
-
   return (
-    <ChartContainer config={ADOPTION_CHART_CONFIG} className={`${CHART_HEIGHT} w-full`}>
-      <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-        <XAxis type="number" tickLine={false} axisLine={false} />
-        <YAxis type="category" dataKey="name" width={100} tickLine={false} axisLine={false} />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="devices" fill="var(--color-devices)" radius={4} />
-      </BarChart>
-    </ChartContainer>
+    <Chart
+      echarts={echarts}
+      height={CHART_HEIGHT}
+      isDarkMode={isDarkMode}
+      options={rankedBarOptions({
+        labels: data.updates.map((entry) => truncateId(entry.updateId)),
+        values: data.updates.map((entry) => entry.devices),
+        seriesName: "Devices",
+        isDarkMode,
+      })}
+    />
   );
 };
 
@@ -141,6 +110,7 @@ export const PlatformChart = ({
   period: AnalyticsPeriod;
 }) => {
   const { data } = useSuspenseQuery(platformAnalyticsQueryOptions(orgId, projectId, period));
+  const isDarkMode = useIsDarkMode();
 
   if (data.platforms.length === 0) {
     return (
@@ -148,28 +118,44 @@ export const PlatformChart = ({
     );
   }
 
-  const chartData = data.platforms.map((entry, index) => ({
-    name: entry.platform,
+  const slices = data.platforms.map((entry, index) => ({
+    name: PLATFORM_LABELS[entry.platform] ?? entry.platform,
     value: entry.devices,
-    fill: platformFill(entry.platform, index),
+    color: platformColor(entry.platform, index, isDarkMode),
   }));
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
 
   return (
-    <ChartContainer config={PLATFORM_CHART_CONFIG} className={`${CHART_HEIGHT} w-full`}>
-      <PieChart>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          innerRadius={36}
-          outerRadius={58}
+    <div className="flex flex-col gap-3">
+      <div className="relative">
+        <Chart
+          echarts={echarts}
+          height={CHART_HEIGHT}
+          isDarkMode={isDarkMode}
+          options={donutOptions(slices)}
         />
-        <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="name" />} />
-        <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-      </PieChart>
-    </ChartContainer>
+        {/* The hole is the obvious place for the number the ring is a
+            breakdown of, and ECharts has no way to put it there. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-kumo-strong text-xl font-semibold tabular-nums">
+            {numberFormatter.format(total)}
+          </span>
+          <span className="text-kumo-subtle text-xs">devices</span>
+        </div>
+      </div>
+      {/* Counts, not just names: the ring shows proportion, the legend the
+          figures behind it. */}
+      <div className="divide-kumo-hairline flex flex-wrap justify-center gap-x-4 divide-x">
+        {slices.map((slice) => (
+          <ChartLegend.SmallItem
+            key={slice.name}
+            name={slice.name}
+            color={slice.color}
+            value={numberFormatter.format(slice.value)}
+          />
+        ))}
+      </div>
+    </div>
   );
 };
 
@@ -187,6 +173,7 @@ const ChannelHealthInner = ({
   const { data } = useSuspenseQuery(
     channelAnalyticsQueryOptions(orgId, projectId, channel, period),
   );
+  const isDarkMode = useIsDarkMode();
 
   if (data.totalRequests === 0) {
     return (
@@ -194,24 +181,24 @@ const ChannelHealthInner = ({
     );
   }
 
-  const chartData = [
-    { name: "Manifest", value: data.responseTypeDistribution.manifest },
-    { name: "Directive", value: data.responseTypeDistribution.directive },
-    { name: "No update", value: data.responseTypeDistribution.no_update },
-  ];
-
   return (
     <>
       <ChartSummary requests={data.totalRequests} devices={data.uniqueDevices} />
-      <ChartContainer config={CHANNEL_HEALTH_CHART_CONFIG} className={`${CHART_HEIGHT} w-full`}>
-        <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tickLine={false} axisLine={false} />
-          <YAxis type="category" dataKey="name" width={80} tickLine={false} axisLine={false} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Bar dataKey="value" fill="var(--color-value)" radius={4} />
-        </BarChart>
-      </ChartContainer>
+      <Chart
+        echarts={echarts}
+        height={CHART_HEIGHT}
+        isDarkMode={isDarkMode}
+        options={rankedBarOptions({
+          labels: ["Manifest", "Directive", "No update"],
+          values: [
+            data.responseTypeDistribution.manifest,
+            data.responseTypeDistribution.directive,
+            data.responseTypeDistribution.no_update,
+          ],
+          seriesName: "Requests",
+          isDarkMode,
+        })}
+      />
     </>
   );
 };
@@ -295,6 +282,7 @@ const UpdateTrafficInner = ({
   const { data } = useSuspenseQuery(
     updateAnalyticsQueryOptions(orgId, projectId, updateId, period),
   );
+  const isDarkMode = useIsDarkMode();
 
   if (data.totalRequests === 0) {
     return (
@@ -302,29 +290,33 @@ const UpdateTrafficInner = ({
     );
   }
 
-  const chartData = data.timeSeries.map((entry) => ({
-    timestamp: formatChartTimestamp(entry.timestamp),
-    requests: entry.requests,
-  }));
-
   return (
     <>
       <ChartSummary requests={data.totalRequests} devices={data.uniqueDevices} />
-      <ChartContainer config={TRAFFIC_CHART_CONFIG} className={`${CHART_HEIGHT} w-full`}>
-        <AreaChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="timestamp" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={36} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Area
-            type="monotone"
-            dataKey="requests"
-            stroke="var(--color-requests)"
-            fill="var(--color-requests)"
-            fillOpacity={0.25}
-          />
-        </AreaChart>
-      </ChartContainer>
+      {/* Real timestamps on a time axis rather than pre-formatted labels, so
+          the gaps between buckets are drawn to scale. */}
+      <TimeseriesChart
+        echarts={echarts}
+        height={CHART_HEIGHT}
+        isDarkMode={isDarkMode}
+        gradient
+        data={[
+          {
+            name: "Requests",
+            color: ChartPalette.categorical(0, isDarkMode),
+            data: data.timeSeries.map((entry): [number, number] => [
+              new Date(entry.timestamp).getTime(),
+              entry.requests,
+            ]),
+          },
+        ]}
+        xAxisTickCount={6}
+        xAxisTickFormat={axisTimestampFormat}
+        yAxisTickFormat={compactNumber}
+        // The tooltip row is already labelled "Requests", so the value is just
+        // the number.
+        tooltipValueFormat={(value) => numberFormatter.format(value)}
+      />
     </>
   );
 };
