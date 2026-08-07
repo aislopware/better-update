@@ -14,15 +14,15 @@ import {
 } from "@cloudflare/kumo/components/dialog";
 import { XIcon } from "@phosphor-icons/react";
 
-import { Button } from "#/components/button";
-import { cn } from "#/lib/utils";
-
 import type {
   DialogDescriptionProps,
   DialogProps as KumoDialogPopupProps,
   DialogTitleProps,
 } from "@cloudflare/kumo/components/dialog";
 import type { ComponentProps } from "react";
+
+import { Button } from "#/components/button";
+import { cn } from "#/lib/utils";
 
 export { DialogClose, DialogTrigger } from "@cloudflare/kumo/components/dialog";
 export type {
@@ -138,7 +138,7 @@ export const DialogDescription = ({ className, ...props }: DialogDescriptionProp
     // eslint-disable-next-line react/jsx-props-no-spreading -- Kumo leaves its Base UI description unstyled
     {...props}
     className={cn(
-      "text-kumo-subtle text-sm *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-kumo-strong",
+      "text-kumo-subtle *:[a]:hover:text-kumo-strong text-sm *:[a]:underline *:[a]:underline-offset-3",
       className,
     )}
   />

@@ -31,7 +31,7 @@
   "ignorePatterns": [
     "**/*.gen.ts",
     "*.d.ts",
-    "packages/ui/src/components/",
+    "packages/ui/src/components/ui/",
     "**/CHANGELOG.md",
     "**/npm/*/package.json",
     ".agents/**",

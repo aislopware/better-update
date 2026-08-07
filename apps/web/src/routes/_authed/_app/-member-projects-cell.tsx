@@ -21,16 +21,10 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { InputGroup } from "@better-update/ui/components/input-group";
+import { Popover } from "@better-update/ui/components/popover";
 import { Select } from "@better-update/ui/components/select";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@better-update/ui/components/ui/popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
 import { useState } from "react";
@@ -139,30 +133,30 @@ export const MemberProjectChips = ({
       ))}
       {overflowCount > 0 ? (
         <Popover>
-          <PopoverTrigger
+          <Popover.Trigger
             className="cursor-pointer"
             aria-label={`Show all ${projects.length} projects`}
           >
             <Badge variant="outline">+{overflowCount}</Badge>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-72">
-            <PopoverHeader>
-              <PopoverTitle>Projects</PopoverTitle>
-            </PopoverHeader>
+          </Popover.Trigger>
+          {/* The list bleeds past the popup's own padding so a long roster
+              scrolls under the title rather than inside an inset box. */}
+          <Popover.Content align="start" className="w-72 gap-2 px-0">
+            <Popover.Title className="px-4 text-sm">Projects</Popover.Title>
             <ul className="max-h-64 overflow-y-auto">
               {projects.map((project) => (
                 <li
                   key={project.projectId}
-                  className="flex items-center justify-between gap-2 rounded-sm px-1.5 py-1 text-sm"
+                  className="flex items-center justify-between gap-2 px-4 py-1 text-sm"
                 >
                   <span className="truncate">{project.projectName}</span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-kumo-subtle text-xs">
                     {PROJECT_ROLE_LABELS[project.role]}
                   </span>
                 </li>
               ))}
             </ul>
-          </PopoverContent>
+          </Popover.Content>
         </Popover>
       ) : null}
     </div>

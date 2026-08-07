@@ -24,15 +24,9 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
 import { InputGroup } from "@better-update/ui/components/input-group";
+import { Popover } from "@better-update/ui/components/popover";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@better-update/ui/components/ui/popover";
 import { cn } from "@better-update/ui/lib/utils";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
@@ -113,26 +107,26 @@ export const BoundProjectChips = ({
       ))}
       {overflowCount > 0 ? (
         <Popover>
-          <PopoverTrigger
+          <Popover.Trigger
             className="cursor-pointer"
             aria-label={`Show all ${named.length} bound projects`}
           >
             <Badge variant="outline">+{overflowCount}</Badge>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-64">
-            <PopoverHeader>
-              <PopoverTitle>Bound projects</PopoverTitle>
-            </PopoverHeader>
+          </Popover.Trigger>
+          {/* The list bleeds past the popup's own padding so a long roster
+              scrolls under the title rather than inside an inset box. */}
+          <Popover.Content align="start" className="w-64 gap-2 px-0">
+            <Popover.Title className="px-4 text-sm">Bound projects</Popover.Title>
             <ul className="max-h-64 overflow-y-auto">
               {named
                 .toSorted((left, right) => left.name.localeCompare(right.name))
                 .map((project) => (
-                  <li key={project.id} className="rounded-sm px-1.5 py-1 text-sm">
+                  <li key={project.id} className="px-4 py-1 text-sm">
                     {project.name}
                   </li>
                 ))}
             </ul>
-          </PopoverContent>
+          </Popover.Content>
         </Popover>
       ) : null}
     </div>

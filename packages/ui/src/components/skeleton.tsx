@@ -1,17 +1,18 @@
-// Hand-written, unlike its neighbours: Kumo has no block placeholder. Its
-// `SkeletonLine` is a fixed-height text line whose width is drawn from
-// `Math.random()` — under SSR that renders one width on the server and another
-// on the client, and it cannot stand in for the card, chart and avatar shapes
-// the app reserves space for. The shimmer matches Kumo's own: a highlight
-// sweeping across a recessed fill.
-import { cn } from "#/lib/utils";
-
 import type { ComponentProps } from "react";
+
+import { cn } from "#/lib/utils";
 
 /**
  * A placeholder holding the space its content will occupy. Size it with the
  * same classes as the real element (`h-4 w-32`, `size-9`, …) so nothing shifts
  * when the data lands.
+ *
+ * Hand-written, unlike its neighbours: Kumo has no block placeholder. Its
+ * `SkeletonLine` is a fixed-height text line whose width is drawn from
+ * `Math.random()` — under SSR that renders one width on the server and another
+ * on the client, and it cannot stand in for the card, chart and avatar shapes
+ * the app reserves space for. The shimmer matches Kumo's own: a highlight
+ * sweeping across a recessed fill.
  */
 export const Skeleton = ({ className, ...props }: ComponentProps<"div">) => (
   <div

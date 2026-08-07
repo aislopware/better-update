@@ -4,10 +4,13 @@ import { defineConfig } from "oxlint";
 export default defineConfig({
   extends: [react],
   // src/components/ mixes generated Kumo pass-throughs with hand-written
-  // compositions over them; only the pass-throughs are excluded, so the
-  // hand-written ones stay under type-aware lint. src/components/ui/ is the
-  // shadcn (base-nova) surface still being retired, and use-mobile.ts ships
-  // with its sidebar.
+  // compositions over them. Only the pass-throughs are excluded — a granular
+  // `export *` trips `no-barrel-file` (it counts the modules behind the
+  // re-export, though a bundler pulls only the one component) and `import/export`
+  // (oxlint cannot follow Kumo's `.d.ts` re-export chain). Every hand-written
+  // neighbour is negated back in, so it stays under type-aware lint; add new
+  // ones here. src/components/ui/ is the shadcn (base-nova) surface still being
+  // retired, and use-mobile.ts ships with its sidebar.
   ignorePatterns: [
     "src/components/*.tsx",
     "!src/components/card.tsx",

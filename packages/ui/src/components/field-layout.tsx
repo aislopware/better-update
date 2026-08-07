@@ -1,13 +1,17 @@
-// Kumo's `Field` covers one control — label, description, error. It has no
-// opinion on how several of them stack, so the surrounding layout lives here:
-// a group that spaces sibling fields, and a fieldset/legend pair for forms long
-// enough to need headings. Everything is drawn from Kumo tokens so these sit
-// flush against the controls they wrap.
-import { cn } from "#/lib/utils";
-
 import type { ComponentProps } from "react";
 
-/** Vertical stack of `Field`s. Nested groups tighten up, so subsections read as one block. */
+import { cn } from "#/lib/utils";
+
+/**
+ * Vertical stack of `Field`s. Nested groups tighten up, so subsections read as
+ * one block.
+ *
+ * Kumo's `Field` covers one control — label, description, error. It has no
+ * opinion on how several of them stack, so the surrounding layout lives here:
+ * this group, and the fieldset/legend pair below for forms long enough to need
+ * headings. Everything is drawn from Kumo tokens so these sit flush against the
+ * controls they wrap.
+ */
 export const FieldGroup = ({ className, ...props }: ComponentProps<"div">) => (
   <div
     data-slot="field-group"

@@ -6,9 +6,9 @@
 // already reads.
 import { Table as KumoTable } from "@cloudflare/kumo/components/table";
 
-import { cn } from "#/lib/utils";
-
 import type { ComponentProps } from "react";
+
+import { cn } from "#/lib/utils";
 
 export const TableHeader = KumoTable.Header;
 export const TableHead = KumoTable.Head;

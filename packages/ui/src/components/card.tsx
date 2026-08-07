@@ -6,9 +6,9 @@
 // wherever it appears.
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 
-import { cn } from "#/lib/utils";
-
 import type { ComponentProps } from "react";
+
+import { cn } from "#/lib/utils";
 
 /**
  * Card surface. Lays its children out as a vertical stack with the side padding
