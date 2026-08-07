@@ -267,6 +267,17 @@ half-migrated in a shipped state.
   a list-plus-summary page, while our detail pages are card stacks, so adopting
   it is an IA change rather than a restyle; **dot badges** suit a short status,
   but a channel's reads "Rolling out to <branch> 25%", which a pill would wrap.
+  The §2.3 rules were then swept one by one. Fixed: **never transition colours
+  on hover** (19 sites plus the `Item`/`Table` primitives — the surviving
+  `transition-opacity` reveals a control rather than tinting one); **never
+  border + shadow together** (one site, the CLI block, now ringed); **never
+  `font-bold`** (one site, the org-delete label); **inline monospace at
+  `0.9em`** (13 sites written three ways, now an `InlineCode` primitive — the
+  ratio is relative so it tracks whatever it is nested in). Checked and left
+  alone: **optical padding `px-5 py-4`** — that rule is for text blocks, and
+  Kumo's own `LayerCard` pads its sections with a symmetric `p-4`, which our
+  `Card` already matches; following the rule literally would move us away from
+  the component we compose.
 - **P5 Data viz** — timeseries adoption charts, Sankey for the update pipeline,
   geo map of installs.
 - **P6 Cleanup** — done bar the `better-update` skill: `shadcn`, `recharts` and

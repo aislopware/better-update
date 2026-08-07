@@ -131,7 +131,7 @@ const BuildMetadataCard = ({
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-kumo-subtle text-sm">Metadata JSON</div>
-        <pre className="bg-kumo-tint overflow-x-auto rounded-xl p-3 text-xs">
+        <pre className="bg-kumo-tint overflow-x-auto rounded-md p-3 text-xs">
           {formatMetadataJson(build.metadataJson)}
         </pre>
       </div>

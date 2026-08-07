@@ -78,7 +78,7 @@ const CompatibleBuildsList = ({
       {qaBuilds.map((build) => (
         <li
           key={build.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
         >
           <div className="flex min-w-0 flex-col gap-1">
             <span className="truncate font-medium">

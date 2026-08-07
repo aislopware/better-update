@@ -75,7 +75,7 @@ const ShareInvite = ({
 }) => (
   <>
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-center rounded-xl border bg-white p-4">
+      <div className="flex items-center justify-center rounded-md border bg-white p-4">
         <QRCodeSVG value={invite.url} size={192} marginSize={2} />
       </div>
       <Field

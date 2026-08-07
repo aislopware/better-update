@@ -208,7 +208,12 @@ const TrustPoints = () => (
   <ul className="text-kumo-subtle flex flex-col gap-2 text-xs leading-relaxed">
     {TRUST_POINTS.map((text) => (
       <li key={text} className="flex items-start gap-2">
-        <CheckIcon weight="bold" className="text-kumo-strong mt-0.5 size-3.5 shrink-0" />
+        {/* One line-height tall and centred in it, so the tick sits on the
+            optical middle of the first line however the text wraps — rather
+            than a nudge tuned to one font size. */}
+        <span className="flex h-lh shrink-0 items-center">
+          <CheckIcon weight="bold" className="text-kumo-strong size-3.5" />
+        </span>
         {text}
       </li>
     ))}

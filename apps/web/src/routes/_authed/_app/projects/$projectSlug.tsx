@@ -11,7 +11,7 @@ const ProjectShell = () => (
 const ProjectShellSkeleton = () => (
   <div className="flex w-full flex-col gap-4">
     <Skeleton className="h-6 w-48 rounded" />
-    <Skeleton className="h-48 w-full rounded-xl" />
+    <Skeleton className="h-48 w-full rounded-lg" />
   </div>
 );
 

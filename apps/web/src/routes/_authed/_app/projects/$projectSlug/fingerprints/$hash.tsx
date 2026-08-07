@@ -60,7 +60,7 @@ const FingerprintHashCard = ({
     </CardHeader>
     <CardContent className="flex flex-col gap-3">
       <div className="flex items-start gap-2">
-        <pre className="bg-kumo-tint min-w-0 flex-1 overflow-x-auto rounded-xl p-3 font-mono text-xs">
+        <pre className="bg-kumo-tint min-w-0 flex-1 overflow-x-auto rounded-md p-3 font-mono text-xs">
           {hash}
         </pre>
         <CopyButton value={hash} label="Fingerprint" />

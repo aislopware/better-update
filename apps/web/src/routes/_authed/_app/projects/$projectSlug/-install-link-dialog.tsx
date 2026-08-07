@@ -88,7 +88,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
 
       {data ? (
         <div className="flex flex-col items-center gap-4">
-          <div className="rounded-xl border bg-white p-4">
+          <div className="rounded-md border bg-white p-4">
             <QRCodeSVG value={primaryUrl} size={200} level="M" />
           </div>
 
