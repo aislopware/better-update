@@ -230,8 +230,10 @@
     animation-iteration-count: 1 !important;
   }
 
-  [data-slot="toast"],
-  [data-slot="toast-content"] {
+  /* The toast stack slides and scales over half a second — the one transition
+     long enough to matter here. `Toaster` portals the whole viewport into this
+     container, which is the only stable handle on it. */
+  [data-toast-stack] * {
     transition: none !important;
   }
 

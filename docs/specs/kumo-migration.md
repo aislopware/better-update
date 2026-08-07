@@ -223,18 +223,18 @@ current AlertDialog confirms.
 
 ## 5. Risks and decisions required
 
-| #   | Issue                                                                                                             | Impact                                                                                                             |
-| --- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| R1  | **Icons**: Kumo renders `@phosphor-icons/react` internally; we use `lucide-react` in ~everything                  | Mixing two icon sets looks wrong. Full sweep to Phosphor is large but mechanical. **Decision needed.**             |
-| R2  | **Charts**: Kumo `Chart` needs `echarts`; we use `recharts`                                                       | Only 1 chart file today, but ECharts is far richer and is what CF uses. **Decision needed.**                       |
-| R3  | **Typography scale** changes the meaning of `text-sm`/`text-base`                                                 | Must sweep every usage; cannot be left half-done                                                                   |
-| R4  | **Dark mode** `.dark` class → `data-mode="dark"`                                                                  | `lib/theme-server.ts` must emit both during transition; theme tests (`theme-css-audit.test.ts`) will need updating |
-| R5  | **Barrel imports cost 594 kB**                                                                                    | Enforce granular imports via lint from day one                                                                     |
-| R6  | `Text` forbids `className` (`DANGEROUS_className` instead)                                                        | Changes how we write one-off text styling; arguably a good constraint                                              |
-| R7  | Kumo ships no Avatar/Item/Kbd                                                                                     | Keep local components (small)                                                                                      |
-| R8  | Kumo moves fast (2.9.2 published yesterday); `DateRangePicker` and `Surface` already deprecated                   | Pin exactly, avoid deprecated APIs                                                                                 |
-| R9  | `packages/ui` is a shadcn registry surface (`components.json`, `bunx shadcn add`)                                 | Migration retires that workflow; CLAUDE.md's UI rules and the `shadcn` skill guidance must be rewritten            |
-| R10 | 175 route files / ~37k LOC in `apps/web`, 24 component test files, e2e selectors (`[data-slot="dialog-content"]`) | Tests keyed on shadcn `data-slot` attributes will break; Kumo uses `data-kumo-component`/`data-kumo-part`          |
+| #   | Issue                                                                                                             | Impact                                                                                                                                                                                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **Icons**: Kumo renders `@phosphor-icons/react` internally; we use `lucide-react` in ~everything                  | **Resolved**: swept to Phosphor (93 files). `strokeWidth` → `weight="bold"`; `lucide-react` dropped.                                                                                                              |
+| R2  | **Charts**: Kumo `Chart` needs `echarts`; we use `recharts`                                                       | **Resolved**: analytics moved to Kumo `Chart`/`TimeseriesChart` over ECharts 6; `recharts` dropped.                                                                                                               |
+| R3  | **Typography scale** changes the meaning of `text-sm`/`text-base`                                                 | Must sweep every usage; cannot be left half-done                                                                                                                                                                  |
+| R4  | **Dark mode** `.dark` class → `data-mode="dark"`                                                                  | `lib/theme-server.ts` must emit both during transition; theme tests (`theme-css-audit.test.ts`) will need updating                                                                                                |
+| R5  | **Barrel imports cost 594 kB**                                                                                    | Enforce granular imports via lint from day one                                                                                                                                                                    |
+| R6  | `Text` forbids `className` (`DANGEROUS_className` instead)                                                        | Changes how we write one-off text styling; arguably a good constraint                                                                                                                                             |
+| R7  | Kumo ships no Avatar/Item/Kbd                                                                                     | Keep local components (small)                                                                                                                                                                                     |
+| R8  | Kumo moves fast (2.9.2 published yesterday); `DateRangePicker` and `Surface` already deprecated                   | Pin exactly, avoid deprecated APIs                                                                                                                                                                                |
+| R9  | `packages/ui` is a shadcn registry surface (`components.json`, `bunx shadcn add`)                                 | Migration retires that workflow; CLAUDE.md's UI rules and the `shadcn` skill guidance must be rewritten                                                                                                           |
+| R10 | 175 route files / ~37k LOC in `apps/web`, 24 component test files, e2e selectors (`[data-slot="dialog-content"]`) | Kumo emits `data-kumo-component`/`data-kumo-part` and never `data-slot`. Only the hand-written compositions still carry a slot, and the e2e scoping selector is now `[data-slot="dialog-body"]`, which those own. |
 
 ---
 
@@ -259,10 +259,12 @@ half-migrated in a shipped state.
   quick facts, `Toolbar` above tables, `Pagination`, layered cards, `DeleteResource`
   for destructive flows, categorical badges for status.
 - **P5 Data viz** — timeseries adoption charts, Sankey for the update pipeline,
-  geo map of installs (only if R2 says ECharts).
-- **P6 Cleanup** — drop `shadcn`/`tw-animate-css`/`recharts`/`lucide-react` as
-  applicable, retire `components.json`, rewrite the UI sections of `CLAUDE.md`,
-  update e2e selectors and the `better-update` skill.
+  geo map of installs.
+- **P6 Cleanup** — drop `shadcn`/`recharts`/`lucide-react`, retire
+  `components.json`, rewrite the UI sections of `CLAUDE.md`, update e2e
+  selectors and the `better-update` skill. `tw-animate-css` stays: Kumo's
+  dropdown draws its enter/exit with `animate-in`/`slide-in-from-*` and ships
+  no definitions for them.
 
 ---
 

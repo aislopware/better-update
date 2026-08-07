@@ -38,8 +38,13 @@ export const Toaster = ({ children }: { children: ReactNode }) => {
       {/* Kumo pins its toast viewport at `z-1`, which loses to any overlay
           declaring a higher one — a toast raised from inside a dialog would sit
           behind that dialog's backdrop. Portalling into this empty, zero-height
-          div hands the viewport a stacking context that outranks them. */}
-      <div ref={setStack} className="relative z-100" />
+          div hands the viewport a stacking context that outranks them.
+
+          The marker attribute is what the reduced-motion rule hangs off: Kumo
+          writes the half-second stack transition as an inline arbitrary value
+          on a Base UI root that carries no stable class of its own, so this
+          container is the only handle on the whole viewport. */}
+      <div ref={setStack} data-toast-stack className="relative z-100" />
     </>
   );
 };

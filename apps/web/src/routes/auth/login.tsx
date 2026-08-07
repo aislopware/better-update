@@ -21,8 +21,8 @@ type LoginSearch = z.infer<typeof loginSearchSchema>;
 
 const readRedirectTo = (search: LoginSearch): string => search.redirectTo;
 
-// GitHub/Google are brand marks — Lucide ships no brand icons, so these stay
-// inline SVGs (same approach as the stock shadcn login blocks).
+// GitHub/Google are brand marks — Phosphor ships no brand icons, and Google's
+// is multi-coloured besides, so both stay inline SVGs.
 const GithubIcon = ({ className }: { readonly className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
