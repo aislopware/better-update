@@ -1,7 +1,8 @@
 # Kumo migration — research & plan
 
-Status: P0–P3, P5 and P6 shipped. P4 is in progress — see the phase list for
-what landed and what was tried and rejected.
+Status: all phases shipped. P4 closed with the §2.3 design rules swept one by
+one — see the phase list for what landed, what was checked and left alone, and
+what was tried and rejected with reasons.
 Researched against `github.com/cloudflare/kumo` @ `main` (clone 2026-08-07) and
 `@cloudflare/kumo@2.9.1` installed from npm.
 
@@ -273,11 +274,18 @@ half-migrated in a shipped state.
   border + shadow together** (one site, the CLI block, now ringed); **never
   `font-bold`** (one site, the org-delete label); **inline monospace at
   `0.9em`** (13 sites written three ways, now an `InlineCode` primitive — the
-  ratio is relative so it tracks whatever it is nested in). Checked and left
-  alone: **optical padding `px-5 py-4`** — that rule is for text blocks, and
-  Kumo's own `LayerCard` pads its sections with a symmetric `p-4`, which our
-  `Card` already matches; following the rule literally would move us away from
-  the component we compose.
+  ratio is relative so it tracks whatever it is nested in); **concentric radii**
+  (eight `rounded-xl`/`-2xl` blocks sitting inside `rounded-lg` cards and
+  dialogs, plus skeletons rounding to a shape their card never takes);
+  **icons on the first line** (the login trust list, now a `h-lh` box rather
+  than a `mt-0.5` nudge); **sticky elements get a border** (the dialog header
+  — the footer already had one, and Kumo's delete-resource block borders both).
+  Checked and left alone: **optical padding `px-5 py-4`** — that rule is for
+  text blocks, and Kumo's own `LayerCard` pads its sections with a symmetric
+  `p-4`, which our `Card` already matches, so following it literally would move
+  us away from the component we compose; **related text closer** — label-value
+  pairs already sit at `gap-0.5`/`gap-1` inside `gap-3`/`gap-4` blocks; **never
+  nest LayerCard** — no `Card` in the app contains another.
 - **P5 Data viz** — timeseries adoption charts, Sankey for the update pipeline,
   geo map of installs.
 - **P6 Cleanup** — done bar the `better-update` skill: `shadcn`, `recharts` and
