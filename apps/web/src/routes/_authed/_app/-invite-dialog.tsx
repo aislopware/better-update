@@ -12,6 +12,7 @@ import {
 } from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
+import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,10 +22,10 @@ import { z } from "zod/v4";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
 
-import { getFieldError } from "../../../lib/form-utils";
+import { getFieldError, onPicked } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
 import { invitationsQueryOptions } from "../../../queries/org";
-import { ProjectGrantsSection, SelectField } from "./-invite-project-access";
+import { ProjectGrantsSection } from "./-invite-project-access";
 
 import type { ProjectGrantDraft } from "./-invite-project-access";
 
@@ -38,9 +39,6 @@ const emailSchema = z.string().check(z.email("Please enter a valid email"));
 export type InviteOrgRole = "member" | "admin";
 
 const ORG_ROLE_LABELS: Record<InviteOrgRole, string> = { member: "Member", admin: "Admin" };
-
-const isInviteOrgRole = (value: string): value is InviteOrgRole =>
-  value === "member" || value === "admin";
 
 // Pure payload builder (unit-tested): drops rows where no project was picked
 // and omits `projects` / `allProjectsRole` entirely when nothing was granted,
@@ -158,15 +156,12 @@ const InviteFormContent = ({
           }}
         </form.Field>
 
-        <SelectField
+        <Select
           label="Organization role"
+          className="w-full"
           value={orgRole}
           items={orgRoleItems}
-          onChange={(next) => {
-            if (isInviteOrgRole(next)) {
-              setOrgRole(next);
-            }
-          }}
+          onValueChange={onPicked(setOrgRole)}
         />
 
         <ProjectGrantsSection

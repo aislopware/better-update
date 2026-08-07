@@ -16,19 +16,12 @@ import {
 import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
+import { Select } from "@better-update/ui/components/select";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkIcon } from "lucide-react";
@@ -42,7 +35,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { CopyButton } from "../../../../lib/copy-button";
-import { getFieldError } from "../../../../lib/form-utils";
+import { getFieldError, onPicked } from "../../../../lib/form-utils";
 import { formatDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { APPLE_TEAM_NONE, AppleTeamField } from "./-apple-team-field";
@@ -62,70 +55,6 @@ const DEVICE_CLASS_OPTIONS: { value: DeviceClassValue | "NONE"; label: string }[
   { value: "IPAD", label: "iPad" },
   { value: "MAC", label: "Mac" },
 ];
-
-const DeviceClassOptions = () => (
-  <SelectContent>
-    <SelectGroup>
-      {DEVICE_CLASS_OPTIONS.map((option) => (
-        <SelectItem key={option.value} value={option.value}>
-          {option.label}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-  </SelectContent>
-);
-
-const TtlOptions = () => (
-  <SelectContent>
-    <SelectGroup>
-      {TTL_OPTIONS.map((option) => (
-        <SelectItem key={option.value} value={option.value}>
-          {option.label}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-  </SelectContent>
-);
-
-const DeviceClassHintSelect = ({
-  value,
-  onChange,
-}: {
-  value: FormValues["deviceClassHint"];
-  onChange: (next: FormValues["deviceClassHint"]) => void;
-}) => (
-  <Select
-    value={value}
-    onValueChange={(next) => {
-      if (next === null) {
-        return;
-      }
-      onChange(next);
-    }}
-  >
-    <SelectTrigger className="w-full" aria-label="Device class">
-      <SelectValue placeholder="No hint" />
-    </SelectTrigger>
-    <DeviceClassOptions />
-  </Select>
-);
-
-const TtlSelect = ({ value, onChange }: { value: string; onChange: (next: string) => void }) => (
-  <Select
-    value={value}
-    onValueChange={(next) => {
-      if (next === null) {
-        return;
-      }
-      onChange(next);
-    }}
-  >
-    <SelectTrigger className="w-full" aria-label="Expires after">
-      <SelectValue />
-    </SelectTrigger>
-    <TtlOptions />
-  </Select>
-);
 
 interface FormValues {
   deviceNameHint: string;
@@ -252,14 +181,17 @@ const CreateInviteForm = ({
 
         <form.Field name="deviceClassHint">
           {(field) => (
-            <Field label="Device class (optional)">
-              <DeviceClassHintSelect
-                value={field.state.value}
-                onChange={(next) => {
-                  field.handleChange(next);
-                }}
-              />
-            </Field>
+            <Select
+              label="Device class"
+              required={false}
+              placeholder="No hint"
+              className="w-full"
+              items={DEVICE_CLASS_OPTIONS}
+              value={field.state.value}
+              onValueChange={onPicked((next: FormValues["deviceClassHint"]) => {
+                field.handleChange(next);
+              })}
+            />
           )}
         </form.Field>
 
@@ -278,14 +210,15 @@ const CreateInviteForm = ({
 
         <form.Field name="ttlHours">
           {(field) => (
-            <Field label="Expires after">
-              <TtlSelect
-                value={field.state.value}
-                onChange={(next) => {
-                  field.handleChange(next);
-                }}
-              />
-            </Field>
+            <Select
+              label="Expires after"
+              className="w-full"
+              items={TTL_OPTIONS}
+              value={field.state.value}
+              onValueChange={onPicked((next: FormValues["ttlHours"]) => {
+                field.handleChange(next);
+              })}
+            />
           )}
         </form.Field>
       </FieldGroup>

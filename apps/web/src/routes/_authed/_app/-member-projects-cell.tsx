@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
+import { Select } from "@better-update/ui/components/select";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
 import {
@@ -34,14 +35,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@better-update/ui/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
 import { useState } from "react";
@@ -52,6 +45,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { useServerSearchList } from "../../../components/server-search-combobox";
+import { onPicked } from "../../../lib/form-utils";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 
@@ -67,8 +61,6 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
   developer: "Developer",
   reporter: "Reporter",
 };
-
-const PROJECT_ROLE_VALUES = ["maintainer", "developer", "reporter"] as const;
 
 const DEFAULT_MEMBERSHIP_ROLE: ProjectMemberRoleValue = "developer";
 
@@ -110,28 +102,18 @@ const RoleSelect = ({
   onChange: (role: ProjectMemberRoleValue) => void;
 }) => (
   <Select
+    size="sm"
+    className="w-32"
+    aria-label={label}
     items={PROJECT_ROLE_LABELS}
     value={value}
     disabled={disabled}
-    onValueChange={(next) => {
-      if (next !== null && next !== value) {
+    onValueChange={onPicked((next: ProjectMemberRoleValue) => {
+      if (next !== value) {
         onChange(next);
       }
-    }}
-  >
-    <SelectTrigger className="h-8 w-32" aria-label={label}>
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectGroup>
-        {PROJECT_ROLE_VALUES.map((role) => (
-          <SelectItem key={role} value={role}>
-            {PROJECT_ROLE_LABELS[role]}
-          </SelectItem>
-        ))}
-      </SelectGroup>
-    </SelectContent>
-  </Select>
+    })}
+  />
 );
 
 export const MemberProjectChips = ({

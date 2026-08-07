@@ -10,18 +10,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
-import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
+import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -30,7 +22,11 @@ import { z } from "zod/v4";
 
 import type { DeviceClassValue } from "@better-update/api-client/react";
 
-import { deviceNameSchema as nameSchema, getFieldError } from "../../../../lib/form-utils";
+import {
+  deviceNameSchema as nameSchema,
+  getFieldError,
+  onPicked,
+} from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { APPLE_TEAM_NONE, AppleTeamField } from "./-apple-team-field";
 
@@ -63,41 +59,6 @@ const DEVICE_CLASS_OPTIONS: { value: DeviceClassValue; label: string }[] = [
   { value: "MAC", label: "Mac" },
   { value: "UNKNOWN", label: "Unknown" },
 ];
-
-const DeviceClassOptions = () => (
-  <SelectContent>
-    <SelectGroup>
-      {DEVICE_CLASS_OPTIONS.map((option) => (
-        <SelectItem key={option.value} value={option.value}>
-          {option.label}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-  </SelectContent>
-);
-
-const DeviceClassField = ({
-  value,
-  onChange,
-}: {
-  value: DeviceClassValue;
-  onChange: (next: DeviceClassValue) => void;
-}) => (
-  <Select
-    value={value}
-    onValueChange={(next) => {
-      if (next === null) {
-        return;
-      }
-      onChange(next);
-    }}
-  >
-    <SelectTrigger className="w-full" aria-label="Device class">
-      <SelectValue placeholder="Select class" />
-    </SelectTrigger>
-    <DeviceClassOptions />
-  </Select>
-);
 
 interface FormValues {
   identifier: string;
@@ -215,14 +176,16 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
 
         <form.Field name="deviceClass">
           {(field) => (
-            <Field label="Class">
-              <DeviceClassField
-                value={field.state.value}
-                onChange={(next) => {
-                  field.handleChange(next);
-                }}
-              />
-            </Field>
+            <Select
+              label="Class"
+              placeholder="Select class"
+              className="w-full"
+              items={DEVICE_CLASS_OPTIONS}
+              value={field.state.value}
+              onValueChange={onPicked((next: FormValues["deviceClass"]) => {
+                field.handleChange(next);
+              })}
+            />
           )}
         </form.Field>
 

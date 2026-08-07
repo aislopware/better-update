@@ -5,18 +5,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
+import { Select } from "@better-update/ui/components/select";
 import { Suspense } from "react";
 import { z } from "zod";
 
 import { enumParam, optionalStringParam } from "../../../../../lib/data-table";
+import { onPicked } from "../../../../../lib/form-utils";
 import {
   AdoptionChart,
   ChannelHealthChart,
@@ -49,28 +43,14 @@ export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: Analy
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <Select
+          aria-label="Reporting period"
+          className="w-40"
           items={PERIOD_LABELS}
           value={period}
-          onValueChange={(value) => {
-            const match = PERIODS.find((candidate) => candidate === value);
-            if (match) {
-              onSearchChange({ period: match });
-            }
-          }}
-        >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {PERIODS.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {PERIOD_LABELS[value]}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          onValueChange={onPicked((next: AnalyticsSearch["period"]) => {
+            onSearchChange({ period: next });
+          })}
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

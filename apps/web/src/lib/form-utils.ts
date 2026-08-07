@@ -45,6 +45,22 @@ export const toInputValue = (value: string | null | undefined): string => {
   return value;
 };
 
+/**
+ * Adapt a Select's `onValueChange` to a handler that only wants a real value.
+ *
+ * Base UI reports `null` when a selection is cleared, but none of the pickers
+ * here are clearable — there is no empty option and no clear affordance — so
+ * every call site would otherwise open with the same null guard. `T` comes from
+ * the handler, so an inline arrow has to annotate its parameter.
+ */
+export const onPicked =
+  <T>(handle: (value: T) => void) =>
+  (value: T | null): void => {
+    if (value !== null) {
+      handle(value);
+    }
+  };
+
 export const generateSlug = (name: string) =>
   name
     .toLowerCase()

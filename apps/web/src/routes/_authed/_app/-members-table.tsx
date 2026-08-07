@@ -1,12 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
+import { Select } from "@better-update/ui/components/select";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -20,6 +13,7 @@ import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView, PAGE_SIZE } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
+import { onPicked } from "../../../lib/form-utils";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
 import { RelativeTime } from "../../../lib/relative-time";
 import { MemberProjectsCell } from "./-member-projects-cell";
@@ -43,8 +37,6 @@ export type EditableOrgRole = "admin" | "member";
 const EMPTY_MEMBERSHIPS: ReadonlyMap<string, MemberProjectMembershipsItem> = new Map();
 const NOOP_MANAGE_PROJECTS = (_target: ManageProjectsTarget): void => undefined;
 const ORG_ROLE_LABELS: Record<EditableOrgRole, string> = { admin: "Admin", member: "Member" };
-const ORG_ROLE_VALUES = ["admin", "member"] as const;
-
 const MemberAvatarCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
     return (
@@ -129,31 +121,25 @@ const RoleSelect = ({
   row: Row;
   isPending: boolean;
   onRoleChange: (memberId: string, role: EditableOrgRole) => void;
-}) => (
-  <Select
-    items={ORG_ROLE_LABELS}
-    value={row.role === "admin" ? "admin" : "member"}
-    disabled={isPending}
-    onValueChange={(next) => {
-      if ((next === "admin" || next === "member") && next !== row.role) {
-        onRoleChange(row.id, next);
-      }
-    }}
-  >
-    <SelectTrigger className="w-32" aria-label={`Change role for ${row.name}`}>
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectGroup>
-        {ORG_ROLE_VALUES.map((value) => (
-          <SelectItem key={value} value={value}>
-            {ORG_ROLE_LABELS[value]}
-          </SelectItem>
-        ))}
-      </SelectGroup>
-    </SelectContent>
-  </Select>
-);
+}) => {
+  // Owners never reach here, so anything that is not an admin is a member.
+  const role: EditableOrgRole = row.role === "admin" ? "admin" : "member";
+  return (
+    <Select
+      size="sm"
+      className="w-32"
+      aria-label={`Change role for ${row.name}`}
+      items={ORG_ROLE_LABELS}
+      value={role}
+      disabled={isPending}
+      onValueChange={onPicked((next: EditableOrgRole) => {
+        if (next !== role) {
+          onRoleChange(row.id, next);
+        }
+      })}
+    />
+  );
+};
 
 // Org-role cell: owners always render a static badge (owner transfer is a
 // better-auth flow, not this table); non-owner rows become a select only when

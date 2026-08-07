@@ -11,7 +11,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
-import { Field } from "@better-update/ui/components/field";
 import {
   FieldGroup,
   FieldLegend,
@@ -20,21 +19,19 @@ import {
   FieldSetDescription,
 } from "@better-update/ui/components/field-layout";
 import { Input, Textarea } from "@better-update/ui/components/input";
+import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { useForm } from "@tanstack/react-form";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
-import { envVarKeySchema, getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
+import {
+  envVarKeySchema,
+  getFieldError,
+  onPicked,
+  requiredStringSchema,
+} from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 import { useEnvironmentNames } from "./-environments-picker";
@@ -47,45 +44,6 @@ const VISIBILITY_LABELS: Record<Visibility, string> = {
   sensitive: "Sensitive (hidden in logs)",
   plaintext: "Plaintext",
 };
-
-const SelectField = ({
-  id,
-  label,
-  value,
-  items,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  items: Record<string, string>;
-  onChange: (next: string) => void;
-}) => (
-  <Field label={label}>
-    <Select
-      items={items}
-      value={value}
-      onValueChange={(next) => {
-        if (next) {
-          onChange(next);
-        }
-      }}
-    >
-      <SelectTrigger id={id} className="w-full" aria-label={label}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {Object.entries(items).map(([itemValue, itemLabel]) => (
-            <SelectItem key={itemValue} value={itemValue}>
-              {itemLabel}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  </Field>
-);
 
 const submitSelector = (state: { canSubmit: boolean; isSubmitting: boolean }) =>
   [state.canSubmit, state.isSubmitting] as const;
@@ -205,12 +163,13 @@ const CreateForm = ({
             Pick the environment this variable applies to and name its key.
           </FieldSetDescription>
           <FieldGroup>
-            <SelectField
+            <Select
               id="env-var-create-environment"
               label="Environment"
+              className="w-full"
               value={environment}
               items={environmentItems}
-              onChange={setEnvironment}
+              onValueChange={onPicked(setEnvironment)}
             />
             <form.Field
               name="key"
@@ -275,14 +234,13 @@ const CreateForm = ({
                 );
               }}
             </form.Field>
-            <SelectField
+            <Select
               id="env-var-create-visibility"
               label="Visibility"
+              className="w-full"
               value={visibility}
               items={VISIBILITY_LABELS}
-              onChange={(next) => {
-                setVisibility(next === "plaintext" ? "plaintext" : "sensitive");
-              }}
+              onValueChange={onPicked(setVisibility)}
             />
           </FieldGroup>
         </FieldSet>

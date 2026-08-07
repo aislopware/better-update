@@ -1,20 +1,13 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { Select } from "@better-update/ui/components/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -29,6 +22,7 @@ import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView, PAGE_SIZE } from "../../../../../lib/data-table";
 import { EntityAvatar } from "../../../../../lib/entity-avatar";
+import { onPicked } from "../../../../../lib/form-utils";
 import { RelativeTime } from "../../../../../lib/relative-time";
 
 import type { RemoveTarget } from "./-project-members-mutations";
@@ -45,8 +39,6 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
   developer: "Developer",
   reporter: "Reporter",
 };
-
-const PROJECT_ROLE_VALUES = ["maintainer", "developer", "reporter"] as const;
 
 export const principalDisplayName = (row: ProjectMemberItem): string =>
   row.displayName ?? row.email ?? row.principalId;
@@ -76,28 +68,18 @@ const RoleSelect = ({
   onRoleChange: (row: ProjectMemberItem, role: ProjectMemberRoleValue) => void;
 }) => (
   <Select
+    size="sm"
+    className="w-36"
+    aria-label={`Change role for ${principalDisplayName(row)}`}
     items={PROJECT_ROLE_LABELS}
     value={row.role}
     disabled={isPending}
-    onValueChange={(next) => {
-      if (next !== null && next !== row.role) {
+    onValueChange={onPicked((next: ProjectMemberRoleValue) => {
+      if (next !== row.role) {
         onRoleChange(row, next);
       }
-    }}
-  >
-    <SelectTrigger className="w-36" aria-label={`Change role for ${principalDisplayName(row)}`}>
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectGroup>
-        {PROJECT_ROLE_VALUES.map((value) => (
-          <SelectItem key={value} value={value}>
-            {PROJECT_ROLE_LABELS[value]}
-          </SelectItem>
-        ))}
-      </SelectGroup>
-    </SelectContent>
-  </Select>
+    })}
+  />
 );
 
 const RoleCell = ({

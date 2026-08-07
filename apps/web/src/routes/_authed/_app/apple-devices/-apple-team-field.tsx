@@ -1,17 +1,9 @@
 import { appleTeamsQueryOptions } from "@better-update/api-client/react";
-import { Field } from "@better-update/ui/components/field";
-import { FieldSetDescription } from "@better-update/ui/components/field-layout";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
+import { Select } from "@better-update/ui/components/select";
 import { useQuery } from "@tanstack/react-query";
 
 import { formatAppleTeamLabel } from "../-credentials-utils";
+import { onPicked } from "../../../../lib/form-utils";
 
 /** Sentinel form value meaning "do not assign the device to an Apple team". */
 export const APPLE_TEAM_NONE = "NONE";
@@ -42,31 +34,20 @@ export const AppleTeamField = ({
   }
 
   return (
-    <Field label="Apple team (optional)">
-      <Select
-        value={value}
-        onValueChange={(next) => {
-          if (next === null) {
-            return;
-          }
-          onChange(next);
-        }}
-      >
-        <SelectTrigger className="w-full" aria-label="Apple team">
-          <SelectValue placeholder="No team" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value={APPLE_TEAM_NONE}>No team</SelectItem>
-            {teams.map((team) => (
-              <SelectItem key={team.id} value={team.id}>
-                {formatAppleTeamLabel(team)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      {description ? <FieldSetDescription>{description}</FieldSetDescription> : null}
-    </Field>
+    <Select
+      label="Apple team"
+      required={false}
+      description={description}
+      className="w-full"
+      // Passed as `items` rather than `Select.Option` children so the trigger can
+      // resolve the selected label before the popup has ever opened — Base UI
+      // otherwise falls back to printing the raw value.
+      items={[
+        { value: APPLE_TEAM_NONE, label: "No team" },
+        ...teams.map((team) => ({ value: team.id, label: formatAppleTeamLabel(team) })),
+      ]}
+      value={value}
+      onValueChange={onPicked(onChange)}
+    />
   );
 };

@@ -8,26 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
-import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
+import { Select } from "@better-update/ui/components/select";
 import { useState } from "react";
 
 import type { RobotAccountRoleValue } from "@better-update/api-client/react";
 
 import { PROJECT_ROLE_LABELS } from "../../-invite-dialog";
+import { onPicked } from "../../../../../lib/form-utils";
 
 import type { EditTarget, RobotAccountChanges } from "./-project-robots-mutations";
-
-const ROLE_VALUES = ["maintainer", "developer", "reporter"] as const;
 
 const EditForm = ({
   target,
@@ -61,30 +52,13 @@ const EditForm = ({
             setName(event.target.value);
           }}
         />
-        <Field label="Role">
-          <Select
-            items={PROJECT_ROLE_LABELS}
-            value={role}
-            onValueChange={(next) => {
-              if (next !== null) {
-                setRole(next);
-              }
-            }}
-          >
-            <SelectTrigger aria-label="Project role" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {ROLE_VALUES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {PROJECT_ROLE_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
+        <Select
+          label="Role"
+          className="w-full"
+          items={PROJECT_ROLE_LABELS}
+          value={role}
+          onValueChange={onPicked(setRole)}
+        />
       </FieldGroup>
       <DialogFooter>
         <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>

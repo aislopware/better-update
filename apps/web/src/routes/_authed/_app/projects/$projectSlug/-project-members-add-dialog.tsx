@@ -10,23 +10,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
-import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
 
+import { onPicked } from "../../../../../lib/form-utils";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { membersQueryOptions } from "../../../../../queries/org";
 
@@ -35,8 +28,6 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
   developer: "Developer",
   reporter: "Reporter",
 };
-
-const PROJECT_ROLE_VALUES = ["maintainer", "developer", "reporter"] as const;
 
 // Role hints mirror the GitLab ladder semantics (GITLAB-RBAC-SPEC §1).
 const PROJECT_ROLE_HINTS: Record<ProjectMemberRoleValue, string> = {
@@ -82,47 +73,22 @@ const AddMemberForm = ({
   return (
     <>
       <FieldGroup>
-        <Field label="Member">
-          <Select items={principalItems} value={principalId} onValueChange={setPrincipalId}>
-            <SelectTrigger aria-label="Member" className="w-full">
-              <SelectValue placeholder="Select a member" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {principals.map((principal) => (
-                  <SelectItem key={principal.id} value={principal.id}>
-                    {principal.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
+        <Select
+          label="Member"
+          placeholder="Select a member"
+          className="w-full"
+          items={principalItems}
+          value={principalId}
+          onValueChange={onPicked(setPrincipalId)}
+        />
 
-        <Field label="Role">
-          <Select
-            items={PROJECT_ROLE_LABELS}
-            value={role}
-            onValueChange={(next) => {
-              if (next !== null) {
-                setRole(next);
-              }
-            }}
-          >
-            <SelectTrigger aria-label="Project role" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {PROJECT_ROLE_VALUES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {PROJECT_ROLE_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
+        <Select
+          label="Role"
+          className="w-full"
+          items={PROJECT_ROLE_LABELS}
+          value={role}
+          onValueChange={onPicked(setRole)}
+        />
 
         <p className="text-muted-foreground text-xs">{PROJECT_ROLE_HINTS[role]}</p>
       </FieldGroup>

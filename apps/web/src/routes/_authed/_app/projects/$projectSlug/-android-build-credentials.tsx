@@ -8,7 +8,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
-import { Field } from "@better-update/ui/components/field";
+import { Select } from "@better-update/ui/components/select";
 import {
   Table,
   TableBody,
@@ -18,13 +18,6 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon, KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
@@ -39,6 +32,7 @@ import { ProtectionCell } from "../../-credential-cells";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { isOrgAdmin } from "../../../../../lib/access";
 import { CopyButton } from "../../../../../lib/copy-button";
+import { onPicked } from "../../../../../lib/form-utils";
 import { formatShortDateTime } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
@@ -193,27 +187,19 @@ const GroupSwitcher = ({
   onChange: (id: string) => void;
   group: AndroidBuildCredentialsItem;
 }) => (
-  <Field label="Credential group">
-    <Select
-      value={selectedId}
-      onValueChange={(next) => {
-        if (next !== null) {
-          onChange(next);
-        }
-      }}
-    >
-      <SelectTrigger className="min-w-64" aria-label="Credential group">
-        <SelectValue>{() => <GroupOptionLabel group={group} />}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {groups.map((item) => (
-          <SelectItem key={item.id} value={item.id}>
-            <GroupOptionLabel group={item} />
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </Field>
+  <Select
+    label="Credential group"
+    className="min-w-64"
+    value={selectedId}
+    renderValue={() => <GroupOptionLabel group={group} />}
+    onValueChange={onPicked(onChange)}
+  >
+    {groups.map((item) => (
+      <Select.Option key={item.id} value={item.id}>
+        <GroupOptionLabel group={item} />
+      </Select.Option>
+    ))}
+  </Select>
 );
 
 const EmptyGroups = () => (

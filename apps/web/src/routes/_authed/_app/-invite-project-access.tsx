@@ -1,16 +1,7 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { Label } from "@better-update/ui/components/label";
+import { Select } from "@better-update/ui/components/select";
 import { Switch } from "@better-update/ui/components/switch";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
-import { cn } from "@better-update/ui/lib/utils";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
@@ -19,6 +10,7 @@ import {
   ServerSearchCombobox,
   useServerSearchList,
 } from "../../../components/server-search-combobox";
+import { onPicked } from "../../../lib/form-utils";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 
 // The invite dialog's "Project access" panel: draft per-project grant rows and
@@ -31,9 +23,6 @@ export const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
   reporter: "Reporter",
 };
 
-const isProjectRole = (value: string): value is ProjectMemberRoleValue =>
-  value in PROJECT_ROLE_LABELS;
-
 /** One draft (project, role) grant row in the invite form. */
 export interface ProjectGrantDraft {
   key: number;
@@ -41,48 +30,26 @@ export interface ProjectGrantDraft {
   role: ProjectMemberRoleValue;
 }
 
-export const SelectField = ({
-  label,
+/**
+ * The role picker that sits beside a project — narrow, unlabelled, and
+ * repeated once per grant row, so the label lives in `aria-label` only.
+ */
+const ProjectRoleSelect = ({
   ariaLabel,
   value,
-  items,
-  placeholder,
-  className,
   onChange,
 }: {
-  label?: string;
-  ariaLabel?: string;
-  value: string | null;
-  items: Record<string, string>;
-  placeholder?: string;
-  className?: string;
-  onChange: (next: string) => void;
+  ariaLabel: string;
+  value: ProjectMemberRoleValue;
+  onChange: (next: ProjectMemberRoleValue) => void;
 }) => (
-  <div className={cn("grid gap-2", className)}>
-    {label === undefined ? null : <Label>{label}</Label>}
-    <Select
-      items={items}
-      value={value}
-      onValueChange={(next) => {
-        if (next !== null) {
-          onChange(next);
-        }
-      }}
-    >
-      <SelectTrigger className="w-full" aria-label={ariaLabel ?? label}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {Object.entries(items).map(([itemValue, itemLabel]) => (
-            <SelectItem key={itemValue} value={itemValue}>
-              {itemLabel}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  </div>
+  <Select
+    aria-label={ariaLabel}
+    className="w-36"
+    items={PROJECT_ROLE_LABELS}
+    value={value}
+    onValueChange={onPicked(onChange)}
+  />
 );
 
 // Server-searched project picker: orgs can outgrow the dropdown fetch limit,
@@ -140,15 +107,11 @@ const ProjectGrantRow = ({
         onChange({ projectId: next });
       }}
     />
-    <SelectField
+    <ProjectRoleSelect
       ariaLabel="Project role"
       value={grant.role}
-      items={PROJECT_ROLE_LABELS}
-      className="w-36"
-      onChange={(next) => {
-        if (isProjectRole(next)) {
-          onChange({ role: next });
-        }
+      onChange={(role) => {
+        onChange({ role });
       }}
     />
     <Button
@@ -183,17 +146,7 @@ const AllProjectsDraftRow = ({
     </label>
     <div className="flex items-center gap-2">
       {role === null ? null : (
-        <SelectField
-          ariaLabel="Org-wide role"
-          value={role}
-          items={PROJECT_ROLE_LABELS}
-          className="w-36"
-          onChange={(next) => {
-            if (isProjectRole(next)) {
-              onChange(next);
-            }
-          }}
-        />
+        <ProjectRoleSelect ariaLabel="Org-wide role" value={role} onChange={onChange} />
       )}
       <Switch
         id="invite-all-projects"
