@@ -8,7 +8,6 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
-import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -16,7 +15,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, TriangleAlertIcon } from "lucide-react";

@@ -4,7 +4,6 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -12,7 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";

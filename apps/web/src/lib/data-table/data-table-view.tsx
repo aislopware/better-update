@@ -6,7 +6,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
 import { cn } from "@better-update/ui/lib/utils";
 import { flexRender } from "@tanstack/react-table";
 import { ChevronRightIcon, SearchXIcon } from "lucide-react";

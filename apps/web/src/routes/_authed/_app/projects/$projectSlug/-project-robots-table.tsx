@@ -2,19 +2,19 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
-import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
 import { EllipsisVerticalIcon, PencilIcon } from "lucide-react";
 
 import type { RobotAccountItem } from "@better-update/api-client/react";

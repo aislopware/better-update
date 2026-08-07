@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment } from "react";

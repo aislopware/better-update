@@ -14,6 +14,7 @@ export default defineConfig({
     "!src/components/dialog.tsx",
     "!src/components/field.tsx",
     "!src/components/field-layout.tsx",
+    "!src/components/table.tsx",
     "!src/components/toast.tsx",
     "src/components/ui/",
     "src/hooks/use-mobile.ts",

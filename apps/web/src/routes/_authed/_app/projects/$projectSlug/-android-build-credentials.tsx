@@ -9,6 +9,14 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { Field } from "@better-update/ui/components/field";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Select,
@@ -17,14 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/ui/table";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon, KeyRoundIcon } from "lucide-react";
 import { useState } from "react";

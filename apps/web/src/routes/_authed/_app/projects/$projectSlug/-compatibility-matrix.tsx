@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Table,
   TableBody,
@@ -14,7 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import { CircleCheckIcon } from "lucide-react";
 
 import type {

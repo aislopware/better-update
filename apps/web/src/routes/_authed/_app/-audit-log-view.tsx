@@ -10,7 +10,6 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
 import { Empty } from "@better-update/ui/components/empty";
-import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Table,
   TableBody,
@@ -18,7 +17,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { BotIcon, BracesIcon, ScrollTextIcon } from "lucide-react";
 import { z } from "zod";

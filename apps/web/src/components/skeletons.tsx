@@ -1,5 +1,4 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@better-update/ui/components/card";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -7,7 +6,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";

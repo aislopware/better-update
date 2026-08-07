@@ -21,12 +21,6 @@ import {
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Switch } from "@better-update/ui/components/switch";
-import { toast } from "@better-update/ui/components/toast";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 import {
   Table,
   TableBody,
@@ -34,7 +28,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@better-update/ui/components/ui/table";
+} from "@better-update/ui/components/table";
+import { toast } from "@better-update/ui/components/toast";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
