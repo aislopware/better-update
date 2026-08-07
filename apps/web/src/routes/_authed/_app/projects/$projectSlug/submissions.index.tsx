@@ -26,6 +26,7 @@ import {
   DataTableView,
   fireAndForget,
   enumArrayParam,
+  PAGE_SIZE,
   pageParam,
 } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
@@ -191,14 +192,7 @@ const SubmissionsPage = () => {
     );
   }
 
-  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
-    data.total,
-    data.items.length,
-    page,
-  );
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "submission")}${
-    hasFilters ? " (filtered)" : ""
-  }`;
+  const { safePage } = computePagination(data.total, page);
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -222,10 +216,14 @@ const SubmissionsPage = () => {
         table={table}
         columnsCount={columns.length}
         isPlaceholderData={isPlaceholderData}
-        countLabel={countLabel}
-        safePage={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
+        pagination={{
+          page: safePage,
+          perPage: PAGE_SIZE,
+          totalCount: data.total,
+          entity: pluralize(data.total, "submission"),
+          isFiltered: hasFilters,
+          onChange: onPageChange,
+        }}
         emptyMessage="No submissions match the selected filters."
         onRowClick={(submission) => {
           fireAndForget(

@@ -228,14 +228,7 @@ const BuildsContent = () => {
     );
   }
 
-  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
-    data.total,
-    data.items.length,
-    page,
-  );
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "build")}${
-    filtersActive ? " (filtered)" : ""
-  }`;
+  const { safePage } = computePagination(data.total, page);
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -268,10 +261,14 @@ const BuildsContent = () => {
         table={table}
         columnsCount={columns.length}
         isPlaceholderData={isPlaceholderData}
-        countLabel={countLabel}
-        safePage={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
+        pagination={{
+          page: safePage,
+          perPage: PAGE_SIZE,
+          totalCount: data.total,
+          entity: pluralize(data.total, "build"),
+          isFiltered: filtersActive,
+          onChange: onPageChange,
+        }}
         emptyMessage="No builds match your filters."
         onRowClick={async (build) => {
           await routeNavigate({

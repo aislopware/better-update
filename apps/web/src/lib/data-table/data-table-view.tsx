@@ -18,6 +18,11 @@ import { cellAlignClass } from "./column-meta";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 
+import type { DataTablePaginationProps } from "./data-table-pagination";
+
+/** What a caller supplies; `isPlaceholderData` comes from the view itself. */
+export type DataTablePaginationFooter = Omit<DataTablePaginationProps, "isPlaceholderData">;
+
 export interface DataTableFilteredEmptyProps {
   /** Plural entity noun — copy renders as "No <entity> match your filters." */
   readonly entity: string;
@@ -31,10 +36,10 @@ export interface DataTableViewProps<TData> {
   readonly table: ReactTableT<TData>;
   readonly columnsCount: number;
   readonly isPlaceholderData?: boolean | undefined;
+  /** Plain footer text for lists that fetch everything at once. */
   readonly countLabel?: string | undefined;
-  readonly safePage?: number | undefined;
-  readonly totalPages?: number | undefined;
-  readonly onPageChange?: ((next: number) => void) | undefined;
+  /** Paginated footer — supersedes `countLabel`, which it derives itself. */
+  readonly pagination?: DataTablePaginationFooter | undefined;
   readonly onRowClick?: ((row: TData) => void | Promise<void>) | undefined;
   /** Shown as a full-width row when the table has no rows (filtered-empty state). */
   readonly emptyMessage?: string | undefined;
@@ -66,28 +71,31 @@ const ROW_ACTION_DISCLOSURE = cn(
 
 const DataTableFooterArea = ({
   countLabel,
-  safePage,
-  totalPages,
+  pagination,
   isPlaceholderData,
-  onPageChange,
 }: {
-  countLabel: string;
-  safePage: number | undefined;
-  totalPages: number | undefined;
+  countLabel: string | undefined;
+  pagination: DataTablePaginationFooter | undefined;
   isPlaceholderData: boolean;
-  onPageChange: ((next: number) => void) | undefined;
-}) =>
-  safePage !== undefined && totalPages !== undefined && onPageChange !== undefined ? (
-    <DataTablePagination
-      countLabel={countLabel}
-      safePage={safePage}
-      totalPages={totalPages}
-      isPlaceholderData={isPlaceholderData}
-      onChange={onPageChange}
-    />
-  ) : (
+}) => {
+  if (pagination) {
+    const { onChange: handlePageChange, ...rest } = pagination;
+    return (
+      <DataTablePagination
+        page={rest.page}
+        perPage={rest.perPage}
+        totalCount={rest.totalCount}
+        entity={rest.entity}
+        isFiltered={rest.isFiltered}
+        isPlaceholderData={isPlaceholderData}
+        onChange={handlePageChange}
+      />
+    );
+  }
+  return countLabel === undefined ? null : (
     <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
   );
+};
 
 const isMissingValue = (value: unknown): boolean => value === undefined || value === null;
 
@@ -184,9 +192,7 @@ export const DataTableView = <TData,>({
   columnsCount,
   isPlaceholderData = false,
   countLabel,
-  safePage,
-  totalPages,
-  onPageChange,
+  pagination,
   onRowClick,
   emptyMessage,
   filteredEmpty,
@@ -235,15 +241,11 @@ export const DataTableView = <TData,>({
           </TableBody>
         </Table>
       </div>
-      {countLabel === undefined ? null : (
-        <DataTableFooterArea
-          countLabel={countLabel}
-          safePage={safePage}
-          totalPages={totalPages}
-          isPlaceholderData={isPlaceholderData}
-          onPageChange={onPageChange}
-        />
-      )}
+      <DataTableFooterArea
+        countLabel={countLabel}
+        pagination={pagination}
+        isPlaceholderData={isPlaceholderData}
+      />
     </div>
   );
 };

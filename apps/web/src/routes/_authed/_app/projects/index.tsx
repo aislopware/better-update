@@ -260,11 +260,7 @@ const Projects = () => {
     );
   }
 
-  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
-    data.total,
-    data.items.length,
-    page,
-  );
+  const { safePage } = computePagination(data.total, page);
 
   const isEmpty = data.total === 0;
   // Only the true "no projects at all" case (active filter, no search) gets the
@@ -285,10 +281,6 @@ const Projects = () => {
       </div>
     );
   }
-
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "project")}${
-    urlQuery ? " (filtered)" : ""
-  }`;
 
   const isFiltered = urlQuery.length > 0 || !isDefaultStatus(status);
 
@@ -345,10 +337,14 @@ const Projects = () => {
           table={table}
           columnsCount={columns.length}
           isPlaceholderData={isPlaceholderData}
-          countLabel={countLabel}
-          safePage={safePage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
+          pagination={{
+            page: safePage,
+            perPage: PAGE_SIZE,
+            totalCount: data.total,
+            entity: pluralize(data.total, "project"),
+            isFiltered: urlQuery.length > 0,
+            onChange: onPageChange,
+          }}
           emptyMessage="No projects match your filters."
           onRowClick={async (project) => {
             await routeNavigate({

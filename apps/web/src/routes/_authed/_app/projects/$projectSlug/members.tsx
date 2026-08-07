@@ -14,7 +14,6 @@ import { ConfirmDialog } from "../../../../../components/confirm-dialog";
 import { SectionHeader } from "../../../../../components/page-header";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { sortParam, useDataTableSearch } from "../../../../../lib/data-table";
-import { pluralize } from "../../../../../lib/pluralize";
 import { AddProjectMemberDialog } from "./-project-members-add-dialog";
 import { useProjectMembersHandlers } from "./-project-members-mutations";
 import { ProjectMembersTableView } from "./-project-members-table";
@@ -108,7 +107,6 @@ const ProjectMembersContent = () => {
           items={items}
           canManage={canManage}
           pendingPrincipalId={pendingPrincipalId}
-          countLabel={`${items.length} ${pluralize(items.length, "member")}`}
           sorting={sorting}
           onSortingChange={onSortingChange}
           onRoleChange={(row, role) => {

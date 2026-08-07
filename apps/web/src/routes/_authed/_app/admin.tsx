@@ -239,18 +239,10 @@ const AdminUsers = () => {
     );
   }
 
-  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
-    data.total,
-    data.items.length,
-    page,
-  );
+  const { safePage } = computePagination(data.total, page);
 
   const isFiltered = urlQuery.length > 0 || status.length > 0;
   const showsGlobalEmpty = data.total === 0 && !isFiltered && searchDraft.length === 0;
-
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "user")}${
-    isFiltered ? " (filtered)" : ""
-  }`;
 
   const emptyState = (
     <Empty
@@ -289,10 +281,14 @@ const AdminUsers = () => {
             table={table}
             columnsCount={columns.length}
             isPlaceholderData={isPlaceholderData}
-            countLabel={countLabel}
-            safePage={safePage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
+            pagination={{
+              page: safePage,
+              perPage: PAGE_SIZE,
+              totalCount: data.total,
+              entity: pluralize(data.total, "user"),
+              isFiltered,
+              onChange: onPageChange,
+            }}
             emptyMessage="No users match your filters."
           />
         )}

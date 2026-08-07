@@ -15,6 +15,7 @@ import { DataTableView, PAGE_SIZE } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { onPicked } from "../../../lib/form-utils";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
+import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { MemberProjectsCell } from "./-member-projects-cell";
 import { MemberRowActions } from "./-member-row-actions";
@@ -268,7 +269,6 @@ export const MembersTableView = ({
   pendingMemberId,
   pendingInvitationId,
   pendingRoleMemberId,
-  countLabel,
   emptyMessage,
   sorting,
   onSortingChange,
@@ -287,7 +287,6 @@ export const MembersTableView = ({
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
   pendingRoleMemberId?: string | undefined;
-  countLabel?: string;
   emptyMessage?: string;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
@@ -342,15 +341,22 @@ export const MembersTableView = ({
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  // The footer counts what the table holds, filters included — the page
+  // upstream no longer has to thread a label down for it.
+  const rowCount = table.getPrePaginationRowModel().rows.length;
+
   return (
     <DataTableView
       table={table}
       columnsCount={columns.length}
-      countLabel={countLabel}
-      safePage={table.getState().pagination.pageIndex + 1}
-      totalPages={Math.max(1, table.getPageCount())}
-      onPageChange={(next) => {
-        table.setPageIndex(next - 1);
+      pagination={{
+        page: table.getState().pagination.pageIndex + 1,
+        perPage: PAGE_SIZE,
+        totalCount: rowCount,
+        entity: pluralize(rowCount, "member"),
+        onChange: (next) => {
+          table.setPageIndex(next - 1);
+        },
       }}
       emptyMessage={emptyMessage}
     />

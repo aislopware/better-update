@@ -18,6 +18,7 @@ import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { DataTableView, PAGE_SIZE } from "../../../../../lib/data-table";
 import { EntityAvatar } from "../../../../../lib/entity-avatar";
 import { onPicked } from "../../../../../lib/form-utils";
+import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
 
 import type { RemoveTarget } from "./-project-members-mutations";
@@ -217,7 +218,6 @@ export const ProjectMembersTableView = ({
   items,
   canManage,
   pendingPrincipalId,
-  countLabel,
   sorting,
   onSortingChange,
   onRoleChange,
@@ -226,7 +226,6 @@ export const ProjectMembersTableView = ({
   items: readonly ProjectMemberItem[];
   canManage: boolean;
   pendingPrincipalId?: string | undefined;
-  countLabel?: string;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
   onRoleChange: (row: ProjectMemberItem, role: ProjectMemberRoleValue) => void;
@@ -251,15 +250,22 @@ export const ProjectMembersTableView = ({
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  // The footer counts what the table holds, filters included — the page
+  // upstream no longer has to thread a label down for it.
+  const rowCount = table.getPrePaginationRowModel().rows.length;
+
   return (
     <DataTableView
       table={table}
       columnsCount={columns.length}
-      countLabel={countLabel}
-      safePage={table.getState().pagination.pageIndex + 1}
-      totalPages={Math.max(1, table.getPageCount())}
-      onPageChange={(next) => {
-        table.setPageIndex(next - 1);
+      pagination={{
+        page: table.getState().pagination.pageIndex + 1,
+        perPage: PAGE_SIZE,
+        totalCount: rowCount,
+        entity: pluralize(rowCount, "member"),
+        onChange: (next) => {
+          table.setPageIndex(next - 1);
+        },
       }}
     />
   );

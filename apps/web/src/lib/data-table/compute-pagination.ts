@@ -3,19 +3,19 @@ export const PAGE_SIZE = 20;
 export interface Pagination {
   readonly totalPages: number;
   readonly safePage: number;
-  readonly fromIndex: number;
-  readonly toIndex: number;
 }
 
+/**
+ * Clamps a page number read out of the URL to the range the data actually has,
+ * so deleting the last row of the last page does not strand the list on an
+ * empty page. The showing-range itself belongs to the pagination footer, which
+ * derives it from page/perPage/total.
+ */
 export const computePagination = (
   total: number,
-  itemCount: number,
   page: number,
   pageSize: number = PAGE_SIZE,
 ): Pagination => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const fromIndex = itemCount === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const toIndex = (safePage - 1) * pageSize + itemCount;
-  return { totalPages, safePage, fromIndex, toIndex };
+  return { totalPages, safePage: Math.min(page, totalPages) };
 };

@@ -18,7 +18,6 @@ import {
   sortParam,
   useDataTableSearch,
 } from "../../../lib/data-table";
-import { pluralize } from "../../../lib/pluralize";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
 import { ManageProjectsDialog } from "./-member-projects-cell";
@@ -74,8 +73,6 @@ const useMembershipsByPrincipal = (orgId: string) => {
     [memberships],
   );
 };
-
-const memberCountLabel = (count: number): string => `${count} ${pluralize(count, "member")}`;
 
 const MembersContent = () => {
   const { activeOrg, user } = Route.useRouteContext();
@@ -157,8 +154,6 @@ const MembersContent = () => {
   const inviteCta = canInviteMembers ? (
     <InviteDialog orgId={orgId} isOwner={isOwner} canGrantAllProjects={canManageMembers} />
   ) : undefined;
-  const countLabel = memberCountLabel(filteredMembers.length + filteredInvitations.length);
-
   const isOrgEmpty =
     statusFilter.length === 0 && members.length === 0 && pendingInvitations.length === 0;
 
@@ -202,7 +197,6 @@ const MembersContent = () => {
           pendingMemberId={memberPendingId}
           pendingInvitationId={invitationPendingId}
           pendingRoleMemberId={rolePendingId}
-          countLabel={countLabel}
           emptyMessage="No members match the selected filter."
           sorting={sorting}
           onSortingChange={onSortingChange}

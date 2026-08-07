@@ -1,103 +1,55 @@
-import { Button } from "@better-update/ui/components/button";
-import { cn } from "@better-update/ui/lib/utils";
-import {
-  CaretDoubleLeftIcon,
-  CaretDoubleRightIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
-} from "@phosphor-icons/react";
+import { Pagination } from "@better-update/ui/components/pagination";
 
 export interface DataTablePaginationProps {
-  readonly countLabel: string;
-  readonly safePage: number;
-  readonly totalPages: number;
-  readonly isPlaceholderData: boolean;
+  /** 1-indexed, already clamped to the last page. */
+  readonly page: number;
+  readonly perPage: number;
+  readonly totalCount: number;
+  /** Entity noun, already pluralised for `totalCount` — "builds", "branch". */
+  readonly entity: string;
+  /** Appends "(filtered)" so the count is not read as the size of the whole set. */
+  readonly isFiltered?: boolean | undefined;
+  /** Page changes are dropped while the previous page is still in flight. */
+  readonly isPlaceholderData?: boolean | undefined;
   readonly onChange: (next: number) => void;
 }
 
-const PageButton = ({
-  label,
-  disabled,
-  hiddenOnMobile = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  hiddenOnMobile?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) => (
-  <Button
-    variant="secondary"
-    shape="square"
-    size="sm"
-    className={cn(hiddenOnMobile && "hidden lg:inline-flex")}
-    disabled={disabled}
-    onClick={onClick}
-    aria-label={label}
-  >
-    {children}
-  </Button>
-);
-
 /**
- * Pagination row rendered below the table (shadcn data-table pattern): count
- * on the left; page indicator + first/prev/next/last on the right.
+ * Footer below a data table: the showing-range on the left, Kumo's page
+ * controls on the right. Kumo derives the range from page/perPage/totalCount,
+ * so the entity noun is all a caller supplies.
+ *
+ * The controls drop out once everything fits on one page — a row of permanently
+ * disabled buttons reads as a broken control rather than an absent one.
  */
 export const DataTablePagination = ({
-  countLabel,
-  safePage,
-  totalPages,
-  isPlaceholderData,
+  page,
+  perPage,
+  totalCount,
+  entity,
+  isFiltered = false,
+  isPlaceholderData = false,
   onChange,
 }: DataTablePaginationProps) => (
-  <div className="flex items-center justify-between gap-2">
-    <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
-    <div className="flex items-center gap-4">
-      <span className="text-muted-foreground hidden text-xs font-normal tabular-nums sm:inline">
-        Page {safePage} of {totalPages}
-      </span>
-      <div className="flex items-center gap-1">
-        <PageButton
-          label="First page"
-          hiddenOnMobile
-          disabled={safePage === 1 || isPlaceholderData}
-          onClick={() => {
-            onChange(1);
-          }}
-        >
-          <CaretDoubleLeftIcon weight="bold" />
-        </PageButton>
-        <PageButton
-          label="Previous page"
-          disabled={safePage === 1 || isPlaceholderData}
-          onClick={() => {
-            onChange(safePage - 1);
-          }}
-        >
-          <CaretLeftIcon weight="bold" />
-        </PageButton>
-        <PageButton
-          label="Next page"
-          disabled={safePage >= totalPages || isPlaceholderData}
-          onClick={() => {
-            onChange(safePage + 1);
-          }}
-        >
-          <CaretRightIcon weight="bold" />
-        </PageButton>
-        <PageButton
-          label="Last page"
-          hiddenOnMobile
-          disabled={safePage >= totalPages || isPlaceholderData}
-          onClick={() => {
-            onChange(totalPages);
-          }}
-        >
-          <CaretDoubleRightIcon weight="bold" />
-        </PageButton>
-      </div>
-    </div>
-  </div>
+  <Pagination
+    page={page}
+    perPage={perPage}
+    totalCount={totalCount}
+    setPage={(next) => {
+      if (!isPlaceholderData) {
+        onChange(next);
+      }
+    }}
+  >
+    <Pagination.Info>
+      {({ pageShowingRange }) => (
+        <>
+          <span className="tabular-nums">{pageShowingRange}</span> of{" "}
+          <span className="tabular-nums">{totalCount}</span> {entity}
+          {isFiltered ? " (filtered)" : null}
+        </>
+      )}
+    </Pagination.Info>
+    {totalCount > perPage ? <Pagination.Controls /> : null}
+  </Pagination>
 );

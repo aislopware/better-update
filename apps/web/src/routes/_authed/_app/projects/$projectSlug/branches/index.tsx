@@ -194,11 +194,7 @@ const BranchesPage = () => {
     );
   }
 
-  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
-    data.total,
-    data.items.length,
-    page,
-  );
+  const { safePage } = computePagination(data.total, page);
 
   const showsGlobalEmpty = data.total === 0 && urlQuery.length === 0 && searchDraft.length === 0;
 
@@ -210,10 +206,6 @@ const BranchesPage = () => {
       </div>
     );
   }
-
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "branch", "branches")}${
-    urlQuery ? " (filtered)" : ""
-  }`;
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -231,10 +223,14 @@ const BranchesPage = () => {
         table={table}
         columnsCount={columns.length}
         isPlaceholderData={isPlaceholderData}
-        countLabel={countLabel}
-        safePage={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
+        pagination={{
+          page: safePage,
+          perPage: PAGE_SIZE,
+          totalCount: data.total,
+          entity: pluralize(data.total, "branch", "branches"),
+          isFiltered: urlQuery.length > 0,
+          onChange: onPageChange,
+        }}
         emptyMessage="No branches match your search."
       />
     </div>

@@ -195,12 +195,10 @@ const RuntimeDetailContent = () => {
             table={buildsTable}
             columnsCount={buildColumns.length}
             isPlaceholderData={false}
+            // A preview of the newest builds on this runtime rather than a page
+            // of them, so the footer counts and does not paginate — the Builds
+            // page is where they are paged through.
             countLabel={`${buildsTableData.length} of ${buildsCount}`}
-            safePage={1}
-            totalPages={1}
-            onPageChange={() => {
-              /* single-page view; full pagination via Builds page */
-            }}
           />
         )}
       </div>

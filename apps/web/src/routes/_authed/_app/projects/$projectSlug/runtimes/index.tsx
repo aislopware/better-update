@@ -120,12 +120,7 @@ const RuntimesContent = () => {
     );
   }
 
-  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
-    data.total,
-    data.items.length,
-    page,
-  );
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "runtime")}`;
+  const { safePage } = computePagination(data.total, page);
 
   const onPageChange = (next: number) => {
     fireAndForget(routeNavigate({ to: ".", search: (prev) => ({ ...prev, page: next }) }));
@@ -138,10 +133,13 @@ const RuntimesContent = () => {
         table={table}
         columnsCount={columns.length}
         isPlaceholderData={isPlaceholderData}
-        countLabel={countLabel}
-        safePage={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
+        pagination={{
+          page: safePage,
+          perPage: PAGE_SIZE,
+          totalCount: data.total,
+          entity: pluralize(data.total, "runtime"),
+          onChange: onPageChange,
+        }}
         onRowClick={async (runtime) => {
           await routeNavigate({
             to: "/projects/$projectSlug/runtimes/$version",

@@ -1,12 +1,13 @@
 import { useState } from "react";
 
 import { pluralize } from "../pluralize";
-import { PAGE_SIZE, computePagination } from "./compute-pagination";
+import { PAGE_SIZE } from "./compute-pagination";
 import { DataTablePagination } from "./data-table-pagination";
 
 export interface ClientPaginationState<T> {
   readonly pageItems: readonly T[];
-  readonly countLabel: string;
+  readonly totalCount: number;
+  readonly entity: string;
   readonly safePage: number;
   readonly totalPages: number;
   readonly setPage: (next: number) => void;
@@ -26,19 +27,24 @@ export const useClientPagination = <T,>(
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageItems = items.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const { fromIndex, toIndex } = computePagination(items.length, pageItems.length, safePage);
-  const countLabel = `${fromIndex}–${toIndex} of ${items.length} ${pluralize(items.length, noun)}`;
-  return { pageItems, countLabel, safePage, totalPages, setPage };
+  return {
+    pageItems,
+    totalCount: items.length,
+    entity: pluralize(items.length, noun),
+    safePage,
+    totalPages,
+    setPage,
+  };
 };
 
 /** Pagination footer for client-paginated lists; hidden while everything fits on one page. */
 export const ClientPaginationFooter = ({ state }: { state: ClientPaginationState<unknown> }) =>
   state.totalPages > 1 ? (
     <DataTablePagination
-      countLabel={state.countLabel}
-      safePage={state.safePage}
-      totalPages={state.totalPages}
-      isPlaceholderData={false}
+      page={state.safePage}
+      perPage={PAGE_SIZE}
+      totalCount={state.totalCount}
+      entity={state.entity}
       onChange={(next) => {
         state.setPage(next);
       }}
