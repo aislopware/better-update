@@ -34,6 +34,7 @@
     "test:e2e": "turbo run test:e2e",
     "test:integrations": "turbo run test:integrations",
     "typegen:cf": "turbo run typegen:cf",
+    "ui:gen": "bun scripts/gen-kumo-passthrough.ts",
     "verify": "node scripts/self-verify.mjs",
     "verify:e2e": "node scripts/self-verify.mjs --only=e2e"
   },

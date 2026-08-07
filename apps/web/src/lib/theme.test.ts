@@ -3,6 +3,7 @@ import {
   RESOLVED_THEME_COOKIE_NAME,
   THEME_COOKIE_NAME,
   THEME_INIT_SCRIPT,
+  applyTheme,
   getResolvedThemeFromCookie,
   getServerThemeSnapshotFromCookieValues,
   getThemeFromCookie,
@@ -142,5 +143,31 @@ describe(THEME_INIT_SCRIPT, () => {
 
   it("does not contain HTML tags", () => {
     expect(THEME_INIT_SCRIPT).not.toMatch(/<[a-z]/i);
+  });
+
+  // Kumo reads light/dark from `data-mode`; the pre-hydration script has to set
+  // it alongside `.dark` or every Kumo surface flashes light on first paint.
+  it("sets both the dark class and data-mode", () => {
+    expect(THEME_INIT_SCRIPT).toContain('classList.toggle("dark"');
+    expect(THEME_INIT_SCRIPT).toContain('setAttribute("data-mode"');
+  });
+});
+
+describe(applyTheme, () => {
+  it("writes the dark class, data-mode and color-scheme together", () => {
+    applyTheme("dark");
+
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(document.documentElement.dataset["mode"]).toBe("dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+  });
+
+  it("clears the dark class and flips data-mode back to light", () => {
+    applyTheme("dark");
+    applyTheme("light");
+
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+    expect(document.documentElement.dataset["mode"]).toBe("light");
+    expect(document.documentElement.style.colorScheme).toBe("light");
   });
 });

@@ -32,6 +32,16 @@ export default defineConfig({
             message:
               "Do not use useEffect/useLayoutEffect. Use useMountEffect for mount-only side effects, XState actors for stateful side effects, or TanStack Router loaders for data fetching.",
           },
+          {
+            name: "@cloudflare/kumo",
+            message:
+              "Import Kumo through @better-update/ui/components/<name>. The barrel drags charts, maps and shiki into every chunk (~594 kB).",
+          },
+          {
+            name: "@cloudflare/kumo/primitives",
+            message:
+              "Import the granular primitive: @better-update/ui/components/<name>, or @cloudflare/kumo/primitives/<name>.",
+          },
         ],
       },
     ],

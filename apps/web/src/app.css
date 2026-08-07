@@ -1,3 +1,10 @@
+/* Kumo must register its theme tokens before Tailwind so its `@theme` values
+   (semantic colours, 12/13/14/16 type scale) win over Tailwind's defaults.
+   Tailwind v4 does not scan node_modules, so Kumo's own utility classes have
+   to be sourced explicitly or its components render unstyled. */
+@source "../node_modules/@cloudflare/kumo/dist/**/*.js";
+@import "@cloudflare/kumo/styles/tailwind";
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";

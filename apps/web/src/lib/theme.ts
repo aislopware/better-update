@@ -79,9 +79,15 @@ export const setThemeCookie = (theme: Theme, resolvedTheme = resolveTheme(theme)
   setResolvedThemeCookie(resolvedTheme);
 };
 
+/**
+ * Kumo resolves light/dark through `data-mode` + CSS `light-dark()`, while the
+ * shadcn layer still keys off the `.dark` class. Both are written until the
+ * shadcn tokens are gone.
+ */
 export const applyTheme = (resolved: ResolvedTheme): void => {
   document.documentElement.classList.toggle("dark", resolved === "dark");
+  document.documentElement.dataset["mode"] = resolved;
   document.documentElement.style.colorScheme = resolved;
 };
 
-export const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;var c=document.cookie;var m=c.match(/(?:^|;\\s*)theme=([\\w]+)/);var t=m&&m[1];var v=t==="light"||t==="dark"||t==="system";var p=matchMedia("(prefers-color-scheme:dark)").matches;var r=t==="dark"||((!v||t==="system")&&p)?"dark":"light";d.classList.toggle("dark",r==="dark");d.style.colorScheme=r;document.cookie="${RESOLVED_THEME_COOKIE_NAME}="+r+"; ${COOKIE_ATTRIBUTES}"})();`;
+export const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;var c=document.cookie;var m=c.match(/(?:^|;\\s*)theme=([\\w]+)/);var t=m&&m[1];var v=t==="light"||t==="dark"||t==="system";var p=matchMedia("(prefers-color-scheme:dark)").matches;var r=t==="dark"||((!v||t==="system")&&p)?"dark":"light";d.classList.toggle("dark",r==="dark");d.setAttribute("data-mode",r);d.style.colorScheme=r;document.cookie="${RESOLVED_THEME_COOKIE_NAME}="+r+"; ${COOKIE_ATTRIBUTES}"})();`;

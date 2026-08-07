@@ -1,5 +1,6 @@
 import { useMountEffect } from "@better-update/react-hooks";
 import { Toaster } from "@better-update/ui/components/ui/toast";
+import { LinkProvider } from "@cloudflare/kumo/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
@@ -13,6 +14,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { ErrorBoundary } from "../lib/error-boundary";
+import { KumoRouterLink } from "../lib/kumo-link";
 import { subscribeToSignoutBroadcast } from "../lib/logout";
 import { SITE } from "../lib/site-config";
 import { THEME_INIT_SCRIPT, getThemeSnapshotFromCookie, isResolvedTheme } from "../lib/theme";
@@ -65,6 +67,7 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
     <html
       lang="en"
       className={resolvedTheme === "dark" ? "dark" : undefined}
+      data-mode={resolvedTheme}
       style={{ colorScheme: resolvedTheme }}
       suppressHydrationWarning
     >
@@ -115,11 +118,13 @@ const RootComponent = () => {
   useMountEffect(() => subscribeToSignoutBroadcast(queryClient));
   return (
     <ThemeProvider initialTheme={theme.theme} initialResolvedTheme={theme.resolvedTheme}>
-      <Toaster>
-        <ErrorBoundary>
-          <Outlet />
-        </ErrorBoundary>
-      </Toaster>
+      <LinkProvider component={KumoRouterLink}>
+        <Toaster>
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
+        </Toaster>
+      </LinkProvider>
     </ThemeProvider>
   );
 };

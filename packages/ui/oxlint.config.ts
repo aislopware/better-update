@@ -3,8 +3,9 @@ import { defineConfig } from "oxlint";
 
 export default defineConfig({
   extends: [react],
-  // src/components/ is shadcn-generated (base-nova) and gets clobbered by
-  // `bunx shadcn add`; use-mobile.ts ships with the generated sidebar component
-  // and is only consumed by it. Only hand-maintained code is linted.
+  // src/components/ is generated: the Kumo pass-throughs come from
+  // scripts/gen-kumo-passthrough.ts, and src/components/ui/ is the shadcn
+  // (base-nova) surface still being retired. use-mobile.ts ships with the
+  // generated sidebar. Only hand-maintained code is linted.
   ignorePatterns: ["src/components/", "src/hooks/use-mobile.ts"],
 });
