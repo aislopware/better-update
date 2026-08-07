@@ -1,7 +1,7 @@
 # Kumo migration — research & plan
 
-Status: P0–P3 and P5 shipped; P6 shipped bar the `better-update` skill. P4 is
-in progress — see the phase list for what has landed.
+Status: P0–P3, P5 and P6 shipped. P4 is in progress — see the phase list for
+what landed and what was tried and rejected.
 Researched against `github.com/cloudflare/kumo` @ `main` (clone 2026-08-07) and
 `@cloudflare/kumo@2.9.1` installed from npm.
 
