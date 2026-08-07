@@ -339,12 +339,18 @@ const AppLayout = () => {
               <UserMenu />
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-4 py-6 lg:px-6 lg:py-8">
-            <ErrorBoundary key={pathname}>
-              <Suspense fallback={<DetailCardSkeleton rows={3} columns={2} />}>
-                <Outlet />
-              </Suspense>
-            </ErrorBoundary>
+          {/* The measure is Kumo's own: past ~1400px a table stops being
+              readable and starts being a stretch, so the page centres rather
+              than filling whatever width the monitor has. Padding follows the
+              same ladder its page blocks use. */}
+          <main className="min-w-0 flex-1">
+            <div className="mx-auto w-full max-w-[1400px] p-6 md:p-8 lg:px-10 lg:py-9">
+              <ErrorBoundary key={pathname}>
+                <Suspense fallback={<DetailCardSkeleton rows={3} columns={2} />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
           </main>
         </div>
         <CommandPalette

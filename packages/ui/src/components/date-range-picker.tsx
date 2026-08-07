@@ -11,6 +11,7 @@ import { DatePicker } from "#/components/date-picker";
 import { Input } from "#/components/input";
 import { Popover } from "#/components/popover";
 import { Separator } from "#/components/separator";
+import { Toolbar } from "#/components/toolbar";
 import { cn } from "#/lib/utils";
 
 export interface DateRangePickerProps {
@@ -22,7 +23,8 @@ export interface DateRangePickerProps {
   readonly triggerClassName?: string;
   /**
    * "outline" = form-field trigger showing the value inline;
-   * "filter" = dashed toolbar chip (faceted-filter style) showing it as a badge.
+   * "filter" = a `Toolbar` item showing it as a badge, for the row above a
+   * data table. Only valid inside a `Toolbar`.
    */
   readonly triggerVariant?: "outline" | "filter";
 }
@@ -189,13 +191,11 @@ export const DateRangePicker = ({
     <Popover open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         render={
-          <Button
-            className={cn(
-              triggerVariant === "filter" ? "border-dashed" : "justify-start",
-              triggerClassName,
-            )}
-            variant="secondary"
-          />
+          triggerVariant === "filter" ? (
+            <Toolbar.Button className={cn(triggerClassName)} />
+          ) : (
+            <Button className={cn("justify-start", triggerClassName)} variant="secondary" />
+          )
         }
       >
         {triggerVariant === "filter" ? (

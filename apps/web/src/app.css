@@ -102,10 +102,6 @@
   }
 }
 
-@utility container {
-  @apply mx-auto w-full max-w-[1416px] px-4 lg:px-6;
-}
-
 :root {
   /* Every shadcn role below resolves to a Kumo token, so the components that
      have not been ported yet share one palette with the ones that have. Kumo

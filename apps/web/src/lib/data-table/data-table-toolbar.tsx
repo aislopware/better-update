@@ -1,5 +1,5 @@
-import { Button } from "@better-update/ui/components/button";
 import { InputGroup } from "@better-update/ui/components/input-group";
+import { Toolbar } from "@better-update/ui/components/toolbar";
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 
 import type { ReactNode } from "react";
@@ -11,18 +11,21 @@ export interface DataTableToolbarProps {
     readonly onChange: (next: string) => void;
     readonly placeholder: string;
   };
-  /** Filter chips (DataTableFacetedFilter and friends). */
+  /** Filter chips (DataTableFacetedFilter and friends) — all toolbar items. */
   readonly children?: ReactNode;
   /** True when any filter/search is active — shows the Reset button. */
   readonly isFiltered?: boolean;
   readonly onReset?: () => void;
-  /** Right-aligned slot (view options, primary actions). */
+  /** Right-aligned slot (view options, primary actions) — outside the card. */
   readonly actions?: ReactNode;
 }
 
 /**
- * Toolbar row above a data table (shadcn data-table pattern):
- * search + faceted filter chips + reset on the left, actions on the right.
+ * Row above a data table. Everything that narrows the list — search, filter
+ * chips, reset — sits inside one Kumo `Toolbar`, which draws them as a single
+ * card with shared sizing and internal separators rather than a scatter of
+ * loose controls. Actions stay outside it: a primary button is not a filter,
+ * and the ghost styling the toolbar imposes would hide that.
  */
 export const DataTableToolbar = ({
   search,
@@ -30,35 +33,43 @@ export const DataTableToolbar = ({
   isFiltered = false,
   onReset,
   actions,
-}: DataTableToolbarProps) => (
-  <div className="flex flex-wrap items-center gap-2">
-    {search ? (
-      <InputGroup className="w-full sm:w-56">
-        <InputGroup.Input
-          type="search"
-          value={search.value}
-          placeholder={search.placeholder}
-          onChange={(event) => {
-            search.onChange(event.target.value);
-          }}
-        />
-        <InputGroup.Addon>
-          <MagnifyingGlassIcon />
-        </InputGroup.Addon>
-      </InputGroup>
-    ) : null}
-    {children}
-    {isFiltered && onReset ? (
-      <Button
-        variant="ghost"
-        onClick={() => {
-          onReset();
-        }}
-      >
-        Reset
-        <XIcon weight="bold" />
-      </Button>
-    ) : null}
-    {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
-  </div>
-);
+}: DataTableToolbarProps) => {
+  const handleReset = (): void => {
+    onReset?.();
+  };
+  const hasFilters = search !== undefined || children !== undefined;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {/* The toolbar keeps Kumo's default size rather than `sm`, which draws at
+          12px: a filter row set smaller than the table it filters reads as a
+          footnote to it. */}
+      {hasFilters ? (
+        <Toolbar className="max-w-full">
+          {search ? (
+            <Toolbar.InputGroup aria-label={search.placeholder} className="w-48 sm:w-64">
+              <InputGroup.Input
+                type="search"
+                value={search.value}
+                placeholder={search.placeholder}
+                onChange={(event) => {
+                  search.onChange(event.target.value);
+                }}
+              />
+              <InputGroup.Addon>
+                <MagnifyingGlassIcon />
+              </InputGroup.Addon>
+            </Toolbar.InputGroup>
+          ) : null}
+          {children}
+          {isFiltered && onReset ? (
+            <Toolbar.Button icon={XIcon} onClick={handleReset}>
+              Reset
+            </Toolbar.Button>
+          ) : null}
+        </Toolbar>
+      ) : null}
+      {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+};

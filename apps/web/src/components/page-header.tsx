@@ -31,15 +31,18 @@ export const PageHeader = ({
     )}
   >
     <div className={cn("flex flex-col", size === "page" ? "gap-1.5" : "gap-1")}>
+      {/* No `tracking-*`: Kumo's type is drawn at its natural spacing, and
+          tightening a heading against untouched body text reads as a mismatch
+          rather than as emphasis. */}
       <h1
         className={cn(
           "font-heading leading-tight font-semibold",
-          size === "page" ? "text-2xl tracking-tight" : "text-lg",
+          size === "page" ? "text-3xl" : "text-lg",
         )}
       >
         {title}
       </h1>
-      {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
+      {description ? <p className="text-kumo-subtle text-base">{description}</p> : null}
     </div>
     {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
   </header>

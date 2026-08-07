@@ -1,8 +1,8 @@
 import { Badge } from "@better-update/ui/components/badge";
-import { Button } from "@better-update/ui/components/button";
 import { CommandPalette as Palette } from "@better-update/ui/components/command-palette";
 import { Popover } from "@better-update/ui/components/popover";
 import { Separator } from "@better-update/ui/components/separator";
+import { Toolbar } from "@better-update/ui/components/toolbar";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
@@ -88,7 +88,7 @@ const CheckSquare = ({ checked }: { checked: boolean }) => (
 );
 
 /**
- * Faceted filter chip: dashed outline trigger with selected-value badges,
+ * Faceted filter chip: a toolbar item carrying the selected values as badges,
  * opening the command palette's panel — the same keyboard model as ⌘K, minus
  * its dialog — over checkbox rows. Toggling keeps the popover open so several
  * values can be picked in one visit; filtering itself stays server-side.
@@ -165,7 +165,10 @@ export const DataTableFacetedFilter = ({
         }
       }}
     >
-      <Popover.Trigger render={<Button variant="secondary" className="border-dashed" />}>
+      {/* A toolbar item, not a standalone button: every faceted filter is
+          rendered inside DataTableToolbar's card, and Toolbar.Button is what
+          drops the control's own ring so the card reads as one surface. */}
+      <Popover.Trigger render={<Toolbar.Button />}>
         <PlusCircleIcon weight="bold" />
         {title}
         {selected.length > 0 ? <SelectedSummary options={options} selected={selected} /> : null}
