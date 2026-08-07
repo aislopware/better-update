@@ -72,6 +72,10 @@ export const DialogContent = ({ className, children, ...props }: KumoDialogPopup
  * out of its padding, so a long body slides under an opaque header rather than
  * past a floating one. Owns the dismiss button: `absolute` would scroll away
  * with the body.
+ *
+ * The bottom edge is what makes that legible — text vanishing at an unmarked
+ * boundary reads as clipping. Kumo's own delete-resource block draws the same
+ * bar, bordered top and bottom.
  */
 export const DialogHeader = ({
   className,
@@ -87,7 +91,7 @@ export const DialogHeader = ({
     // eslint-disable-next-line react/jsx-props-no-spreading -- layout primitive over a plain div
     {...props}
     className={cn(
-      "bg-kumo-base sticky top-0 z-1 -mx-5 flex shrink-0 items-start justify-between gap-4 px-5 pt-5 pb-2",
+      "border-kumo-line bg-kumo-base sticky top-0 z-1 -mx-5 flex shrink-0 items-start justify-between gap-4 border-b px-5 pt-5 pb-4",
       className,
     )}
   >

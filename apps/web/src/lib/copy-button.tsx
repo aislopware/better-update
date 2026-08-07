@@ -99,7 +99,10 @@ export const CopyChip = ({ value, className }: { value: string; className?: stri
       aria-label={`Copy ${value}`}
       onClick={handleCopy}
       className={cn(
-        "bg-kumo-tint hover:bg-kumo-fill inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-semibold",
+        // `text-sm` rather than `text-xs`: this is monospace set inside a
+        // sentence, and Kumo's own delete-resource chip is drawn one step below
+        // its prose, not two.
+        "bg-kumo-tint hover:bg-kumo-fill inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-sm font-semibold",
         className,
       )}
     >
