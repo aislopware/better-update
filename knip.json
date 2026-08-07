@@ -45,7 +45,7 @@
       "project": ["src/**/*.ts"]
     },
     "packages/ui": {
-      "entry": ["src/components/**/*.tsx", "src/hooks/*.ts", "src/lib/*.ts"],
+      "entry": ["src/components/**/*.tsx", "src/lib/*.ts"],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/bsdiff": {

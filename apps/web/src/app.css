@@ -56,15 +56,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
   /* Themed layered shadows — light/dark values live on :root/.dark. */
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -169,14 +160,6 @@
   --chart-4: #8d58ee;
   --chart-5: #50c3b6;
   --radius: 0.5rem;
-  --sidebar: var(--color-kumo-recessed);
-  --sidebar-foreground: var(--text-color-kumo-default);
-  --sidebar-primary: var(--color-kumo-contrast);
-  --sidebar-primary-foreground: var(--text-color-kumo-inverse);
-  --sidebar-accent: var(--color-kumo-tint);
-  --sidebar-accent-foreground: var(--text-color-kumo-default);
-  --sidebar-border: var(--color-kumo-line);
-  --sidebar-ring: var(--ring);
 
   --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.03);
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.05);
@@ -240,11 +223,6 @@
   }
 }
 
-[data-sidebar-skip-anim="true"] [data-slot="sidebar-gap"],
-[data-sidebar-skip-anim="true"] [data-slot="sidebar-container"] {
-  transition-duration: 0ms !important;
-}
-
 /* Skeletons reveal after a short delay so fast responses never flash a
    loading state (Vercel web-interface guideline: ~150ms show delay). */
 @keyframes skeleton-appear {
@@ -264,8 +242,6 @@
     animation-iteration-count: 1 !important;
   }
 
-  [data-slot="sidebar-gap"],
-  [data-slot="sidebar-container"],
   [data-slot="toast"],
   [data-slot="toast-content"] {
     transition: none !important;

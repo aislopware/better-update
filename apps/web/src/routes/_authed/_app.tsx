@@ -2,23 +2,9 @@ import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Kbd } from "@better-update/ui/components/kbd";
 import { Loader } from "@better-update/ui/components/loader";
-import { Separator } from "@better-update/ui/components/separator";
+import { Sidebar } from "@better-update/ui/components/sidebar";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
-  useSidebar,
-} from "@better-update/ui/components/ui/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
@@ -28,15 +14,7 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import {
-  PlusIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronsUpDownIcon,
-  LogOutIcon,
-  SearchIcon,
-  UserIcon,
-} from "lucide-react";
+import { PlusIcon, ChevronsUpDownIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { DetailCardSkeleton } from "../../components/skeletons";
@@ -67,34 +45,42 @@ const useActiveProjectSlug = (): string | undefined =>
     },
   });
 
+// Sits in the sidebar header, so it has to survive the collapse: the avatar is
+// the only part that stays, and the label column is what the shrinking width
+// clips away.
 const renderOrgTrigger = (
   name: string,
   slug: string | undefined,
   image: string | null | undefined,
 ) => (
-  <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
-    <EntityAvatar name={name} seed={slug ?? name} image={image} shape="square" className="size-8" />
-    <div className="grid flex-1 text-left text-sm leading-tight">
-      <span className="truncate font-semibold">{name}</span>
-      <span className="text-muted-foreground truncate text-xs">{slug}</span>
+  <button
+    type="button"
+    aria-label="Switch organization"
+    className="hover:bg-kumo-tint data-[popup-open]:bg-kumo-tint focus-visible:ring-kumo-brand flex h-10 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg px-1 text-left outline-none focus-visible:ring-2"
+  >
+    <EntityAvatar
+      name={name}
+      seed={slug ?? name}
+      image={image}
+      shape="square"
+      className="size-8 shrink-0"
+    />
+    <div className="grid min-w-0 flex-1 leading-tight">
+      <span className="truncate text-sm font-medium">{name}</span>
+      <span className="text-kumo-subtle truncate text-xs">{slug}</span>
     </div>
-    <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground ml-auto size-4" />
-  </SidebarMenuButton>
+    <ChevronsUpDownIcon strokeWidth={2} className="text-kumo-subtle size-3.5 shrink-0" />
+  </button>
 );
 
-const renderUserTrigger = (
-  name: string | undefined,
-  image: string | null | undefined,
-  email: string | undefined,
-) => (
-  <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
-    <EntityAvatar name={name ?? "U"} image={image} className="size-8" />
-    <div className="grid flex-1 text-left text-sm leading-tight">
-      <span className="truncate font-semibold">{name}</span>
-      <span className="text-muted-foreground truncate text-xs">{email}</span>
-    </div>
-    <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground ml-auto size-4" />
-  </SidebarMenuButton>
+// Top-right, the way the Cloudflare dashboard carries the account menu: the
+// avatar is the constant, the name appears once there is room for it.
+const renderUserTrigger = (name: string | undefined, image: string | null | undefined) => (
+  <Button variant="ghost" aria-label="Account" className="h-8 gap-2 px-1.5">
+    <EntityAvatar name={name ?? "U"} image={image} size="sm" />
+    <span className="hidden max-w-32 truncate font-normal lg:inline">{name}</span>
+    <ChevronsUpDownIcon strokeWidth={2} className="text-kumo-subtle size-3 shrink-0" />
+  </Button>
 );
 
 const OrgSwitcher = () => {
@@ -220,16 +206,16 @@ const UserMenu = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenu.Trigger render={renderUserTrigger(user.name, user.image, user.email)} />
-      <DropdownMenu.Content align="start" side="top" sideOffset={4} className="min-w-56">
+      <DropdownMenu.Trigger render={renderUserTrigger(user.name, user.image)} />
+      <DropdownMenu.Content align="end" side="bottom" sideOffset={4} className="min-w-56">
         <DropdownMenu.Group>
           {/* Canonical nav-user label block: avatar + name + email. */}
           <DropdownMenu.Label className="p-0 font-normal">
             <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
               <EntityAvatar name={user.name || "U"} image={user.image} className="size-8" />
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="text-foreground truncate font-medium">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+                <span className="text-kumo-strong truncate font-medium">{user.name}</span>
+                <span className="text-kumo-subtle truncate text-xs">{user.email}</span>
               </div>
             </div>
           </DropdownMenu.Label>
@@ -265,18 +251,6 @@ const UserMenu = () => {
   );
 };
 
-const AppSidebarRail = () => {
-  const { state } = useSidebar();
-  const Icon = state === "expanded" ? ChevronLeftIcon : ChevronRightIcon;
-  return (
-    <SidebarRail className="group/rail z-40 hover:after:bg-transparent">
-      <span className="bg-background pointer-events-none absolute top-1/2 left-1/2 z-50 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover/rail:opacity-100">
-        <Icon strokeWidth={2} className="size-3.5" />
-      </span>
-    </SidebarRail>
-  );
-};
-
 const AppSidebar = ({
   projectSlug,
   isSuperadmin,
@@ -284,50 +258,32 @@ const AppSidebar = ({
   projectSlug: string | undefined;
   isSuperadmin: boolean;
 }) => (
-  <Sidebar collapsible="icon">
-    {/* Fixed to the header height so the org trigger stays middle-aligned with
-        the header row in both expanded (48px button) and collapsed (32px
-        avatar) states, and the nav below starts under the header divider. */}
-    <SidebarHeader className="h-(--header-height) shrink-0 justify-center">
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <OrgSwitcher />
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarHeader>
-    <SidebarContent>
+  // Pinned to the viewport so the nav stays put while a long page scrolls;
+  // Kumo's own root is `h-full`, which would let it scroll away with the page.
+  <Sidebar
+    className="sticky top-0 z-40 h-svh self-start"
+    // A peek floats the nav over the page rather than pushing it, so it needs
+    // the elevation to read as a layer above rather than a slice out of it.
+    contentClassName="group-data-[state=peeking]/sidebar:shadow-2xl"
+  >
+    {/* Matched to the header row so the org trigger lines up with the
+        breadcrumb bar and the nav starts under one continuous divider. The
+        padding tracks Sidebar.Content's, which narrows as the rail collapses. */}
+    <Sidebar.Header className="h-(--header-height) px-2.5 group-not-data-[state=collapsed]/sidebar:px-3">
+      <OrgSwitcher />
+    </Sidebar.Header>
+    <Sidebar.Content>
       {projectSlug ? (
         <ProjectNavSections projectSlug={projectSlug} />
       ) : (
         <OrgNavSections isSuperadmin={isSuperadmin} />
       )}
-    </SidebarContent>
-    <SidebarFooter>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <UserMenu />
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarFooter>
-    <AppSidebarRail />
+    </Sidebar.Content>
+    <Sidebar.Footer>
+      <Sidebar.Trigger />
+    </Sidebar.Footer>
   </Sidebar>
 );
-
-// Vercel-style: while the sidebar is expanded, collapsing happens by clicking
-// the rail divider itself, so the header trigger only appears once the sidebar
-// is collapsed (and always on mobile, where the sidebar is an offcanvas sheet).
-const HeaderSidebarControls = () => {
-  const { state, isMobile } = useSidebar();
-  if (!isMobile && state === "expanded") {
-    return null;
-  }
-  return (
-    <>
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="my-auto data-[orientation=vertical]:h-4" />
-    </>
-  );
-};
 
 // Docs-style ⌘K entry point in the site header: icon-only on mobile, a muted
 // pseudo-input with the shortcut hint from `sm` up.
@@ -336,7 +292,7 @@ const HeaderSearchButton = ({ onClick }: { onClick: () => void }) => (
     variant="secondary"
     aria-label="Search"
     onClick={onClick}
-    className="text-muted-foreground size-8 justify-center p-0 font-normal shadow-none sm:w-48 sm:justify-start sm:px-2.5"
+    className="text-kumo-subtle size-8 justify-center p-0 font-normal shadow-none sm:w-48 sm:justify-start sm:px-2.5"
   >
     <SearchIcon strokeWidth={2} />
     <span className="hidden flex-1 text-left sm:inline">Search…</span>
@@ -353,23 +309,28 @@ const AppLayout = () => {
   return (
     <TooltipProvider>
       <DocumentTitle />
-      <SidebarProvider>
+      {/* Peekable: hovering the collapsed rail floats the full nav back over
+          the page, so collapsing costs nothing to navigate from. */}
+      <Sidebar.Provider peekable>
         <AppSidebar projectSlug={projectSlug} isSuperadmin={isSuperadmin} />
-        <SidebarInset className="min-w-0">
-          <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center justify-between gap-2 border-b px-4 backdrop-blur lg:px-6">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="bg-kumo-base/80 border-kumo-line sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center justify-between gap-2 border-b px-4 backdrop-blur lg:px-6">
             <div className="flex min-w-0 items-center gap-2">
-              <HeaderSidebarControls />
+              {/* Below Kumo's 768px breakpoint the sidebar is an offcanvas
+                  sheet, so its own footer trigger is off screen. */}
+              <Sidebar.Trigger className="-ml-1 md:hidden" />
               <Suspense fallback={<Skeleton className="h-7 w-32 rounded-md" />}>
                 <ProjectSwitcher orgId={activeOrg.id} currentProjectSlug={projectSlug} />
               </Suspense>
               <HeaderBreadcrumbs projectSlug={projectSlug} />
             </div>
-            <div className="flex min-w-0 items-center justify-end">
+            <div className="flex shrink-0 items-center gap-2">
               <HeaderSearchButton
                 onClick={() => {
                   setCommandOpen(true);
                 }}
               />
+              <UserMenu />
             </div>
           </header>
           <main className="min-w-0 flex-1 px-4 py-6 lg:px-6 lg:py-8">
@@ -379,7 +340,7 @@ const AppLayout = () => {
               </Suspense>
             </ErrorBoundary>
           </main>
-        </SidebarInset>
+        </div>
         <CommandPalette
           open={commandOpen}
           onOpenChange={setCommandOpen}
@@ -387,7 +348,7 @@ const AppLayout = () => {
           projectSlug={projectSlug}
           isSuperadmin={isSuperadmin}
         />
-      </SidebarProvider>
+      </Sidebar.Provider>
     </TooltipProvider>
   );
 };

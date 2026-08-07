@@ -1,14 +1,7 @@
 import { meQueryOptions } from "@better-update/api-client/react";
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@better-update/ui/components/ui/sidebar";
+import { Sidebar } from "@better-update/ui/components/sidebar";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import {
   ScrollTextIcon,
   BotIcon,
@@ -234,30 +227,68 @@ export const useOrgNavSections = (isSuperadmin: boolean): OrgNavSection[] => {
     .filter((section) => section.items.length > 0);
 };
 
+/**
+ * Kumo's `MenuButton` navigates through the `href` it is given (routed by the
+ * app's `LinkProvider`) and takes `active` as a plain boolean, so the active
+ * row is resolved here rather than by a `Link` render prop. Matching is
+ * prefix-based — a nested page keeps its section lit — except where the entry
+ * asks for an exact match.
+ */
+const useIsCurrent = (): ((href: string, exact: boolean) => boolean) => {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return (href, exact) =>
+    exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+};
+
+/** Project routes are declared with the typed `$projectSlug` the palette needs. */
+const projectHref = (to: ProjectNavItem["to"], projectSlug: string): string =>
+  to.replace("$projectSlug", projectSlug);
+
+const NavSection = ({
+  label,
+  items,
+}: {
+  label: string;
+  items: readonly { href: string; label: string; icon: LucideIcon; exact: boolean }[];
+}) => {
+  const isCurrent = useIsCurrent();
+  return (
+    <Sidebar.Group>
+      <Sidebar.GroupLabel>{label}</Sidebar.GroupLabel>
+      <Sidebar.Menu>
+        {items.map((item) => (
+          // No `tooltip`: the sidebar peeks open on hover while collapsed, so
+          // the label is already there — and Kumo's tooltip wrapper forces
+          // `cursor-default` onto the row even when the tooltip never fires.
+          <Sidebar.MenuButton
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            active={isCurrent(item.href, item.exact)}
+          >
+            {item.label}
+          </Sidebar.MenuButton>
+        ))}
+      </Sidebar.Menu>
+    </Sidebar.Group>
+  );
+};
+
 export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolean }) => {
   const sections = useOrgNavSections(isSuperadmin);
   return (
     <>
       {sections.map((section) => (
-        <SidebarGroup key={section.label}>
-          <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {section.items.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <Link to={item.to} activeOptions={{ exact: item.exact === true }}>
-                    {({ isActive }) => (
-                      <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                        <item.icon strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    )}
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavSection
+          key={section.label}
+          label={section.label}
+          items={section.items.map((item) => ({
+            href: item.to,
+            label: item.label,
+            icon: item.icon,
+            exact: item.exact === true,
+          }))}
+        />
       ))}
     </>
   );
@@ -266,36 +297,16 @@ export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolea
 export const ProjectNavSections = ({ projectSlug }: { projectSlug: string }) => (
   <>
     {PROJECT_NAV.map((section) => (
-      <SidebarGroup key={section.label}>
-        <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {section.items.map((item) => (
-              <SidebarMenuItem key={item.to}>
-                {item.exact ? (
-                  <Link to={item.to} params={{ projectSlug }} activeOptions={{ exact: true }}>
-                    {({ isActive }) => (
-                      <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                        <item.icon strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    )}
-                  </Link>
-                ) : (
-                  <Link to={item.to} params={{ projectSlug }}>
-                    {({ isActive }) => (
-                      <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                        <item.icon strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    )}
-                  </Link>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <NavSection
+        key={section.label}
+        label={section.label}
+        items={section.items.map((item) => ({
+          href: projectHref(item.to, projectSlug),
+          label: item.label,
+          icon: item.icon,
+          exact: item.exact === true,
+        }))}
+      />
     ))}
   </>
 );
