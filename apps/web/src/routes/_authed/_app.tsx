@@ -1,5 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { Separator } from "@better-update/ui/components/separator";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
 import {
@@ -12,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
 import { Kbd } from "@better-update/ui/components/ui/kbd";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,

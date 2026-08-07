@@ -1,5 +1,6 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { Separator } from "@better-update/ui/components/separator";
 import {
   Command,
   CommandEmpty,
@@ -10,7 +11,6 @@ import {
   CommandSeparator,
 } from "@better-update/ui/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@better-update/ui/components/ui/popover";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, CirclePlusIcon } from "lucide-react";
 import { useState } from "react";

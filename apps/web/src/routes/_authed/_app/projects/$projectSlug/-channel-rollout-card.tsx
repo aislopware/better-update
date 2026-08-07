@@ -17,9 +17,9 @@ import {
 } from "@better-update/ui/components/card";
 import { Field } from "@better-update/ui/components/field";
 import { InputGroup } from "@better-update/ui/components/input-group";
+import { Separator } from "@better-update/ui/components/separator";
 import { toast } from "@better-update/ui/components/toast";
 import { Tooltip } from "@better-update/ui/components/tooltip";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, RocketIcon, Undo2Icon } from "lucide-react";
