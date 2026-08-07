@@ -1,5 +1,6 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
 import {
   Table,
@@ -9,12 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
 import { EllipsisVerticalIcon, PencilIcon } from "lucide-react";
 
 import type { RobotAccountItem } from "@better-update/api-client/react";
@@ -38,7 +33,7 @@ const RowActions = ({
   onEdit: (target: EditTarget) => void;
 }) => (
   <DropdownMenu>
-    <DropdownMenuTrigger
+    <DropdownMenu.Trigger
       render={
         <Button
           variant="ghost"
@@ -50,17 +45,17 @@ const RowActions = ({
       }
     >
       {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem
+    </DropdownMenu.Trigger>
+    <DropdownMenu.Content align="end">
+      <DropdownMenu.Item
         onClick={() => {
           onEdit({ id: robot.id, name: robot.name, role: robot.role });
         }}
+        icon={PencilIcon}
       >
-        <PencilIcon strokeWidth={2} />
-        <span>Edit</span>
-      </DropdownMenuItem>
-    </DropdownMenuContent>
+        Edit
+      </DropdownMenu.Item>
+    </DropdownMenu.Content>
   </DropdownMenu>
 );
 

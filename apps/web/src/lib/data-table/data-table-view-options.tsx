@@ -1,13 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Settings2Icon } from "lucide-react";
 
 import type { Table as ReactTableT } from "@tanstack/react-table";
@@ -24,16 +16,16 @@ export const DataTableViewOptions = <TData,>({ table }: { table: ReactTableT<TDa
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="secondary" />}>
+      <DropdownMenu.Trigger render={<Button variant="secondary" />}>
         <Settings2Icon strokeWidth={2} />
         View
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-          <DropdownMenuSeparator />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content align="end" className="w-44">
+        <DropdownMenu.Group>
+          <DropdownMenu.Label>Toggle columns</DropdownMenu.Label>
+          <DropdownMenu.Separator />
           {columns.map((column) => (
-            <DropdownMenuCheckboxItem
+            <DropdownMenu.CheckboxItem
               key={column.id}
               checked={column.getIsVisible()}
               onCheckedChange={(value) => {
@@ -41,10 +33,10 @@ export const DataTableViewOptions = <TData,>({ table }: { table: ReactTableT<TDa
               }}
             >
               {typeof column.columnDef.header === "string" ? column.columnDef.header : column.id}
-            </DropdownMenuCheckboxItem>
+            </DropdownMenu.CheckboxItem>
           ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
+        </DropdownMenu.Group>
+      </DropdownMenu.Content>
     </DropdownMenu>
   );
 };

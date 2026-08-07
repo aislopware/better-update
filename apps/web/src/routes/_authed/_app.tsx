@@ -1,17 +1,9 @@
 import { Button } from "@better-update/ui/components/button";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
 import { Separator } from "@better-update/ui/components/separator";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
 import { Kbd } from "@better-update/ui/components/ui/kbd";
 import {
   Sidebar,
@@ -164,20 +156,20 @@ const OrgSwitcher = () => {
           }
         }}
       >
-        <DropdownMenuTrigger
+        <DropdownMenu.Trigger
           render={renderOrgTrigger(displayName, activeOrg.slug, activeOrg.logo)}
         />
         {/* Default w-(--anchor-width) matches the expanded trigger (canonical
             team-switcher look); min-w keeps it usable in icon-collapsed mode. */}
-        <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="min-w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Organizations</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+        <DropdownMenu.Content align="start" side="bottom" sideOffset={4} className="min-w-56">
+          <DropdownMenu.Group>
+            <DropdownMenu.Label>Organizations</DropdownMenu.Label>
+            <DropdownMenu.Separator />
             {orgs.map((org) => {
               const isSwitching = switchingOrgId === org.id;
               const isActive = org.id === activeOrgId;
               return (
-                <DropdownMenuItem
+                <DropdownMenu.Item
                   key={org.id}
                   onClick={() => {
                     handleOrgSwitch(org.id);
@@ -195,12 +187,12 @@ const OrgSwitcher = () => {
                   />
                   <span className="flex-1 truncate">{org.name}</span>
                   {renderSwitcherIndicator(isSwitching, isActive)}
-                </DropdownMenuItem>
+                </DropdownMenu.Item>
               );
             })}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+          </DropdownMenu.Group>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
             onClick={() => {
               setCreateOrgOpen(true);
             }}
@@ -208,8 +200,8 @@ const OrgSwitcher = () => {
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
       </DropdownMenu>
       <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
     </>
@@ -228,11 +220,11 @@ const UserMenu = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
-      <DropdownMenuContent align="start" side="top" sideOffset={4} className="min-w-56">
-        <DropdownMenuGroup>
+      <DropdownMenu.Trigger render={renderUserTrigger(user.name, user.image, user.email)} />
+      <DropdownMenu.Content align="start" side="top" sideOffset={4} className="min-w-56">
+        <DropdownMenu.Group>
           {/* Canonical nav-user label block: avatar + name + email. */}
-          <DropdownMenuLabel className="p-0 font-normal">
+          <DropdownMenu.Label className="p-0 font-normal">
             <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
               <EntityAvatar name={user.name || "U"} image={user.image} className="size-8" />
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -240,9 +232,9 @@ const UserMenu = () => {
                 <span className="text-muted-foreground truncate text-xs">{user.email}</span>
               </div>
             </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+          </DropdownMenu.Label>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
             onClick={async () => {
               await router.navigate({ to: "/account/profile" });
             }}
@@ -250,10 +242,10 @@ const UserMenu = () => {
           >
             <UserIcon strokeWidth={2} className="size-4" />
             <span>Account</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
+            variant="danger"
             onClick={() => {
               logoutMutation.mutate();
             }}
@@ -266,9 +258,9 @@ const UserMenu = () => {
               <LogOutIcon strokeWidth={2} className="size-4" />
             )}
             <span>{logoutMutation.isPending ? "Logging out…" : "Log out"}</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
+          </DropdownMenu.Item>
+        </DropdownMenu.Group>
+      </DropdownMenu.Content>
     </DropdownMenu>
   );
 };

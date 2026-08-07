@@ -1,14 +1,8 @@
 import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
@@ -81,33 +75,33 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={actionsTrigger} />
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem
+        <DropdownMenu.Trigger render={actionsTrigger} />
+        <DropdownMenu.Content align="end" className="w-40">
+          <DropdownMenu.Item
             onClick={() => {
               setRenameOpen(true);
             }}
           >
             Rename
-          </DropdownMenuItem>
-          <DropdownMenuItem
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
             onClick={() => {
               toggleEnabled.mutate();
             }}
             disabled={toggleEnabled.isPending}
           >
             {device.enabled ? "Disable" : "Enable"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
+            variant="danger"
             onClick={() => {
               setDeleteOpen(true);
             }}
           >
             Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
       </DropdownMenu>
       <RenameDeviceDialog
         orgId={orgId}

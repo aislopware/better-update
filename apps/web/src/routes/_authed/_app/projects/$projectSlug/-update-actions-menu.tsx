@@ -1,12 +1,6 @@
 import { channelsQueryOptions, deleteUpdateGroup } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   EllipsisVerticalIcon,
@@ -99,7 +93,7 @@ export const UpdateActionsMenu = ({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger
+        <DropdownMenu.Trigger
           render={
             <Button
               variant="ghost"
@@ -110,54 +104,54 @@ export const UpdateActionsMenu = ({
           }
         >
           <EllipsisVerticalIcon strokeWidth={2} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-48">
-          <DropdownMenuItem
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end" className="min-w-48">
+          <DropdownMenu.Item
             onClick={() => {
               setPreviewOpen(true);
             }}
+            icon={EyeIcon}
           >
-            <EyeIcon strokeWidth={2} />
-            <span>Preview on device</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
+            Preview on device
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
             disabled={promoteDisabledReason !== undefined}
             onClick={() => {
               setPromoteOpen(true);
             }}
+            icon={RocketIcon}
           >
-            <RocketIcon strokeWidth={2} />
-            <span>Promote to channel</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
+            Promote to channel
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
             disabled={republishDisabledReason !== undefined}
             onClick={() => {
               setRepublishOpen(true);
             }}
+            icon={RefreshCwIcon}
           >
-            <RefreshCwIcon strokeWidth={2} />
-            <span>Republish on branch</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
+            Republish on branch
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
             disabled={rollbackDisabledReason !== undefined}
             onClick={() => {
               setRollbackOpen(true);
             }}
+            icon={Undo2Icon}
           >
-            <Undo2Icon strokeWidth={2} />
-            <span>Rollback to embedded</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
+            Rollback to embedded
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
+            variant="danger"
             onClick={() => {
               setDeleteOpen(true);
             }}
+            icon={Trash2Icon}
           >
-            <Trash2Icon strokeWidth={2} />
-            <span>Delete update group</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+            Delete update group
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
       </DropdownMenu>
       <PreviewUpdateDialog
         update={update}

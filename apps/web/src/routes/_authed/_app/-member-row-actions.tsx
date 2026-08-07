@@ -1,18 +1,12 @@
 import { Button } from "@better-update/ui/components/button";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
 import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
 
 import type { Row } from "./-members-row";
 
 const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label: string }) => (
-  <DropdownMenuTrigger
+  <DropdownMenu.Trigger
     render={
       <Button
         variant="ghost"
@@ -24,7 +18,7 @@ const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label: strin
     }
   >
     {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
-  </DropdownMenuTrigger>
+  </DropdownMenu.Trigger>
 );
 
 const InvitationActions = ({
@@ -39,17 +33,17 @@ const InvitationActions = ({
   <DropdownMenu>
     <ActionsTrigger isPending={isPending} label="Invitation actions" />
     {/* w-auto: size to the labels, not the icon-button anchor width. */}
-    <DropdownMenuContent align="end" className="w-auto">
-      <DropdownMenuItem
-        variant="destructive"
+    <DropdownMenu.Content align="end" className="w-auto">
+      <DropdownMenu.Item
+        variant="danger"
         onClick={() => {
           onCancelInvitation(invitationId);
         }}
+        icon={UserMinusIcon}
       >
-        <UserMinusIcon strokeWidth={2} />
-        <span>Cancel invitation</span>
-      </DropdownMenuItem>
-    </DropdownMenuContent>
+        Cancel invitation
+      </DropdownMenu.Item>
+    </DropdownMenu.Content>
   </DropdownMenu>
 );
 
@@ -64,19 +58,19 @@ const ActiveMemberActions = ({
 }) => (
   <DropdownMenu>
     <ActionsTrigger isPending={isPending} label="Member actions" />
-    <DropdownMenuContent align="end" className="w-auto">
-      <DropdownMenuGroup>
-        <DropdownMenuItem
-          variant="destructive"
+    <DropdownMenu.Content align="end" className="w-auto">
+      <DropdownMenu.Group>
+        <DropdownMenu.Item
+          variant="danger"
           onClick={() => {
             onRemove(memberId);
           }}
+          icon={UserMinusIcon}
         >
-          <UserMinusIcon strokeWidth={2} />
-          <span>Remove member</span>
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-    </DropdownMenuContent>
+          Remove member
+        </DropdownMenu.Item>
+      </DropdownMenu.Group>
+    </DropdownMenu.Content>
   </DropdownMenu>
 );
 

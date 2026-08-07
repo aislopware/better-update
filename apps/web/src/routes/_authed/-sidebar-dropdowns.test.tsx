@@ -1,17 +1,9 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
-import { render, screen } from "@testing-library/react";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
+import { render, screen, within } from "@testing-library/react";
 
 /**
- * Verifies sidebar menu compositions: DropdownMenuLabel wraps Base UI's
- * Menu.GroupLabel which MUST be inside DropdownMenuGroup. Without the group
+ * Verifies sidebar menu compositions: `DropdownMenu.Label` wraps Base UI's
+ * Menu.GroupLabel which MUST be inside `DropdownMenu.Group`. Without the group
  * wrapper, Base UI throws "MenuGroupRootContext is missing".
  *
  * Mirrors: OrgSwitcher and UserMenu in _app.tsx
@@ -19,31 +11,31 @@ import { render, screen } from "@testing-library/react";
 
 const OrgSwitcherDropdown = ({ orgs }: { orgs: { id: string; name: string }[] }) => (
   <DropdownMenu open>
-    <DropdownMenuTrigger>Switch org</DropdownMenuTrigger>
-    <DropdownMenuContent>
-      <DropdownMenuGroup>
-        <DropdownMenuLabel>Organizations</DropdownMenuLabel>
-        <DropdownMenuSeparator />
+    <DropdownMenu.Trigger>Switch org</DropdownMenu.Trigger>
+    <DropdownMenu.Content>
+      <DropdownMenu.Group>
+        <DropdownMenu.Label>Organizations</DropdownMenu.Label>
+        <DropdownMenu.Separator />
         {orgs.map((org) => (
-          <DropdownMenuItem key={org.id}>{org.name}</DropdownMenuItem>
+          <DropdownMenu.Item key={org.id}>{org.name}</DropdownMenu.Item>
         ))}
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem>Create organization</DropdownMenuItem>
-    </DropdownMenuContent>
+      </DropdownMenu.Group>
+      <DropdownMenu.Separator />
+      <DropdownMenu.Item>Create organization</DropdownMenu.Item>
+    </DropdownMenu.Content>
   </DropdownMenu>
 );
 
 const UserMenuDropdown = ({ name }: { name: string }) => (
   <DropdownMenu open>
-    <DropdownMenuTrigger>{name}</DropdownMenuTrigger>
-    <DropdownMenuContent>
-      <DropdownMenuGroup>
-        <DropdownMenuLabel>{name}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>Log out</DropdownMenuItem>
-      </DropdownMenuGroup>
-    </DropdownMenuContent>
+    <DropdownMenu.Trigger>{name}</DropdownMenu.Trigger>
+    <DropdownMenu.Content>
+      <DropdownMenu.Group>
+        <DropdownMenu.Label>{name}</DropdownMenu.Label>
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item>Log out</DropdownMenu.Item>
+      </DropdownMenu.Group>
+    </DropdownMenu.Content>
   </DropdownMenu>
 );
 
@@ -77,8 +69,10 @@ describe("userMenu dropdown composition", () => {
   it("renders dropdown content without context errors", () => {
     render(<UserMenuDropdown name="Test User" />);
 
-    const label = document.querySelector('[data-slot="dropdown-menu-label"]');
-    expect(label).toHaveTextContent("Test User");
+    // The group takes its accessible name from the label inside it — the very
+    // wiring that throws when the label is rendered outside a group.
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("group", { name: "Test User" })).toBeInTheDocument();
   });
 
   it("shows logout option", () => {

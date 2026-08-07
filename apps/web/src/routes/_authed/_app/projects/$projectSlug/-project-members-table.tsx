@@ -1,13 +1,8 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
 import { Select } from "@better-update/ui/components/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -121,7 +116,7 @@ const RowActions = ({
   onRemove: (target: RemoveTarget) => void;
 }) => (
   <DropdownMenu>
-    <DropdownMenuTrigger
+    <DropdownMenu.Trigger
       render={
         <Button
           variant="ghost"
@@ -133,22 +128,22 @@ const RowActions = ({
       }
     >
       {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
-    </DropdownMenuTrigger>
+    </DropdownMenu.Trigger>
     {/* w-auto: size to the labels, not the icon-button anchor width. */}
-    <DropdownMenuContent align="end" className="w-auto">
-      <DropdownMenuItem
-        variant="destructive"
+    <DropdownMenu.Content align="end" className="w-auto">
+      <DropdownMenu.Item
+        variant="danger"
         onClick={() => {
           onRemove({
             principalId: row.principalId,
             name: principalDisplayName(row),
           });
         }}
+        icon={UserMinusIcon}
       >
-        <UserMinusIcon strokeWidth={2} />
-        <span>Remove from project</span>
-      </DropdownMenuItem>
-    </DropdownMenuContent>
+        Remove from project
+      </DropdownMenu.Item>
+    </DropdownMenu.Content>
   </DropdownMenu>
 );
 
