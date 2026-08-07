@@ -50,14 +50,18 @@ export interface DataTableViewProps<TData> {
 // keyboard focus anywhere in the row, or while their menu is open (the popup
 // portals focus away, so aria-expanded/data-popup-open keep it shown). Coarse
 // pointers never hide the trigger — there is no hover to reveal it.
+//
+// The trigger is matched by `aria-haspopup=menu` rather than a marker
+// attribute: Kumo tags its own parts and knows nothing about the row, and the
+// only other popup a row opens is a role select, which announces `listbox`.
 const ROW_ACTION_DISCLOSURE = cn(
-  "pointer-fine:[&_[data-slot=dropdown-menu-trigger]]:opacity-0",
-  "[&_[data-slot=dropdown-menu-trigger]]:transition-opacity",
-  "[&_[data-slot=dropdown-menu-trigger]]:duration-(--duration-quick)",
-  "[&:hover_[data-slot=dropdown-menu-trigger]]:opacity-100",
-  "[&:focus-within_[data-slot=dropdown-menu-trigger]]:opacity-100",
-  "[&_[data-slot=dropdown-menu-trigger][aria-expanded=true]]:opacity-100",
-  "[&_[data-slot=dropdown-menu-trigger][data-popup-open]]:opacity-100",
+  "pointer-fine:[&_[aria-haspopup=menu]]:opacity-0",
+  "[&_[aria-haspopup=menu]]:transition-opacity",
+  "[&_[aria-haspopup=menu]]:duration-(--duration-quick)",
+  "[&:hover_[aria-haspopup=menu]]:opacity-100",
+  "[&:focus-within_[aria-haspopup=menu]]:opacity-100",
+  "[&_[aria-haspopup=menu][aria-expanded=true]]:opacity-100",
+  "[&_[aria-haspopup=menu][data-popup-open]]:opacity-100",
 );
 
 const DataTableFooterArea = ({

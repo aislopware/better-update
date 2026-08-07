@@ -160,7 +160,7 @@ const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
     Continue with GitHub
     <ArrowRightIcon
       strokeWidth={2}
-      className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100"
+      className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100"
     />
   </Button>
 );
@@ -183,7 +183,7 @@ const GoogleButton = ({ onClick, isPending }: GoogleButtonProps) => (
     Continue with Google
     <ArrowRightIcon
       strokeWidth={2}
-      className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100"
+      className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100"
     />
   </Button>
 );

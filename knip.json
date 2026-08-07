@@ -24,7 +24,6 @@
       "ignoreDependencies": [
         "@fontsource-variable/geist",
         "@fontsource-variable/geist-mono",
-        "shadcn",
         "tailwindcss",
         "tw-animate-css"
       ]

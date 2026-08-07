@@ -6,8 +6,9 @@
 @import "@cloudflare/kumo/styles/tailwind";
 
 @import "tailwindcss";
+/* Kumo's dropdown draws its enter/exit with `animate-in` / `slide-in-from-*`
+   and ships no definitions for them, so the utilities have to come from here. */
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
@@ -51,11 +52,6 @@
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   /* Themed layered shadows — light/dark values live on :root/.dark. */
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -152,13 +148,6 @@
   --border-strong: var(--color-kumo-interact);
   --input: var(--color-kumo-line);
   --ring: var(--color-kumo-brand);
-  /* Kumo's categorical chart palette (packages/kumo/src/components/chart/Color.ts),
-     so recharts and Kumo's ECharts render the same series colours side by side. */
-  --chart-1: #4290f0;
-  --chart-2: #f5b647;
-  --chart-3: #e8649d;
-  --chart-4: #8d58ee;
-  --chart-5: #50c3b6;
   --radius: 0.5rem;
 
   --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.03);
@@ -178,11 +167,10 @@
 
 .dark {
   /* Colour roles are inherited from the Kumo tokens on :root, which already
-     flip on `data-mode="dark"`. Only the two things Kumo does not express as
-     tokens are restated here: the dark chart ramp and the shadow scale. */
-  --chart-2: #eeb720;
+     flip on `data-mode="dark"`, and chart series colours come from Kumo's
+     `ChartPalette`. Only the shadow scale is restated here.
 
-  /* Shadows are a secondary cue in dark — the surface ladder is primary. */
+     Shadows are a secondary cue in dark — the surface ladder is primary. */
   --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.28);
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.32);
   --shadow-sm: 0 2px 2px 0 oklch(0 0 0 / 0.32), 0 1px 2px -1px oklch(0 0 0 / 0.28);
