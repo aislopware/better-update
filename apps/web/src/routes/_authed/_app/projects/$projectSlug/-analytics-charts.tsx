@@ -6,6 +6,7 @@ import {
   updateAnalyticsQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import {
   ChartContainer,
   ChartLegend,
@@ -13,7 +14,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@better-update/ui/components/ui/chart";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 import {

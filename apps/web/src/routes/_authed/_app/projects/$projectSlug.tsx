@@ -1,5 +1,5 @@
 import { projectBySlugQueryOptions } from "@better-update/api-client/react";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 const ProjectShell = () => (

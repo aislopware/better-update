@@ -1,5 +1,5 @@
 import { androidApplicationIdentifiersQueryOptions } from "@better-update/api-client/react";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";

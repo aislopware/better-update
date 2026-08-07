@@ -1,6 +1,6 @@
 import { memberProjectMembershipsQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";

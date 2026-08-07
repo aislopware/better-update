@@ -1,5 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
 import {
   DropdownMenu,
@@ -26,7 +27,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,

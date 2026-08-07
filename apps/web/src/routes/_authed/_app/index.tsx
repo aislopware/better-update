@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import { useInfiniteQuery, useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FolderIcon } from "lucide-react";

@@ -1,4 +1,4 @@
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 
 import { DetailCardSkeleton } from "./skeletons";
 

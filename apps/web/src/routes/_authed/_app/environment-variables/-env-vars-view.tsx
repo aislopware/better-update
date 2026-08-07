@@ -1,6 +1,7 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
 import { Empty } from "@better-update/ui/components/empty";
+import { Skeleton } from "@better-update/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -9,7 +10,6 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FingerprintIcon, LockKeyholeIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
