@@ -1,4 +1,5 @@
 import { useMountEffect } from "@better-update/react-hooks";
+import { OverlayPortal } from "@better-update/ui/components/overlay-portal";
 import { Toaster } from "@better-update/ui/components/toast";
 import { LinkProvider } from "@cloudflare/kumo/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -120,9 +121,11 @@ const RootComponent = () => {
     <ThemeProvider initialTheme={theme.theme} initialResolvedTheme={theme.resolvedTheme}>
       <LinkProvider component={KumoRouterLink}>
         <Toaster>
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
+          <OverlayPortal>
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
+          </OverlayPortal>
         </Toaster>
       </LinkProvider>
     </ThemeProvider>

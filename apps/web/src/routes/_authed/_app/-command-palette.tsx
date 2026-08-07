@@ -1,21 +1,13 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
+import { CommandPalette as Palette } from "@better-update/ui/components/command-palette";
 import { Kbd } from "@better-update/ui/components/kbd";
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@better-update/ui/components/ui/command";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { PROJECT_NAV, useOrgNavSections } from "../-sidebar-nav";
 import { fireAndForget } from "../../../lib/data-table";
@@ -25,6 +17,27 @@ import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 
 import type { Theme } from "../../../lib/use-theme";
 
+/**
+ * Kumo's palette is data-driven — it takes the groups as a prop and iterates
+ * them, rather than reading a tree of children. Filtering is the caller's job
+ * (its own `filter` defaults to "keep everything"), which suits us: nav and
+ * theme entries match locally, while projects are already narrowed server-side.
+ */
+interface PaletteItem {
+  readonly id: string;
+  readonly label: string;
+  /** Everything the entry should match on, pre-lowercased. */
+  readonly haystack: string;
+  readonly icon: ReactNode;
+  readonly run: () => void;
+}
+
+interface PaletteGroup {
+  readonly id: string;
+  readonly label: string;
+  readonly items: PaletteItem[];
+}
+
 const isEditableTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
@@ -32,77 +45,50 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
     target.tagName === "TEXTAREA" ||
     target.tagName === "SELECT");
 
-// Palette items mirror the sidebar exactly: org-level nav (capability-gated
+const matches = (item: PaletteItem, query: string): boolean =>
+  query === "" || item.haystack.includes(query);
+
+const THEME_ITEMS: { value: Theme; label: string; icon: typeof SunIcon }[] = [
+  { value: "light", label: "Light", icon: SunIcon },
+  { value: "dark", label: "Dark", icon: MoonIcon },
+  { value: "system", label: "System", icon: MonitorIcon },
+];
+
+// Palette entries mirror the sidebar exactly: org-level nav (capability-gated
 // via useOrgNavSections) outside a project, project subpages inside one.
-const OrgNavigationGroup = ({
-  isSuperadmin,
-  close,
-}: {
-  isSuperadmin: boolean;
-  close: () => void;
-}) => {
+const useNavigationItems = (
+  projectSlug: string | undefined,
+  isSuperadmin: boolean,
+): PaletteItem[] => {
   const navigate = useNavigate();
-  const items = useOrgNavSections(isSuperadmin).flatMap((section) => section.items);
-  return (
-    <CommandGroup heading="Navigation">
-      {items.map((item) => (
-        <CommandItem
-          key={item.to}
-          value={item.to}
-          keywords={[item.label]}
-          onSelect={() => {
-            close();
-            fireAndForget(navigate({ to: item.to }));
-          }}
-        >
-          <item.icon strokeWidth={2} />
-          <span>{item.label}</span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
-  );
+  const orgSections = useOrgNavSections(isSuperadmin);
+  return useMemo(() => {
+    if (projectSlug !== undefined) {
+      return PROJECT_NAV.flatMap((section) => section.items).map((item) => ({
+        id: item.to,
+        label: item.label,
+        haystack: item.label.toLowerCase(),
+        icon: <item.icon strokeWidth={2} className="size-4" />,
+        run: () => {
+          fireAndForget(navigate({ to: item.to, params: { projectSlug } }));
+        },
+      }));
+    }
+    return orgSections
+      .flatMap((section) => section.items)
+      .map((item) => ({
+        id: item.to,
+        label: item.label,
+        haystack: item.label.toLowerCase(),
+        icon: <item.icon strokeWidth={2} className="size-4" />,
+        run: () => {
+          fireAndForget(navigate({ to: item.to }));
+        },
+      }));
+  }, [navigate, orgSections, projectSlug]);
 };
 
-const ProjectNavigationGroup = ({
-  projectSlug,
-  close,
-}: {
-  projectSlug: string;
-  close: () => void;
-}) => {
-  const navigate = useNavigate();
-  const items = PROJECT_NAV.flatMap((section) => section.items);
-  return (
-    <CommandGroup heading="Navigation">
-      {items.map((item) => (
-        <CommandItem
-          key={item.to}
-          value={item.to}
-          keywords={[item.label]}
-          onSelect={() => {
-            close();
-            fireAndForget(navigate({ to: item.to, params: { projectSlug } }));
-          }}
-        >
-          <item.icon strokeWidth={2} />
-          <span>{item.label}</span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
-  );
-};
-
-const ProjectsGroup = ({
-  orgId,
-  enabled,
-  query,
-  close,
-}: {
-  orgId: string;
-  enabled: boolean;
-  query: string;
-  close: () => void;
-}) => {
+const useProjectItems = (orgId: string, enabled: boolean, query: string): PaletteItem[] => {
   const navigate = useNavigate();
   const isSearching = query.length > 0;
   // Same bounded query the breadcrumb project switcher uses (shared cache key);
@@ -118,28 +104,15 @@ const ProjectsGroup = ({
     placeholderData: keepPreviousData,
   });
   const data = isSearching ? searched.data : base.data;
-  // Rendering nothing keeps CommandEmpty's "No results found." in charge — the
-  // input lives in the parent, so unmounting the group never drops focus.
-  if (!data || data.items.length === 0) {
-    return null;
-  }
-  return (
-    <CommandGroup heading="Projects">
-      {data.items.map((project) => (
-        <CommandItem
-          key={project.id}
-          value={`project:${project.slug}`}
-          keywords={[project.name, project.slug]}
-          onSelect={() => {
-            close();
-            fireAndForget(
-              navigate({
-                to: "/projects/$projectSlug",
-                params: { projectSlug: project.slug },
-              }),
-            );
-          }}
-        >
+  return useMemo(
+    () =>
+      (data?.items ?? []).map((project) => ({
+        id: project.id,
+        label: project.name,
+        // Already narrowed server-side; the local pass must not drop a hit the
+        // server made on a field we do not carry here.
+        haystack: "",
+        icon: (
           <EntityAvatar
             name={project.name}
             seed={project.slug}
@@ -147,40 +120,50 @@ const ProjectsGroup = ({
             size="sm"
             shape="square"
           />
-          <span className="truncate">{project.name}</span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
+        ),
+        run: () => {
+          fireAndForget(
+            navigate({ to: "/projects/$projectSlug", params: { projectSlug: project.slug } }),
+          );
+        },
+      })),
+    [data, navigate],
   );
 };
 
-const THEME_ITEMS: { value: Theme; label: string; icon: LucideIcon }[] = [
-  { value: "light", label: "Light", icon: SunIcon },
-  { value: "dark", label: "Dark", icon: MoonIcon },
-  { value: "system", label: "System", icon: MonitorIcon },
-];
-
-const ThemeGroup = ({ close }: { close: () => void }) => {
+const useThemeItems = (): PaletteItem[] => {
   const { updateTheme } = useTheme();
-  return (
-    <CommandGroup heading="Theme">
-      {THEME_ITEMS.map((item) => (
-        <CommandItem
-          key={item.value}
-          value={`theme:${item.value}`}
-          keywords={["theme", item.label]}
-          onSelect={() => {
-            close();
-            updateTheme(item.value);
-          }}
-        >
-          <item.icon strokeWidth={2} />
-          <span>{item.label} theme</span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
+  return useMemo(
+    () =>
+      THEME_ITEMS.map((item) => ({
+        id: `theme:${item.value}`,
+        label: `${item.label} theme`,
+        haystack: `theme ${item.label.toLowerCase()}`,
+        icon: <item.icon strokeWidth={2} className="size-4" />,
+        run: () => {
+          updateTheme(item.value);
+        },
+      })),
+    [updateTheme],
   );
 };
+
+const PaletteFooter = () => (
+  <Palette.Footer>
+    <span className="flex items-center gap-3">
+      <span className="inline-flex items-center gap-1">
+        <Kbd>↵</Kbd> select
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <Kbd>↑</Kbd>
+        <Kbd>↓</Kbd> navigate
+      </span>
+    </span>
+    <span className="inline-flex items-center gap-1">
+      <Kbd>esc</Kbd> close
+    </span>
+  </Palette.Footer>
+);
 
 interface CommandPaletteProps {
   readonly open: boolean;
@@ -197,10 +180,30 @@ export const CommandPalette = ({
   projectSlug,
   isSuperadmin,
 }: CommandPaletteProps) => {
-  // Controlled input so the query also drives the server-side project search;
-  // cmdk still filters the rendered items client-side as before.
+  // Controlled input so the query drives both the local match above and the
+  // server-side project search.
   const [search, setSearch] = useState("");
-  const deferredQuery = useDeferredValue(search.trim());
+  const query = useDeferredValue(search.trim().toLowerCase());
+
+  const navigationItems = useNavigationItems(projectSlug, isSuperadmin);
+  const projectItems = useProjectItems(orgId, open, query);
+  const themeItems = useThemeItems();
+
+  const groups = useMemo<PaletteGroup[]>(
+    () =>
+      [
+        {
+          id: "navigation",
+          label: "Navigation",
+          items: navigationItems.filter((item) => matches(item, query)),
+        },
+        { id: "projects", label: "Projects", items: projectItems },
+        { id: "theme", label: "Theme", items: themeItems.filter((item) => matches(item, query)) },
+        // An empty group would still draw its heading, so drop it and let
+        // Palette.Empty take over once every group is gone.
+      ].filter((group) => group.items.length > 0),
+    [navigationItems, projectItems, themeItems, query],
+  );
 
   // Mount-only listener is safe: `onOpenChange` is a stable useState setter.
   useMountEffect(() => {
@@ -220,51 +223,49 @@ export const CommandPalette = ({
     };
   });
 
-  const close = (): void => {
+  const select = (item: PaletteItem): void => {
     onOpenChange(false);
+    setSearch("");
+    item.run();
   };
 
   return (
-    <CommandDialog
+    <Palette.Root
       open={open}
       onOpenChange={onOpenChange}
-      onOpenChangeComplete={(next: boolean) => {
-        if (!next) {
-          setSearch("");
-        }
-      }}
-      title="Command palette"
-      description="Search pages, projects, and theme actions"
+      items={groups}
+      value={search}
+      onValueChange={setSearch}
+      itemToStringValue={(group: PaletteGroup) => group.label}
+      onSelect={select}
+      getSelectableItems={(all: PaletteGroup[]) => all.flatMap((group) => group.items)}
     >
-      <Command>
-        <CommandInput
-          placeholder="Search pages, projects…"
-          value={search}
-          onValueChange={setSearch}
-        />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {projectSlug ? (
-            <ProjectNavigationGroup projectSlug={projectSlug} close={close} />
-          ) : (
-            <OrgNavigationGroup isSuperadmin={isSuperadmin} close={close} />
+      <Palette.Input placeholder="Search pages, projects…" />
+      <Palette.List>
+        <Palette.Results>
+          {(group: PaletteGroup) => (
+            <Palette.Group key={group.id} items={group.items}>
+              <Palette.GroupLabel>{group.label}</Palette.GroupLabel>
+              <Palette.Items>
+                {(item: PaletteItem) => (
+                  <Palette.Item
+                    key={item.id}
+                    value={item}
+                    onClick={() => {
+                      select(item);
+                    }}
+                  >
+                    <span className="text-kumo-subtle flex shrink-0 items-center">{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                  </Palette.Item>
+                )}
+              </Palette.Items>
+            </Palette.Group>
           )}
-          <ProjectsGroup orgId={orgId} enabled={open} query={deferredQuery} close={close} />
-          <ThemeGroup close={close} />
-        </CommandList>
-        <div className="border-border-subtle text-muted-foreground flex items-center gap-3 border-t px-2.5 py-1.5 text-xs">
-          <span className="inline-flex items-center gap-1">
-            <Kbd>↵</Kbd> select
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Kbd>↑</Kbd>
-            <Kbd>↓</Kbd> navigate
-          </span>
-          <span className="ml-auto inline-flex items-center gap-1">
-            <Kbd>esc</Kbd> close
-          </span>
-        </div>
-      </Command>
-    </CommandDialog>
+        </Palette.Results>
+        <Palette.Empty>No results found.</Palette.Empty>
+      </Palette.List>
+      <PaletteFooter />
+    </Palette.Root>
   );
 };
