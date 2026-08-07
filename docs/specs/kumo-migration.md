@@ -1,6 +1,7 @@
 # Kumo migration — research & plan
 
-Status: research complete, awaiting scope sign-off.
+Status: P0–P3 and P5 shipped; P6 shipped bar the `better-update` skill. P4 is
+in progress — see the phase list for what has landed.
 Researched against `github.com/cloudflare/kumo` @ `main` (clone 2026-08-07) and
 `@cloudflare/kumo@2.9.1` installed from npm.
 
@@ -255,14 +256,24 @@ half-migrated in a shipped state.
   LayerCard, Badge, Dialog, Field, Input, Table, Toast.
 - **P3 Shell** — app sidebar, header, breadcrumbs, command palette onto Kumo
   `Sidebar` + `CommandPalette`; adopt the `PageHeader` block structure.
-- **P4 Page redesign** — per surface, not a port: right-hand rail with meters and
-  quick facts, `Toolbar` above tables, `Pagination`, layered cards, `DeleteResource`
-  for destructive flows, categorical badges for status.
+- **P4 Page redesign** — per surface, not a port. Landed: Kumo's page measure
+  (centred at 1400px on its padding ladder), `Toolbar` grouping every list
+  filter into one card, `Pagination` as the table footer, and the
+  `DeleteResource` name-echo — a copyable chip, `alertdialog`, autofill off.
+  Rejected with reasons: a **sticky table header** cannot work against page
+  scroll while the table sits in a horizontal scroll container (any non-visible
+  overflow axis forces both into a scrollport), and Kumo's own list block
+  scrolls the page and sticks the _rail_ instead; a **sticky right rail** wants
+  a list-plus-summary page, while our detail pages are card stacks, so adopting
+  it is an IA change rather than a restyle; **dot badges** suit a short status,
+  but a channel's reads "Rolling out to <branch> 25%", which a pill would wrap.
 - **P5 Data viz** — timeseries adoption charts, Sankey for the update pipeline,
   geo map of installs.
-- **P6 Cleanup** — drop `shadcn`/`recharts`/`lucide-react`, retire
-  `components.json`, rewrite the UI sections of `CLAUDE.md`, update e2e
-  selectors and the `better-update` skill. `tw-animate-css` stays: Kumo's
+- **P6 Cleanup** — done bar the `better-update` skill: `shadcn`, `recharts` and
+  `lucide-react` are gone, `components.json` is retired, the shadcn colour-role
+  aliases in `app.css` are deleted (only `terminal*`/`brand*` survive, which
+  Kumo has no word for), `CLAUDE.md`'s UI rules are rewritten and the e2e
+  selectors are retargeted. `tw-animate-css` stays: Kumo's
   dropdown draws its enter/exit with `animate-in`/`slide-in-from-*` and ships
   no definitions for them.
 
