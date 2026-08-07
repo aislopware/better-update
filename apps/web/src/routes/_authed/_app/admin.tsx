@@ -6,8 +6,8 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { Card } from "@better-update/ui/components/card";
 import { toast } from "@better-update/ui/components/toast";
-import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,

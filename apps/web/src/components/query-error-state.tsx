@@ -1,6 +1,6 @@
 import { getApiError, getTypedApiError } from "@better-update/api-client";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/card";
 import {
   Empty,
   EmptyContent,

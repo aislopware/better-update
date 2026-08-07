@@ -59,11 +59,12 @@ const COMPONENTS = [
   "toolbar",
   "tooltip",
 ];
-// `dialog`, `field` and `toast` are deliberately absent: all three are
+// `card`, `dialog`, `field` and `toast` are deliberately absent: all four are
 // hand-written. Kumo ships no default toast manager and no `toast.success` /
 // `toast.error` sugar, its `Field` takes only the structured error shape its
-// `Input` normalizes, and its `Dialog` is the bare popup — no header, footer,
-// dismiss control or padding.
+// `Input` normalizes, its `Dialog` is the bare popup — no header, footer,
+// dismiss control or padding — and `card` is the app's header/content/footer
+// anatomy composed over the bare `LayerCard` surface generated above.
 
 /** Base UI primitives Kumo re-exports without styling them. */
 const PRIMITIVES = ["scroll-area", "separator", "toggle", "toggle-group"];

@@ -1,10 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 import { ClockIcon } from "lucide-react";

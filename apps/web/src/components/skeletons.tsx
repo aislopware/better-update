@@ -1,4 +1,4 @@
-import { Card, CardContent, CardFooter, CardHeader } from "@better-update/ui/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@better-update/ui/components/card";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,

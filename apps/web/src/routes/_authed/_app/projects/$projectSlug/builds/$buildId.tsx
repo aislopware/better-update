@@ -13,7 +13,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@better-update/ui/components/ui/card";
+} from "@better-update/ui/components/card";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { PackageXIcon } from "lucide-react";

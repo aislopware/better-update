@@ -1,6 +1,6 @@
 import { registrationRequestsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/card";
 import {
   Item,
   ItemActions,

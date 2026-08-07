@@ -1,12 +1,12 @@
 import { Badge } from "@better-update/ui/components/badge";
-import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@better-update/ui/components/ui/card";
+} from "@better-update/ui/components/card";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Table,
   TableBody,

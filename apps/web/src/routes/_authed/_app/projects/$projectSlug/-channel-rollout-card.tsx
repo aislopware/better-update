@@ -8,16 +8,16 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Field } from "@better-update/ui/components/field";
-import { toast } from "@better-update/ui/components/toast";
-import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@better-update/ui/components/ui/card";
+} from "@better-update/ui/components/card";
+import { Field } from "@better-update/ui/components/field";
+import { toast } from "@better-update/ui/components/toast";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   InputGroup,
   InputGroupAddon,

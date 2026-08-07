@@ -5,7 +5,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@better-update/ui/components/ui/card";
+} from "@better-update/ui/components/card";
 import { Link } from "@tanstack/react-router";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";

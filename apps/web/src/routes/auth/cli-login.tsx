@@ -1,10 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { CircleAlertIcon } from "lucide-react";

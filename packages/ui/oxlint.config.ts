@@ -10,6 +10,7 @@ export default defineConfig({
   // with its sidebar.
   ignorePatterns: [
     "src/components/*.tsx",
+    "!src/components/card.tsx",
     "!src/components/dialog.tsx",
     "!src/components/field.tsx",
     "!src/components/field-layout.tsx",

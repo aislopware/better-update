@@ -7,9 +7,9 @@ import {
   setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
+import { Card } from "@better-update/ui/components/card";
 import { Field } from "@better-update/ui/components/field";
 import { toast } from "@better-update/ui/components/toast";
-import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyContent,

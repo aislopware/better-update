@@ -1,7 +1,7 @@
 import { useMountEffect } from "@better-update/react-hooks";
 import { LinkButton } from "@better-update/ui/components/button";
+import { Card, CardContent } from "@better-update/ui/components/card";
 import { Loader } from "@better-update/ui/components/loader";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";

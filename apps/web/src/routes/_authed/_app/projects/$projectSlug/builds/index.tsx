@@ -2,7 +2,7 @@ import {
   buildCompatibilityMatrixQueryOptions,
   buildsQueryOptions,
 } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/card";
 import {
   Empty,
   EmptyContent,

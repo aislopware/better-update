@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@better-update/ui/components/ui/card";
+} from "@better-update/ui/components/card";
 import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";

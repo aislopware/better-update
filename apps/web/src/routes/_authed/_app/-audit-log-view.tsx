@@ -1,6 +1,7 @@
 import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Button } from "@better-update/ui/components/button";
+import { Card } from "@better-update/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
-import { Card } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Empty,

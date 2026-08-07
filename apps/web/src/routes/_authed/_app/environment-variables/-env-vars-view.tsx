@@ -1,7 +1,7 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Card } from "@better-update/ui/components/card";
 import { toast } from "@better-update/ui/components/toast";
-import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyContent,
