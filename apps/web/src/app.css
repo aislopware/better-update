@@ -77,14 +77,17 @@
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-swift: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 
-  --radius-xs: calc(var(--radius) * 0.5);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* Ratios reproduce Tailwind's stock radius ladder off a single `--radius`
+     knob, because Kumo's own components are drawn against that ladder — a
+     custom curve makes its `rounded-lg` shells disagree with ours. */
+  --radius-xs: calc(var(--radius) * 0.25);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 3);
+  --radius-4xl: calc(var(--radius) * 4);
 
   --header-height: 4rem;
 
@@ -117,52 +120,62 @@
 }
 
 :root {
-  /* Light: off-white canvas, white raised surfaces, tiered alpha borders.
-     Neutrals carry a barely-there cool tint (chroma ≤ 0.004 @ hue 260). */
-  --background: oklch(0.985 0.002 260);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0.002 260);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0.002 260);
-  --popover-foreground: oklch(0.145 0 0);
-  --surface: oklch(0.97 0.002 260);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.966 0.002 260);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.966 0.002 260);
-  --muted-foreground: oklch(0.5 0.004 260);
-  --accent: oklch(0.945 0.004 260);
-  --accent-foreground: oklch(0.205 0 0);
-  --brand: oklch(0.55 0.2 260);
-  --brand-foreground: oklch(0.985 0 0);
-  --terminal: oklch(0.185 0.004 260);
-  --terminal-foreground: oklch(0.92 0.002 260);
-  --destructive: oklch(0.577 0.245 27.325);
-  --info: oklch(0.623 0.214 259.815);
-  --info-foreground: oklch(0.488 0.243 264.376);
-  --success: oklch(0.696 0.17 162.48);
-  --success-foreground: oklch(0.508 0.118 165.612);
-  --warning: oklch(0.769 0.188 70.08);
-  --warning-foreground: oklch(0.555 0.163 48.998);
-  --border-subtle: oklch(0.145 0.004 260 / 5%);
-  --border: oklch(0.145 0.004 260 / 9%);
-  --border-strong: oklch(0.145 0.004 260 / 16%);
-  --input: oklch(0.145 0.004 260 / 9%);
-  --ring: oklch(0.55 0.2 260);
-  --chart-1: oklch(0.585 0.19 260);
-  --chart-2: oklch(0.62 0.14 165);
-  --chart-3: oklch(0.72 0.15 80);
-  --chart-4: oklch(0.58 0.19 300);
-  --chart-5: oklch(0.62 0.17 15);
-  --radius: 0.45rem;
-  --sidebar: oklch(0.972 0.003 260);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.93 0.004 260);
-  --sidebar-accent-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0.145 0.004 260 / 8%);
+  /* Every shadcn role below resolves to a Kumo token, so the components that
+     have not been ported yet share one palette with the ones that have. Kumo
+     swaps the underlying values on `data-mode`, which is why there is no
+     `.dark` counterpart for anything derived here.
+
+     Kumo's surface ladder: canvas (page) → elevated (layer shell) → base
+     (raised card) → recessed (inset well). Overlays sit on base, dropdowns on
+     overlay, the sidebar on recessed. */
+  --background: var(--color-kumo-canvas);
+  --foreground: var(--text-color-kumo-default);
+  --card: var(--color-kumo-base);
+  --card-foreground: var(--text-color-kumo-default);
+  --popover: var(--color-kumo-base);
+  --popover-foreground: var(--text-color-kumo-default);
+  --surface: var(--color-kumo-elevated);
+  /* Kumo reserves brand blue for `Button variant="primary"`; the neutral
+     inverted surface is `contrast`, which is what shadcn's `primary` means. */
+  --primary: var(--color-kumo-contrast);
+  --primary-foreground: var(--text-color-kumo-inverse);
+  --secondary: var(--color-kumo-fill);
+  --secondary-foreground: var(--text-color-kumo-default);
+  --muted: var(--color-kumo-tint);
+  --muted-foreground: var(--text-color-kumo-subtle);
+  --accent: var(--color-kumo-tint);
+  --accent-foreground: var(--text-color-kumo-default);
+  --brand: var(--color-kumo-brand);
+  --brand-foreground: oklch(1 0 0);
+  --terminal: var(--color-kumo-contrast);
+  --terminal-foreground: var(--text-color-kumo-inverse);
+  --destructive: var(--color-kumo-danger);
+  --info: var(--color-kumo-info);
+  --info-foreground: var(--text-color-kumo-info);
+  --success: var(--color-kumo-success);
+  --success-foreground: var(--text-color-kumo-success);
+  --warning: var(--color-kumo-warning);
+  --warning-foreground: var(--text-color-kumo-warning);
+  --border-subtle: var(--color-kumo-hairline);
+  --border: var(--color-kumo-line);
+  --border-strong: var(--color-kumo-interact);
+  --input: var(--color-kumo-line);
+  --ring: var(--color-kumo-brand);
+  /* Kumo's categorical chart palette (packages/kumo/src/components/chart/Color.ts),
+     so recharts and Kumo's ECharts render the same series colours side by side. */
+  --chart-1: #4290f0;
+  --chart-2: #f5b647;
+  --chart-3: #e8649d;
+  --chart-4: #8d58ee;
+  --chart-5: #50c3b6;
+  --radius: 0.5rem;
+  --sidebar: var(--color-kumo-recessed);
+  --sidebar-foreground: var(--text-color-kumo-default);
+  --sidebar-primary: var(--color-kumo-contrast);
+  --sidebar-primary-foreground: var(--text-color-kumo-inverse);
+  --sidebar-accent: var(--color-kumo-tint);
+  --sidebar-accent-foreground: var(--text-color-kumo-default);
+  --sidebar-border: var(--color-kumo-line);
   --sidebar-ring: var(--ring);
 
   --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.03);
@@ -181,54 +194,12 @@
 }
 
 .dark {
-  /* Dark: the lightness ladder carries elevation —
-     sidebar 0.125 < canvas 0.145 < card 0.19 < popover/dialog 0.235. */
-  --background: oklch(0.145 0.004 260);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.19 0.004 260);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.235 0.005 260);
-  --popover-foreground: oklch(0.985 0 0);
-  --surface: oklch(0.235 0.005 260);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0.004 260);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0.004 260);
-  --muted-foreground: oklch(0.72 0.004 260);
-  --accent: oklch(0.3 0.006 260);
-  --accent-foreground: oklch(0.985 0 0);
-  --brand: oklch(0.68 0.16 260);
-  --brand-foreground: oklch(0.145 0 0);
-  --terminal: oklch(0.105 0.004 260);
-  --terminal-foreground: oklch(0.9 0.002 260);
-  --destructive: oklch(0.704 0.191 22.216);
-  --info: oklch(0.623 0.214 259.815);
-  --info-foreground: oklch(0.707 0.165 254.624);
-  --success: oklch(0.696 0.17 162.48);
-  --success-foreground: oklch(0.765 0.177 163.223);
-  --warning: oklch(0.769 0.188 70.08);
-  --warning-foreground: oklch(0.837 0.128 66.29);
-  --border-subtle: oklch(1 0 0 / 6%);
-  --border: oklch(1 0 0 / 10%);
-  --border-strong: oklch(1 0 0 / 16%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.68 0.16 260);
-  --chart-1: oklch(0.68 0.17 260);
-  --chart-2: oklch(0.7 0.14 165);
-  --chart-3: oklch(0.78 0.14 80);
-  --chart-4: oklch(0.66 0.17 300);
-  --chart-5: oklch(0.7 0.16 15);
-  --sidebar: oklch(0.125 0.004 260);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.922 0 0);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.235 0.006 260);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: var(--ring);
+  /* Colour roles are inherited from the Kumo tokens on :root, which already
+     flip on `data-mode="dark"`. Only the two things Kumo does not express as
+     tokens are restated here: the dark chart ramp and the shadow scale. */
+  --chart-2: #eeb720;
 
-  /* Shadows are a secondary cue in dark — the ladder is primary. */
+  /* Shadows are a secondary cue in dark — the surface ladder is primary. */
   --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.28);
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.32);
   --shadow-sm: 0 2px 2px 0 oklch(0 0 0 / 0.32), 0 1px 2px -1px oklch(0 0 0 / 0.28);
@@ -249,7 +220,10 @@
     @apply font-sans;
   }
   body {
-    @apply bg-background text-foreground;
+    /* `text-base` is 14px on Kumo's scale — the size every dashboard control
+       and table cell is drawn at. Unsized text must land there too, otherwise
+       it inherits the 16px root and towers over the components next to it. */
+    @apply bg-background text-foreground text-base;
     position: relative;
   }
   code,
