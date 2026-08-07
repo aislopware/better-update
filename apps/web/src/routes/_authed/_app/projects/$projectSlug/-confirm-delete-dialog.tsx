@@ -15,6 +15,7 @@ import { useState } from "react";
 
 import type { ReactElement } from "react";
 
+import { CopyChip } from "../../../../../lib/copy-button";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 interface ConfirmDeleteDialogProps {
@@ -86,30 +87,42 @@ export const ConfirmDeleteDialog = ({
   };
 
   return (
+    // `alertdialog`, as every other confirmation here: a click landing outside
+    // must not throw away a half-typed name and the intent behind it.
     <Dialog
+      role="alertdialog"
       open={open}
       onOpenChange={handleOpenChange}
       onOpenChangeComplete={handleOpenChangeComplete}
     >
       {children ? <DialogTrigger render={children} /> : null}
       <DialogContent>
-        <DialogHeader>
+        <DialogHeader showCloseButton={false}>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Input
-          label={
-            <>
-              Type <span className="font-mono font-bold">{name}</span> to confirm
-            </>
-          }
-          id="confirm-delete"
-          value={confirmText}
-          onChange={(event) => {
-            setConfirmText(event.target.value);
-          }}
-          placeholder={name}
-        />
+        <div className="flex flex-col gap-2">
+          {/* The prompt is a sibling of the field, not its label: the name is a
+              button, and interactive content inside a label makes the click
+              target ambiguous. */}
+          <p className="flex flex-wrap items-center gap-1.5">
+            Type <CopyChip value={name} /> to confirm
+          </p>
+          <Input
+            aria-label={`Type ${name} to confirm deletion`}
+            value={confirmText}
+            onChange={(event) => {
+              setConfirmText(event.target.value);
+            }}
+            placeholder={name}
+            // A name typed to authorise destruction must be the name, not what
+            // the browser guessed from a past form or corrected on the way in.
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+        </div>
         <DialogFooter>
           <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
           <Button

@@ -78,6 +78,39 @@ export const CopyableId = ({
   </span>
 );
 
+// The value itself as the copy target, rather than a value sitting next to a
+// copy button. Use where the text is something the reader has to reproduce —
+// a name they must retype to confirm a deletion — so the thing to copy and the
+// thing to click are one and the same.
+export const CopyChip = ({ value, className }: { value: string; className?: string }) => {
+  const { copied, copy } = useCopyToClipboard(1500);
+  const Icon = copied ? CheckIcon : CopyIcon;
+
+  const handleCopy = async (): Promise<void> => {
+    const ok = await copy(value);
+    if (!ok) {
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label={`Copy ${value}`}
+      onClick={handleCopy}
+      className={cn(
+        "bg-muted hover:bg-secondary inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-semibold",
+        className,
+      )}
+    >
+      {value}
+      {/* No colour change on the icon: the swap to a tick is the whole signal,
+          and Kumo does not transition colour on hover. */}
+      <Icon weight="bold" className="text-muted-foreground" />
+    </button>
+  );
+};
+
 // Mono value paired with a copy button — the canonical "copyable identifier" cell.
 // Renders nothing copyable when the value is absent, falling back to an em dash.
 export const CopyableMono = ({

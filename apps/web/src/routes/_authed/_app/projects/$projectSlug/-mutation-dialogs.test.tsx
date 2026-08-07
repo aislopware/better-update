@@ -146,7 +146,9 @@ const expectInvalidation = async (
 const confirmDeletion = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
   await user.click(screen.getByRole("button"));
 
-  const dialog = screen.getByRole("dialog");
+  // A delete confirmation is an `alertdialog`, not a `dialog` — a stray click
+  // outside must not discard a half-typed name.
+  const dialog = screen.getByRole("alertdialog");
   await user.type(within(dialog).getByPlaceholderText(name), name);
   await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
 };
