@@ -1,5 +1,5 @@
 import { iosBundleConfigurationsQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { AppleIcon } from "../../../../../components/apple-icon";

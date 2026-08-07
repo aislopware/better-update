@@ -4,8 +4,8 @@ import {
   approveUser,
   revokeUser,
 } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -96,7 +96,7 @@ const buildColumns = (
     header: "Role",
     cell: ({ row }) =>
       isSuperadminUser(row.original) ? (
-        <Badge>Superadmin</Badge>
+        <Badge variant="primary">Superadmin</Badge>
       ) : (
         <Badge variant="secondary">User</Badge>
       ),
@@ -107,7 +107,7 @@ const buildColumns = (
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5">
         <StatusBadge approved={row.original.approved} />
-        {row.original.banned ? <Badge variant="destructive">Banned</Badge> : null}
+        {row.original.banned ? <Badge variant="error">Banned</Badge> : null}
       </div>
     ),
   },

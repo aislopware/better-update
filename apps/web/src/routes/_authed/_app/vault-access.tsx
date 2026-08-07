@@ -6,8 +6,8 @@ import {
   orgVaultQueryOptions,
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/badge";
 import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -107,7 +107,7 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <Badge variant={meta.variant}>{meta.label}</Badge>
-                      {row.revokedAt ? <Badge variant="destructive">Revoked</Badge> : null}
+                      {row.revokedAt ? <Badge variant="error">Revoked</Badge> : null}
                     </div>
                   </TableCell>
                   <TableCell>

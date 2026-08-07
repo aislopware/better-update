@@ -1,4 +1,4 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 
 import type { Update } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -26,7 +26,7 @@ export const buildUpdateColumns = (
         <div className="flex max-w-80 flex-col gap-0.5">
           <div className="flex items-center gap-1.5 font-medium">
             <span className="truncate">{row.original.message || "—"}</span>
-            {row.original.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+            {row.original.isRollback ? <Badge variant="error">Rollback</Badge> : null}
             {typeof environment === "string" ? (
               <EnvironmentBadge environment={environment} />
             ) : null}

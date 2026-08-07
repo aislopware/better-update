@@ -1,4 +1,4 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 
 import type { EnvVar } from "@better-update/api";

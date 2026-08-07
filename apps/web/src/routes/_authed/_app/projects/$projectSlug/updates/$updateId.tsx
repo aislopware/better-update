@@ -4,7 +4,7 @@ import {
   updateGroupQueryOptions,
   updateQueryOptions,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import {
   Card,
   CardContent,
@@ -244,7 +244,7 @@ const PlatformVariantCard = ({
       <CardTitle className="flex items-center gap-2 text-base">
         <PlatformBadge platform={update.platform} />
         <CopyableId value={update.id} label="Update ID" />
-        {update.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+        {update.isRollback ? <Badge variant="error">Rollback</Badge> : null}
       </CardTitle>
       <CardDescription>
         {update.rolloutPercentage < 100
@@ -311,7 +311,7 @@ const UpdateDetailContent = () => {
     <>
       <DetailHeader
         title={title}
-        badges={primary.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+        badges={primary.isRollback ? <Badge variant="error">Rollback</Badge> : null}
         meta={
           <>
             <CopyableId value={primary.groupId} label="Update group ID" />

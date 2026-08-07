@@ -1,4 +1,4 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import {
   Select,
   SelectContent,
@@ -113,7 +113,7 @@ interface BuildColumnsParams {
 
 const RoleBadge = ({ role }: { role: string }) => {
   if (isOwnerRole(role)) {
-    return <Badge variant="default">Owner</Badge>;
+    return <Badge variant="primary">Owner</Badge>;
   }
   if (role === "admin") {
     return <Badge variant="secondary">Admin</Badge>;

@@ -4,7 +4,7 @@ import {
   appleTeamsQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import {
   Table,
   TableBody,
@@ -34,13 +34,15 @@ import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-sh
 
 import type { CredentialStatus, CredentialStatusTone } from "../../../../../lib/credential-status";
 
-const STATUS_BADGE_VARIANT: Record<CredentialStatusTone, ComponentProps<typeof Badge>["variant"]> =
-  {
-    error: "destructive",
-    muted: "outline",
-    success: "success",
-    warning: "warning",
-  };
+const STATUS_BADGE_VARIANT: Record<
+  CredentialStatusTone,
+  NonNullable<ComponentProps<typeof Badge>["variant"]>
+> = {
+  error: "error",
+  muted: "outline",
+  success: "success",
+  warning: "warning",
+};
 
 const StatusBadge = ({ status }: { status: CredentialStatus }) => (
   <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>

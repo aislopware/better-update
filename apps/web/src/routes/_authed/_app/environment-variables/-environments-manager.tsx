@@ -6,6 +6,7 @@ import {
   renameEnvironment,
   setEnvironmentProtection,
 } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
 import {
@@ -18,7 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Dialog,
   DialogClose,

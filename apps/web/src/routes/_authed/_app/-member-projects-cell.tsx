@@ -8,8 +8,8 @@ import {
   setMemberAllProjectsRole,
   updateProjectMemberRole,
 } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Badge, badgeVariants } from "@better-update/ui/components/ui/badge";
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import {
   Dialog,
@@ -42,7 +42,6 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { Switch } from "@better-update/ui/components/ui/switch";
 import { toast } from "@better-update/ui/components/ui/toast";
-import { cn } from "@better-update/ui/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
 import { useState } from "react";
@@ -163,10 +162,10 @@ export const MemberProjectChips = ({
       {overflowCount > 0 ? (
         <Popover>
           <PopoverTrigger
-            className={cn(badgeVariants({ variant: "outline" }), "cursor-pointer")}
+            className="cursor-pointer"
             aria-label={`Show all ${projects.length} projects`}
           >
-            +{overflowCount}
+            <Badge variant="outline">+{overflowCount}</Badge>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72">
             <PopoverHeader>

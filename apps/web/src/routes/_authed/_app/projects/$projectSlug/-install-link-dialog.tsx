@@ -1,6 +1,7 @@
 import { getApiError } from "@better-update/api-client";
 import { fetchInstallLink } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
+import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
 import {
@@ -9,7 +10,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@better-update/ui/components/ui/alert";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Dialog,
   DialogContent,

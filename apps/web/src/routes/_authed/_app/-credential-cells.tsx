@@ -1,4 +1,4 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import { Switch } from "@better-update/ui/components/ui/switch";
 import { LockIcon } from "lucide-react";
 

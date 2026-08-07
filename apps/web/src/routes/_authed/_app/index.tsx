@@ -2,8 +2,8 @@ import {
   auditLogsInfiniteQueryOptions,
   projectsQueryOptions,
 } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/badge";
 import { LinkButton } from "@better-update/ui/components/button";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Card,
   CardAction,

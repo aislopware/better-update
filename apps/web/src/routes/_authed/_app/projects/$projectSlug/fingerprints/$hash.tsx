@@ -1,5 +1,5 @@
 import { fingerprintDetailQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import {
   Card,
   CardContent,
@@ -171,7 +171,7 @@ const FingerprintUpdatesCard = ({
                 <ItemContent className="flex-row flex-wrap items-center gap-2">
                   <PlatformBadge platform={update.platform} />
                   <span className="font-medium">v{update.runtimeVersion}</span>
-                  {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
+                  {update.isRollback && <Badge variant="error">Rollback</Badge>}
                   <span className="text-muted-foreground line-clamp-1 text-sm">
                     {update.message || `Update ${update.groupId.slice(0, 8)}`}
                   </span>

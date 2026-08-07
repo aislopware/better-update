@@ -5,8 +5,8 @@ import {
   fetchDebugArtifactDownload,
 } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
+import { Badge } from "@better-update/ui/components/badge";
 import { Button, buttonVariants } from "@better-update/ui/components/button";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Card,
   CardContent,

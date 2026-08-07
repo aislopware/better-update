@@ -2,7 +2,7 @@ import {
   androidApplicationIdentifiersQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,

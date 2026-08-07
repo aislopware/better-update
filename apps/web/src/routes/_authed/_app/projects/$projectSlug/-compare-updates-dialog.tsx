@@ -1,7 +1,7 @@
 import { updateAssetsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -211,7 +211,7 @@ const AssetComparison = ({
         <Badge variant="outline">{leftAssets.length} assets in A</Badge>
         <Badge variant="outline">{rightAssets.length} assets in B</Badge>
         <Badge variant="success">+{diff.addedCount} added</Badge>
-        <Badge variant="destructive">−{diff.removedCount} removed</Badge>
+        <Badge variant="error">−{diff.removedCount} removed</Badge>
         <Badge variant="secondary">{diff.unchangedCount} unchanged</Badge>
       </div>
       <div className="flex flex-col gap-3">

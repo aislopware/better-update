@@ -1,5 +1,5 @@
+import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Item,
   ItemActions,

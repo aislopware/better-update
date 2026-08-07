@@ -1,4 +1,4 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
+import { Badge } from "@better-update/ui/components/badge";
 import { cn } from "@better-update/ui/lib/utils";
 import {
   BuildingIcon,
