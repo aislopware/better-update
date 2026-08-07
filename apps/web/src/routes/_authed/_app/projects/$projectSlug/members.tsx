@@ -1,12 +1,5 @@
 import { meQueryOptions, projectMembersQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -64,21 +57,12 @@ const RemoveProjectMemberDialog = ({
 );
 
 const EmptyMembers = ({ actions }: { actions?: ReactNode }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <UsersIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No project members yet</EmptyTitle>
-        <EmptyDescription>
-          Organization owners and admins always have access. Add members to grant a role on this
-          project.
-        </EmptyDescription>
-      </EmptyHeader>
-      {actions}
-    </Empty>
-  </Card>
+  <Empty
+    icon={<UsersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No project members yet"
+    description="Organization owners and admins always have access. Add members to grant a role on this project."
+    contents={actions}
+  />
 );
 
 const ProjectMembersContent = () => {

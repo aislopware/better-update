@@ -1,7 +1,6 @@
 import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -10,14 +9,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
+import { Empty } from "@better-update/ui/components/empty";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -213,17 +206,11 @@ const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string 
 );
 
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <ScrollTextIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No activity yet</EmptyTitle>
-        <EmptyDescription>Actions performed in {scopeLabel} will appear here.</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<ScrollTextIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No activity yet"
+    description={`Actions performed in ${scopeLabel} will appear here.`}
+  />
 );
 
 export interface AuditLogViewProps {

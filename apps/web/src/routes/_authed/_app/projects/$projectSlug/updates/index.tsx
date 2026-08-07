@@ -1,13 +1,5 @@
 import { updatesQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -64,25 +56,16 @@ const updatesSearchSchema = z.object({
 });
 
 const UpdatesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CloudUploadIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No updates yet</EmptyTitle>
-        <EmptyDescription>
-          Publish from your app repo — updates land on a branch and reach devices through its
-          channel.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock
-          commands={['better-update update publish --branch main --message "First update"']}
-        />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<CloudUploadIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No updates yet"
+    description="Publish from your app repo — updates land on a branch and reach devices through its channel."
+    contents={
+      <CliCommandBlock
+        commands={['better-update update publish --branch main --message "First update"']}
+      />
+    }
+  />
 );
 
 const UpdatesSkeleton = () => (

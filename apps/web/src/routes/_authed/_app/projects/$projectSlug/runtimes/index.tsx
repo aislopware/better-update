@@ -1,12 +1,5 @@
 import { runtimesQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -36,19 +29,11 @@ const runtimesSearchSchema = z.object({
 });
 
 const RuntimesEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <LayersIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No runtime versions yet</EmptyTitle>
-        <EmptyDescription>
-          Runtime versions appear here once you publish a build or update.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<LayersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No runtime versions yet"
+    description="Runtime versions appear here once you publish a build or update."
+  />
 );
 
 const columns: readonly ColumnDef<RuntimeAggregate>[] = [

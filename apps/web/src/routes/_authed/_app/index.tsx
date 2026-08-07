@@ -11,14 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useInfiniteQuery, useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -125,24 +118,16 @@ const RecentActivityCard = ({ orgId }: { orgId: string }) => {
 };
 
 const FirstProjectCard = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FolderIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>Create your first project</EmptyTitle>
-        <EmptyDescription>
-          Projects group the branches, channels, and updates for one app.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <LinkButton variant="primary" href="/projects">
-          Go to projects
-        </LinkButton>
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<FolderIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="Create your first project"
+    description="Projects group the branches, channels, and updates for one app."
+    contents={
+      <LinkButton variant="primary" href="/projects">
+        Go to projects
+      </LinkButton>
+    }
+  />
 );
 
 const OverviewContent = ({ orgId }: { orgId: string }) => {

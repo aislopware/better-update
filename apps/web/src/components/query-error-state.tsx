@@ -1,14 +1,6 @@
 import { getApiError, getTypedApiError } from "@better-update/api-client";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { LockIcon, TriangleAlertIcon } from "lucide-react";
 
 import { fireAndForget } from "../lib/data-table";
@@ -26,36 +18,31 @@ interface QueryErrorStateProps {
 export const QueryErrorState = ({ error, onRetry }: QueryErrorStateProps) => {
   const forbidden = getTypedApiError(error)?._tag === "Forbidden";
   return (
-    <Card>
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon" tone="restricted">
-            {forbidden ? <LockIcon /> : <TriangleAlertIcon />}
-          </EmptyMedia>
-          <EmptyTitle>{forbidden ? "You do not have access" : "Something went wrong"}</EmptyTitle>
-          <EmptyDescription>
-            {forbidden
-              ? "You do not have permission to view this content. Ask an organization admin to grant you access."
-              : getApiError(error)}
-          </EmptyDescription>
-        </EmptyHeader>
-        {!forbidden && onRetry ? (
-          <EmptyContent>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                const result = onRetry();
-                if (result instanceof Promise) {
-                  fireAndForget(result);
-                }
-              }}
-            >
-              Try again
-            </Button>
-          </EmptyContent>
-        ) : null}
-      </Empty>
-    </Card>
+    <Empty
+      icon={forbidden ? <LockIcon /> : <TriangleAlertIcon />}
+      title={forbidden ? "You do not have access" : "Something went wrong"}
+      description={
+        forbidden
+          ? "You do not have permission to view this content. Ask an organization admin to grant you access."
+          : getApiError(error)
+      }
+      contents={
+        !forbidden && onRetry ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              const result = onRetry();
+              if (result instanceof Promise) {
+                fireAndForget(result);
+              }
+            }}
+          >
+            {" "}
+            Try again{" "}
+          </Button>
+        ) : null
+      }
+    />
   );
 };

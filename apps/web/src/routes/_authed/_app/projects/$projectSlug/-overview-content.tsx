@@ -12,14 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { GitBranchIcon, RocketIcon } from "lucide-react";
@@ -49,23 +42,12 @@ const FIRST_PUBLISH_COMMANDS = [
 ] as const;
 
 const FirstPublishCard = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <RocketIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>Publish your first update</EmptyTitle>
-        <EmptyDescription>
-          Link this project from your app repo, then publish — channels, branches, and analytics
-          light up from the first update.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={FIRST_PUBLISH_COMMANDS} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<RocketIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="Publish your first update"
+    description="Link this project from your app repo, then publish — channels, branches, and analytics light up from the first update."
+    contents={<CliCommandBlock commands={FIRST_PUBLISH_COMMANDS} />}
+  />
 );
 
 /** One channel row in the "Live now" hero: name → branch → latest update → state. */

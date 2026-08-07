@@ -2,15 +2,7 @@ import {
   buildCompatibilityMatrixQueryOptions,
   buildsQueryOptions,
 } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -82,23 +74,12 @@ const buildsSearchSchema = z.object({
 });
 
 const BuildsEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <PackageIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No builds yet</EmptyTitle>
-        <EmptyDescription>
-          Build and upload a binary from your app repo — it shows up here with its runtime
-          compatibility.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={["better-update build"]} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<PackageIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No builds yet"
+    description="Build and upload a binary from your app repo — it shows up here with its runtime compatibility."
+    contents={<CliCommandBlock commands={["better-update build"]} />}
+  />
 );
 
 const BuildsSkeleton = () => (

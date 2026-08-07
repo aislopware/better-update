@@ -31,12 +31,7 @@ export const AndroidNotFoundEmpty = ({
   <DetailNotFound
     icon={<AndroidIcon />}
     title="Application identifier not found"
-    description={
-      <>
-        No identifier exists for <code className="text-foreground font-mono">{packageName}</code> on
-        this project.
-      </>
-    }
+    description={`No identifier exists for ${packageName} on this project.`}
     backLink={
       <RouterLinkButton to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
         Back to credentials

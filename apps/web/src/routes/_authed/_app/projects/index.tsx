@@ -1,13 +1,6 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -82,17 +75,11 @@ const projectsSearchSchema = z.object({
 });
 
 const EmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FolderIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No projects yet</EmptyTitle>
-        <EmptyDescription>Create your first project to start publishing updates.</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<FolderIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No projects yet"
+    description="Create your first project to start publishing updates."
+  />
 );
 
 const ProjectNameCell = ({ project }: { project: ProjectItem }) => (

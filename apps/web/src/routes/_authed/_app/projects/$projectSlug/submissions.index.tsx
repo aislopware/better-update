@@ -1,13 +1,5 @@
 import { submissionsQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -125,28 +117,19 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
 ];
 
 const SubmissionsEmpty = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <UploadCloudIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No submissions yet</EmptyTitle>
-        <EmptyDescription>
-          Submit from your app repo — builds are pushed to App Store Connect or Google Play and
-          tracked here.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock
-          commands={[
-            "better-update submit --platform ios",
-            "better-update submit --platform android",
-          ]}
-        />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<UploadCloudIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No submissions yet"
+    description="Submit from your app repo — builds are pushed to App Store Connect or Google Play and tracked here."
+    contents={
+      <CliCommandBlock
+        commands={[
+          "better-update submit --platform ios",
+          "better-update submit --platform android",
+        ]}
+      />
+    }
+  />
 );
 
 const SubmissionsPage = () => {

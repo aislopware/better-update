@@ -1,12 +1,4 @@
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";
@@ -54,22 +46,13 @@ export const DetailHeader = ({ title, badges, meta, actions, className }: Detail
 interface DetailNotFoundProps {
   /** Entity icon, e.g. `<RadioTowerIcon strokeWidth={1.5} />`. */
   readonly icon: ReactNode;
-  readonly title: ReactNode;
-  readonly description: ReactNode;
+  readonly title: string;
+  readonly description: string;
   /** Back-navigation action — pass a `RouterLinkButton` carrying its own label. */
   readonly backLink?: ReactNode;
 }
 
-/** Shared not-found state for entity detail pages: icon Empty inside a Card. */
+/** Shared not-found state for entity detail pages. */
 export const DetailNotFound = ({ icon, title, description, backLink }: DetailNotFoundProps) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">{icon}</EmptyMedia>
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
-      </EmptyHeader>
-      {backLink ? <EmptyContent>{backLink}</EmptyContent> : null}
-    </Empty>
-  </Card>
+  <Empty icon={icon} title={title} description={description} contents={backLink} />
 );

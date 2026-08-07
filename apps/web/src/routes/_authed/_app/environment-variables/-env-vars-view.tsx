@@ -1,15 +1,7 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
@@ -80,23 +72,14 @@ const isScopeFilter = (value: string): value is ScopeFilter =>
   (SCOPE_VALUES as readonly string[]).includes(value);
 
 const EmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <SettingsIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No environment variables</EmptyTitle>
-        <EmptyDescription>
-          Set variables from the CLI — values are end-to-end encrypted and versioned per
-          environment.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={["better-update env set API_URL=https://api.example.com"]} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<SettingsIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No environment variables"
+    description="Set variables from the CLI — values are end-to-end encrypted and versioned per environment."
+    contents={
+      <CliCommandBlock commands={["better-update env set API_URL=https://api.example.com"]} />
+    }
+  />
 );
 
 // Multi-select environment filter — options are the org's environments

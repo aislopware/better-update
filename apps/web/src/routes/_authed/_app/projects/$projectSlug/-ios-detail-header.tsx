@@ -68,12 +68,7 @@ export const IosNotFoundEmpty = ({
   <DetailNotFound
     icon={<AppleIcon />}
     title="Bundle identifier not found"
-    description={
-      <>
-        No configuration exists for{" "}
-        <code className="text-foreground font-mono">{bundleIdentifier}</code> on this project.
-      </>
-    }
+    description={`No configuration exists for ${bundleIdentifier} on this project.`}
     backLink={
       <RouterLinkButton to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
         Back to credentials

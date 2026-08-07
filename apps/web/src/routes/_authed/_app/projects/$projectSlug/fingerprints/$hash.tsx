@@ -7,13 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -38,19 +32,11 @@ type BuildItem = BuildWithArtifact;
 type UpdateItem = Update;
 
 const FingerprintEmpty = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <PackageIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No builds or updates yet</EmptyTitle>
-        <EmptyDescription>
-          Nothing in this project has been published with this fingerprint yet.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<PackageIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No builds or updates yet"
+    description="Nothing in this project has been published with this fingerprint yet."
+  />
 );
 
 const FingerprintHashCard = ({

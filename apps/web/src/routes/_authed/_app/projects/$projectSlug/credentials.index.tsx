@@ -3,15 +3,7 @@ import {
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
@@ -73,43 +65,23 @@ const SectionListSkeleton = () => (
 );
 
 const AndroidEmpty = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <AndroidIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No application identifiers</EmptyTitle>
-        <EmptyDescription>
-          Register an Android application identifier and bind upload keystores and Google service
-          account keys for this project from the CLI.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={["better-update credentials configure --platform android"]} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<AndroidIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No application identifiers"
+    description="Register an Android application identifier and bind upload keystores and Google service account keys for this project from the CLI."
+    contents={
+      <CliCommandBlock commands={["better-update credentials configure --platform android"]} />
+    }
+  />
 );
 
 const IosEmpty = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <AppleIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No bundle identifiers</EmptyTitle>
-        <EmptyDescription>
-          Register an iOS bundle identifier and bind distribution certificates, provisioning
-          profiles, push keys, and App Store Connect API keys for this project from the CLI.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={["better-update credentials configure --platform ios"]} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<AppleIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No bundle identifiers"
+    description="Register an iOS bundle identifier and bind distribution certificates, provisioning profiles, push keys, and App Store Connect API keys for this project from the CLI."
+    contents={<CliCommandBlock commands={["better-update credentials configure --platform ios"]} />}
+  />
 );
 
 const ROW_CLASS =

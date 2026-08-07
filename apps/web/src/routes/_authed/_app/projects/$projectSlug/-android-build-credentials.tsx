@@ -7,17 +7,9 @@ import {
   setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Card } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { Field } from "@better-update/ui/components/field";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   Select,
   SelectContent,
@@ -225,23 +217,14 @@ const GroupSwitcher = ({
 );
 
 const EmptyGroups = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <KeyRoundIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No credential groups yet</EmptyTitle>
-        <EmptyDescription>
-          Add a group from the CLI to bind an upload keystore and service account keys for this
-          identifier.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={["better-update credentials configure --platform android"]} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<KeyRoundIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No credential groups yet"
+    description="Add a group from the CLI to bind an upload keystore and service account keys for this identifier."
+    contents={
+      <CliCommandBlock commands={["better-update credentials configure --platform android"]} />
+    }
+  />
 );
 
 const useSelectedGroup = (

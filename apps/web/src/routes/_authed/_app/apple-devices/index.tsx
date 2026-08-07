@@ -1,13 +1,6 @@
 import { appleTeamsQueryOptions, devicesQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -98,24 +91,17 @@ const isSyncState = (value: unknown): value is SyncStateValue =>
 const HIDEABLE_COLUMN_IDS = new Set(["appleSync", "model", "createdAt"]);
 
 const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <SmartphoneIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No devices registered</EmptyTitle>
-        <EmptyDescription>
-          Register an Apple device UDID, or send an invite link for self-service enrollment via iOS
-          Safari.
-        </EmptyDescription>
-      </EmptyHeader>
+  <Empty
+    icon={<SmartphoneIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No devices registered"
+    description="Register an Apple device UDID, or send an invite link for self-service enrollment via iOS Safari."
+    contents={
       <div className="flex items-center gap-2">
         <RegisterDeviceDialog orgId={orgId} />
         {inviteCta}
       </div>
-    </Empty>
-  </Card>
+    }
+  />
 );
 
 const DevicesSkeleton = () => (

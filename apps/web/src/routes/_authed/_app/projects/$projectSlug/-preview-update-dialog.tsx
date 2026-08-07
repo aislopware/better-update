@@ -7,14 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
+import { Empty } from "@better-update/ui/components/empty";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   InputGroup,
   InputGroupAddon,
@@ -74,18 +68,12 @@ const CompatibleBuildsList = ({
 
   if (qaBuilds.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <PackageIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No compatible builds</EmptyTitle>
-          <EmptyDescription>
-            Build a development build on runtime v{runtimeVersion} for {platform} to install this
-            update for testing.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <Empty
+        icon={<PackageIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+        title="No compatible builds"
+        size="sm"
+        description={`Build a development build on runtime v${runtimeVersion} for ${platform} to install this update for testing.`}
+      />
     );
   }
 

@@ -6,15 +6,8 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -260,17 +253,11 @@ const AdminUsers = () => {
   }`;
 
   const emptyState = (
-    <Card>
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <UsersIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No users yet</EmptyTitle>
-          <EmptyDescription>Users appear here after they sign up.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </Card>
+    <Empty
+      icon={<UsersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+      title="No users yet"
+      description="Users appear here after they sign up."
+    />
   );
 
   return (

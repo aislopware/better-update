@@ -8,15 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
+import { Empty } from "@better-update/ui/components/empty";
 import { Label } from "@better-update/ui/components/label";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeftRightIcon, ArrowRightIcon, GitCompareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -344,17 +338,12 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
 
   if (updatesData.total < 2) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <GitCompareIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>Not enough updates to compare</EmptyTitle>
-          <EmptyDescription>
-            You need at least two updates in this project before you can compare them.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <Empty
+        icon={<GitCompareIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+        title="Not enough updates to compare"
+        size="sm"
+        description="You need at least two updates in this project before you can compare them."
+      />
     );
   }
 

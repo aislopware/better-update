@@ -1,15 +1,8 @@
 import { channelsQueryOptions, pauseChannel, resumeChannel } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -61,19 +54,11 @@ const channelsSearchSchema = z.object({
 });
 
 const ChannelsEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <SatelliteIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No channels yet</EmptyTitle>
-        <EmptyDescription>
-          Create your first channel to start distributing updates.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<SatelliteIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No channels yet"
+    description="Create your first channel to start distributing updates."
+  />
 );
 
 const PauseToggleButton = ({

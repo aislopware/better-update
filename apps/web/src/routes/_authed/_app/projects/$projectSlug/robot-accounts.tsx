@@ -1,13 +1,5 @@
 import { meQueryOptions, projectRobotAccountsQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { BotIcon, LockIcon } from "lucide-react";
@@ -28,44 +20,26 @@ const canViewProjectRobots = (me: MeResult, projectId: string): boolean =>
   me.orgRole === "owner" || me.orgRole === "admin" || me.projectRoles[projectId] === "maintainer";
 
 const EmptyRobots = ({ projectId }: { projectId: string }) => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <BotIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No robot accounts yet</EmptyTitle>
-        <EmptyDescription>
-          Robot accounts are created from the CLI on a maintainer device — one robot per project,
-          minted together with its vault access.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock
-          commands={[
-            `better-update credentials robot create --project ${projectId} --role developer`,
-          ]}
-        />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<BotIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No robot accounts yet"
+    description="Robot accounts are created from the CLI on a maintainer device — one robot per project, minted together with its vault access."
+    contents={
+      <CliCommandBlock
+        commands={[
+          `better-update credentials robot create --project ${projectId} --role developer`,
+        ]}
+      />
+    }
+  />
 );
 
 const MaintainerRequired = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <LockIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>Maintainer access required</EmptyTitle>
-        <EmptyDescription>
-          Only project maintainers (and organization owners/admins) can see the robot accounts of
-          this project.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<LockIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="Maintainer access required"
+    description="Only project maintainers (and organization owners/admins) can see the robot accounts of this project."
+  />
 );
 
 const ProjectRobotsContent = () => {

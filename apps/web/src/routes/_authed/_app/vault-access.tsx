@@ -7,16 +7,8 @@ import {
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Card } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -50,23 +42,12 @@ import {
 import type { RecipientOwners, VaultRecipientRow } from "./-vault-access-utils";
 
 const VaultAccessEmptyState = () => (
-  <Card>
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FingerprintIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No vault recipients yet</EmptyTitle>
-        <EmptyDescription>
-          The credential vault is created from the CLI on the first upload. Once it exists, the keys
-          that can decrypt it appear here.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <CliCommandBlock commands={["better-update credentials"]} />
-      </EmptyContent>
-    </Empty>
-  </Card>
+  <Empty
+    icon={<FingerprintIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    title="No vault recipients yet"
+    description="The credential vault is created from the CLI on the first upload. Once it exists, the keys that can decrypt it appear here."
+    contents={<CliCommandBlock commands={["better-update credentials"]} />}
+  />
 );
 
 const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>

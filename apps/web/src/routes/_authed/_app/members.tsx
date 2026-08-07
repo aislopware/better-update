@@ -1,12 +1,5 @@
 import { memberProjectMembershipsQueryOptions } from "@better-update/api-client/react";
-import { Card } from "@better-update/ui/components/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
+import { Empty } from "@better-update/ui/components/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -171,18 +164,12 @@ const MembersContent = () => {
 
   if (isOrgEmpty) {
     return (
-      <Card>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <UsersIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>No members yet</EmptyTitle>
-            <EmptyDescription>Invite your first teammate to get started.</EmptyDescription>
-          </EmptyHeader>
-          {inviteCta}
-        </Empty>
-      </Card>
+      <Empty
+        icon={<UsersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+        title="No members yet"
+        description="Invite your first teammate to get started."
+        contents={inviteCta}
+      />
     );
   }
 
