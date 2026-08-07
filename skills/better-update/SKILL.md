@@ -193,7 +193,7 @@ better-update build --platform android --auto-submit          # or build + submi
   before any bytes upload); if the binary is already there it skips the upload and only re-applies the
   TestFlight config (so the "already been used" duplicate-build error can't strand you). When the upload
   succeeds but config fails, the submission is still recorded as **metadata-incomplete** (dashboard shows amber
-  "Metadata pending" vs green "Complete"); the re-run that completes config updates that same row.
+  "Metadata pending"; a finished one reads a plain "Complete"); the re-run that completes config updates that same row.
 - **App Store Connect operations run from the CLI, headless.** `testflight …` (group / tester / review / build),
   `app-store …` (version / submit / cancel / status / release / reject / rollout / review-detail / info /
   categories / age-rating / privacy / apps / pricing / availability), `apple builds`/`apple users`,

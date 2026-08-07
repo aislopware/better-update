@@ -651,7 +651,8 @@ checks App Store Connect for a build with that number. If it's already there (a 
 the config instead of dead-ending on the "already been used" duplicate-build error (which is itself now treated as
 "already uploaded, continue"). Because the binary and its TestFlight config are independent steps, `submit` records
 the server submission even when config fails, marking it **metadata-incomplete** and then surfacing the error; the
-dashboard shows the uploaded-but-pending build (green "Complete" vs amber "Metadata pending"). The record is keyed
+dashboard shows the uploaded-but-pending build (amber "Metadata pending"; a finished one reads a plain
+"Complete", since only the exception is coloured). The record is keyed
 on the build number, so the re-run that completes config **updates the same row** rather than adding a duplicate.
 
 **ASC app resolution + auto-create.** Every asc-api-key submit resolves the App Store Connect app record
