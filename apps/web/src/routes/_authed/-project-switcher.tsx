@@ -1,5 +1,6 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { CommandPalette as Palette } from "@better-update/ui/components/command-palette";
 import {
   Dialog,
   DialogContent,
@@ -7,29 +8,44 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
-import {
-  Command,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@better-update/ui/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@better-update/ui/components/ui/popover";
+import { Popover } from "@better-update/ui/components/popover";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { ChevronsUpDownIcon, FolderIcon, PlusIcon } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { CheckIcon, ChevronsUpDownIcon, FolderIcon, PlusIcon } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+
+import type { ReactNode } from "react";
 
 import { fireAndForget } from "../../lib/data-table";
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { DROPDOWN_FETCH_LIMIT } from "../../queries/constants";
 import { CreateProjectFormContent } from "./_app/projects/-create-dialog";
 
+/**
+ * The switcher reuses the command palette's panel — the same component minus
+ * its dialog — so one keyboard model covers both: type to narrow, arrows to
+ * move, Enter to go. The two standing actions are entries in their own groups
+ * rather than chrome around the list, which is what keeps them reachable from
+ * the keyboard.
+ */
+interface SwitcherItem {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: ReactNode;
+  readonly checked: boolean;
+  readonly run: () => void;
+}
+
+interface SwitcherGroup {
+  readonly id: string;
+  readonly label?: string;
+  readonly items: SwitcherItem[];
+}
+
 const switcherTrigger = (displayName: string) => (
   <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 font-medium">
     <span className="truncate">{displayName}</span>
-    <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground size-3" />
+    <ChevronsUpDownIcon strokeWidth={2} className="text-kumo-subtle size-3" />
   </Button>
 );
 
@@ -59,7 +75,13 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
     enabled: isSearching,
     placeholderData: keepPreviousData,
   });
-  const items = (isSearching ? searchResults.data?.items : recent.items) ?? [];
+  // Memoised so the `?? []` fallback does not hand the groups below a fresh
+  // array on every render.
+  const searchedItems = searchResults.data?.items;
+  const projects = useMemo(
+    () => (isSearching ? searchedItems : recent.items) ?? [],
+    [isSearching, recent.items, searchedItems],
+  );
 
   const currentProject = currentProjectSlug
     ? recent.items.find((project) => project.slug === currentProjectSlug)
@@ -67,11 +89,74 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
   const displayName =
     currentProject?.name ?? (currentProjectSlug ? "Unknown project" : "All Projects");
 
-  const navigateToProject = (projectSlug: string): void => {
+  const groups = useMemo<SwitcherGroup[]>(
+    () =>
+      [
+        {
+          id: "all",
+          items: [
+            {
+              id: "all-projects",
+              label: "All Projects",
+              icon: <FolderIcon strokeWidth={2} className="size-4" />,
+              checked: !currentProjectSlug,
+              run: () => {
+                fireAndForget(router.navigate({ to: "/projects" }));
+              },
+            },
+          ],
+        },
+        {
+          id: "projects",
+          label: "Projects",
+          items: projects.map((project) => ({
+            id: project.id,
+            label: project.name,
+            icon: (
+              <EntityAvatar
+                name={project.name}
+                seed={project.slug}
+                image={project.logoUrl}
+                size="sm"
+                shape="square"
+              />
+            ),
+            checked: project.slug === currentProjectSlug,
+            run: () => {
+              if (project.slug !== currentProjectSlug) {
+                fireAndForget(
+                  router.navigate({
+                    to: "/projects/$projectSlug",
+                    params: { projectSlug: project.slug },
+                  }),
+                );
+              }
+            },
+          })),
+        },
+        {
+          id: "create",
+          items: [
+            {
+              id: "create-project",
+              label: "Create project",
+              icon: <PlusIcon strokeWidth={2} className="size-4" />,
+              checked: false,
+              run: () => {
+                setCreateOpen(true);
+              },
+            },
+          ],
+        },
+        // A group with no entries still draws its heading, so drop it and let
+        // the manual empty state below explain why the list is short.
+      ].filter((group) => group.items.length > 0),
+    [currentProjectSlug, projects, router],
+  );
+
+  const select = (item: SwitcherItem): void => {
     setOpen(false);
-    if (projectSlug !== currentProjectSlug) {
-      fireAndForget(router.navigate({ to: "/projects/$projectSlug", params: { projectSlug } }));
-    }
+    item.run();
   };
 
   return (
@@ -79,73 +164,62 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
       <Popover
         open={open}
         onOpenChange={setOpen}
-        onOpenChangeComplete={(next) => {
+        onOpenChangeComplete={(next: boolean) => {
           if (!next) {
             setSearch("");
           }
         }}
       >
-        <PopoverTrigger render={switcherTrigger(displayName)} />
-        <PopoverContent className="w-64 p-0" align="start">
-          <Command shouldFilter={false}>
-            <CommandInput placeholder="Search projects…" value={search} onValueChange={setSearch} />
-            <CommandList>
-              <CommandGroup>
-                <CommandItem
-                  data-checked={!currentProjectSlug}
-                  onSelect={() => {
-                    setOpen(false);
-                    fireAndForget(router.navigate({ to: "/projects" }));
-                  }}
-                >
-                  <FolderIcon strokeWidth={2} className="text-muted-foreground" />
-                  <span>All Projects</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Projects">
-                {/* CommandEmpty never fires with shouldFilter=false + the
-                    always-present action items, so the empty state is manual. */}
-                {items.length === 0 ? (
-                  <div className="text-muted-foreground py-6 text-center text-sm">
-                    {isSearching && searchResults.isPending ? "Searching…" : "No projects found."}
-                  </div>
-                ) : null}
-                {items.map((project) => (
-                  <CommandItem
-                    key={project.id}
-                    value={project.slug}
-                    data-checked={project.slug === currentProjectSlug}
-                    onSelect={() => {
-                      navigateToProject(project.slug);
-                    }}
-                  >
-                    <EntityAvatar
-                      name={project.name}
-                      seed={project.slug}
-                      image={project.logoUrl}
-                      size="sm"
-                      shape="square"
-                    />
-                    <span className="truncate">{project.name}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem
-                  onSelect={() => {
-                    setOpen(false);
-                    setCreateOpen(true);
-                  }}
-                >
-                  <PlusIcon strokeWidth={2} className="text-muted-foreground" />
-                  <span>Create project</span>
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
+        <Popover.Trigger render={switcherTrigger(displayName)} />
+        <Popover.Content className="w-72 p-0" align="start">
+          <Palette.Panel
+            items={groups}
+            value={search}
+            onValueChange={setSearch}
+            itemToStringValue={(group: SwitcherGroup) => group.label ?? group.id}
+            className="max-h-96 bg-transparent"
+          >
+            <Palette.Input placeholder="Search projects…" />
+            <Palette.List className="ring-0">
+              <Palette.Results>
+                {(group: SwitcherGroup) => (
+                  <Palette.Group key={group.id} items={group.items}>
+                    {group.label === undefined ? null : (
+                      <Palette.GroupLabel>{group.label}</Palette.GroupLabel>
+                    )}
+                    <Palette.Items>
+                      {(item: SwitcherItem) => (
+                        <Palette.Item
+                          key={item.id}
+                          value={item}
+                          onClick={() => {
+                            select(item);
+                          }}
+                        >
+                          <span className="text-kumo-subtle flex shrink-0 items-center">
+                            {item.icon}
+                          </span>
+                          <span className="truncate">{item.label}</span>
+                          {item.checked ? (
+                            <CheckIcon
+                              strokeWidth={2}
+                              className="text-kumo-subtle ml-auto size-4"
+                            />
+                          ) : null}
+                        </Palette.Item>
+                      )}
+                    </Palette.Items>
+                  </Palette.Group>
+                )}
+              </Palette.Results>
+              {projects.length === 0 ? (
+                <p className="text-kumo-subtle py-6 text-center text-sm">
+                  {isSearching && searchResults.isPending ? "Searching…" : "No projects found."}
+                </p>
+              ) : null}
+            </Palette.List>
+          </Palette.Panel>
+        </Popover.Content>
       </Popover>
       <Dialog
         open={createOpen}

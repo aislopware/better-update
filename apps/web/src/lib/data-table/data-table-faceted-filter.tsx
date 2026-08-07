@@ -1,19 +1,11 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { CommandPalette as Palette } from "@better-update/ui/components/command-palette";
+import { Popover } from "@better-update/ui/components/popover";
 import { Separator } from "@better-update/ui/components/separator";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@better-update/ui/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@better-update/ui/components/ui/popover";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, CirclePlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { LucideIcon } from "lucide-react";
 
@@ -32,8 +24,8 @@ export interface DataTableFacetedFilterProps {
   readonly onChange: (next: readonly string[]) => void;
   /**
    * Server-search mode (opt-in): when `onSearchChange` is provided the option
-   * list is filtered server-side — cmdk's client filtering turns off and the
-   * search input becomes controlled. Pair with `useServerSearchList`.
+   * list arrives already filtered and the search input becomes controlled, so
+   * the local match below stands down. Pair with `useServerSearchList`.
    */
   readonly search?: string;
   readonly onSearchChange?: (next: string) => void;
@@ -43,6 +35,17 @@ export interface DataTableFacetedFilterProps {
 }
 
 const MAX_BADGES = 2;
+
+interface FilterEntry {
+  readonly id: string;
+  readonly option?: FacetedFilterOption;
+  readonly run: () => void;
+}
+
+interface FilterGroup {
+  readonly id: string;
+  readonly items: FilterEntry[];
+}
 
 const SelectedSummary = ({
   options,
@@ -72,10 +75,23 @@ const SelectedSummary = ({
   </>
 );
 
+/** Decoration, not a control: the row itself is the checkbox. */
+const CheckSquare = ({ checked }: { checked: boolean }) => (
+  <span
+    className={cn(
+      "ring-kumo-line flex size-4 shrink-0 items-center justify-center rounded-[4px] ring",
+      checked ? "bg-kumo-brand text-kumo-inverse ring-kumo-brand" : "[&_svg]:invisible",
+    )}
+  >
+    <CheckIcon strokeWidth={2.5} className="size-3" />
+  </span>
+);
+
 /**
- * Faceted filter chip (shadcn data-table pattern): dashed outline trigger with
- * selected-value badges, opening a Command popover with checkbox items.
- * Controlled by URL search state — filtering itself stays server-side.
+ * Faceted filter chip: dashed outline trigger with selected-value badges,
+ * opening the command palette's panel — the same keyboard model as ⌘K, minus
+ * its dialog — over checkbox rows. Toggling keeps the popover open so several
+ * values can be picked in one visit; filtering itself stays server-side.
  */
 export const DataTableFacetedFilter = ({
   title,
@@ -88,104 +104,133 @@ export const DataTableFacetedFilter = ({
   defaultListTruncated = false,
 }: DataTableFacetedFilterProps) => {
   const [open, setOpen] = useState(false);
+  const [localSearch, setLocalSearch] = useState("");
   const serverSearched = onSearchChange !== undefined;
+  const query = serverSearched ? search : localSearch;
 
-  // Always multiselect: toggling keeps the popover open so several values can
-  // be picked in one visit.
-  const toggle = (value: string): void => {
-    onChange(
-      selected.includes(value) ? selected.filter((entry) => entry !== value) : [...selected, value],
-    );
-  };
+  const visible = useMemo(() => {
+    if (serverSearched) {
+      return options;
+    }
+    const needle = localSearch.trim().toLowerCase();
+    return needle === ""
+      ? options
+      : options.filter((option) => option.label.toLowerCase().includes(needle));
+  }, [localSearch, options, serverSearched]);
+
+  const groups = useMemo<FilterGroup[]>(
+    () =>
+      [
+        {
+          id: "options",
+          items: visible.map((option) => ({
+            id: option.value,
+            option,
+            run: () => {
+              onChange(
+                selected.includes(option.value)
+                  ? selected.filter((entry) => entry !== option.value)
+                  : [...selected, option.value],
+              );
+            },
+          })),
+        },
+        {
+          id: "clear",
+          items:
+            selected.length > 0
+              ? [
+                  {
+                    id: "clear-filters",
+                    run: () => {
+                      onChange([]);
+                      setOpen(false);
+                    },
+                  },
+                ]
+              : [],
+        },
+      ].filter((group) => group.items.length > 0),
+    [visible, selected, onChange],
+  );
 
   return (
     <Popover
       open={open}
       onOpenChange={setOpen}
-      onOpenChangeComplete={(next) => {
+      onOpenChangeComplete={(next: boolean) => {
         if (!next) {
           onSearchChange?.("");
+          setLocalSearch("");
         }
       }}
     >
-      <PopoverTrigger render={<Button variant="secondary" className="border-dashed" />}>
+      <Popover.Trigger render={<Button variant="secondary" className="border-dashed" />}>
         <CirclePlusIcon strokeWidth={2} />
         {title}
         {selected.length > 0 ? <SelectedSummary options={options} selected={selected} /> : null}
-      </PopoverTrigger>
-      <PopoverContent className="w-52 p-0" align="start">
-        <Command shouldFilter={!serverSearched}>
-          {serverSearched ? (
-            <CommandInput placeholder={title} value={search} onValueChange={onSearchChange} />
-          ) : (
-            <CommandInput placeholder={title} />
-          )}
-          <CommandList>
-            {/* CommandEmpty never fires with shouldFilter=false, so the
-                server-searched empty state is manual. */}
-            {serverSearched ? null : <CommandEmpty>No results found.</CommandEmpty>}
-            {serverSearched && options.length === 0 ? (
-              <div className="text-muted-foreground py-6 text-center text-sm">
-                {isPending ? "Searching…" : "No results found."}
-              </div>
-            ) : null}
-            <CommandGroup>
-              {options.map((option) => {
-                const isSelected = selected.includes(option.value);
-                return (
-                  <CommandItem
-                    key={option.value}
-                    onSelect={() => {
-                      toggle(option.value);
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        "border-input flex size-4 items-center justify-center rounded-[4px] border",
-                        isSelected
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "[&_svg]:invisible",
-                      )}
-                    >
-                      <CheckIcon strokeWidth={2.5} className="size-3" />
-                    </span>
-                    {option.icon ? (
-                      <option.icon strokeWidth={2} className="text-muted-foreground" />
-                    ) : null}
-                    <span className="truncate">{option.label}</span>
-                    {option.count === undefined ? null : (
-                      <span className="text-muted-foreground ml-auto font-mono text-xs tabular-nums">
-                        {option.count}
-                      </span>
+      </Popover.Trigger>
+      <Popover.Content className="w-56 p-0" align="start">
+        <Palette.Panel
+          items={groups}
+          value={query}
+          onValueChange={serverSearched ? onSearchChange : setLocalSearch}
+          itemToStringValue={(group: FilterGroup) => group.id}
+          className="max-h-96 bg-transparent"
+        >
+          <Palette.Input placeholder={title} />
+          <Palette.List className="ring-0">
+            <Palette.Results>
+              {(group: FilterGroup) => (
+                <Palette.Group key={group.id} items={group.items}>
+                  <Palette.Items>
+                    {(entry: FilterEntry) => (
+                      <Palette.Item
+                        key={entry.id}
+                        value={entry}
+                        className={entry.option ? "" : "justify-center text-center"}
+                        onClick={() => {
+                          entry.run();
+                        }}
+                      >
+                        {entry.option ? (
+                          <>
+                            <CheckSquare checked={selected.includes(entry.option.value)} />
+                            {entry.option.icon ? (
+                              <entry.option.icon
+                                strokeWidth={2}
+                                className="text-kumo-subtle size-4 shrink-0"
+                              />
+                            ) : null}
+                            <span className="truncate">{entry.option.label}</span>
+                            {entry.option.count === undefined ? null : (
+                              <span className="text-kumo-subtle ml-auto font-mono text-xs tabular-nums">
+                                {entry.option.count}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          "Clear filters"
+                        )}
+                      </Palette.Item>
                     )}
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-            {selected.length > 0 ? (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() => {
-                      onChange([]);
-                      setOpen(false);
-                    }}
-                    className="justify-center text-center"
-                  >
-                    Clear filters
-                  </CommandItem>
-                </CommandGroup>
-              </>
+                  </Palette.Items>
+                </Palette.Group>
+              )}
+            </Palette.Results>
+            {visible.length === 0 ? (
+              <p className="text-kumo-subtle py-6 text-center text-sm">
+                {serverSearched && isPending ? "Searching…" : "No results found."}
+              </p>
             ) : null}
-            {defaultListTruncated && !search ? (
-              <p className="text-muted-foreground border-t px-3 py-2 text-xs">
+            {defaultListTruncated && !query ? (
+              <p className="text-kumo-subtle border-kumo-hairline mt-1 border-t px-3 py-2 text-xs">
                 Showing the first {options.length} — type to search all.
               </p>
             ) : null}
-          </CommandList>
-        </Command>
-      </PopoverContent>
+          </Palette.List>
+        </Palette.Panel>
+      </Popover.Content>
     </Popover>
   );
 };

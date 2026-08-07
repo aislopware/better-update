@@ -15,6 +15,7 @@ export default defineConfig({
     "src/components/*.tsx",
     "!src/components/avatar.tsx",
     "!src/components/card.tsx",
+    "!src/components/date-range-picker.tsx",
     "!src/components/dialog.tsx",
     "!src/components/field.tsx",
     "!src/components/field-layout.tsx",

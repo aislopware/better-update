@@ -1,6 +1,7 @@
 import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Button } from "@better-update/ui/components/button";
+import { DateRangePicker } from "@better-update/ui/components/date-range-picker";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
-import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { BotIcon, BracesIcon, ScrollTextIcon } from "lucide-react";
 import { z } from "zod";

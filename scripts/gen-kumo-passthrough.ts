@@ -31,7 +31,6 @@ const COMPONENTS = [
   "combobox",
   "command-palette",
   "date-picker",
-  "date-range-picker",
   "dropdown",
   "empty",
   "flow",
@@ -58,11 +57,14 @@ const COMPONENTS = [
   "toolbar",
   "tooltip",
 ];
-// `avatar`, `card`, `dialog`, `field`, `item`, `kbd`, `separator`, `skeleton`,
-// `table` and `toast` are deliberately absent: all ten are hand-written. Kumo
-// has no avatar, no list row (`LayerCard` is the nearest surface, and its card
-// padding is wrong for a row that repeats down a page) and no keycap (its menu
-// `Shortcut` is bare dimmed text). It ships no default toast
+// `avatar`, `card`, `date-range-picker`, `dialog`, `field`, `item`, `kbd`,
+// `separator`, `skeleton`, `table` and `toast` are deliberately absent: all
+// eleven are hand-written. Kumo has no avatar, no list row (`LayerCard` is the
+// nearest surface, and its card padding is wrong for a row that repeats down a
+// page) and no keycap (its menu `Shortcut` is bare dimmed text). Its own
+// `DateRangePicker` keeps the range in local state with no way to seed or read
+// it, so ours composes the controlled calendar behind it instead. It ships no
+// default toast
 // manager and no `toast.success` / `toast.error` sugar, its `Field` takes only
 // the structured error shape its `Input` normalizes, its `Dialog` is the bare
 // popup — no header, footer, dismiss control or padding — its `Table` leaves
