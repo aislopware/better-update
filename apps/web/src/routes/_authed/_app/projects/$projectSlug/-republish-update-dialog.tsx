@@ -90,7 +90,8 @@ const RepublishForm = ({
         <form.Field name="message">
           {(field) => (
             <Textarea
-              label="Message (optional)"
+              label="Message"
+              required={false}
               id="republish-message"
               value={field.state.value}
               onChange={(event) => {

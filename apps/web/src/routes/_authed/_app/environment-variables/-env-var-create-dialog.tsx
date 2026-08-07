@@ -254,7 +254,8 @@ const CreateForm = ({
             <form.Field name="label">
               {(field) => (
                 <Input
-                  label="Label (optional)"
+                  label="Label"
+                  required={false}
                   id="env-var-create-label"
                   autoComplete="off"
                   maxLength={120}
@@ -270,7 +271,8 @@ const CreateForm = ({
             <form.Field name="description">
               {(field) => (
                 <Textarea
-                  label="Description (optional)"
+                  label="Description"
+                  required={false}
                   id="env-var-create-description"
                   rows={2}
                   autoComplete="off"

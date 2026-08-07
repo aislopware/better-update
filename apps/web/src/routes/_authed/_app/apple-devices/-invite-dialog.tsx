@@ -160,7 +160,8 @@ const CreateInviteForm = ({
             const errorMessage = getFieldError(field);
             return (
               <Input
-                label="Device name hint (optional)"
+                label="Device name hint"
+                required={false}
                 description="Shown on the landing page. Device owner can override."
                 error={errorMessage}
                 id="invite-name"

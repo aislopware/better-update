@@ -192,7 +192,8 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         <form.Field name="model">
           {(field) => (
             <Input
-              label="Model (optional)"
+              label="Model"
+              required={false}
               id="device-model"
               placeholder="iPhone 15 Pro"
               value={field.state.value}

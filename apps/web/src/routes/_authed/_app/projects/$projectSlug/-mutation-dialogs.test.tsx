@@ -323,7 +323,9 @@ describe("mutation dialogs", () => {
     );
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
-    await user.type(screen.getByLabelText("Message (optional)"), "Restart rollout");
+    // Matched loosely: the field is labelled "Message" and Kumo appends its own
+    // "(optional)" marker inside the same label element.
+    await user.type(screen.getByLabelText(/^Message/), "Restart rollout");
     await user.click(screen.getByRole("button", { name: "Republish" }));
 
     await waitFor(() => {
