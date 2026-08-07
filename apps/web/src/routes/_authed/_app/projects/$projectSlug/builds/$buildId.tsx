@@ -121,7 +121,7 @@ const BuildMetadataCard = ({
             <Link
               to="/projects/$projectSlug/fingerprints/$hash"
               params={{ projectSlug, hash: build.fingerprintHash }}
-              className="hover:text-kumo-default text-kumo-subtle min-w-0 font-mono text-sm break-all transition-colors"
+              className="hover:text-kumo-default text-kumo-subtle min-w-0 font-mono text-sm break-all"
             >
               {build.fingerprintHash}
             </Link>
@@ -307,7 +307,7 @@ const RelatedChannelsCard = ({
                 <Link
                   to="/projects/$projectSlug/channels/$channelId"
                   params={{ projectSlug, channelId: channel.channelId }}
-                  className="text-kumo-subtle hover:text-kumo-default shrink-0 text-sm transition-colors"
+                  className="text-kumo-subtle hover:text-kumo-default shrink-0 text-sm"
                 >
                   Open →
                 </Link>

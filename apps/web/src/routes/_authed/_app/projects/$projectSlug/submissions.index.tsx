@@ -92,7 +92,7 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
         <Link
           to="/projects/$projectSlug/builds/$buildId"
           params={{ projectSlug, buildId: row.original.buildId }}
-          className="text-kumo-subtle hover:text-kumo-default text-sm underline-offset-4 transition-colors hover:underline"
+          className="text-kumo-subtle hover:text-kumo-default text-sm underline-offset-4 hover:underline"
         >
           View build →
         </Link>

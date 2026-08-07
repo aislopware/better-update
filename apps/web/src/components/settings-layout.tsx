@@ -52,7 +52,7 @@ export const SettingsLayout = ({
                     to={item.to}
                     activeOptions={{ exact: true }}
                     className={cn(
-                      "group/settings-nav-item flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
+                      "group/settings-nav-item flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm",
                       "text-kumo-subtle hover:bg-kumo-tint hover:text-kumo-default",
                       "data-status-active:bg-kumo-tint data-status-active:text-kumo-default data-status-active:font-medium",
                     )}

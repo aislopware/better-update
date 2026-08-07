@@ -85,7 +85,7 @@ const IosEmpty = () => (
 );
 
 const ROW_CLASS =
-  "hover:bg-kumo-tint/50 flex items-center justify-between gap-2 px-3 py-3 font-mono text-sm transition-colors";
+  "hover:bg-kumo-tint/50 flex items-center justify-between gap-2 px-3 py-3 font-mono text-sm";
 
 const AndroidIdentifierRow = ({
   projectSlug,

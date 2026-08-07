@@ -80,7 +80,7 @@ const UpdateRow = ({
   <Link
     to="/projects/$projectSlug/updates/$updateId"
     params={{ projectSlug, updateId: update.id }}
-    className="hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-2 py-2.5 transition-colors first:pt-0 last:border-0 last:pb-0"
+    className="hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-2 py-2.5 first:pt-0 last:border-0 last:pb-0"
   >
     <div className="flex min-w-0 flex-col gap-0.5">
       <span className="flex items-center gap-2">
@@ -235,7 +235,7 @@ const RuntimeDetailContent = () => {
                   to="/projects/$projectSlug/updates"
                   params={{ projectSlug }}
                   search={{ page: 1, sort: "-createdAt" as const }}
-                  className="text-kumo-subtle hover:text-kumo-default pt-3 text-sm transition-colors"
+                  className="text-kumo-subtle hover:text-kumo-default pt-3 text-sm"
                 >
                   View all updates →
                 </Link>

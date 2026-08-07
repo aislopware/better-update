@@ -7,7 +7,10 @@ import { CopyButton } from "../lib/copy-button";
  * the dedicated `terminal` tokens.
  */
 export const CliCommandBlock = ({ commands }: { commands: readonly string[] }) => (
-  <div className="bg-terminal text-terminal-foreground dark:border-kumo-line flex flex-col gap-1 rounded-lg border border-transparent p-3 text-left shadow-2xs">
+  // A ring rather than a border, because the panel also casts a shadow: a
+  // border drawn under one softens the edge instead of defining it, which is
+  // why Kumo's own shadowed surfaces ring themselves.
+  <div className="bg-terminal text-terminal-foreground dark:ring-kumo-line flex flex-col gap-1 rounded-lg p-3 text-left shadow-2xs ring ring-transparent">
     {commands.map((command) => (
       <div key={command} className="group/cli flex items-center justify-between gap-2">
         <code className="truncate font-mono text-xs">

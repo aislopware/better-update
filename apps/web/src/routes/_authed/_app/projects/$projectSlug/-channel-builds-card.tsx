@@ -117,7 +117,7 @@ export const ChannelBuildsCard = ({
           <Link
             to="/projects/$projectSlug/builds"
             params={{ projectSlug }}
-            className="text-kumo-subtle hover:text-kumo-default text-sm transition-colors"
+            className="text-kumo-subtle hover:text-kumo-default text-sm"
           >
             {hiddenCount} more compatible {pluralize(hiddenCount, "build")} — view all builds →
           </Link>

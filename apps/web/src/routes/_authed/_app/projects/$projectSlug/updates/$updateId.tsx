@@ -114,7 +114,7 @@ const OverviewCard = ({
               <Link
                 to="/projects/$projectSlug/fingerprints/$hash"
                 params={{ projectSlug, hash: primary.fingerprintHash }}
-                className="hover:text-kumo-default text-kumo-subtle inline-flex items-center gap-1 font-mono text-xs transition-colors"
+                className="hover:text-kumo-default text-kumo-subtle inline-flex items-center gap-1 font-mono text-xs"
               >
                 <FingerprintIcon weight="bold" className="size-3" />
                 {primary.fingerprintHash.slice(0, 16)}

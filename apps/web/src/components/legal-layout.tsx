@@ -52,16 +52,10 @@ const LegalHeader = () => (
         <BrandWordmark iconSize={32} />
       </Link>
       <nav className="flex items-center gap-4 text-sm">
-        <Link
-          to="/terms"
-          className="text-kumo-subtle hover:text-kumo-default hidden transition-colors sm:inline"
-        >
+        <Link to="/terms" className="text-kumo-subtle hover:text-kumo-default hidden sm:inline">
           Terms
         </Link>
-        <Link
-          to="/privacy"
-          className="text-kumo-subtle hover:text-kumo-default hidden transition-colors sm:inline"
-        >
+        <Link to="/privacy" className="text-kumo-subtle hover:text-kumo-default hidden sm:inline">
           Privacy
         </Link>
         <LinkButton variant="primary" size="sm" href="/auth/login">

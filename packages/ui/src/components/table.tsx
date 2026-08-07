@@ -40,7 +40,7 @@ export const Table = ({
         // Kumo leaves rows inert. A dashboard table is scanned row-wise, so the
         // row under the pointer — or the one whose action menu is open — reads
         // as the active one.
-        "[&_tbody_tr:hover]:bg-kumo-tint [&_tbody_tr:has([aria-expanded=true])]:bg-kumo-tint [&_tbody_tr]:transition-colors",
+        "[&_tbody_tr:hover]:bg-kumo-tint [&_tbody_tr:has([aria-expanded=true])]:bg-kumo-tint",
         // Wrapping is what makes a wide table unreadable: it ripples one long
         // value into every row's height. Cells keep to one line and the
         // container scrolls instead.

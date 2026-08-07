@@ -69,10 +69,10 @@ export const Item = ({
     props: mergeProps<"div">(
       {
         className: cn(
-          "group/item flex w-full flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+          "group/item flex w-full flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm",
           "focus-visible:ring-kumo-brand outline-none focus-visible:ring-2",
           // Rows that are themselves links pick up a hover surface.
-          "[a]:hover:bg-kumo-tint [a]:transition-colors",
+          "[a]:hover:bg-kumo-tint",
           ITEM_VARIANTS[variant],
           className,
         ),

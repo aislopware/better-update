@@ -102,10 +102,7 @@ const RecentActivityCard = ({ orgId }: { orgId: string }) => {
       <CardHeader>
         <CardTitle>Recent activity</CardTitle>
         <CardAction>
-          <Link
-            to="/audit-log"
-            className="text-kumo-subtle hover:text-kumo-default text-sm transition-colors"
-          >
+          <Link to="/audit-log" className="text-kumo-subtle hover:text-kumo-default text-sm">
             View audit log →
           </Link>
         </CardAction>
