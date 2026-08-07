@@ -150,7 +150,7 @@ describe("dashboard credentials + robot accounts + audit log (browser)", () => {
 
     // Scope to the dialog content by slot: Base UI toasts also expose
     // role="dialog", so a role lookup could resolve to two.
-    const dialog = page.locator('[data-slot="dialog-content"]');
+    const dialog = page.locator('[role="dialog"]');
     await dialog.getByRole("heading", { name: "Edit robot account" }).waitFor();
     await dialog.getByLabel("Name").fill(renamedRobot);
     await dialog.getByRole("button", { name: "Save changes" }).click();

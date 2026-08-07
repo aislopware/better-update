@@ -1,6 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
+import { DialogClose, DialogFooter } from "@better-update/ui/components/dialog";
 import { Input } from "@better-update/ui/components/input";
-import { DialogClose, DialogFooter } from "@better-update/ui/components/ui/dialog";
 import { useForm } from "@tanstack/react-form";
 
 import type { LucideIcon } from "lucide-react";

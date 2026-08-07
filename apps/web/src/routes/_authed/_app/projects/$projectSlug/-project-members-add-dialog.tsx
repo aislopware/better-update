@@ -1,8 +1,5 @@
 import { addProjectMember, projectMembersQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { Field } from "@better-update/ui/components/field";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -12,7 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Select,
   SelectContent,
@@ -189,7 +189,7 @@ export const AddProjectMemberDialog = ({
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Add member
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Add a project member</DialogTitle>
           <DialogDescription>

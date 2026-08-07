@@ -1,9 +1,5 @@
 import { republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { Field } from "@better-update/ui/components/field";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Textarea } from "@better-update/ui/components/input";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +7,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Textarea } from "@better-update/ui/components/input";
+import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
@@ -146,7 +146,7 @@ export const RepublishUpdateDialog = ({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Republish update</DialogTitle>
           <DialogDescription>

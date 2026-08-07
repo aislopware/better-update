@@ -1,8 +1,4 @@
 import { Button } from "@better-update/ui/components/button";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Input } from "@better-update/ui/components/input";
-import { Link } from "@better-update/ui/components/link";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -12,7 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
+import { Link } from "@better-update/ui/components/link";
+import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FingerprintIcon, LockKeyholeOpenIcon } from "lucide-react";

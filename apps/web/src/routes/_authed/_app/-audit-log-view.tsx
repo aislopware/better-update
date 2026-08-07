@@ -1,8 +1,6 @@
 import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Button } from "@better-update/ui/components/button";
-import { Card } from "@better-update/ui/components/ui/card";
-import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Card } from "@better-update/ui/components/ui/card";
+import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Empty,
   EmptyDescription,
@@ -313,7 +313,7 @@ const MetadataDialog = ({
 }) => (
   <Dialog>
     <DialogTrigger render={metadataTrigger} />
-    <DialogContent className="sm:max-w-2xl">
+    <DialogContent size="xl">
       <DialogHeader>
         <DialogTitle>
           <span className="font-mono text-xs tracking-wider uppercase">{action}</span> metadata

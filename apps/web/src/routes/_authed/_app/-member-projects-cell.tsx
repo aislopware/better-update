@@ -11,8 +11,6 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Checkbox } from "@better-update/ui/components/checkbox";
-import { Switch } from "@better-update/ui/components/switch";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -21,7 +19,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Switch } from "@better-update/ui/components/switch";
+import { toast } from "@better-update/ui/components/toast";
 import {
   InputGroup,
   InputGroupAddon,
@@ -457,7 +457,7 @@ export const ManageProjectsDialog = ({
         }
       }}
     >
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Project memberships</DialogTitle>
           <DialogDescription>

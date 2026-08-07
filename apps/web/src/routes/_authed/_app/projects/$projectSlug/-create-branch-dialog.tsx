@@ -1,6 +1,5 @@
 import { branchesQueryKey, createBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";

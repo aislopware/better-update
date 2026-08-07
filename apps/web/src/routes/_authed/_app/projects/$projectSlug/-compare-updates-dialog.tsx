@@ -1,15 +1,15 @@
 import { updateAssetsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Label } from "@better-update/ui/components/label";
-import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Label } from "@better-update/ui/components/label";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Empty,
   EmptyDescription,
@@ -423,7 +423,7 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
           }
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent size="xl">
           <DialogHeader>
             <DialogTitle>Compare updates</DialogTitle>
             <DialogDescription>

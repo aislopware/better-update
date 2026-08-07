@@ -21,9 +21,16 @@ interface Props extends Omit<FieldProps, "error"> {
   readonly error?: string | { message: ReactNode; match: FieldErrorMatch } | undefined;
 }
 
-export const Field = ({ error, children, ...props }: Props) => (
-  // eslint-disable-next-line react/jsx-props-no-spreading -- thin widening wrapper over Kumo's Field
-  <KumoField {...props} error={normalizeFieldError(error)}>
-    {children}
-  </KumoField>
-);
+export const Field = ({ error, children, ...props }: Props) => {
+  // Spread rather than passed: `exactOptionalPropertyTypes` rejects an explicit
+  // `undefined` for an optional prop declared without it, and "no error" is the
+  // common case here.
+  const normalized = normalizeFieldError(error);
+
+  return (
+    // eslint-disable-next-line react/jsx-props-no-spreading -- thin widening wrapper over Kumo's Field
+    <KumoField {...props} {...(normalized ? { error: normalized } : {})}>
+      {children}
+    </KumoField>
+  );
+};

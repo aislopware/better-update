@@ -1,5 +1,4 @@
 import { Button } from "@better-update/ui/components/button";
-import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
   DialogClose,
@@ -8,7 +7,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   InputGroup,
   InputGroupAddon,
@@ -84,7 +84,7 @@ export const EnvVarRevealDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-lg">
+    <DialogContent size="lg">
       <DialogHeader>
         <DialogTitle>
           Value of <span className="font-mono">{envVar.key}</span>

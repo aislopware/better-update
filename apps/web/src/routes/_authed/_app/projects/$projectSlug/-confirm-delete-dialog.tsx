@@ -1,6 +1,4 @@
 import { Button } from "@better-update/ui/components/button";
-import { Input } from "@better-update/ui/components/input";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -10,7 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Input } from "@better-update/ui/components/input";
+import { toast } from "@better-update/ui/components/toast";
 import { useState } from "react";
 
 import type { ReactElement } from "react";

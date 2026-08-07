@@ -1,13 +1,13 @@
 import { buildsQueryOptions, channelsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Empty,
   EmptyDescription,
@@ -215,7 +215,7 @@ export const PreviewUpdateDialog = ({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Preview update</DialogTitle>
           <DialogDescription>

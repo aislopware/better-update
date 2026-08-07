@@ -1,6 +1,13 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@better-update/ui/components/dialog";
+import {
   Command,
   CommandGroup,
   CommandInput,
@@ -8,13 +15,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@better-update/ui/components/ui/command";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@better-update/ui/components/ui/popover";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -156,7 +156,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
           }
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>Create a project</DialogTitle>
             <DialogDescription>

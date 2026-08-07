@@ -3,6 +3,13 @@ import { fetchInstallLink } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@better-update/ui/components/dialog";
 import { Loader } from "@better-update/ui/components/loader";
 import {
   Alert,
@@ -10,13 +17,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@better-update/ui/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
 import {
   InputGroup,
   InputGroupAddon,
@@ -183,7 +183,7 @@ export const InstallLinkDialog = ({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Install link</DialogTitle>
             <DialogDescription>

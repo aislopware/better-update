@@ -16,10 +16,12 @@ type ToastOptions = Omit<Parameters<typeof toastManager.add>[0], "title" | "vari
 // Reach for `toastManager` directly for anything past these two — it also
 // carries `promise()`, `update()` and the `info` / `warning` variants.
 export const toast = {
-  success: (title: ReactNode, options?: ToastOptions) =>
-    toastManager.add({ ...options, title, variant: "success" }),
-  error: (title: ReactNode, options?: ToastOptions) =>
-    toastManager.add({ ...options, title, variant: "error" }),
+  success: (title: ReactNode, options?: ToastOptions): void => {
+    toastManager.add({ ...options, title, variant: "success" });
+  },
+  error: (title: ReactNode, options?: ToastOptions): void => {
+    toastManager.add({ ...options, title, variant: "error" });
+  },
 };
 
 export const Toaster = ({ children }: { children: ReactNode }) => {

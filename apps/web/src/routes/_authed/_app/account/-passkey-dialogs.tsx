@@ -1,4 +1,14 @@
 import { Button } from "@better-update/ui/components/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@better-update/ui/components/dialog";
 import { Input } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
@@ -12,16 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
 import { useForm } from "@tanstack/react-form";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";

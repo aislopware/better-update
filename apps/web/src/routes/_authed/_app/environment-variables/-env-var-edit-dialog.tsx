@@ -1,10 +1,6 @@
 import { updateEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Textarea } from "@better-update/ui/components/input";
-import { Loader } from "@better-update/ui/components/loader";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -13,7 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Textarea } from "@better-update/ui/components/input";
+import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
@@ -230,7 +230,7 @@ export const EnvVarEditDialog = ({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>
             Edit <span className="font-mono">{envVar.key}</span>

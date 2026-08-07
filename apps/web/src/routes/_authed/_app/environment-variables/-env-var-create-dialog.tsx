@@ -1,6 +1,16 @@
 import { createEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@better-update/ui/components/dialog";
 import { Field } from "@better-update/ui/components/field";
 import {
   FieldGroup,
@@ -11,16 +21,6 @@ import {
 } from "@better-update/ui/components/field-layout";
 import { Input, Textarea } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -373,7 +373,7 @@ export const EnvVarCreateDialog = ({
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add variable
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Add an environment variable</DialogTitle>
           <DialogDescription>

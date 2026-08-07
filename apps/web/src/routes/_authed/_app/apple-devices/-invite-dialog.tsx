@@ -3,9 +3,6 @@ import {
   registrationRequestsQueryKey,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { Field } from "@better-update/ui/components/field";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Input } from "@better-update/ui/components/input";
 import {
   Dialog,
   DialogClose,
@@ -15,7 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -329,7 +329,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         <LinkIcon strokeWidth={2} data-icon="inline-start" />
         Invite link
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{invite ? "Share invite link" : "Create invite link"}</DialogTitle>
           <DialogDescription>

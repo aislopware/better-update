@@ -1,7 +1,4 @@
 import { Button } from "@better-update/ui/components/button";
-import { Field } from "@better-update/ui/components/field";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Input } from "@better-update/ui/components/input";
 import {
   Dialog,
   DialogClose,
@@ -10,7 +7,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -165,7 +165,7 @@ export const CreateOrgDialog = ({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Create organization</DialogTitle>
           <DialogDescription>

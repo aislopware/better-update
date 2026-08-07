@@ -1,7 +1,5 @@
 import { channelsQueryOptions, republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { Field } from "@better-update/ui/components/field";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +7,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { Field } from "@better-update/ui/components/field";
+import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RocketIcon } from "lucide-react";
@@ -182,7 +182,7 @@ export const PromoteUpdateDialog = ({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Promote update</DialogTitle>
           <DialogDescription>

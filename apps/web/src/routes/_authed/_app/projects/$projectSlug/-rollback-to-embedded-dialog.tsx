@@ -1,7 +1,6 @@
 import { createUpdate } from "@better-update/api-client/react";
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { Button } from "@better-update/ui/components/button";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Undo2Icon } from "lucide-react";
 

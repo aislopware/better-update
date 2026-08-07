@@ -7,6 +7,9 @@
  * Add a component to the lists below rather than hand-writing the file, so
  * every entrypoint keeps importing granularly — the `@cloudflare/kumo` barrel
  * drags charts, maps and shiki into whatever chunk touches it.
+ *
+ * The generated files are lint-exempt; a hand-written neighbour has to be named
+ * in the negations in `packages/ui/oxlint.config.ts` to stay linted.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,7 +32,6 @@ const COMPONENTS = [
   "command-palette",
   "date-picker",
   "date-range-picker",
-  "dialog",
   "dropdown",
   "empty",
   "flow",
@@ -57,9 +59,11 @@ const COMPONENTS = [
   "toolbar",
   "tooltip",
 ];
-// `field` and `toast` are deliberately absent: both are hand-written. Kumo
-// ships no default toast manager and no `toast.success` / `toast.error` sugar,
-// and its `Field` takes only the structured error shape its `Input` normalizes.
+// `dialog`, `field` and `toast` are deliberately absent: all three are
+// hand-written. Kumo ships no default toast manager and no `toast.success` /
+// `toast.error` sugar, its `Field` takes only the structured error shape its
+// `Input` normalizes, and its `Dialog` is the bare popup — no header, footer,
+// dismiss control or padding.
 
 /** Base UI primitives Kumo re-exports without styling them. */
 const PRIMITIVES = ["scroll-area", "separator", "toggle", "toggle-group"];

@@ -8,6 +8,16 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
@@ -23,16 +33,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
 import {
   InputGroup,
   InputGroupAddon,

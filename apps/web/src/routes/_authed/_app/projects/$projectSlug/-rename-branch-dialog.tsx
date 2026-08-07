@@ -1,7 +1,5 @@
 import { branchesQueryKey, renameBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { toast } from "@better-update/ui/components/toast";
-import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { toast } from "@better-update/ui/components/toast";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";
 import { useState } from "react";

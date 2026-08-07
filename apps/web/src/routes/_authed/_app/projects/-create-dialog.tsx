@@ -1,8 +1,5 @@
 import { createProject, projectsQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Input } from "@better-update/ui/components/input";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -12,7 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
+import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -164,7 +164,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create project
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Create a project</DialogTitle>
           <DialogDescription>

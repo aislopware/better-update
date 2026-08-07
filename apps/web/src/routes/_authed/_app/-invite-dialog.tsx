@@ -1,8 +1,5 @@
 import { createInvitation } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
-import { FieldGroup } from "@better-update/ui/components/field-layout";
-import { Input } from "@better-update/ui/components/input";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -12,7 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@better-update/ui/components/ui/dialog";
+} from "@better-update/ui/components/dialog";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
+import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
@@ -233,7 +233,7 @@ export const InviteDialog = ({
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Invite member
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Invite a member</DialogTitle>
           <DialogDescription>Send an invitation to join your organization.</DialogDescription>
