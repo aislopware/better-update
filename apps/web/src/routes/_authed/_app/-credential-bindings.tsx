@@ -23,13 +23,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 import {
   Popover,
   PopoverContent,
@@ -258,7 +254,7 @@ const BindingsChecklist = ({
     <div className="grid gap-3">
       {projects.length > CHECKLIST_FILTER_THRESHOLD || list.defaultListTruncated ? (
         <InputGroup>
-          <InputGroupInput
+          <InputGroup.Input
             type="search"
             value={list.search}
             placeholder="Filter projects…"
@@ -266,9 +262,9 @@ const BindingsChecklist = ({
               list.handleSearchChange(event.target.value);
             }}
           />
-          <InputGroupAddon>
+          <InputGroup.Addon>
             <SearchIcon />
-          </InputGroupAddon>
+          </InputGroup.Addon>
         </InputGroup>
       ) : null}
       <div className="grid max-h-[40vh] gap-3 overflow-y-auto">

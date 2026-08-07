@@ -12,11 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -195,7 +191,7 @@ const PlatformVariantAssets = ({
     <div className="flex flex-col gap-3">
       {assets.length > ASSET_FILTER_THRESHOLD ? (
         <InputGroup className="w-full sm:w-56">
-          <InputGroupInput
+          <InputGroup.Input
             type="search"
             value={query}
             placeholder="Filter assets…"
@@ -203,9 +199,9 @@ const PlatformVariantAssets = ({
               setQuery(event.target.value);
             }}
           />
-          <InputGroupAddon>
+          <InputGroup.Addon>
             <SearchIcon />
-          </InputGroupAddon>
+          </InputGroup.Addon>
         </InputGroup>
       ) : null}
       {visibleAssets.length === 0 ? (

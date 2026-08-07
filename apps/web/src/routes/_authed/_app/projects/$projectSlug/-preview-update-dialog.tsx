@@ -8,12 +8,8 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { Empty } from "@better-update/ui/components/empty";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { PackageIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -149,10 +145,10 @@ const PreviewBody = ({
       <div className="flex flex-col gap-2">
         <span className="text-muted-foreground text-xs font-medium uppercase">Update group</span>
         <InputGroup>
-          <InputGroupInput readOnly value={update.groupId} className="font-mono text-xs" />
-          <InputGroupAddon align="inline-end">
+          <InputGroup.Input readOnly value={update.groupId} className="font-mono text-xs" />
+          <InputGroup.Addon align="end">
             <CopyButton value={update.groupId} label="Group ID" size="xs" />
-          </InputGroupAddon>
+          </InputGroup.Addon>
         </InputGroup>
       </div>
 

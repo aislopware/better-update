@@ -20,6 +20,7 @@ import {
 } from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Switch } from "@better-update/ui/components/switch";
 import {
   Table,
@@ -30,11 +31,6 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
@@ -422,7 +418,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
       />
       {items.length > TABLE_FILTER_THRESHOLD ? (
         <InputGroup className="w-full sm:w-56">
-          <InputGroupInput
+          <InputGroup.Input
             type="search"
             value={query}
             placeholder="Filter environments…"
@@ -430,9 +426,9 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
               setQuery(event.target.value);
             }}
           />
-          <InputGroupAddon>
+          <InputGroup.Addon>
             <SearchIcon />
-          </InputGroupAddon>
+          </InputGroup.Addon>
         </InputGroup>
       ) : null}
       {visibleItems.length === 0 && normalizedQuery ? (

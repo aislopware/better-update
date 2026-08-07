@@ -8,12 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 
 import type { EnvVar } from "@better-update/api";
 
@@ -56,10 +52,10 @@ const RevealBody = ({
   }
   return (
     <InputGroup>
-      <InputGroupInput readOnly value={guarded.value} className="font-mono text-sm" />
-      <InputGroupAddon align="inline-end">
+      <InputGroup.Input readOnly value={guarded.value} className="font-mono text-sm" />
+      <InputGroup.Addon align="end">
         <CopyButton value={guarded.value} label={envVar.key} size="xs" />
-      </InputGroupAddon>
+      </InputGroup.Addon>
     </InputGroup>
   );
 };

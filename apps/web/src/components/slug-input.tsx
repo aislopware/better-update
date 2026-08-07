@@ -1,23 +1,21 @@
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@better-update/ui/components/ui/input-group";
+import { InputGroup } from "@better-update/ui/components/input-group";
 
 import type { ComponentProps, ReactNode } from "react";
 
-interface SlugInputProps extends Omit<ComponentProps<typeof InputGroupInput>, "className"> {
+interface SlugInputProps extends Omit<ComponentProps<typeof InputGroup.Input>, "className"> {
   readonly addonStart: ReactNode;
   readonly className?: string;
 }
 
+/**
+ * A slug field prefixed by the fixed part of the URL it becomes. The prefix is
+ * a plain start addon — subdued text sharing the field's frame, the way Kumo
+ * renders `@` or `/api/` — so the eye reads one address rather than two boxes.
+ */
 export const SlugInput = ({ addonStart, className, ...props }: SlugInputProps) => (
   <InputGroup className={className} data-slot="slug-input">
-    <InputGroupAddon align="inline-start" className="border-input bg-muted/40 border-r ps-3 pe-2.5">
-      <InputGroupText className="text-muted-foreground/72">{addonStart}</InputGroupText>
-    </InputGroupAddon>
+    <InputGroup.Addon>{addonStart}</InputGroup.Addon>
     {/* eslint-disable-next-line react/jsx-props-no-spreading -- thin pass-through wrapper */}
-    <InputGroupInput {...props} />
+    <InputGroup.Input {...props} />
   </InputGroup>
 );

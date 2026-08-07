@@ -16,14 +16,9 @@ import {
   CardTitle,
 } from "@better-update/ui/components/card";
 import { Field } from "@better-update/ui/components/field";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { toast } from "@better-update/ui/components/toast";
 import { Tooltip } from "@better-update/ui/components/tooltip";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@better-update/ui/components/ui/input-group";
 import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -124,8 +119,8 @@ const ActiveRolloutSection = ({
       />
       <Field label="Rollout percentage" description={<>Share of clients served {newBranchName}.</>}>
         <div className="flex items-center gap-2">
-          <InputGroup className="w-28">
-            <InputGroupInput
+          <InputGroup className="w-28" disabled={isUpdatingRollout}>
+            <InputGroup.Input
               id="rollout-percentage"
               aria-label="Rollout percentage"
               type="number"
@@ -135,11 +130,8 @@ const ActiveRolloutSection = ({
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 setRolloutDraft(event.target.value);
               }}
-              disabled={isUpdatingRollout}
             />
-            <InputGroupAddon align="inline-end">
-              <InputGroupText>%</InputGroupText>
-            </InputGroupAddon>
+            <InputGroup.Suffix>%</InputGroup.Suffix>
           </InputGroup>
           <Button
             type="button"
@@ -263,8 +255,8 @@ const StartRolloutForm = ({
         <form.Field name="percentage">
           {(field) => (
             <Field label="Initial percentage" description="Share of clients to start with.">
-              <InputGroup className="w-28">
-                <InputGroupInput
+              <InputGroup className="w-28" disabled={createBranchRolloutMutation.isPending}>
+                <InputGroup.Input
                   id="rollout-start-percentage"
                   aria-label="Initial percentage"
                   type="number"
@@ -275,11 +267,8 @@ const StartRolloutForm = ({
                   onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     field.handleChange(event.target.value);
                   }}
-                  disabled={createBranchRolloutMutation.isPending}
                 />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupText>%</InputGroupText>
-                </InputGroupAddon>
+                <InputGroup.Suffix>%</InputGroup.Suffix>
               </InputGroup>
             </Field>
           )}

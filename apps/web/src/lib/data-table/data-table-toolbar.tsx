@@ -1,9 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { SearchIcon, XIcon } from "lucide-react";
 
 import type { ReactNode } from "react";
@@ -38,7 +34,7 @@ export const DataTableToolbar = ({
   <div className="flex flex-wrap items-center gap-2">
     {search ? (
       <InputGroup className="w-full sm:w-56">
-        <InputGroupInput
+        <InputGroup.Input
           type="search"
           value={search.value}
           placeholder={search.placeholder}
@@ -46,9 +42,9 @@ export const DataTableToolbar = ({
             search.onChange(event.target.value);
           }}
         />
-        <InputGroupAddon>
+        <InputGroup.Addon>
           <SearchIcon />
-        </InputGroupAddon>
+        </InputGroup.Addon>
       </InputGroup>
     ) : null}
     {children}

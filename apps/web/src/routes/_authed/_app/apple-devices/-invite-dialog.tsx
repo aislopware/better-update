@@ -16,12 +16,8 @@ import {
 import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Select } from "@better-update/ui/components/select";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkIcon } from "lucide-react";
@@ -91,15 +87,15 @@ const ShareInvite = ({
         }
       >
         <InputGroup>
-          <InputGroupInput
+          <InputGroup.Input
             readOnly
             aria-label="Invite link"
             value={invite.url}
             className="font-mono text-xs"
           />
-          <InputGroupAddon align="inline-end">
+          <InputGroup.Addon align="end">
             <CopyButton value={invite.url} label="Invite link" size="xs" />
-          </InputGroupAddon>
+          </InputGroup.Addon>
         </InputGroup>
       </Field>
     </div>

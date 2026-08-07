@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
+import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
 import {
   Alert,
@@ -17,11 +18,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@better-update/ui/components/ui/alert";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@better-update/ui/components/ui/input-group";
 import { cn } from "@better-update/ui/lib/utils";
 import { differenceInMinutes } from "date-fns";
 import { CircleAlertIcon, SmartphoneIcon } from "lucide-react";
@@ -114,18 +110,18 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
 
           <div className="flex w-full flex-col gap-2">
             <InputGroup>
-              <InputGroupInput readOnly value={primaryUrl} className="font-mono text-xs" />
-              <InputGroupAddon align="inline-end">
+              <InputGroup.Input readOnly value={primaryUrl} className="font-mono text-xs" />
+              <InputGroup.Addon align="end">
                 <CopyButton value={primaryUrl} label="Install link" size="xs" />
-              </InputGroupAddon>
+              </InputGroup.Addon>
             </InputGroup>
 
             {isIosInstall ? (
               <InputGroup>
-                <InputGroupInput readOnly value={data.artifactUrl} className="font-mono text-xs" />
-                <InputGroupAddon align="inline-end">
+                <InputGroup.Input readOnly value={data.artifactUrl} className="font-mono text-xs" />
+                <InputGroup.Addon align="end">
                   <CopyButton value={data.artifactUrl} label="Artifact URL" size="xs" />
-                </InputGroupAddon>
+                </InputGroup.Addon>
               </InputGroup>
             ) : null}
           </div>
