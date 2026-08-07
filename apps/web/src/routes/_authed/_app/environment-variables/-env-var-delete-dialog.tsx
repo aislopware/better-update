@@ -1,4 +1,5 @@
 import { deleteEnvVar } from "@better-update/api-client/react";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { toast } from "@better-update/ui/components/toast";
 
 import type { EnvVar } from "@better-update/api";
@@ -40,7 +41,7 @@ export const EnvVarDeleteDialog = ({
       onOpenChange={onOpenChange}
       title={
         <>
-          Delete <span className="font-mono">{envVar.key}</span>?
+          Delete <InlineCode>{envVar.key}</InlineCode>?
         </>
       }
       description={`This permanently removes the variable and all its revisions in the ${formatEnvironmentLabel(envVar.environment)} environment. This cannot be undone.`}

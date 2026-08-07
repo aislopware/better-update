@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import { PlusIcon } from "@phosphor-icons/react";
@@ -108,8 +109,8 @@ export const CreateProjectFormContent = ({
                 description={
                   <>
                     Must match{" "}
-                    <code className="bg-kumo-tint/72 rounded px-1 font-mono">expo.slug</code> in
-                    your <code className="bg-kumo-tint/72 rounded px-1 font-mono">app.json</code>.
+                    <InlineCode className="bg-kumo-tint/72 rounded px-1">expo.slug</InlineCode> in
+                    your <InlineCode className="bg-kumo-tint/72 rounded px-1">app.json</InlineCode>.
                   </>
                 }
                 error={errorMessage}

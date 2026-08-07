@@ -27,6 +27,7 @@ import type { ChangeEvent } from "react";
 import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
 import { assertCapability } from "../../../../lib/access";
+import { CopyChip } from "../../../../lib/copy-button";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
@@ -254,19 +255,29 @@ const DeleteOrgConfirmForm = ({
   const [confirmText, setConfirmText] = useState("");
   return (
     <>
-      <Input
-        label={
-          <>
-            Type <span className="font-mono font-bold">{slug}</span> to confirm
-          </>
-        }
-        id="confirm-delete"
-        value={confirmText}
-        onChange={(event) => {
-          setConfirmText(event.target.value);
-        }}
-        placeholder={slug}
-      />
+      <div className="flex flex-col gap-2">
+        {/* The prompt is a sibling of the field, not its label: the slug is a
+            button, and interactive content inside a label makes the click
+            target ambiguous. */}
+        <p className="flex flex-wrap items-center gap-1.5">
+          Type <CopyChip value={slug} /> to confirm
+        </p>
+        <Input
+          aria-label={`Type ${slug} to confirm deletion`}
+          id="confirm-delete"
+          value={confirmText}
+          onChange={(event) => {
+            setConfirmText(event.target.value);
+          }}
+          placeholder={slug}
+          // A slug typed to authorise destruction must be the slug, not what the
+          // browser guessed from a past form or corrected on the way in.
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+        />
+      </div>
       <DialogFooter>
         <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <Button
@@ -310,7 +321,10 @@ const DeleteOrgSection = () => {
       title="Danger zone"
       description="Permanently delete this organization and all of its data."
       footer={
+        // `alertdialog`, as every other confirmation here: a click landing
+        // outside must not throw away a half-typed slug and the intent behind it.
         <Dialog
+          role="alertdialog"
           open={open}
           onOpenChange={setOpen}
           onOpenChangeComplete={(next) => {
@@ -321,7 +335,7 @@ const DeleteOrgSection = () => {
         >
           <DialogTrigger render={deleteOrgTrigger} />
           <DialogContent>
-            <DialogHeader>
+            <DialogHeader showCloseButton={false}>
               <DialogTitle>Delete {activeOrg.name}?</DialogTitle>
               <DialogDescription>
                 This action cannot be undone. All projects, API keys, and members will be

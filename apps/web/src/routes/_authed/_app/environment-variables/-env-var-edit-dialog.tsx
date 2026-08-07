@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { Textarea } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
@@ -233,7 +234,7 @@ export const EnvVarEditDialog = ({
       <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>
-            Edit <span className="font-mono">{envVar.key}</span>
+            Edit <InlineCode>{envVar.key}</InlineCode>
           </DialogTitle>
           <DialogDescription>
             The new value is encrypted in your browser before it is uploaded.

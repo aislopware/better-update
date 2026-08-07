@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/dialog";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
 
@@ -83,7 +84,7 @@ export const EnvVarRevealDialog = ({
     <DialogContent size="lg">
       <DialogHeader>
         <DialogTitle>
-          Value of <span className="font-mono">{envVar.key}</span>
+          Value of <InlineCode>{envVar.key}</InlineCode>
         </DialogTitle>
         <DialogDescription>
           Decrypted in your browser. It is never sent to the server in plaintext.

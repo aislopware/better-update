@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
@@ -61,7 +62,7 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
           <SubmissionMetadataBadge complete={submission.metadataComplete} />
         </CardTitle>
         <CardDescription>
-          Profile <span className="font-mono">{submission.profileName}</span> · created{" "}
+          Profile <InlineCode>{submission.profileName}</InlineCode> · created{" "}
           {formatDateTime(submission.createdAt)}
         </CardDescription>
       </CardHeader>

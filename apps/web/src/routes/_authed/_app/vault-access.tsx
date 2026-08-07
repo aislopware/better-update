@@ -9,6 +9,7 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Banner } from "@better-update/ui/components/banner";
 import { Empty } from "@better-update/ui/components/empty";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import {
   Table,
   TableBody,
@@ -120,8 +121,7 @@ const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
       <>
         A recipient was removed from this organization{reason ? ` (${reason})` : ""}, so the vault
         must be rotated before credentials can be downloaded again. Run{" "}
-        <code className="font-mono text-xs">better-update credentials access rotate</code> from the
-        CLI.
+        <InlineCode>better-update credentials access rotate</InlineCode> from the CLI.
       </>
     }
   />
@@ -135,8 +135,7 @@ const EnvRotationPendingBanner = () => (
     description={
       <>
         An env-vault recipient was removed, so the env vault must be rotated before env values can
-        be read again. Run{" "}
-        <code className="font-mono text-xs">better-update credentials env-vault rotate</code> from
+        be read again. Run <InlineCode>better-update credentials env-vault rotate</InlineCode> from
         the CLI.
       </>
     }

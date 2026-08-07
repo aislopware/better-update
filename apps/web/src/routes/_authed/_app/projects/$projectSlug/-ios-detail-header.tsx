@@ -1,5 +1,6 @@
 import { iosBundleConfigurationsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { AppleIcon } from "../../../../../components/apple-icon";
@@ -44,7 +45,7 @@ export const IosDetailHeader = ({
           {targetName ? <Badge variant="secondary">Target: {targetName}</Badge> : null}
           {parentBundle ? (
             <Badge variant="outline">
-              Extension of <span className="ml-1 font-mono">{parentBundle}</span>
+              Extension of <InlineCode className="ml-1">{parentBundle}</InlineCode>
             </Badge>
           ) : null}
           {configs.map((config) => (

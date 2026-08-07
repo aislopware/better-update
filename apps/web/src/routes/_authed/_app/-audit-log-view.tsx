@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
 import { Empty } from "@better-update/ui/components/empty";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import {
   Table,
   TableBody,
@@ -303,7 +304,7 @@ const MetadataDialog = ({
     <DialogContent size="xl">
       <DialogHeader>
         <DialogTitle>
-          <span className="font-mono text-xs tracking-wider uppercase">{action}</span> metadata
+          <InlineCode className="uppercase">{action}</InlineCode> metadata
         </DialogTitle>
         <DialogDescription>Raw event payload recorded for this audit entry.</DialogDescription>
       </DialogHeader>

@@ -1,6 +1,7 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
 import { Empty } from "@better-update/ui/components/empty";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import {
   Table,
@@ -387,9 +388,9 @@ export const EnvVarsView = ({
       />
       <p className="text-kumo-subtle text-sm">
         Values are end-to-end encrypted and managed from the CLI —{" "}
-        <code className="font-mono">better-update env set</code> /{" "}
-        <code className="font-mono">env pull</code>. You can still edit each variable&rsquo;s label
-        and description here (non-secret documentation) from the row menu.
+        <InlineCode>better-update env set</InlineCode> / <InlineCode>env pull</InlineCode>. You can
+        still edit each variable&rsquo;s label and description here (non-secret documentation) from
+        the row menu.
       </p>
       {renderContent()}
     </div>

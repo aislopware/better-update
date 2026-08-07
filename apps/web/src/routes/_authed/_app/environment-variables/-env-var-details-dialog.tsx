@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { InlineCode } from "@better-update/ui/components/inline-code";
 import { Input, Textarea } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import { useForm } from "@tanstack/react-form";
@@ -163,7 +164,7 @@ export const EnvVarDetailsDialog = ({
       <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>
-            Edit details for <span className="font-mono">{envVar.key}</span>
+            Edit details for <InlineCode>{envVar.key}</InlineCode>
           </DialogTitle>
           <DialogDescription>
             A label and description help everyone understand what this variable is for. These are
