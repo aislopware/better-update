@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
-import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, PackageIcon } from "lucide-react";

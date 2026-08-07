@@ -8,7 +8,7 @@ import {
   ItemGroup,
   ItemMedia,
   ItemTitle,
-} from "@better-update/ui/components/ui/item";
+} from "@better-update/ui/components/item";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon } from "lucide-react";

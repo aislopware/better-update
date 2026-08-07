@@ -9,7 +9,7 @@ import {
   ItemGroup,
   ItemSeparator,
   ItemTitle,
-} from "@better-update/ui/components/ui/item";
+} from "@better-update/ui/components/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment } from "react";
 

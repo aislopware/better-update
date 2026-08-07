@@ -1,5 +1,4 @@
 import { Button } from "@better-update/ui/components/button";
-import { toast } from "@better-update/ui/components/toast";
 import {
   Item,
   ItemActions,
@@ -8,7 +7,8 @@ import {
   ItemGroup,
   ItemMedia,
   ItemTitle,
-} from "@better-update/ui/components/ui/item";
+} from "@better-update/ui/components/item";
+import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, KeyRoundIcon } from "lucide-react";

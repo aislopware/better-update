@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@better-update/ui/components/card";
 import { InputGroup } from "@better-update/ui/components/input-group";
-import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { FingerprintIcon, GitBranchIcon, SearchIcon } from "lucide-react";
