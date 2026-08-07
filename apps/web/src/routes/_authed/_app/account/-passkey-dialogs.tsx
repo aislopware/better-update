@@ -11,8 +11,8 @@ import {
 } from "@better-update/ui/components/dialog";
 import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
+import { FingerprintIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
 
 import { ConfirmDialog } from "../../../../components/confirm-dialog";
@@ -110,7 +110,7 @@ const AddPasskeyForm = ({
               type="submit"
               disabled={!canSubmit || Boolean(isSubmitting)}
               loading={Boolean(isSubmitting)}
-              icon={<FingerprintIcon strokeWidth={2} />}
+              icon={<FingerprintIcon weight="bold" />}
             >
               Add passkey
             </Button>
@@ -149,7 +149,7 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
           globalThis.location.assign(`https://${VAULT_HOST}/account/passkeys`);
         }}
       >
-        <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+        <FingerprintIcon weight="bold" data-icon="inline-start" />
         Add passkey
       </Button>
     );
@@ -166,7 +166,7 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
       }}
     >
       <DialogTrigger render={<Button variant="secondary" />}>
-        <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+        <FingerprintIcon weight="bold" data-icon="inline-start" />
         Add passkey
       </DialogTrigger>
       <DialogContent>

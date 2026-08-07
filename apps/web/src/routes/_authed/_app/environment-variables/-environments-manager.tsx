@@ -31,9 +31,9 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
+import { MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
@@ -153,7 +153,7 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        <PlusIcon weight="bold" data-icon="inline-start" />
         Add environment
       </DialogTrigger>
       <DialogContent>
@@ -315,7 +315,7 @@ const EnvironmentRowActions = ({
           setRenameOpen(true);
         }}
       >
-        <PencilIcon strokeWidth={2} />
+        <PencilSimpleIcon weight="bold" />
       </Button>
       <Button
         variant="ghost"
@@ -326,7 +326,7 @@ const EnvironmentRowActions = ({
           setDeleteOpen(true);
         }}
       >
-        <Trash2Icon strokeWidth={2} />
+        <TrashIcon weight="bold" />
       </Button>
       <RenameEnvironmentDialog
         orgId={orgId}
@@ -427,7 +427,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
             }}
           />
           <InputGroup.Addon>
-            <SearchIcon />
+            <MagnifyingGlassIcon />
           </InputGroup.Addon>
         </InputGroup>
       ) : null}

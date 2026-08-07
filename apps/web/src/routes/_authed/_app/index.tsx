@@ -13,9 +13,9 @@ import {
 } from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
 import { Skeleton } from "@better-update/ui/components/skeleton";
+import { FolderIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FolderIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
@@ -119,7 +119,7 @@ const RecentActivityCard = ({ orgId }: { orgId: string }) => {
 
 const FirstProjectCard = () => (
   <Empty
-    icon={<FolderIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<FolderIcon className="text-kumo-inactive size-10" />}
     title="Create your first project"
     description="Projects group the branches, channels, and updates for one app."
     contents={

@@ -1,4 +1,4 @@
-import { CircleCheckIcon, GitBranchIcon } from "lucide-react";
+import { CheckCircleIcon, GitBranchIcon } from "@phosphor-icons/react";
 
 interface RolloutSplitDiagramProps {
   readonly oldBranchName: string;
@@ -52,18 +52,18 @@ export const RolloutSplitDiagram = ({
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="text-muted-foreground flex items-center gap-1.5">
           <span className="bg-muted-foreground/70 size-2 rounded-full" aria-hidden="true" />
-          <GitBranchIcon strokeWidth={2} className="size-3" />
+          <GitBranchIcon weight="bold" className="size-3" />
           <span className="font-medium">{oldBranchName}</span>
           <span className="tabular-nums">{oldPercent}%</span>
         </div>
         <div className="text-foreground flex items-center gap-1.5">
           <span className="bg-primary size-2 rounded-full" aria-hidden="true" />
-          <GitBranchIcon strokeWidth={2} className="size-3" />
+          <GitBranchIcon weight="bold" className="size-3" />
           <span className="font-medium">{newBranchName}</span>
           <span className="tabular-nums">{newPercent}%</span>
           {newPercent === 100 ? (
-            <CircleCheckIcon
-              strokeWidth={2}
+            <CheckCircleIcon
+              weight="bold"
               className="text-success size-3.5"
               aria-label="Rollout at 100%"
             />

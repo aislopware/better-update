@@ -21,8 +21,8 @@ import {
 import { Input, Textarea } from "@better-update/ui/components/input";
 import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
@@ -328,7 +328,7 @@ export const EnvVarCreateDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        <PlusIcon weight="bold" data-icon="inline-start" />
         Add variable
       </DialogTrigger>
       <DialogContent size="lg">

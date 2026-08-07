@@ -14,9 +14,9 @@ import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
+import { UserPlusIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
@@ -191,7 +191,7 @@ const InviteFormContent = ({
               type="submit"
               disabled={!canSubmit || Boolean(isSubmitting)}
               loading={Boolean(isSubmitting)}
-              icon={<UserPlusIcon strokeWidth={2} />}
+              icon={<UserPlusIcon weight="bold" />}
             >
               Send invitation
             </Button>
@@ -225,7 +225,7 @@ export const InviteDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
+        <UserPlusIcon weight="bold" data-icon="inline-start" />
         Invite member
       </DialogTrigger>
       <DialogContent size="lg">

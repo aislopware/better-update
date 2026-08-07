@@ -3,13 +3,13 @@ import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
 import { Select } from "@better-update/ui/components/select";
+import { DotsThreeVerticalIcon, UserMinusIcon } from "@phosphor-icons/react";
 import {
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
 import { useMemo } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
@@ -127,7 +127,7 @@ const RowActions = ({
         />
       }
     >
-      {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
+      {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
     </DropdownMenu.Trigger>
     {/* w-auto: size to the labels, not the icon-button anchor width. */}
     <DropdownMenu.Content align="end" className="w-auto">

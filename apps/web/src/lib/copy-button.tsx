@@ -1,7 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
 import { toast } from "@better-update/ui/components/toast";
 import { cn } from "@better-update/ui/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 
 import type { ComponentProps } from "react";
 
@@ -9,16 +9,6 @@ import { useCopyToClipboard } from "./use-copy-to-clipboard";
 
 type ButtonProps = ComponentProps<typeof Button>;
 type ButtonSize = NonNullable<ButtonProps["size"]>;
-
-// Kumo sizes the button box, not what we put inside it — lucide icons default
-// to 24px and would blow the square out. Drop this once the icon sweep lands
-// and Phosphor's 1em default takes over.
-const ICON_CLASS_BY_SIZE: Record<ButtonSize, string> = {
-  xs: "size-3",
-  sm: "size-3.5",
-  base: "size-4",
-  lg: "size-4",
-};
 
 // Ghost icon button that copies `value` to the clipboard and toasts the outcome.
 // Single source for the copy-to-clipboard affordance across the dashboard.
@@ -60,7 +50,9 @@ export const CopyButton = ({
       aria-label={`Copy ${label}`}
       onClick={handleCopy}
       className={cn(className)}
-      icon={<Icon strokeWidth={2} className={iconClassName ?? ICON_CLASS_BY_SIZE[size]} />}
+      // No size class: a phosphor icon is 1em, so it tracks the button's own
+      // type scale across every size variant.
+      icon={<Icon weight="bold" className={iconClassName} />}
     />
   );
 };

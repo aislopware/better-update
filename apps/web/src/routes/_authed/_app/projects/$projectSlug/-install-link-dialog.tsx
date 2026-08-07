@@ -14,9 +14,8 @@ import {
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
 import { cn } from "@better-update/ui/lib/utils";
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { DeviceMobileIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { differenceInMinutes } from "date-fns";
-import { SmartphoneIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 
@@ -149,7 +148,7 @@ export const InstallLinkDialog = ({
     variant: buttonVariant,
     size: buttonSize ?? "base",
     className: cn(buttonClassName),
-    icon: <SmartphoneIcon strokeWidth={2} className="size-4" />,
+    icon: <DeviceMobileIcon weight="bold" className="size-4" />,
     onClick: () => {
       setOpen(true);
     },

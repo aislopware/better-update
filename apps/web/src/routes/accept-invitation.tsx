@@ -2,10 +2,10 @@ import { useMountEffect } from "@better-update/react-hooks";
 import { LinkButton } from "@better-update/ui/components/button";
 import { Card, CardContent } from "@better-update/ui/components/card";
 import { Loader } from "@better-update/ui/components/loader";
+import { CheckCircleIcon, EnvelopeSimpleIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { CheckCircle2Icon, MailWarningIcon } from "lucide-react";
 import { z } from "zod";
 
 import { BrandWordmark } from "../components/brand-mark";
@@ -92,7 +92,7 @@ const PendingState = ({ isPending }: { readonly isPending: boolean }) => (
 const SuccessState = () => (
   <>
     <StatusMedallion tone="success">
-      <CheckCircle2Icon strokeWidth={1.5} />
+      <CheckCircleIcon />
     </StatusMedallion>
     <div className="flex flex-col gap-1.5">
       <h1 className="font-heading text-foreground text-xl font-semibold">Invitation accepted</h1>
@@ -104,7 +104,7 @@ const SuccessState = () => (
 const FailedState = ({ message }: { readonly message: string }) => (
   <>
     <StatusMedallion tone="destructive">
-      <MailWarningIcon strokeWidth={1.5} />
+      <EnvelopeSimpleIcon />
     </StatusMedallion>
     <div className="flex flex-col gap-1.5">
       <h1 className="font-heading text-foreground text-xl font-semibold">

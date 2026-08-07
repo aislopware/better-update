@@ -9,9 +9,9 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { Popover } from "@better-update/ui/components/popover";
+import { CaretUpDownIcon, CheckIcon, FolderIcon, PlusIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { CheckIcon, ChevronsUpDownIcon, FolderIcon, PlusIcon } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import type { ReactNode } from "react";
@@ -45,7 +45,7 @@ interface SwitcherGroup {
 const switcherTrigger = (displayName: string) => (
   <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 font-medium">
     <span className="truncate">{displayName}</span>
-    <ChevronsUpDownIcon strokeWidth={2} className="text-kumo-subtle size-3" />
+    <CaretUpDownIcon weight="bold" className="text-kumo-subtle size-3" />
   </Button>
 );
 
@@ -98,7 +98,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             {
               id: "all-projects",
               label: "All Projects",
-              icon: <FolderIcon strokeWidth={2} className="size-4" />,
+              icon: <FolderIcon weight="bold" className="size-4" />,
               checked: !currentProjectSlug,
               run: () => {
                 fireAndForget(router.navigate({ to: "/projects" }));
@@ -140,7 +140,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             {
               id: "create-project",
               label: "Create project",
-              icon: <PlusIcon strokeWidth={2} className="size-4" />,
+              icon: <PlusIcon weight="bold" className="size-4" />,
               checked: false,
               run: () => {
                 setCreateOpen(true);
@@ -201,10 +201,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
                           </span>
                           <span className="truncate">{item.label}</span>
                           {item.checked ? (
-                            <CheckIcon
-                              strokeWidth={2}
-                              className="text-kumo-subtle ml-auto size-4"
-                            />
+                            <CheckIcon weight="bold" className="text-kumo-subtle ml-auto size-4" />
                           ) : null}
                         </Palette.Item>
                       )}

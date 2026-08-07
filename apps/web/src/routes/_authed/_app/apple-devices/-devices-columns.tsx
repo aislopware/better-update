@@ -3,8 +3,8 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { toast } from "@better-update/ui/components/toast";
+import { DotsThreeVerticalIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { AppleTeamItem, DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
@@ -56,7 +56,7 @@ const actionsTrigger = (
     className="text-muted-foreground/70 hover:text-foreground"
     aria-label="Device actions"
   >
-    <EllipsisVerticalIcon strokeWidth={2} />
+    <DotsThreeVerticalIcon weight="bold" />
   </Button>
 );
 

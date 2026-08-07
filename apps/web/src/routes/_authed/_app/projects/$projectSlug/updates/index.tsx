@@ -1,10 +1,10 @@
 import { updatesQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { CloudArrowUpIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { CloudUploadIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -57,7 +57,7 @@ const updatesSearchSchema = z.object({
 
 const UpdatesEmptyState = () => (
   <Empty
-    icon={<CloudUploadIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<CloudArrowUpIcon className="text-kumo-inactive size-10" />}
     title="No updates yet"
     description="Publish from your app repo — updates land on a branch and reach devices through its channel."
     contents={

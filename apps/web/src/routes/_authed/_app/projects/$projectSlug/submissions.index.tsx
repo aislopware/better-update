@@ -1,10 +1,10 @@
 import { submissionsQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { UploadCloudIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
@@ -118,7 +118,7 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
 
 const SubmissionsEmpty = () => (
   <Empty
-    icon={<UploadCloudIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<UploadSimpleIcon className="text-kumo-inactive size-10" />}
     title="No submissions yet"
     description="Submit from your app repo — builds are pushed to App Store Connect or Google Play and tracked here."
     contents={

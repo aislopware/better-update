@@ -9,9 +9,9 @@ import {
 } from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
 import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/item";
+import { FingerprintIcon, PackageIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon, PackageIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { BuildWithArtifact, Update } from "@better-update/api";
@@ -33,7 +33,7 @@ type UpdateItem = Update;
 
 const FingerprintEmpty = () => (
   <Empty
-    icon={<PackageIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<PackageIcon className="text-kumo-inactive size-10" />}
     title="No builds or updates yet"
     description="Nothing in this project has been published with this fingerprint yet."
   />
@@ -51,7 +51,7 @@ const FingerprintHashCard = ({
   <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2">
-        <FingerprintIcon strokeWidth={2} className="text-muted-foreground size-5" />
+        <FingerprintIcon weight="bold" className="text-muted-foreground size-5" />
         Fingerprint
       </CardTitle>
       <CardDescription>

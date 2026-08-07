@@ -1,8 +1,8 @@
 import { meQueryOptions, projectRobotAccountsQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { LockIcon, RobotIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { BotIcon, LockIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { MeResult } from "@better-update/api-client/react";
@@ -21,7 +21,7 @@ const canViewProjectRobots = (me: MeResult, projectId: string): boolean =>
 
 const EmptyRobots = ({ projectId }: { projectId: string }) => (
   <Empty
-    icon={<BotIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<RobotIcon className="text-kumo-inactive size-10" />}
     title="No robot accounts yet"
     description="Robot accounts are created from the CLI on a maintainer device — one robot per project, minted together with its vault access."
     contents={
@@ -36,7 +36,7 @@ const EmptyRobots = ({ projectId }: { projectId: string }) => (
 
 const MaintainerRequired = () => (
   <Empty
-    icon={<LockIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<LockIcon className="text-kumo-inactive size-10" />}
     title="Maintainer access required"
     description="Only project maintainers (and organization owners/admins) can see the robot accounts of this project."
   />

@@ -9,8 +9,8 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
 import { toast } from "@better-update/ui/components/toast";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
@@ -42,7 +42,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        <PlusIcon weight="bold" data-icon="inline-start" />
         Create branch
       </DialogTrigger>
       <DialogContent>

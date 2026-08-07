@@ -11,8 +11,8 @@ import {
 import { Empty } from "@better-update/ui/components/empty";
 import { Label } from "@better-update/ui/components/label";
 import { Loader } from "@better-update/ui/components/loader";
+import { ArrowRightIcon, ArrowsLeftRightIcon, GitDiffIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowLeftRightIcon, ArrowRightIcon, GitCompareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import type { Update } from "@better-update/api";
@@ -288,7 +288,7 @@ const CompareResult = ({
   if (left === undefined || right === undefined) {
     return (
       <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
-        <ArrowRightIcon strokeWidth={2} className="size-4" />
+        <ArrowRightIcon weight="bold" className="size-4" />
         <span>Pick two updates above to compare.</span>
       </div>
     );
@@ -339,7 +339,7 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
   if (updatesData.total < 2) {
     return (
       <Empty
-        icon={<GitCompareIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+        icon={<GitDiffIcon className="text-kumo-inactive size-10" />}
         title="Not enough updates to compare"
         size="sm"
         description="You need at least two updates in this project before you can compare them."
@@ -364,7 +364,7 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
           disabled={!left || !right}
           onClick={swap}
         >
-          <ArrowLeftRightIcon strokeWidth={2} />
+          <ArrowsLeftRightIcon weight="bold" />
         </Button>
         <UpdateSelector
           label="Update B"
@@ -400,7 +400,7 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
           setOpen(true);
         }}
       >
-        <GitCompareIcon strokeWidth={2} data-icon="inline-start" />
+        <GitDiffIcon weight="bold" data-icon="inline-start" />
         Compare
       </Button>
       <Dialog

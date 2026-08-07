@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
-import { EllipsisVerticalIcon, PencilIcon } from "lucide-react";
+import { DotsThreeVerticalIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 
 import type { RobotAccountItem } from "@better-update/api-client/react";
 
@@ -44,14 +44,14 @@ const RowActions = ({
         />
       }
     >
-      {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
+      {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content align="end">
       <DropdownMenu.Item
         onClick={() => {
           onEdit({ id: robot.id, name: robot.name, role: robot.role });
         }}
-        icon={PencilIcon}
+        icon={PencilSimpleIcon}
       >
         Edit
       </DropdownMenu.Item>

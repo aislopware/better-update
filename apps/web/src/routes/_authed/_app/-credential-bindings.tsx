@@ -28,8 +28,8 @@ import { Popover } from "@better-update/ui/components/popover";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
 import { cn } from "@better-update/ui/lib/utils";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { SearchIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { CredentialBindingTypeValue } from "@better-update/api";
@@ -257,7 +257,7 @@ const BindingsChecklist = ({
             }}
           />
           <InputGroup.Addon>
-            <SearchIcon />
+            <MagnifyingGlassIcon />
           </InputGroup.Addon>
         </InputGroup>
       ) : null}

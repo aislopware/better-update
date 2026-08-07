@@ -3,11 +3,11 @@ import {
   buildsQueryOptions,
 } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { PackageIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { PackageIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -75,7 +75,7 @@ const buildsSearchSchema = z.object({
 
 const BuildsEmptyState = () => (
   <Empty
-    icon={<PackageIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<PackageIcon className="text-kumo-inactive size-10" />}
     title="No builds yet"
     description="Build and upload a binary from your app repo — it shows up here with its runtime compatibility."
     contents={<CliCommandBlock commands={["better-update build"]} />}

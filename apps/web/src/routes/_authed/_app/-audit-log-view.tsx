@@ -19,8 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
+import { BracketsCurlyIcon, RobotIcon, ScrollIcon } from "@phosphor-icons/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { BotIcon, BracesIcon, ScrollTextIcon } from "lucide-react";
 import { z } from "zod";
 
 import type { DateRange } from "react-day-picker";
@@ -185,7 +185,7 @@ const readMetadataName = (parsed: unknown): string | undefined => {
 };
 
 // Actor identity media (spec §5.9): humans get the shared EntityAvatar seeded
-// by email; robot actors get a BotIcon medallion — the `robot:` name prefix
+// by email; robot actors get a RobotIcon medallion — the `robot:` name prefix
 // keeps the state readable as text, so the old "Robot" badge is redundant.
 const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string }) => (
   <span className="flex items-center gap-2">
@@ -194,7 +194,7 @@ const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string 
         className="bg-muted text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-full border"
         title="Robot account"
       >
-        <BotIcon strokeWidth={2} className="size-3.5" aria-hidden />
+        <RobotIcon weight="bold" className="size-3.5" aria-hidden />
       </span>
     ) : (
       <EntityAvatar name={actorEmail} size="sm" />
@@ -207,7 +207,7 @@ const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string 
 
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
   <Empty
-    icon={<ScrollTextIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<ScrollIcon className="text-kumo-inactive size-10" />}
     title="No activity yet"
     description={`Actions performed in ${scopeLabel} will appear here.`}
   />
@@ -287,7 +287,7 @@ const metadataTrigger = (
     aria-label="View metadata"
     className="text-muted-foreground"
   >
-    <BracesIcon strokeWidth={2} />
+    <BracketsCurlyIcon weight="bold" />
   </Button>
 );
 

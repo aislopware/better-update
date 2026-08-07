@@ -2,7 +2,7 @@ import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
 import { Select } from "@better-update/ui/components/select";
 import { Switch } from "@better-update/ui/components/switch";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
 
@@ -121,7 +121,7 @@ const ProjectGrantRow = ({
       aria-label="Remove project access"
       onClick={onRemove}
     >
-      <Trash2Icon strokeWidth={2} className="size-4" />
+      <TrashIcon weight="bold" className="size-4" />
     </Button>
   </div>
 );
@@ -204,7 +204,7 @@ export const ProjectGrantsSection = ({
       />
     ))}
     <Button type="button" variant="secondary" size="sm" className="self-start" onClick={onAdd}>
-      <PlusIcon strokeWidth={2} data-icon="inline-start" />
+      <PlusIcon weight="bold" data-icon="inline-start" />
       Add project
     </Button>
   </div>

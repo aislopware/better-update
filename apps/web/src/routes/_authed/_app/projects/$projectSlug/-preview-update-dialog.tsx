@@ -10,8 +10,8 @@ import {
 import { Empty } from "@better-update/ui/components/empty";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
+import { PackageIcon } from "@phosphor-icons/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { PackageIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import type { Update } from "@better-update/api";
@@ -65,7 +65,7 @@ const CompatibleBuildsList = ({
   if (qaBuilds.length === 0) {
     return (
       <Empty
-        icon={<PackageIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+        icon={<PackageIcon className="text-kumo-inactive size-10" />}
         title="No compatible builds"
         size="sm"
         description={`Build a development build on runtime v${runtimeVersion} for ${platform} to install this update for testing.`}

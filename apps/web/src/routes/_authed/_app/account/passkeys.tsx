@@ -9,9 +9,9 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@better-update/ui/components/item";
+import { FingerprintIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
@@ -50,7 +50,7 @@ const PasskeysList = () => {
           {passkeys.map((passkey) => (
             <Item key={passkey.id} variant="outline" size="sm">
               <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
-                <FingerprintIcon strokeWidth={2} />
+                <FingerprintIcon weight="bold" />
               </ItemMedia>
               <ItemContent>
                 <ItemTitle>

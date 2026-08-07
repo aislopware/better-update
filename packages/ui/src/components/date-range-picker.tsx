@@ -1,5 +1,5 @@
+import { CalendarIcon } from "@phosphor-icons/react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { ReactNode } from "react";

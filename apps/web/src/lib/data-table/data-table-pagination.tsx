@@ -1,11 +1,11 @@
 import { Button } from "@better-update/ui/components/button";
 import { cn } from "@better-update/ui/lib/utils";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronsLeftIcon,
-  ChevronsRightIcon,
-} from "lucide-react";
+  CaretDoubleLeftIcon,
+  CaretDoubleRightIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+} from "@phosphor-icons/react";
 
 export interface DataTablePaginationProps {
   readonly countLabel: string;
@@ -67,7 +67,7 @@ export const DataTablePagination = ({
             onChange(1);
           }}
         >
-          <ChevronsLeftIcon strokeWidth={2} />
+          <CaretDoubleLeftIcon weight="bold" />
         </PageButton>
         <PageButton
           label="Previous page"
@@ -76,7 +76,7 @@ export const DataTablePagination = ({
             onChange(safePage - 1);
           }}
         >
-          <ChevronLeftIcon strokeWidth={2} />
+          <CaretLeftIcon weight="bold" />
         </PageButton>
         <PageButton
           label="Next page"
@@ -85,7 +85,7 @@ export const DataTablePagination = ({
             onChange(safePage + 1);
           }}
         >
-          <ChevronRightIcon strokeWidth={2} />
+          <CaretRightIcon weight="bold" />
         </PageButton>
         <PageButton
           label="Last page"
@@ -95,7 +95,7 @@ export const DataTablePagination = ({
             onChange(totalPages);
           }}
         >
-          <ChevronsRightIcon strokeWidth={2} />
+          <CaretDoubleRightIcon weight="bold" />
         </PageButton>
       </div>
     </div>

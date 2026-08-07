@@ -14,9 +14,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
+import { PackageIcon } from "@phosphor-icons/react";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { PackageXIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { BuildDebugArtifact, BuildWithArtifact } from "@better-update/api";
@@ -327,7 +327,7 @@ const RelatedChannelsCard = ({
 
 const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <DetailNotFound
-    icon={<PackageXIcon strokeWidth={1.5} />}
+    icon={<PackageIcon />}
     title="Build not found in this project"
     description="The requested build exists outside this project or was removed."
     backLink={

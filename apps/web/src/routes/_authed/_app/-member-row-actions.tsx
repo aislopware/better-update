@@ -1,7 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
-import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
+import { DotsThreeVerticalIcon, UserMinusIcon } from "@phosphor-icons/react";
 
 import type { Row } from "./-members-row";
 
@@ -17,7 +17,7 @@ const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label: strin
       />
     }
   >
-    {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
+    {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
   </DropdownMenu.Trigger>
 );
 

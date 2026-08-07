@@ -9,11 +9,11 @@ import {
   ItemTitle,
 } from "@better-update/ui/components/item";
 import { toast } from "@better-update/ui/components/toast";
+import { GitBranchIcon, KeyIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { GitBranchIcon, KeyRoundIcon } from "lucide-react";
 
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 
 import { SettingCard } from "../../../../components/setting-card";
 import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
@@ -25,7 +25,7 @@ interface ProviderMeta {
   readonly id: string;
   readonly label: string;
   readonly description: string;
-  readonly icon: LucideIcon;
+  readonly icon: Icon;
 }
 
 const PROVIDERS: readonly ProviderMeta[] = [
@@ -33,7 +33,7 @@ const PROVIDERS: readonly ProviderMeta[] = [
     id: "credential",
     label: "Email & password",
     description: "Sign in with your email address and password.",
-    icon: KeyRoundIcon,
+    icon: KeyIcon,
   },
   {
     id: "github",
@@ -83,7 +83,7 @@ const ConnectionsList = () => {
           return (
             <Item key={provider.id} variant="outline" size="sm">
               <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
-                <provider.icon strokeWidth={2} />
+                <provider.icon weight="bold" />
               </ItemMedia>
               <ItemContent>
                 <ItemTitle>{provider.label}</ItemTitle>

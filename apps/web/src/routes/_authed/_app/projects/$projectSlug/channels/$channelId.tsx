@@ -9,9 +9,9 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { toast } from "@better-update/ui/components/toast";
+import { BroadcastIcon, GitBranchIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { GitBranchIcon, PauseIcon, PlayIcon, RadioTowerIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { Channel } from "@better-update/api";
@@ -38,7 +38,7 @@ import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <DetailNotFound
-    icon={<RadioTowerIcon strokeWidth={1.5} />}
+    icon={<BroadcastIcon />}
     title="Channel not found in this project"
     description="The requested channel does not belong to this project or was removed."
     backLink={
@@ -79,9 +79,9 @@ const ChannelHeaderActions = ({
       >
         {!togglePauseMutation.isPending &&
           (channel.isPaused ? (
-            <PlayIcon strokeWidth={2} data-icon="inline-start" />
+            <PlayIcon weight="bold" data-icon="inline-start" />
           ) : (
-            <PauseIcon strokeWidth={2} data-icon="inline-start" />
+            <PauseIcon weight="bold" data-icon="inline-start" />
           ))}
         {channel.isPaused ? "Resume" : "Pause"}
       </Button>
@@ -110,7 +110,7 @@ const ChannelSummaryCards = ({
       <StatCard label="Linked branch">
         {channel.branchName ? (
           <div className="flex items-center gap-2 font-medium">
-            <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
+            <GitBranchIcon weight="bold" className="text-muted-foreground size-4" />
             {channel.branchName}
           </div>
         ) : (

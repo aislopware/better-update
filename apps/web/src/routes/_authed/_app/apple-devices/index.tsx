@@ -1,12 +1,11 @@
 import { appleTeamsQueryOptions, devicesQueryOptions } from "@better-update/api-client/react";
 import { Banner } from "@better-update/ui/components/banner";
 import { Empty } from "@better-update/ui/components/empty";
-import { WarningIcon } from "@phosphor-icons/react";
+import { DeviceMobileIcon, WarningIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { SmartphoneIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -93,7 +92,7 @@ const HIDEABLE_COLUMN_IDS = new Set(["appleSync", "model", "createdAt"]);
 
 const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode }) => (
   <Empty
-    icon={<SmartphoneIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<DeviceMobileIcon className="text-kumo-inactive size-10" />}
     title="No devices registered"
     description="Register an Apple device UDID, or send an invite link for self-service enrollment via iOS Safari."
     contents={

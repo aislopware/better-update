@@ -1,8 +1,8 @@
 import { Button } from "@better-update/ui/components/button";
 import { TableHead } from "@better-update/ui/components/table";
 import { cn } from "@better-update/ui/lib/utils";
+import { CaretUpDownIcon } from "@phosphor-icons/react";
 import { flexRender } from "@tanstack/react-table";
-import { ChevronsUpDownIcon } from "lucide-react";
 
 import type { Header } from "@tanstack/react-table";
 
@@ -53,7 +53,7 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
       >
         {content}
         {sortDir === false ? (
-          <ChevronsUpDownIcon strokeWidth={2} className="text-muted-foreground/72 size-3.5" />
+          <CaretUpDownIcon weight="bold" className="text-muted-foreground/72 size-3.5" />
         ) : (
           <SortIcon direction={sortDir} />
         )}

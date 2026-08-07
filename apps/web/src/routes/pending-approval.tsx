@@ -1,8 +1,8 @@
 import { Button } from "@better-update/ui/components/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
+import { ClockIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
-import { ClockIcon } from "lucide-react";
 
 import { BrandWordmark } from "../components/brand-mark";
 import { GlobalLoading } from "../components/global-loading";
@@ -27,7 +27,7 @@ const PendingApproval = () => {
         <Card className="w-full">
           <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
             <StatusMedallion tone="warning">
-              <ClockIcon strokeWidth={1.5} />
+              <ClockIcon />
             </StatusMedallion>
             <div className="flex flex-col gap-1.5">
               <CardTitle className="text-xl font-semibold">Account pending approval</CardTitle>

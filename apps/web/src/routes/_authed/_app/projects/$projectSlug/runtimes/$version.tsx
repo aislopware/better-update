@@ -7,10 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
+import { CloudArrowUpIcon, PackageIcon, StackIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { LayersIcon, PackageIcon, CloudUploadIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 
 import type { PlatformValue } from "@better-update/api-client/react";
@@ -33,7 +33,7 @@ const RUNTIME_UPDATES_LIMIT = 10;
 
 const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <DetailNotFound
-    icon={<LayersIcon strokeWidth={1.5} />}
+    icon={<StackIcon />}
     title="No data for this runtime version"
     description="Nothing in this project references this runtime yet."
     backLink={
@@ -172,7 +172,7 @@ const RuntimeDetailContent = () => {
         <SectionHeader
           title={
             <span className="flex items-center gap-2">
-              <PackageIcon strokeWidth={2} className="text-muted-foreground size-4" />
+              <PackageIcon weight="bold" className="text-muted-foreground size-4" />
               Builds on this runtime
             </span>
           }
@@ -208,7 +208,7 @@ const RuntimeDetailContent = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CloudUploadIcon strokeWidth={2} className="text-muted-foreground size-4" />
+            <CloudArrowUpIcon weight="bold" className="text-muted-foreground size-4" />
             Updates on this runtime
           </CardTitle>
           <CardDescription>

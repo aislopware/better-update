@@ -25,8 +25,8 @@ import { Popover } from "@better-update/ui/components/popover";
 import { Select } from "@better-update/ui/components/select";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { SearchIcon } from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -303,7 +303,7 @@ const MembershipChecklist = ({
             }}
           />
           <InputGroup.Addon>
-            <SearchIcon />
+            <MagnifyingGlassIcon />
           </InputGroup.Addon>
         </InputGroup>
       ) : null}

@@ -1,7 +1,7 @@
 import { buttonVariants } from "@better-update/ui/components/button";
 import { Tooltip } from "@better-update/ui/components/tooltip";
 import { cn } from "@better-update/ui/lib/utils";
-import { DownloadIcon } from "lucide-react";
+import { DownloadSimpleIcon } from "@phosphor-icons/react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -52,7 +52,7 @@ const BuildActions = ({
             />
           }
         >
-          <DownloadIcon strokeWidth={2} />
+          <DownloadSimpleIcon weight="bold" />
         </Tooltip>
       </>
     ) : null}

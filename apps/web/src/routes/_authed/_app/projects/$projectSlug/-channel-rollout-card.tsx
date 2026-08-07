@@ -20,9 +20,9 @@ import { InputGroup } from "@better-update/ui/components/input-group";
 import { Separator } from "@better-update/ui/components/separator";
 import { toast } from "@better-update/ui/components/toast";
 import { Tooltip } from "@better-update/ui/components/tooltip";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, RocketIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheckIcon, RocketIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 
 import type { Channel } from "@better-update/api";
@@ -155,7 +155,7 @@ const ActiveRolloutSection = ({
               completeBranchRolloutMutation.mutate();
             }}
             loading={completeBranchRolloutMutation.isPending}
-            icon={<CircleCheckIcon strokeWidth={2} />}
+            icon={<CheckCircleIcon weight="bold" />}
           >
             Complete rollout
           </Button>
@@ -167,7 +167,7 @@ const ActiveRolloutSection = ({
               revertBranchRolloutMutation.mutate();
             }}
             loading={revertBranchRolloutMutation.isPending}
-            icon={<Undo2Icon strokeWidth={2} />}
+            icon={<ArrowCounterClockwiseIcon weight="bold" />}
           >
             Revert
           </Button>
@@ -286,7 +286,7 @@ const StartRolloutForm = ({
               type="submit"
               disabled={!branchId || !percentage || isSubmitting}
               loading={isSubmitting}
-              icon={<RocketIcon strokeWidth={2} />}
+              icon={<RocketIcon weight="bold" />}
             >
               Start rollout
             </Button>
@@ -348,7 +348,7 @@ const StartRolloutSection = (
               setIsStartingRollout(true);
             }}
           >
-            <RocketIcon strokeWidth={2} data-icon="inline-start" />
+            <RocketIcon weight="bold" data-icon="inline-start" />
             Start rollout
           </Button>
         </Tooltip>

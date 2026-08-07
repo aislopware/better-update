@@ -1,10 +1,10 @@
 import { memberProjectMembershipsQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
 import { Skeleton } from "@better-update/ui/components/skeleton";
+import { UsersIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { UsersIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -165,7 +165,7 @@ const MembersContent = () => {
   if (isOrgEmpty) {
     return (
       <Empty
-        icon={<UsersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+        icon={<UsersIcon className="text-kumo-inactive size-10" />}
         title="No members yet"
         description="Invite your first teammate to get started."
         contents={inviteCta}

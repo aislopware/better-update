@@ -17,10 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
-import { WarningIcon } from "@phosphor-icons/react";
+import { FingerprintIcon, WarningIcon } from "@phosphor-icons/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { CliCommandBlock } from "../../../components/cli-command-block";
@@ -44,7 +43,7 @@ import type { RecipientOwners, VaultRecipientRow } from "./-vault-access-utils";
 
 const VaultAccessEmptyState = () => (
   <Empty
-    icon={<FingerprintIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<FingerprintIcon className="text-kumo-inactive size-10" />}
     title="No vault recipients yet"
     description="The credential vault is created from the CLI on the first upload. Once it exists, the keys that can decrypt it appear here."
     contents={<CliCommandBlock commands={["better-update credentials"]} />}

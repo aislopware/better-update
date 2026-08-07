@@ -8,11 +8,11 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Empty } from "@better-update/ui/components/empty";
 import { toast } from "@better-update/ui/components/toast";
+import { UsersIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { UsersIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
@@ -254,7 +254,7 @@ const AdminUsers = () => {
 
   const emptyState = (
     <Empty
-      icon={<UsersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+      icon={<UsersIcon className="text-kumo-inactive size-10" />}
       title="No users yet"
       description="Users appear here after they sign up."
     />

@@ -1,8 +1,8 @@
 import { Button } from "@better-update/ui/components/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { CircleAlertIcon } from "lucide-react";
 import { z } from "zod";
 
 import { BrandWordmark } from "../../components/brand-mark";
@@ -49,7 +49,7 @@ const CliLoginPage = () => {
         <Card className="w-full">
           <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
             <StatusMedallion tone="destructive">
-              <CircleAlertIcon strokeWidth={1.5} />
+              <WarningCircleIcon />
             </StatusMedallion>
             <div className="flex flex-col gap-1.5">
               <CardTitle className="text-xl font-semibold">CLI login failed</CardTitle>

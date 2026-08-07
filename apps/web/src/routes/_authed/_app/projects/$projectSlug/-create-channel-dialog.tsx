@@ -13,9 +13,9 @@ import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -176,7 +176,7 @@ const CreateChannelForm = ({
               type="submit"
               disabled={!canSubmit || isSubmitting}
               loading={isSubmitting}
-              icon={<PlusIcon strokeWidth={2} />}
+              icon={<PlusIcon weight="bold" />}
             >
               Create channel
             </Button>
@@ -207,7 +207,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        <PlusIcon weight="bold" data-icon="inline-start" />
         Create channel
       </Button>
       <DialogContent size="lg">

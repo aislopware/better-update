@@ -10,8 +10,8 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
+import { FingerprintIcon, GearIcon, LockKeyIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FingerprintIcon, LockKeyholeIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 
@@ -73,7 +73,7 @@ const isScopeFilter = (value: string): value is ScopeFilter =>
 
 const EmptyState = () => (
   <Empty
-    icon={<SettingsIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<GearIcon className="text-kumo-inactive size-10" />}
     title="No environment variables"
     description="Set variables from the CLI — values are end-to-end encrypted and versioned per environment."
     contents={
@@ -159,7 +159,7 @@ const VaultToolbarActions = ({
           reverifyMutation.mutate();
         }}
         loading={reverifyMutation.isPending}
-        icon={<FingerprintIcon strokeWidth={2} />}
+        icon={<FingerprintIcon weight="bold" />}
       >
         Re-verify
       </Button>
@@ -169,7 +169,7 @@ const VaultToolbarActions = ({
           vault.lock();
         }}
       >
-        <LockKeyholeIcon strokeWidth={2} data-icon="inline-start" />
+        <LockKeyIcon weight="bold" data-icon="inline-start" />
         Lock
       </Button>
     </>

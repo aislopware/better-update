@@ -8,8 +8,8 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { cn } from "@better-update/ui/lib/utils";
+import { CaretRightIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { flexRender } from "@tanstack/react-table";
-import { ChevronRightIcon, SearchXIcon } from "lucide-react";
 
 import type { Cell, Table as ReactTableT, Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
@@ -137,8 +137,8 @@ const DataTableRow = <TData,>({
     })}
     {onRowClick ? (
       <TableCell aria-hidden className="w-8 pl-0">
-        <ChevronRightIcon
-          strokeWidth={2}
+        <CaretRightIcon
+          weight="bold"
           className="text-muted-foreground size-4 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
         />
       </TableCell>
@@ -169,7 +169,7 @@ const FilteredEmptyRow = ({
   <TableRow className="hover:bg-transparent">
     <TableCell colSpan={columnsCount} className="whitespace-normal">
       <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <SearchXIcon strokeWidth={1.5} className="text-muted-foreground/72 size-5" aria-hidden />
+        <MagnifyingGlassIcon className="text-muted-foreground/72 size-5" aria-hidden />
         <p className="text-muted-foreground text-sm">No {entity} match your filters.</p>
         <Button variant="secondary" size="sm" onClick={onClear}>
           Clear filters

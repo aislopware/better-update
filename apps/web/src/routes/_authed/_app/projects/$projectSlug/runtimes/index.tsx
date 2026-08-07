@@ -1,10 +1,10 @@
 import { runtimesQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { StackIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { LayersIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
@@ -30,7 +30,7 @@ const runtimesSearchSchema = z.object({
 
 const RuntimesEmptyState = () => (
   <Empty
-    icon={<LayersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<StackIcon className="text-kumo-inactive size-10" />}
     title="No runtime versions yet"
     description="Runtime versions appear here once you publish a build or update."
   />
@@ -42,8 +42,7 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     header: "Runtime",
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium">
-        <LayersIcon strokeWidth={2} className="text-muted-foreground size-4" />v
-        {row.original.version}
+        <StackIcon weight="bold" className="text-muted-foreground size-4" />v{row.original.version}
       </div>
     ),
     enableSorting: false,

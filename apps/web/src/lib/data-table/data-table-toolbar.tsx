@@ -1,6 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { InputGroup } from "@better-update/ui/components/input-group";
-import { SearchIcon, XIcon } from "lucide-react";
+import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 
 import type { ReactNode } from "react";
 
@@ -43,7 +43,7 @@ export const DataTableToolbar = ({
           }}
         />
         <InputGroup.Addon>
-          <SearchIcon />
+          <MagnifyingGlassIcon />
         </InputGroup.Addon>
       </InputGroup>
     ) : null}
@@ -56,7 +56,7 @@ export const DataTableToolbar = ({
         }}
       >
         Reset
-        <XIcon strokeWidth={2} />
+        <XIcon weight="bold" />
       </Button>
     ) : null}
     {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}

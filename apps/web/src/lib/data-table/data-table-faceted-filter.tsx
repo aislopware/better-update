@@ -4,15 +4,15 @@ import { CommandPalette as Palette } from "@better-update/ui/components/command-
 import { Popover } from "@better-update/ui/components/popover";
 import { Separator } from "@better-update/ui/components/separator";
 import { cn } from "@better-update/ui/lib/utils";
-import { CheckIcon, CirclePlusIcon } from "lucide-react";
+import { CheckIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 
 export interface FacetedFilterOption {
   readonly label: string;
   readonly value: string;
-  readonly icon?: LucideIcon;
+  readonly icon?: Icon;
   readonly count?: number;
 }
 
@@ -83,7 +83,7 @@ const CheckSquare = ({ checked }: { checked: boolean }) => (
       checked ? "bg-kumo-brand text-kumo-inverse ring-kumo-brand" : "[&_svg]:invisible",
     )}
   >
-    <CheckIcon strokeWidth={2.5} className="size-3" />
+    <CheckIcon weight="bold" className="size-3" />
   </span>
 );
 
@@ -166,7 +166,7 @@ export const DataTableFacetedFilter = ({
       }}
     >
       <Popover.Trigger render={<Button variant="secondary" className="border-dashed" />}>
-        <CirclePlusIcon strokeWidth={2} />
+        <PlusCircleIcon weight="bold" />
         {title}
         {selected.length > 0 ? <SelectedSummary options={options} selected={selected} /> : null}
       </Popover.Trigger>
@@ -198,7 +198,7 @@ export const DataTableFacetedFilter = ({
                             <CheckSquare checked={selected.includes(entry.option.value)} />
                             {entry.option.icon ? (
                               <entry.option.icon
-                                strokeWidth={2}
+                                weight="bold"
                                 className="text-kumo-subtle size-4 shrink-0"
                               />
                             ) : null}

@@ -10,9 +10,9 @@ import {
   ItemTitle,
 } from "@better-update/ui/components/item";
 import { toast } from "@better-update/ui/components/toast";
+import { MonitorIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { MonitorIcon } from "lucide-react";
 
 import { SettingCard } from "../../../../components/setting-card";
 import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
@@ -83,7 +83,7 @@ const SessionsList = () => {
           return (
             <Item key={session.id} variant="outline" size="sm">
               <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
-                <MonitorIcon strokeWidth={2} />
+                <MonitorIcon weight="bold" />
               </ItemMedia>
               <ItemContent>
                 <ItemTitle>

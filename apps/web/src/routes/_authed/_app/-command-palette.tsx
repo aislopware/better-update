@@ -2,9 +2,9 @@ import { projectsQueryOptions } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { CommandPalette as Palette } from "@better-update/ui/components/command-palette";
 import { Kbd } from "@better-update/ui/components/kbd";
+import { MonitorIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import type { ReactNode } from "react";
@@ -68,7 +68,7 @@ const useNavigationItems = (
         id: item.to,
         label: item.label,
         haystack: item.label.toLowerCase(),
-        icon: <item.icon strokeWidth={2} className="size-4" />,
+        icon: <item.icon weight="bold" className="size-4" />,
         run: () => {
           fireAndForget(navigate({ to: item.to, params: { projectSlug } }));
         },
@@ -80,7 +80,7 @@ const useNavigationItems = (
         id: item.to,
         label: item.label,
         haystack: item.label.toLowerCase(),
-        icon: <item.icon strokeWidth={2} className="size-4" />,
+        icon: <item.icon weight="bold" className="size-4" />,
         run: () => {
           fireAndForget(navigate({ to: item.to }));
         },
@@ -139,7 +139,7 @@ const useThemeItems = (): PaletteItem[] => {
         id: `theme:${item.value}`,
         label: `${item.label} theme`,
         haystack: `theme ${item.label.toLowerCase()}`,
-        icon: <item.icon strokeWidth={2} className="size-4" />,
+        icon: <item.icon weight="bold" className="size-4" />,
         run: () => {
           updateTheme(item.value);
         },

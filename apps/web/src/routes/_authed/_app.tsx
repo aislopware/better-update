@@ -5,6 +5,13 @@ import { Loader } from "@better-update/ui/components/loader";
 import { Sidebar } from "@better-update/ui/components/sidebar";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
+import {
+  CaretUpDownIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  SignOutIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
@@ -14,7 +21,6 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { PlusIcon, ChevronsUpDownIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { DetailCardSkeleton } from "../../components/skeletons";
@@ -69,7 +75,7 @@ const renderOrgTrigger = (
       <span className="truncate text-sm font-medium">{name}</span>
       <span className="text-kumo-subtle truncate text-xs">{slug}</span>
     </div>
-    <ChevronsUpDownIcon strokeWidth={2} className="text-kumo-subtle size-3.5 shrink-0" />
+    <CaretUpDownIcon weight="bold" className="text-kumo-subtle size-3.5 shrink-0" />
   </button>
 );
 
@@ -79,7 +85,7 @@ const renderUserTrigger = (name: string | undefined, image: string | null | unde
   <Button variant="ghost" aria-label="Account" className="h-8 gap-2 px-1.5">
     <EntityAvatar name={name ?? "U"} image={image} size="sm" />
     <span className="hidden max-w-32 truncate font-normal lg:inline">{name}</span>
-    <ChevronsUpDownIcon strokeWidth={2} className="text-kumo-subtle size-3 shrink-0" />
+    <CaretUpDownIcon weight="bold" className="text-kumo-subtle size-3 shrink-0" />
   </Button>
 );
 
@@ -184,7 +190,7 @@ const OrgSwitcher = () => {
             }}
             disabled={switchOrg.isPending}
           >
-            <PlusIcon strokeWidth={2} className="size-4" />
+            <PlusIcon weight="bold" className="size-4" />
             <span>Create organization</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
@@ -226,7 +232,7 @@ const UserMenu = () => {
             }}
             disabled={logoutMutation.isPending}
           >
-            <UserIcon strokeWidth={2} className="size-4" />
+            <UserIcon weight="bold" className="size-4" />
             <span>Account</span>
           </DropdownMenu.Item>
           <DropdownMenu.Separator />
@@ -241,7 +247,7 @@ const UserMenu = () => {
             {logoutMutation.isPending ? (
               <Loader size={16} />
             ) : (
-              <LogOutIcon strokeWidth={2} className="size-4" />
+              <SignOutIcon weight="bold" className="size-4" />
             )}
             <span>{logoutMutation.isPending ? "Logging out…" : "Log out"}</span>
           </DropdownMenu.Item>
@@ -294,7 +300,7 @@ const HeaderSearchButton = ({ onClick }: { onClick: () => void }) => (
     onClick={onClick}
     className="text-kumo-subtle size-8 justify-center p-0 font-normal shadow-none sm:w-48 sm:justify-start sm:px-2.5"
   >
-    <SearchIcon strokeWidth={2} />
+    <MagnifyingGlassIcon weight="bold" />
     <span className="hidden flex-1 text-left sm:inline">Search…</span>
     <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
   </Button>

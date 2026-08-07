@@ -14,9 +14,9 @@ import {
 } from "@better-update/ui/components/card";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/item";
+import { FingerprintIcon, GitBranchIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon, GitBranchIcon, SearchIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import type { Update, UpdateAssetEntry } from "@better-update/api";
@@ -68,7 +68,7 @@ const OverviewCard = ({
               search={{ page: 1, sort: "-createdAt" as const, branchId: [primary.branchId] }}
               className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
             >
-              <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
+              <GitBranchIcon weight="bold" className="text-muted-foreground size-3.5" />
               {branchName}
             </Link>
           ) : (
@@ -116,7 +116,7 @@ const OverviewCard = ({
                 params={{ projectSlug, hash: primary.fingerprintHash }}
                 className="hover:text-foreground text-muted-foreground inline-flex items-center gap-1 font-mono text-xs transition-colors"
               >
-                <FingerprintIcon strokeWidth={2} className="size-3" />
+                <FingerprintIcon weight="bold" className="size-3" />
                 {primary.fingerprintHash.slice(0, 16)}
               </Link>
               <CopyButton value={primary.fingerprintHash} label="Fingerprint" />
@@ -200,7 +200,7 @@ const PlatformVariantAssets = ({
             }}
           />
           <InputGroup.Addon>
-            <SearchIcon />
+            <MagnifyingGlassIcon />
           </InputGroup.Addon>
         </InputGroup>
       ) : null}

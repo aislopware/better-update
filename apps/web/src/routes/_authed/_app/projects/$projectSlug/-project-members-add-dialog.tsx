@@ -13,8 +13,8 @@ import {
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
+import { UserPlusIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { UserPlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
@@ -104,7 +104,7 @@ const AddMemberForm = ({
             }
           }}
           loading={addMutation.isPending}
-          icon={<UserPlusIcon strokeWidth={2} />}
+          icon={<UserPlusIcon weight="bold" />}
         >
           Add to project
         </Button>
@@ -152,7 +152,7 @@ export const AddProjectMemberDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
+        <UserPlusIcon weight="bold" data-icon="inline-start" />
         Add member
       </DialogTrigger>
       <DialogContent size="lg">

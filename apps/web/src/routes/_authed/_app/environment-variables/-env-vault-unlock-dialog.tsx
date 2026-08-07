@@ -13,9 +13,9 @@ import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Link } from "@better-update/ui/components/link";
 import { toast } from "@better-update/ui/components/toast";
+import { FingerprintIcon, LockKeyOpenIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FingerprintIcon, LockKeyholeOpenIcon } from "lucide-react";
 import { useState } from "react";
 
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
@@ -162,7 +162,7 @@ const UnlockForm = ({
               type="submit"
               disabled={!canSubmit || Boolean(isSubmitting)}
               loading={Boolean(isSubmitting)}
-              icon={<FingerprintIcon strokeWidth={2} />}
+              icon={<FingerprintIcon weight="bold" />}
             >
               Verify &amp; unlock
             </Button>
@@ -201,7 +201,7 @@ export const EnvVaultUnlockDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="secondary" />}>
-        <LockKeyholeOpenIcon strokeWidth={2} data-icon="inline-start" />
+        <LockKeyOpenIcon weight="bold" data-icon="inline-start" />
         Unlock env vault
       </DialogTrigger>
       <DialogContent>

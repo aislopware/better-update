@@ -1,12 +1,12 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
+import { ArchiveIcon, FolderIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { differenceInDays } from "date-fns";
-import { ArchiveIcon, FolderIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
@@ -76,7 +76,7 @@ const projectsSearchSchema = z.object({
 
 const EmptyState = () => (
   <Empty
-    icon={<FolderIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<FolderIcon className="text-kumo-inactive size-10" />}
     title="No projects yet"
     description="Create your first project to start publishing updates."
   />

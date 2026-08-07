@@ -3,7 +3,7 @@ import { DialogClose, DialogFooter } from "@better-update/ui/components/dialog";
 import { Input } from "@better-update/ui/components/input";
 import { useForm } from "@tanstack/react-form";
 
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 
 import { getFieldError, nameSchema } from "../../../../../lib/form-utils";
 
@@ -11,7 +11,7 @@ interface BranchNameFormProps {
   defaultName: string;
   onSubmit: (name: string) => Promise<void>;
   submitLabel: string;
-  submitIcon?: LucideIcon;
+  submitIcon?: Icon;
 }
 
 export const BranchNameForm = ({
@@ -74,7 +74,7 @@ export const BranchNameForm = ({
               loading={Boolean(isSubmitting)}
             >
               {!isSubmitting && SubmitIcon ? (
-                <SubmitIcon strokeWidth={2} data-icon="inline-start" />
+                <SubmitIcon weight="bold" data-icon="inline-start" />
               ) : null}
               {submitLabel}
             </Button>

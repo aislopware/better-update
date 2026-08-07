@@ -1,7 +1,7 @@
 import { getApiError, getTypedApiError } from "@better-update/api-client";
 import { Button } from "@better-update/ui/components/button";
 import { Empty } from "@better-update/ui/components/empty";
-import { LockIcon, TriangleAlertIcon } from "lucide-react";
+import { LockIcon, WarningIcon } from "@phosphor-icons/react";
 
 import { fireAndForget } from "../lib/data-table";
 
@@ -19,7 +19,7 @@ export const QueryErrorState = ({ error, onRetry }: QueryErrorStateProps) => {
   const forbidden = getTypedApiError(error)?._tag === "Forbidden";
   return (
     <Empty
-      icon={forbidden ? <LockIcon /> : <TriangleAlertIcon />}
+      icon={forbidden ? <LockIcon /> : <WarningIcon />}
       title={forbidden ? "You do not have access" : "Something went wrong"}
       description={
         forbidden

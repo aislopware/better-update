@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { Tooltip } from "@better-update/ui/components/tooltip";
-import { CircleCheckIcon } from "lucide-react";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 
 import type {
   BuildCompatibilityMatrixResult,
@@ -94,7 +94,7 @@ const MatrixStatusCell = ({
       label={`${channel.updateCount} ${pluralize(channel.updateCount, "update")} servable`}
       tooltip={<ServableTooltipBody channel={channel} />}
     >
-      <CircleCheckIcon strokeWidth={2} className="text-success size-3.5" aria-hidden="true" />
+      <CheckCircleIcon weight="bold" className="text-success size-3.5" aria-hidden="true" />
       <span className="font-medium tabular-nums">{channel.updateCount}</span>
     </MatrixCellGlyph>
   ) : (

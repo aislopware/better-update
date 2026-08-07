@@ -1,6 +1,6 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Switch } from "@better-update/ui/components/switch";
-import { LockIcon } from "lucide-react";
+import { LockIcon } from "@phosphor-icons/react";
 
 import type { AppleTeamItem } from "@better-update/api-client/react";
 import type { ReactNode } from "react";
@@ -23,7 +23,7 @@ export const CredentialEmptyRow = ({ children }: { children: ReactNode }) => (
 export const ProtectedBadgeCell = ({ isProtected }: { isProtected: boolean }) =>
   isProtected ? (
     <Badge variant="outline" className="gap-1">
-      <LockIcon strokeWidth={2} className="size-3" />
+      <LockIcon weight="bold" className="size-3" />
       Protected
     </Badge>
   ) : (

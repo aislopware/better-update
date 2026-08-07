@@ -1,6 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { Settings2Icon } from "lucide-react";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 
 import type { Table as ReactTableT } from "@tanstack/react-table";
 
@@ -17,7 +17,7 @@ export const DataTableViewOptions = <TData,>({ table }: { table: ReactTableT<TDa
   return (
     <DropdownMenu>
       <DropdownMenu.Trigger render={<Button variant="secondary" />}>
-        <Settings2Icon strokeWidth={2} />
+        <SlidersHorizontalIcon weight="bold" />
         View
       </DropdownMenu.Trigger>
       <DropdownMenu.Content align="end" className="w-44">

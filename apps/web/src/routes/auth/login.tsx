@@ -1,7 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
+import { ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { z } from "zod";
 
 import { BrandWordmark } from "../../components/brand-mark";
@@ -159,7 +159,7 @@ const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
   >
     Continue with GitHub
     <ArrowRightIcon
-      strokeWidth={2}
+      weight="bold"
       className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100"
     />
   </Button>
@@ -182,7 +182,7 @@ const GoogleButton = ({ onClick, isPending }: GoogleButtonProps) => (
   >
     Continue with Google
     <ArrowRightIcon
-      strokeWidth={2}
+      weight="bold"
       className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100"
     />
   </Button>
@@ -208,7 +208,7 @@ const TrustPoints = () => (
   <ul className="text-muted-foreground flex flex-col gap-2 text-xs leading-relaxed">
     {TRUST_POINTS.map((text) => (
       <li key={text} className="flex items-start gap-2">
-        <CheckIcon strokeWidth={2} className="text-primary mt-0.5 size-3.5 shrink-0" />
+        <CheckIcon weight="bold" className="text-primary mt-0.5 size-3.5 shrink-0" />
         {text}
       </li>
     ))}

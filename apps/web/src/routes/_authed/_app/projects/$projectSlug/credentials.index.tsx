@@ -13,9 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type {
@@ -66,7 +66,7 @@ const SectionListSkeleton = () => (
 
 const AndroidEmpty = () => (
   <Empty
-    icon={<AndroidIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<AndroidIcon className="text-kumo-inactive size-10" />}
     title="No application identifiers"
     description="Register an Android application identifier and bind upload keystores and Google service account keys for this project from the CLI."
     contents={
@@ -77,7 +77,7 @@ const AndroidEmpty = () => (
 
 const IosEmpty = () => (
   <Empty
-    icon={<AppleIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<AppleIcon className="text-kumo-inactive size-10" />}
     title="No bundle identifiers"
     description="Register an iOS bundle identifier and bind distribution certificates, provisioning profiles, push keys, and App Store Connect API keys for this project from the CLI."
     contents={<CliCommandBlock commands={["better-update credentials configure --platform ios"]} />}
@@ -102,7 +102,7 @@ const AndroidIdentifierRow = ({
         className={ROW_CLASS}
       >
         <span>{item.packageName}</span>
-        <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-4" />
+        <CaretRightIcon weight="bold" className="text-muted-foreground size-4" />
       </Link>
     </TableCell>
   </TableRow>
@@ -138,7 +138,7 @@ const IosIdentifierRow = ({
               </Badge>
             ) : null}
           </span>
-          <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-4" />
+          <CaretRightIcon weight="bold" className="text-muted-foreground size-4" />
         </Link>
       </TableCell>
     </TableRow>
@@ -163,7 +163,7 @@ const AndroidSection = ({
       <SectionHeader
         title={
           <span className="flex items-center gap-2">
-            <AndroidIcon strokeWidth={2} className="size-4" />
+            <AndroidIcon className="size-4" />
             Android
           </span>
         }
@@ -212,7 +212,7 @@ const IosSection = ({
       <SectionHeader
         title={
           <span className="flex items-center gap-2">
-            <AppleIcon strokeWidth={2} className="size-4" />
+            <AppleIcon className="size-4" />
             iOS
           </span>
         }

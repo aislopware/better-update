@@ -1,7 +1,7 @@
 import { deleteChannel } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2Icon } from "lucide-react";
 
 import type { Channel } from "@better-update/api";
 
@@ -36,7 +36,7 @@ export const DeleteChannelDialog = ({
         className="text-muted-foreground/70 hover:text-destructive size-8"
         aria-label="Delete channel"
       >
-        <Trash2Icon strokeWidth={2} className="size-4" />
+        <TrashIcon weight="bold" className="size-4" />
       </Button>
     </ConfirmDeleteDialog>
   );

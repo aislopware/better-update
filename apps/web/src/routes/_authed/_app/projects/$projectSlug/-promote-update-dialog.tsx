@@ -10,9 +10,9 @@ import {
 } from "@better-update/ui/components/dialog";
 import { Field } from "@better-update/ui/components/field";
 import { toast } from "@better-update/ui/components/toast";
+import { RocketIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { RocketIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { Update } from "@better-update/api";
@@ -152,7 +152,7 @@ const PromoteForm = ({
               type="submit"
               disabled={!targetChannelName || isSubmitting}
               loading={isSubmitting}
-              icon={<RocketIcon strokeWidth={2} />}
+              icon={<RocketIcon weight="bold" />}
             >
               Promote
             </Button>

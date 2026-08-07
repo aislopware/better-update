@@ -1,29 +1,29 @@
 import { meQueryOptions } from "@better-update/api-client/react";
 import { Sidebar } from "@better-update/ui/components/sidebar";
-import { useQuery } from "@tanstack/react-query";
-import { useRouterState } from "@tanstack/react-router";
 import {
-  ScrollTextIcon,
-  BotIcon,
-  CloudUploadIcon,
+  BroadcastIcon,
+  CloudArrowUpIcon,
   CodeIcon,
+  DeviceMobileIcon,
   FingerprintIcon,
-  LayersIcon,
-  LayoutDashboardIcon,
   FolderIcon,
+  GearIcon,
   GitBranchIcon,
   PackageIcon,
-  SatelliteIcon,
-  SettingsIcon,
+  RobotIcon,
+  ScrollIcon,
   ShieldCheckIcon,
-  ShieldUserIcon,
-  SmartphoneIcon,
-  UploadCloudIcon,
+  ShieldStarIcon,
+  SquaresFourIcon,
+  StackIcon,
+  UploadSimpleIcon,
   UsersIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 
 import type { MeResult } from "@better-update/api-client/react";
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 
 // Sidebar entries are gated by the server-computed /api/me capabilities
 // (ROLES-CAPABILITIES-SPEC §5b/§9e). Hiding is UX only — every endpoint stays
@@ -52,7 +52,7 @@ interface OrgNavItem {
     | "/admin"
     | "/account/profile";
   label: string;
-  icon: LucideIcon;
+  icon: Icon;
   /** Exact-match active state — required for "/" so it never shadows siblings. */
   exact?: boolean;
   /** Omitted = visible to every member (projects list + member directory). */
@@ -80,7 +80,7 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/robot-accounts"
     | "/projects/$projectSlug/environment-variables";
   label: string;
-  icon: LucideIcon;
+  icon: Icon;
   exact?: boolean;
 }
 
@@ -95,7 +95,7 @@ const ORG_NAV: OrgNavSection[] = [
     items: [
       // Same icon as the project-side Overview entry; exact so "/" never also
       // reads active alongside Projects (or any other org page).
-      { to: "/", label: "Overview", icon: LayoutDashboardIcon, exact: true },
+      { to: "/", label: "Overview", icon: SquaresFourIcon, exact: true },
       { to: "/projects", label: "Projects", icon: FolderIcon },
     ],
   },
@@ -103,7 +103,7 @@ const ORG_NAV: OrgNavSection[] = [
     label: "Organization",
     items: [
       { to: "/members", label: "Members", icon: UsersIcon },
-      { to: "/audit-log", label: "Audit log", icon: ScrollTextIcon, capability: "canViewAuditLog" },
+      { to: "/audit-log", label: "Audit log", icon: ScrollIcon, capability: "canViewAuditLog" },
     ],
   },
   {
@@ -118,7 +118,7 @@ const ORG_NAV: OrgNavSection[] = [
       {
         to: "/apple-devices",
         label: "Apple Devices",
-        icon: SmartphoneIcon,
+        icon: DeviceMobileIcon,
         capability: "canViewDevices",
       },
       {
@@ -141,7 +141,7 @@ const ORG_NAV: OrgNavSection[] = [
       {
         to: "/settings",
         label: "Organization settings",
-        icon: SettingsIcon,
+        icon: GearIcon,
         capability: "canManageOrgSettings",
       },
     ],
@@ -151,7 +151,7 @@ const ORG_NAV: OrgNavSection[] = [
 // Platform-superadmin section, appended only for superadmins (see `lib/access`).
 const ADMIN_NAV: OrgNavSection = {
   label: "Superadmin",
-  items: [{ to: "/admin", label: "Users", icon: ShieldUserIcon }],
+  items: [{ to: "/admin", label: "Users", icon: ShieldStarIcon }],
 };
 
 // Exported for the ⌘K command palette so both surfaces list the same entries.
@@ -162,13 +162,13 @@ export const PROJECT_NAV: ProjectNavSection[] = [
       {
         to: "/projects/$projectSlug",
         label: "Overview",
-        icon: LayoutDashboardIcon,
+        icon: SquaresFourIcon,
         exact: true,
       },
       {
         to: "/projects/$projectSlug/audit-log",
         label: "Audit log",
-        icon: ScrollTextIcon,
+        icon: ScrollIcon,
       },
     ],
   },
@@ -179,18 +179,18 @@ export const PROJECT_NAV: ProjectNavSection[] = [
       {
         to: "/projects/$projectSlug/submissions",
         label: "Submissions",
-        icon: UploadCloudIcon,
+        icon: UploadSimpleIcon,
       },
-      { to: "/projects/$projectSlug/channels", label: "Channels", icon: SatelliteIcon },
+      { to: "/projects/$projectSlug/channels", label: "Channels", icon: BroadcastIcon },
       { to: "/projects/$projectSlug/branches", label: "Branches", icon: GitBranchIcon },
-      { to: "/projects/$projectSlug/updates", label: "Updates", icon: CloudUploadIcon },
-      { to: "/projects/$projectSlug/runtimes", label: "Runtimes", icon: LayersIcon },
+      { to: "/projects/$projectSlug/updates", label: "Updates", icon: CloudArrowUpIcon },
+      { to: "/projects/$projectSlug/runtimes", label: "Runtimes", icon: StackIcon },
     ],
   },
   {
     label: "Project settings",
     items: [
-      { to: "/projects/$projectSlug/settings", label: "General", icon: SettingsIcon },
+      { to: "/projects/$projectSlug/settings", label: "General", icon: GearIcon },
       { to: "/projects/$projectSlug/members", label: "Members", icon: UsersIcon },
       {
         to: "/projects/$projectSlug/credentials",
@@ -200,7 +200,7 @@ export const PROJECT_NAV: ProjectNavSection[] = [
       {
         to: "/projects/$projectSlug/robot-accounts",
         label: "Robot accounts",
-        icon: BotIcon,
+        icon: RobotIcon,
       },
       {
         to: "/projects/$projectSlug/environment-variables",
@@ -249,7 +249,7 @@ const NavSection = ({
   items,
 }: {
   label: string;
-  items: readonly { href: string; label: string; icon: LucideIcon; exact: boolean }[];
+  items: readonly { href: string; label: string; icon: Icon; exact: boolean }[];
 }) => {
   const isCurrent = useIsCurrent();
   return (

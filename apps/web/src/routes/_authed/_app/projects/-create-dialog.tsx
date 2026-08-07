@@ -13,9 +13,9 @@ import {
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
@@ -135,7 +135,7 @@ export const CreateProjectFormContent = ({
               type="submit"
               disabled={!canSubmit || Boolean(isSubmitting)}
               loading={Boolean(isSubmitting)}
-              icon={<PlusIcon strokeWidth={2} />}
+              icon={<PlusIcon weight="bold" />}
             >
               Create project
             </Button>
@@ -161,7 +161,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        <PlusIcon weight="bold" data-icon="inline-start" />
         Create project
       </DialogTrigger>
       <DialogContent size="lg">

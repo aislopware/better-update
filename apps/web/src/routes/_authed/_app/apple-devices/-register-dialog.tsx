@@ -14,9 +14,9 @@ import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
@@ -226,7 +226,7 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
               type="submit"
               disabled={!canSubmit || isSubmitting}
               loading={isSubmitting}
-              icon={<PlusIcon strokeWidth={2} />}
+              icon={<PlusIcon weight="bold" />}
             >
               Register device
             </Button>
@@ -252,7 +252,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        <PlusIcon weight="bold" data-icon="inline-start" />
         Add device
       </DialogTrigger>
       <DialogContent size="lg">

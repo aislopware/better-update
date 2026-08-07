@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "@phosphor-icons/react";
 
 const ARIA_SORT_MAP = { asc: "ascending", desc: "descending" } as const;
 
@@ -8,10 +8,10 @@ export const toAriaSort = (
 
 export const SortIcon = ({ direction }: { direction: false | "asc" | "desc" }) => {
   if (direction === "asc") {
-    return <ArrowUpIcon strokeWidth={2} className="size-3.5" />;
+    return <ArrowUpIcon weight="bold" className="size-3.5" />;
   }
   if (direction === "desc") {
-    return <ArrowDownIcon strokeWidth={2} className="size-3.5" />;
+    return <ArrowDownIcon weight="bold" className="size-3.5" />;
   }
   return null;
 };

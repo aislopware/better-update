@@ -1,7 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
 import { Combobox } from "@better-update/ui/components/combobox";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronDownIcon } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import type { QueryFunction } from "@tanstack/react-query";
@@ -183,7 +183,7 @@ export const ServerSearchCombobox = ({
           )}
         </Combobox.Value>
         <Combobox.Icon className="text-kumo-subtle flex shrink-0 items-center">
-          <ChevronDownIcon strokeWidth={2} className="size-4" />
+          <CaretDownIcon weight="bold" className="size-4" />
         </Combobox.Icon>
       </Combobox.Trigger>
       {/* Matches the trigger's width the way a Select's list does, with a floor

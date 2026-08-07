@@ -1,24 +1,24 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { cn } from "@better-update/ui/lib/utils";
 import {
-  BuildingIcon,
-  CheckCircle2Icon,
+  BroadcastIcon,
+  BuildingsIcon,
+  CheckCircleIcon,
   CodeIcon,
-  DownloadIcon,
-  FlaskConicalIcon,
+  DownloadSimpleIcon,
+  FlaskIcon,
   MonitorIcon,
+  PaperPlaneTiltIcon,
   PlayIcon,
   RocketIcon,
-  SatelliteIcon,
-  SendIcon,
-  StoreIcon,
+  StorefrontIcon,
   TagIcon,
-  TriangleAlertIcon,
+  WarningIcon,
   WrenchIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 import type { BuildDistribution, PlatformValue } from "@better-update/api-client/react";
-import type { ComponentType, ReactElement, SVGProps } from "react";
+import type { ComponentType, ReactElement } from "react";
 
 import { AndroidIcon } from "./android-icon";
 import { AppleIcon } from "./apple-icon";
@@ -37,9 +37,15 @@ interface AttributeBadgeProps {
   className?: string;
 }
 
+/**
+ * The narrowest shape both icon families satisfy: a phosphor icon takes every
+ * SVG prop, while the hand-written brand marks take only these two.
+ */
+type BadgeIcon = ComponentType<{ className?: string; "data-icon"?: string }>;
+
 interface Definition {
   label: string;
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  icon: BadgeIcon;
   variant: BadgeVariant;
 }
 
@@ -49,13 +55,13 @@ const PLATFORM_DEFS = {
 } as const satisfies Record<PlatformValue, Definition>;
 
 const DISTRIBUTION_DEFS = {
-  "app-store": { label: "App Store", icon: StoreIcon, variant: "info" },
-  "ad-hoc": { label: "Ad Hoc", icon: SendIcon, variant: "warning" },
+  "app-store": { label: "App Store", icon: StorefrontIcon, variant: "info" },
+  "ad-hoc": { label: "Ad Hoc", icon: PaperPlaneTiltIcon, variant: "warning" },
   development: { label: "Development", icon: CodeIcon, variant: "secondary" },
-  enterprise: { label: "Enterprise", icon: BuildingIcon, variant: "secondary" },
+  enterprise: { label: "Enterprise", icon: BuildingsIcon, variant: "secondary" },
   simulator: { label: "Simulator", icon: MonitorIcon, variant: "secondary" },
   "play-store": { label: "Play Store", icon: PlayIcon, variant: "success" },
-  direct: { label: "Direct", icon: DownloadIcon, variant: "outline" },
+  direct: { label: "Direct", icon: DownloadSimpleIcon, variant: "outline" },
 } as const satisfies Record<BuildDistribution, Definition>;
 
 // Environments are identity, not status — they render neutral (icon carries the
@@ -63,8 +69,8 @@ const DISTRIBUTION_DEFS = {
 const ENVIRONMENT_KNOWN: Record<string, Omit<Definition, "label">> = {
   production: { icon: RocketIcon, variant: "outline" },
   prod: { icon: RocketIcon, variant: "outline" },
-  staging: { icon: FlaskConicalIcon, variant: "outline" },
-  stage: { icon: FlaskConicalIcon, variant: "outline" },
+  staging: { icon: FlaskIcon, variant: "outline" },
+  stage: { icon: FlaskIcon, variant: "outline" },
   development: { icon: WrenchIcon, variant: "outline" },
   dev: { icon: WrenchIcon, variant: "outline" },
   preview: { icon: TagIcon, variant: "outline" },
@@ -76,7 +82,7 @@ const renderBadge = (
   className: string | undefined,
 ): ReactElement => (
   <Badge variant={variant} className={cn(size ? SIZE_CLASSES[size] : undefined, className)}>
-    <Icon strokeWidth={2} data-icon="inline-start" />
+    <Icon data-icon="inline-start" />
     {label}
   </Badge>
 );
@@ -103,7 +109,7 @@ export const PlatformIndicator = ({
   const { label, icon: Icon } = PLATFORM_DEFS[platform];
   return (
     <span className={cn("flex items-center gap-1.5", className)}>
-      <Icon strokeWidth={2} className="text-muted-foreground size-3.5 shrink-0" />
+      <Icon className="text-muted-foreground size-3.5 shrink-0" />
       {label}
     </span>
   );
@@ -131,7 +137,7 @@ export const DistributionIndicator = ({
   const { label, icon: Icon } = DISTRIBUTION_DEFS[distribution];
   return (
     <span className={cn("flex items-center gap-1.5", className)}>
-      <Icon strokeWidth={2} className="text-muted-foreground size-3.5 shrink-0" />
+      <Icon className="text-muted-foreground size-3.5 shrink-0" />
       {label}
     </span>
   );
@@ -143,7 +149,7 @@ export const ChannelBadge = ({
   className,
 }: AttributeBadgeProps & { name: string }): ReactElement => (
   <Badge variant="outline" className={cn(size ? SIZE_CLASSES[size] : undefined, className)}>
-    <SatelliteIcon strokeWidth={2} data-icon="inline-start" />
+    <BroadcastIcon weight="bold" data-icon="inline-start" />
     {name}
   </Badge>
 );
@@ -156,12 +162,12 @@ export const SubmissionMetadataBadge = ({
 }: AttributeBadgeProps & { complete: boolean }): ReactElement =>
   complete ? (
     <span className={cn("text-muted-foreground flex items-center gap-1.5 text-sm", className)}>
-      <CheckCircle2Icon strokeWidth={2} className="size-3.5 shrink-0" />
+      <CheckCircleIcon weight="bold" className="size-3.5 shrink-0" />
       Complete
     </span>
   ) : (
     <span className={cn("text-warning-foreground flex items-center gap-1.5 text-sm", className)}>
-      <TriangleAlertIcon strokeWidth={2} className="size-3.5 shrink-0" />
+      <WarningIcon weight="bold" className="size-3.5 shrink-0" />
       Metadata pending
     </span>
   );

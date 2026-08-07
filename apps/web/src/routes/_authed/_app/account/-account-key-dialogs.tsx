@@ -15,9 +15,9 @@ import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
+import { KeyIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 
 import { getFieldError, passwordSchema } from "../../../../lib/form-utils";
@@ -156,7 +156,7 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
                 </>
               ) : (
                 <>
-                  <KeyRoundIcon strokeWidth={2} data-icon="inline-start" />
+                  <KeyIcon weight="bold" data-icon="inline-start" />
                   Enroll account key
                 </>
               )}
@@ -192,7 +192,7 @@ export const EnrollAccountKeyDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="secondary" />}>
-        <KeyRoundIcon strokeWidth={2} data-icon="inline-start" />
+        <KeyIcon weight="bold" data-icon="inline-start" />
         Set up vault access
       </DialogTrigger>
       <DialogContent size="lg">

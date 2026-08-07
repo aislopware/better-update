@@ -10,8 +10,8 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { toast } from "@better-update/ui/components/toast";
+import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Undo2Icon } from "lucide-react";
 
 import type { Update } from "@better-update/api";
 
@@ -91,7 +91,7 @@ export const RollbackToEmbeddedDialog = ({
             }}
             disabled={rollbackMutation.isPending}
             loading={rollbackMutation.isPending}
-            icon={<Undo2Icon strokeWidth={2} />}
+            icon={<ArrowCounterClockwiseIcon weight="bold" />}
           >
             Create rollback
           </Button>

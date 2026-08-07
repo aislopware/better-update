@@ -1,15 +1,15 @@
 import { channelsQueryOptions, deleteUpdateGroup } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  EllipsisVerticalIcon,
+  ArrowCounterClockwiseIcon,
+  ArrowsClockwiseIcon,
+  DotsThreeVerticalIcon,
   EyeIcon,
-  RefreshCwIcon,
   RocketIcon,
-  Trash2Icon,
-  Undo2Icon,
-} from "lucide-react";
+  TrashIcon,
+} from "@phosphor-icons/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { Update } from "@better-update/api";
@@ -103,7 +103,7 @@ export const UpdateActionsMenu = ({
             />
           }
         >
-          <EllipsisVerticalIcon strokeWidth={2} />
+          <DotsThreeVerticalIcon weight="bold" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end" className="min-w-48">
           <DropdownMenu.Item
@@ -128,7 +128,7 @@ export const UpdateActionsMenu = ({
             onClick={() => {
               setRepublishOpen(true);
             }}
-            icon={RefreshCwIcon}
+            icon={ArrowsClockwiseIcon}
           >
             Republish on branch
           </DropdownMenu.Item>
@@ -137,7 +137,7 @@ export const UpdateActionsMenu = ({
             onClick={() => {
               setRollbackOpen(true);
             }}
-            icon={Undo2Icon}
+            icon={ArrowCounterClockwiseIcon}
           >
             Rollback to embedded
           </DropdownMenu.Item>
@@ -147,7 +147,7 @@ export const UpdateActionsMenu = ({
             onClick={() => {
               setDeleteOpen(true);
             }}
-            icon={Trash2Icon}
+            icon={TrashIcon}
           >
             Delete update group
           </DropdownMenu.Item>

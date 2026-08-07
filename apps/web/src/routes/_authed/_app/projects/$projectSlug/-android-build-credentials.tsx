@@ -18,8 +18,8 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
+import { CheckCircleIcon, KeyIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { CheckCircle2Icon, KeyRoundIcon } from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -169,7 +169,7 @@ const GroupOptionLabel = ({ group }: { group: AndroidBuildCredentialsItem }) => 
     <span className="truncate">{group.name}</span>
     {group.isDefault ? (
       <Badge variant="success">
-        <CheckCircle2Icon strokeWidth={2} data-icon="inline-start" />
+        <CheckCircleIcon weight="bold" data-icon="inline-start" />
         Default
       </Badge>
     ) : null}
@@ -204,7 +204,7 @@ const GroupSwitcher = ({
 
 const EmptyGroups = () => (
   <Empty
-    icon={<KeyRoundIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<KeyIcon className="text-kumo-inactive size-10" />}
     title="No credential groups yet"
     description="Add a group from the CLI to bind an upload keystore and service account keys for this identifier."
     contents={

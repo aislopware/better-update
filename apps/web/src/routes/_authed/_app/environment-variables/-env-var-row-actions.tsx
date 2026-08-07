@@ -1,6 +1,12 @@
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { EllipsisVerticalIcon, EyeIcon, PencilIcon, TagIcon, Trash2Icon } from "lucide-react";
+import {
+  DotsThreeVerticalIcon,
+  EyeIcon,
+  PencilSimpleIcon,
+  TagIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { EnvVar } from "@better-update/api";
@@ -53,7 +59,7 @@ export const EnvVarRowActions = ({
             />
           }
         >
-          <EllipsisVerticalIcon strokeWidth={2} />
+          <DotsThreeVerticalIcon weight="bold" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end">
           <DropdownMenu.Item
@@ -79,7 +85,7 @@ export const EnvVarRowActions = ({
                 onClick={() => {
                   setOpenDialog("edit");
                 }}
-                icon={PencilIcon}
+                icon={PencilSimpleIcon}
               >
                 Edit value
               </DropdownMenu.Item>
@@ -89,7 +95,7 @@ export const EnvVarRowActions = ({
                 onClick={() => {
                   setOpenDialog("delete");
                 }}
-                icon={Trash2Icon}
+                icon={TrashIcon}
               >
                 Delete
               </DropdownMenu.Item>

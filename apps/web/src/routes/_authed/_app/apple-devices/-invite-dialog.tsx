@@ -18,9 +18,9 @@ import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Select } from "@better-update/ui/components/select";
+import { LinkIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { LinkIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { z } from "zod/v4";
@@ -255,7 +255,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="secondary" />}>
-        <LinkIcon strokeWidth={2} data-icon="inline-start" />
+        <LinkIcon weight="bold" data-icon="inline-start" />
         Invite link
       </DialogTrigger>
       <DialogContent size="lg">

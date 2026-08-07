@@ -12,9 +12,9 @@ import { Field } from "@better-update/ui/components/field";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Textarea } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
+import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { Update } from "@better-update/api";
@@ -115,7 +115,7 @@ const RepublishForm = ({
               type="submit"
               disabled={isSubmitting}
               loading={isSubmitting}
-              icon={<RefreshCwIcon strokeWidth={2} />}
+              icon={<ArrowsClockwiseIcon weight="bold" />}
             >
               Republish
             </Button>

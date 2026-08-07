@@ -1,8 +1,8 @@
 import { getApiError } from "@better-update/api-client";
 import { getEnvVarValue } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { FingerprintIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { EnvVar } from "@better-update/api";
@@ -131,7 +131,7 @@ export const StepUpGate = ({
       disabled={verifying}
       onClick={onVerify}
       loading={verifying}
-      icon={<FingerprintIcon strokeWidth={2} />}
+      icon={<FingerprintIcon weight="bold" />}
     >
       Verify with passkey
     </Button>

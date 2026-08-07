@@ -1,9 +1,9 @@
 import { meQueryOptions, projectMembersQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { UsersIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { UsersIcon } from "lucide-react";
 import { Suspense } from "react";
 import { z } from "zod";
 
@@ -58,7 +58,7 @@ const RemoveProjectMemberDialog = ({
 
 const EmptyMembers = ({ actions }: { actions?: ReactNode }) => (
   <Empty
-    icon={<UsersIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<UsersIcon className="text-kumo-inactive size-10" />}
     title="No project members yet"
     description="Organization owners and admins always have access. Add members to grant a role on this project."
     contents={actions}

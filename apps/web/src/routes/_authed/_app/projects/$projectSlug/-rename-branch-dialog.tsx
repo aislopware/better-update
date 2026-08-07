@@ -10,8 +10,8 @@ import {
 } from "@better-update/ui/components/dialog";
 import { toast } from "@better-update/ui/components/toast";
 import { Tooltip } from "@better-update/ui/components/tooltip";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { PencilIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { BranchItem } from "@better-update/api-client/react";
@@ -60,7 +60,7 @@ export const RenameBranchDialog = ({
           />
         }
       >
-        <PencilIcon strokeWidth={2} />
+        <PencilSimpleIcon weight="bold" />
       </Tooltip>
       <DialogContent>
         <DialogHeader>

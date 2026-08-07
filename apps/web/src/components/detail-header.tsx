@@ -44,7 +44,7 @@ export const DetailHeader = ({ title, badges, meta, actions, className }: Detail
 );
 
 interface DetailNotFoundProps {
-  /** Entity icon, e.g. `<RadioTowerIcon strokeWidth={1.5} />`. */
+  /** Entity icon, e.g. `<BroadcastIcon />`. */
   readonly icon: ReactNode;
   readonly title: string;
   readonly description: string;

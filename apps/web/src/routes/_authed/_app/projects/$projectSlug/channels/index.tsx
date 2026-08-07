@@ -3,11 +3,11 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Empty } from "@better-update/ui/components/empty";
 import { toast } from "@better-update/ui/components/toast";
+import { BroadcastIcon, GitBranchIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { GitBranchIcon, PauseIcon, PlayIcon, SatelliteIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -55,7 +55,7 @@ const channelsSearchSchema = z.object({
 
 const ChannelsEmptyState = () => (
   <Empty
-    icon={<SatelliteIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<BroadcastIcon className="text-kumo-inactive size-10" />}
     title="No channels yet"
     description="Create your first channel to start distributing updates."
   />
@@ -91,7 +91,7 @@ const PauseToggleButton = ({
       loading={togglePauseMutation.isPending}
     >
       {!togglePauseMutation.isPending &&
-        (channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />)}
+        (channel.isPaused ? <PlayIcon weight="bold" /> : <PauseIcon weight="bold" />)}
     </Button>
   );
 };
@@ -103,7 +103,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
     header: "Channel",
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium">
-        <SatelliteIcon strokeWidth={2} className="text-muted-foreground size-4" />
+        <BroadcastIcon weight="bold" className="text-muted-foreground size-4" />
         {row.original.name}
         {row.original.isBuiltin ? (
           <Badge variant="outline" className="text-muted-foreground">
@@ -119,7 +119,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
     header: "Branch",
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-1.5">
-        <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
+        <GitBranchIcon weight="bold" className="text-muted-foreground size-3.5" />
         {row.original.branchName ?? <CopyableId value={row.original.branchId} label="Branch ID" />}
       </span>
     ),

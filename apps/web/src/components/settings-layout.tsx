@@ -1,8 +1,8 @@
 import { cn } from "@better-update/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 
+import type { Icon } from "@phosphor-icons/react";
 import type { LinkProps } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { PageHeader } from "./page-header";
@@ -12,7 +12,7 @@ type LinkTo = Exclude<LinkProps["to"], undefined>;
 interface SettingsNavItem {
   readonly to: LinkTo;
   readonly label: string;
-  readonly icon: LucideIcon;
+  readonly icon: Icon;
 }
 
 interface SettingsNavSection {
@@ -58,7 +58,7 @@ export const SettingsLayout = ({
                     )}
                   >
                     <item.icon
-                      strokeWidth={2}
+                      weight="bold"
                       className="size-4 opacity-72 group-data-status-active/settings-nav-item:opacity-100"
                     />
                     <span>{item.label}</span>

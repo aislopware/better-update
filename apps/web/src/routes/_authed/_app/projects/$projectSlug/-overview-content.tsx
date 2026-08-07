@@ -13,9 +13,9 @@ import {
   CardTitle,
 } from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
+import { GitBranchIcon, RocketIcon } from "@phosphor-icons/react";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { GitBranchIcon, RocketIcon } from "lucide-react";
 
 import type { Channel } from "@better-update/api";
 import type { ReactElement, ReactNode } from "react";
@@ -43,7 +43,7 @@ const FIRST_PUBLISH_COMMANDS = [
 
 const FirstPublishCard = () => (
   <Empty
-    icon={<RocketIcon className="text-kumo-inactive size-10" strokeWidth={1.5} />}
+    icon={<RocketIcon className="text-kumo-inactive size-10" />}
     title="Publish your first update"
     description="Link this project from your app repo, then publish — channels, branches, and analytics light up from the first update."
     contents={<CliCommandBlock commands={FIRST_PUBLISH_COMMANDS} />}
@@ -70,7 +70,7 @@ const LiveNowRow = ({ scope, channel }: { scope: OverviewScope; channel: Channel
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{channel.name}</span>
         <span className="text-muted-foreground flex items-center gap-1 text-xs">
-          <GitBranchIcon strokeWidth={2} className="size-3 shrink-0" />
+          <GitBranchIcon weight="bold" className="size-3 shrink-0" />
           <span className="truncate">{channel.branchName ?? channel.branchId.slice(0, 8)}</span>
         </span>
       </span>
