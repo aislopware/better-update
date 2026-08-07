@@ -13,11 +13,13 @@ export default defineConfig({
   // retired, and use-mobile.ts ships with its sidebar.
   ignorePatterns: [
     "src/components/*.tsx",
+    "!src/components/avatar.tsx",
     "!src/components/card.tsx",
     "!src/components/dialog.tsx",
     "!src/components/field.tsx",
     "!src/components/field-layout.tsx",
     "!src/components/item.tsx",
+    "!src/components/kbd.tsx",
     "!src/components/separator.tsx",
     "!src/components/skeleton.tsx",
     "!src/components/table.tsx",

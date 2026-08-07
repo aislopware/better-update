@@ -58,8 +58,11 @@ const COMPONENTS = [
   "toolbar",
   "tooltip",
 ];
-// `card`, `dialog`, `field`, `separator`, `skeleton`, `table` and `toast` are
-// deliberately absent: all seven are hand-written. Kumo ships no default toast
+// `avatar`, `card`, `dialog`, `field`, `item`, `kbd`, `separator`, `skeleton`,
+// `table` and `toast` are deliberately absent: all ten are hand-written. Kumo
+// has no avatar, no list row (`LayerCard` is the nearest surface, and its card
+// padding is wrong for a row that repeats down a page) and no keycap (its menu
+// `Shortcut` is bare dimmed text). It ships no default toast
 // manager and no `toast.success` / `toast.error` sugar, its `Field` takes only
 // the structured error shape its `Input` normalizes, its `Dialog` is the bare
 // popup — no header, footer, dismiss control or padding — its `Table` leaves

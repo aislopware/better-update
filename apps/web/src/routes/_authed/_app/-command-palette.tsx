@@ -1,5 +1,6 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
+import { Kbd } from "@better-update/ui/components/kbd";
 import {
   Command,
   CommandDialog,
@@ -9,7 +10,6 @@ import {
   CommandItem,
   CommandList,
 } from "@better-update/ui/components/ui/command";
-import { Kbd } from "@better-update/ui/components/ui/kbd";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";

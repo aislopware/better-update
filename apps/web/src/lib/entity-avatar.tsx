@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@better-update/ui/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@better-update/ui/components/avatar";
 import { cn } from "@better-update/ui/lib/utils";
 
 import { getAvatarColor, getInitial } from "./avatar";
