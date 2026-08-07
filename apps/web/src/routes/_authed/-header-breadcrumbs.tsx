@@ -5,18 +5,9 @@ import {
   submissionQueryOptions,
   updateQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@better-update/ui/components/ui/breadcrumb";
-import { cn } from "@better-update/ui/lib/utils";
+import { Breadcrumbs } from "@better-update/ui/components/breadcrumbs";
 import { useQuery } from "@tanstack/react-query";
-import { Link, getRouteApi, useRouterState } from "@tanstack/react-router";
-import { Fragment } from "react";
+import { getRouteApi, useRouterState } from "@tanstack/react-router";
 
 import type { ReactNode } from "react";
 
@@ -58,21 +49,20 @@ const ACCOUNT_SECTION_LABELS: Record<string, string> = {
   sessions: "Sessions",
 };
 
-// List routes with a detail page below them — these crumbs link back to the list.
-const PROJECT_LIST_ROUTES = {
-  builds: "/projects/$projectSlug/builds",
-  updates: "/projects/$projectSlug/updates",
-  channels: "/projects/$projectSlug/channels",
-  runtimes: "/projects/$projectSlug/runtimes",
-  submissions: "/projects/$projectSlug/submissions",
-  credentials: "/projects/$projectSlug/credentials",
-} as const;
+// Project sections with a detail page below them — these crumbs link back to
+// the list. Kumo's breadcrumb link takes a plain href rather than a typed route
+// + params pair, so the project slug is interpolated here.
+const PROJECT_LIST_SECTIONS = new Set([
+  "builds",
+  "updates",
+  "channels",
+  "runtimes",
+  "submissions",
+  "credentials",
+]);
 
-type ProjectListRoute = (typeof PROJECT_LIST_ROUTES)[keyof typeof PROJECT_LIST_ROUTES];
-
-const LIST_ROUTE_BY_SECTION: ReadonlyMap<string, ProjectListRoute> = new Map(
-  Object.entries(PROJECT_LIST_ROUTES),
-);
+const projectListHref = (projectSlug: string, section: string): string =>
+  `/projects/${projectSlug}/${section}`;
 
 // Sections whose leaf crumb can resolve to a human name (channel name, update
 // message…) from the entity query cache the detail route itself populates.
@@ -93,10 +83,7 @@ interface Crumb {
   readonly label: string;
   readonly mono?: boolean;
   readonly entity?: EntityRef;
-  readonly link?: {
-    readonly to: ProjectListRoute | "/account";
-    readonly params?: { readonly projectSlug: string };
-  };
+  readonly href?: string;
 }
 
 /** UUIDs and long opaque ids collapse to a copy-recognizable 8-char prefix. */
@@ -111,9 +98,8 @@ const projectDetailCrumbs = (
   rest: readonly string[],
 ): readonly Crumb[] => {
   const sectionLabel = PROJECT_SECTION_LABELS[section] ?? section;
-  const listRoute = LIST_ROUTE_BY_SECTION.get(section);
-  const sectionCrumb: Crumb = listRoute
-    ? { label: sectionLabel, link: { to: listRoute, params: { projectSlug } } }
+  const sectionCrumb: Crumb = PROJECT_LIST_SECTIONS.has(section)
+    ? { label: sectionLabel, href: projectListHref(projectSlug, section) }
     : { label: sectionLabel };
   const [first, second] = rest;
 
@@ -164,7 +150,7 @@ const orgCrumbs = (segments: readonly string[]): readonly Crumb[] => {
   }
   if (first === "account" && second) {
     return [
-      { label: "Account", link: { to: "/account" } },
+      { label: "Account", href: "/account" },
       { label: ACCOUNT_SECTION_LABELS[second] ?? second },
     ];
   }
@@ -180,9 +166,9 @@ const appRoute = getRouteApi("/_authed/_app");
 const EntityLeaf = ({ name, fallback }: { name: string | undefined; fallback: string }) => {
   const label = name?.trim() ? name : undefined;
   return (
-    <BreadcrumbPage className={cn("truncate font-medium", !label && "font-mono text-xs")}>
-      {label ?? fallback}
-    </BreadcrumbPage>
+    <Breadcrumbs.Current>
+      {label ?? <span className="font-mono text-xs">{fallback}</span>}
+    </Breadcrumbs.Current>
   );
 };
 
@@ -277,49 +263,31 @@ const ENTITY_CRUMBS: Record<EntitySection, (props: EntityCrumbProps) => ReactNod
   submissions: SubmissionCrumb,
 };
 
-// Split render paths so `params` is only passed when present
-// (exactOptionalPropertyTypes rejects an explicit undefined).
+const crumbLabel = (crumb: Crumb): ReactNode =>
+  crumb.mono ? <span className="font-mono text-xs">{crumb.label}</span> : crumb.label;
+
 const CrumbContent = ({ crumb, isLast }: { crumb: Crumb; isLast: boolean }) => {
-  const labelClass = crumb.mono ? "truncate font-mono text-xs" : "truncate";
   if (crumb.entity && isLast) {
     const EntityCrumb = ENTITY_CRUMBS[crumb.entity.section];
     return <EntityCrumb entity={crumb.entity} fallback={crumb.label} />;
   }
-  if (crumb.link && !isLast) {
-    return (
-      <CrumbLink link={crumb.link} className={labelClass}>
-        {crumb.label}
-      </CrumbLink>
-    );
+  if (crumb.href && !isLast) {
+    return <Breadcrumbs.Link href={crumb.href}>{crumbLabel(crumb)}</Breadcrumbs.Link>;
   }
   if (isLast) {
-    return <BreadcrumbPage className={`font-medium ${labelClass}`}>{crumb.label}</BreadcrumbPage>;
+    return <Breadcrumbs.Current>{crumbLabel(crumb)}</Breadcrumbs.Current>;
   }
-  return <span className={labelClass}>{crumb.label}</span>;
+  return <span className="text-kumo-subtle shrink-0">{crumbLabel(crumb)}</span>;
 };
-
-const CrumbLink = ({
-  link,
-  className,
-  children,
-}: {
-  link: NonNullable<Crumb["link"]>;
-  className: string;
-  children: string;
-}) => (
-  <BreadcrumbLink
-    className={className}
-    render={link.params ? <Link to={link.to} params={link.params} /> : <Link to={link.to} />}
-  >
-    {children}
-  </BreadcrumbLink>
-);
 
 /**
  * Path-derived breadcrumb trail rendered next to the ProjectSwitcher (which
  * acts as the root crumb). Detail pages get a linked list crumb + a leaf that
  * resolves to the entity's human name from the route's query cache (short mono
- * id until then), Vercel-style — hence the `/` separator override.
+ * id until then).
+ *
+ * Hidden below `md`, where the ProjectSwitcher alone carries the location —
+ * which is also why Kumo's own narrow-screen collapsing never comes into play.
  */
 export const HeaderBreadcrumbs = ({ projectSlug }: { projectSlug: string | undefined }) => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -330,19 +298,15 @@ export const HeaderBreadcrumbs = ({ projectSlug }: { projectSlug: string | undef
       : orgCrumbs(segments);
 
   return (
-    <Breadcrumb aria-label="Breadcrumb" className="hidden min-w-0 md:block">
-      <BreadcrumbList className="flex-nowrap gap-2">
-        {crumbs.map((crumb, index) => (
-          <Fragment key={`${crumb.label}-${String(index)}`}>
-            <BreadcrumbSeparator className="text-muted-foreground/40 select-none">
-              /
-            </BreadcrumbSeparator>
-            <BreadcrumbItem className="min-w-0">
-              <CrumbContent crumb={crumb} isLast={index === crumbs.length - 1} />
-            </BreadcrumbItem>
-          </Fragment>
-        ))}
-      </BreadcrumbList>
-    </Breadcrumb>
+    <Breadcrumbs size="sm" className="hidden min-w-0 md:flex">
+      {crumbs.flatMap((crumb, index) => [
+        <Breadcrumbs.Separator key={`separator-${crumb.label}-${String(index)}`} />,
+        <CrumbContent
+          key={`crumb-${crumb.label}-${String(index)}`}
+          crumb={crumb}
+          isLast={index === crumbs.length - 1}
+        />,
+      ])}
+    </Breadcrumbs>
   );
 };

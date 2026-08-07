@@ -1,11 +1,12 @@
 import { appleTeamsQueryOptions, devicesQueryOptions } from "@better-update/api-client/react";
+import { Banner } from "@better-update/ui/components/banner";
 import { Empty } from "@better-update/ui/components/empty";
-import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
+import { WarningIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { SmartphoneIcon, TriangleAlertIcon } from "lucide-react";
+import { SmartphoneIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -123,20 +124,21 @@ const UnsyncedDevicesBanner = ({ orgId }: { orgId: string }) => {
     return null;
   }
   return (
-    <Alert variant="warning">
-      <TriangleAlertIcon />
-      <AlertTitle>
-        {count} {pluralize(count, "device")} not synced with Apple
-      </AlertTitle>
-      <AlertDescription>
-        Devices without an Apple Developer portal registration are left out of ad-hoc provisioning
-        profiles. Run{" "}
-        <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">
-          better-update devices sync
-        </code>{" "}
-        to register them.
-      </AlertDescription>
-    </Alert>
+    <Banner
+      variant="alert"
+      icon={<WarningIcon weight="fill" />}
+      title={`${String(count)} ${pluralize(count, "device")} not synced with Apple`}
+      description={
+        <>
+          Devices without an Apple Developer portal registration are left out of ad-hoc provisioning
+          profiles. Run{" "}
+          <code className="bg-kumo-recessed rounded px-1 py-0.5 font-mono text-xs">
+            better-update devices sync
+          </code>{" "}
+          to register them.
+        </>
+      }
+    />
   );
 };
 

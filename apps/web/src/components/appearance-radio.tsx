@@ -1,4 +1,4 @@
-import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
+import { Radio } from "@better-update/ui/components/radio";
 import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";
@@ -17,6 +17,12 @@ interface AppearanceRadioGroupProps<T extends string> {
   readonly className?: string;
 }
 
+/**
+ * Choice cards that are picked by their picture rather than their name — the
+ * theme switcher being the only one so far. Kumo's card radio already draws the
+ * frame, the selected state and the control, so the preview rides along inside
+ * the item's label above its caption.
+ */
 export const AppearanceRadioGroup = <T extends string>({
   value,
   onValueChange,
@@ -24,31 +30,33 @@ export const AppearanceRadioGroup = <T extends string>({
   name,
   className,
 }: AppearanceRadioGroupProps<T>) => (
-  <RadioGroup
+  <Radio.Group
+    appearance="card"
+    orientation="horizontal"
+    name={name}
     value={value}
     onValueChange={(next: T) => {
       onValueChange(next);
     }}
-    name={name}
-    className={cn("grid gap-3 sm:grid-cols-3", className)}
+    // Kumo lays horizontal choice cards out two-up. These previews are equal
+    // siblings that read as one row, so the item grid widens to the option
+    // count once there is room; the selector reaches past the fieldset to the
+    // row Kumo renders inside it.
+    className={cn("sm:[&>div]:grid-cols-3", className)}
   >
-    {options.map((opt) => (
-      <label
-        key={opt.value}
-        className={cn(
-          "bg-card relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-xl border p-2 transition-all",
-          "hover:border-foreground/24",
-          "has-data-checked:border-foreground has-data-checked:ring-foreground/12 has-data-checked:ring-2",
-        )}
-      >
-        <div className="bg-muted/50 aspect-[16/10] overflow-hidden rounded-lg border">
-          {opt.preview}
-        </div>
-        <div className="flex items-center gap-2 px-1 py-1">
-          <RadioGroupItem value={opt.value} />
-          <span className="text-sm leading-none font-medium">{opt.label}</span>
-        </div>
-      </label>
+    {options.map((option) => (
+      <Radio.Item
+        key={option.value}
+        value={option.value}
+        label={
+          <>
+            <span className="bg-kumo-recessed ring-kumo-hairline mb-2 block aspect-[16/10] overflow-hidden rounded-lg ring-1">
+              {option.preview}
+            </span>
+            {option.label}
+          </>
+        }
+      />
     ))}
-  </RadioGroup>
+  </Radio.Group>
 );

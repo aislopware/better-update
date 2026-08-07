@@ -13,9 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
+import { Tabs } from "@better-update/ui/components/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Fragment } from "react";
+import { useState } from "react";
 
 import type {
   AppleDistributionCertificateItem,
@@ -243,11 +243,17 @@ export const IosBuildCredentialsSection = ({
   const configs = sortConfigsByDistribution(
     configsResult.items.filter((config) => config.bundleIdentifier === bundleIdentifier),
   );
+  // Kumo's Tabs renders the strip alone and leaves the panel to the caller, so
+  // the selection lives here. Undefined means "not chosen yet" and resolves to
+  // the first distribution type below.
+  const [selectedType, setSelectedType] = useState<string>();
 
   const [firstConfig] = configs;
   if (firstConfig === undefined) {
     return null;
   }
+  const activeConfig =
+    configs.find((config) => config.distributionType === selectedType) ?? firstConfig;
 
   return (
     <section className="flex flex-col gap-4">
@@ -257,27 +263,21 @@ export const IosBuildCredentialsSection = ({
           Distribution certificate and provisioning profile per distribution type.
         </p>
       </div>
-      <Tabs defaultValue={firstConfig.distributionType}>
-        <TabsList>
-          {configs.map((config) => (
-            <TabsTrigger key={config.id} value={config.distributionType}>
-              {DISTRIBUTION_LABELS[config.distributionType]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {configs.map((config) => (
-          <Fragment key={config.id}>
-            <TabsContent value={config.distributionType} className="pt-4">
-              <ConfigTabPanel
-                config={config}
-                certs={certsResult.items}
-                profiles={profilesResult.items}
-                teams={teamsResult.items}
-              />
-            </TabsContent>
-          </Fragment>
-        ))}
-      </Tabs>
+      <Tabs
+        tabs={configs.map((config) => ({
+          value: config.distributionType,
+          label: DISTRIBUTION_LABELS[config.distributionType],
+        }))}
+        value={activeConfig.distributionType}
+        onValueChange={setSelectedType}
+        className="self-start"
+      />
+      <ConfigTabPanel
+        config={activeConfig}
+        certs={certsResult.items}
+        profiles={profilesResult.items}
+        teams={teamsResult.items}
+      />
     </section>
   );
 };

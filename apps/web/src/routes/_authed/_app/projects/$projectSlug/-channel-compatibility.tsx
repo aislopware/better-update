@@ -1,5 +1,5 @@
-import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
-import { TriangleAlertIcon } from "lucide-react";
+import { Banner } from "@better-update/ui/components/banner";
+import { WarningIcon } from "@phosphor-icons/react";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
 
@@ -23,10 +23,11 @@ export const MissingMatchingBuilds = ({
   }
 
   return (
-    <Alert variant="warning">
-      <TriangleAlertIcon strokeWidth={2} />
-      <AlertTitle>Missing matching builds</AlertTitle>
-      <AlertDescription>
+    <Banner
+      variant="alert"
+      icon={<WarningIcon weight="fill" />}
+      title="Missing matching builds"
+      description={
         <div className="flex flex-col gap-1.5">
           {missingRuntimeVersions.map((entry) => (
             <div
@@ -42,7 +43,7 @@ export const MissingMatchingBuilds = ({
             </div>
           ))}
         </div>
-      </AlertDescription>
-    </Alert>
+      }
+    />
   );
 };

@@ -9,10 +9,10 @@ import {
   googleServiceAccountKeysQueryOptions,
   meQueryOptions,
 } from "@better-update/api-client/react";
-import { Alert, AlertTitle } from "@better-update/ui/components/ui/alert";
+import { Banner } from "@better-update/ui/components/banner";
+import { WarningIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { TriangleAlertIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 
 import { PageHeader, SectionHeader } from "../../../components/page-header";
@@ -92,10 +92,7 @@ const ExpiryRollupBanner = ({ orgId }: { orgId: string }) => {
   ]);
 
   return message === null ? null : (
-    <Alert variant="warning">
-      <TriangleAlertIcon />
-      <AlertTitle>{message}</AlertTitle>
-    </Alert>
+    <Banner variant="alert" icon={<WarningIcon weight="fill" />} title={message} />
   );
 };
 

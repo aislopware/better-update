@@ -2,6 +2,7 @@ import { getApiError } from "@better-update/api-client";
 import { fetchInstallLink } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { Badge } from "@better-update/ui/components/badge";
+import { Banner } from "@better-update/ui/components/banner";
 import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
@@ -12,15 +13,10 @@ import {
 } from "@better-update/ui/components/dialog";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from "@better-update/ui/components/ui/alert";
 import { cn } from "@better-update/ui/lib/utils";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { differenceInMinutes } from "date-fns";
-import { CircleAlertIcon, SmartphoneIcon } from "lucide-react";
+import { SmartphoneIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 
@@ -75,22 +71,22 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
       ) : null}
 
       {status === "error" ? (
-        <Alert variant="destructive">
-          <CircleAlertIcon />
-          <AlertTitle>Could not generate install link</AlertTitle>
-          <AlertDescription>{getApiError(fetchInstallLinkMutation.error)}</AlertDescription>
-          <AlertAction>
-            <Button
-              size="xs"
+        <Banner
+          variant="error"
+          icon={<WarningCircleIcon weight="fill" />}
+          title="Could not generate install link"
+          description={getApiError(fetchInstallLinkMutation.error)}
+          action={
+            <Banner.Action
               variant="secondary"
               onClick={() => {
                 fetchInstallLinkMutation.mutate();
               }}
             >
               Retry
-            </Button>
-          </AlertAction>
-        </Alert>
+            </Banner.Action>
+          }
+        />
       ) : null}
 
       {data ? (

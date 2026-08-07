@@ -7,6 +7,7 @@ import {
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
+import { Banner } from "@better-update/ui/components/banner";
 import { Empty } from "@better-update/ui/components/empty";
 import {
   Table,
@@ -16,10 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/table";
-import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
+import { WarningIcon } from "@phosphor-icons/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon, TriangleAlertIcon } from "lucide-react";
+import { FingerprintIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { CliCommandBlock } from "../../../components/cli-command-block";
@@ -112,29 +113,35 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
 };
 
 const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
-  <Alert variant="warning">
-    <TriangleAlertIcon />
-    <AlertTitle>Rotation required</AlertTitle>
-    <AlertDescription>
-      A recipient was removed from this organization{reason ? ` (${reason})` : ""}, so the vault
-      must be rotated before credentials can be downloaded again. Run{" "}
-      <code className="font-mono text-xs">better-update credentials access rotate</code> from the
-      CLI.
-    </AlertDescription>
-  </Alert>
+  <Banner
+    variant="alert"
+    icon={<WarningIcon weight="fill" />}
+    title="Rotation required"
+    description={
+      <>
+        A recipient was removed from this organization{reason ? ` (${reason})` : ""}, so the vault
+        must be rotated before credentials can be downloaded again. Run{" "}
+        <code className="font-mono text-xs">better-update credentials access rotate</code> from the
+        CLI.
+      </>
+    }
+  />
 );
 
 const EnvRotationPendingBanner = () => (
-  <Alert variant="warning">
-    <TriangleAlertIcon />
-    <AlertTitle>Env rotation required</AlertTitle>
-    <AlertDescription>
-      An env-vault recipient was removed, so the env vault must be rotated before env values can be
-      read again. Run{" "}
-      <code className="font-mono text-xs">better-update credentials env-vault rotate</code> from the
-      CLI.
-    </AlertDescription>
-  </Alert>
+  <Banner
+    variant="alert"
+    icon={<WarningIcon weight="fill" />}
+    title="Env rotation required"
+    description={
+      <>
+        An env-vault recipient was removed, so the env vault must be rotated before env values can
+        be read again. Run{" "}
+        <code className="font-mono text-xs">better-update credentials env-vault rotate</code> from
+        the CLI.
+      </>
+    }
+  />
 );
 
 /**
