@@ -120,7 +120,7 @@ export const MemberProjectChips = ({
   }
   const projects = summary === undefined ? [] : summary.projects;
   if (projects.length === 0) {
-    return <span className="text-muted-foreground text-xs">No projects</span>;
+    return <span className="text-kumo-subtle text-xs">No projects</span>;
   }
   const visible = projects.slice(0, MAX_VISIBLE_PROJECT_CHIPS);
   const overflowCount = projects.length - visible.length;
@@ -196,7 +196,7 @@ const AllProjectsSection = ({
     <div className="flex items-center justify-between gap-3 rounded-md border p-3">
       <label htmlFor={switchId} className="grid gap-0.5">
         <span className="text-sm font-medium">All projects</span>
-        <span className="text-muted-foreground text-xs">
+        <span className="text-kumo-subtle text-xs">
           Member of every project, including projects created later.
         </span>
       </label>
@@ -228,12 +228,12 @@ const AllProjectsSection = ({
 // "Searching…" state before the definitive no-match copy.
 const ChecklistEmptyState = ({ query, isPending }: { query: string; isPending: boolean }) => {
   if (isPending) {
-    return <p className="text-muted-foreground text-sm">Searching…</p>;
+    return <p className="text-kumo-subtle text-sm">Searching…</p>;
   }
   if (query === "") {
-    return <p className="text-muted-foreground text-sm">No projects in this organization yet.</p>;
+    return <p className="text-kumo-subtle text-sm">No projects in this organization yet.</p>;
   }
-  return <p className="text-muted-foreground text-sm">No projects match “{query}”.</p>;
+  return <p className="text-kumo-subtle text-sm">No projects match “{query}”.</p>;
 };
 
 const MembershipChecklist = ({
@@ -370,7 +370,7 @@ export const MemberProjectsCell = ({
     return (
       <div className="flex flex-col items-start gap-0.5">
         <Badge variant="secondary">All projects</Badge>
-        <span className="text-muted-foreground text-xs">Implicit maintainer</span>
+        <span className="text-kumo-subtle text-xs">Implicit maintainer</span>
       </div>
     );
   }
@@ -382,7 +382,7 @@ export const MemberProjectsCell = ({
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground h-6 px-1.5 text-xs"
+          className="text-kumo-subtle h-6 px-1.5 text-xs"
           onClick={() => {
             onManage({ id: principalId, name: memberName });
           }}

@@ -21,7 +21,7 @@ const PendingApproval = () => {
   });
 
   return (
-    <div className="bg-background relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
+    <div className="bg-kumo-canvas relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
         <BrandWordmark />
         <Card className="w-full">

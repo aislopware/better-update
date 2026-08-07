@@ -52,10 +52,10 @@ const MetadataRow = ({
 }) => (
   <div
     className={`grid grid-cols-[120px_1fr_1fr] items-center gap-3 rounded-lg px-3 py-2 text-sm ${
-      highlight ? "bg-warning/10" : ""
+      highlight ? "bg-kumo-warning/10" : ""
     }`}
   >
-    <span className="text-muted-foreground font-medium">{label}</span>
+    <span className="text-kumo-subtle font-medium">{label}</span>
     <span className="truncate font-mono text-xs">{left}</span>
     <span className="truncate font-mono text-xs">{right}</span>
   </div>
@@ -104,7 +104,7 @@ const MetadataComparison = ({ left, right }: { left: UpdateItem; right: UpdateIt
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-muted-foreground grid grid-cols-[120px_1fr_1fr] gap-3 px-3 text-xs font-medium uppercase">
+      <div className="text-kumo-subtle grid grid-cols-[120px_1fr_1fr] gap-3 px-3 text-xs font-medium uppercase">
         <span>Field</span>
         <span>Update A</span>
         <span>Update B</span>
@@ -162,19 +162,17 @@ const AssetList = ({
   }
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-muted-foreground text-xs font-medium uppercase">{title}</div>
+      <div className="text-kumo-subtle text-xs font-medium uppercase">{title}</div>
       <ul className="flex flex-col gap-1">
         {items.slice(0, 10).map((asset) => (
           <li key={asset.hash} className="flex items-center gap-2 text-xs">
             <Badge variant={variant}>{variant === "success" ? "+" : "−"}</Badge>
             <span className="truncate font-mono">{asset.key}</span>
-            <span className="text-muted-foreground truncate font-mono">
-              {asset.hash.slice(0, 12)}
-            </span>
+            <span className="text-kumo-subtle truncate font-mono">{asset.hash.slice(0, 12)}</span>
           </li>
         ))}
         {items.length > 10 ? (
-          <li className="text-muted-foreground text-xs">+{items.length - 10} more</li>
+          <li className="text-kumo-subtle text-xs">+{items.length - 10} more</li>
         ) : null}
       </ul>
     </div>
@@ -217,7 +215,7 @@ const AssetComparison = ({
 };
 
 const AssetComparisonSkeleton = () => (
-  <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
+  <div className="text-kumo-subtle flex items-center gap-2 py-4 text-sm">
     <Loader size="sm" />
     <span>Loading asset diff…</span>
   </div>
@@ -287,7 +285,7 @@ const CompareResult = ({
 }) => {
   if (left === undefined || right === undefined) {
     return (
-      <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
+      <div className="text-kumo-subtle flex items-center justify-center gap-2 py-8 text-sm">
         <ArrowRightIcon weight="bold" className="size-4" />
         <span>Pick two updates above to compare.</span>
       </div>
@@ -295,7 +293,7 @@ const CompareResult = ({
   }
   if (left.id === right.id) {
     return (
-      <div className="text-muted-foreground py-4 text-center text-sm">
+      <div className="text-kumo-subtle py-4 text-center text-sm">
         Select two different updates to see a comparison.
       </div>
     );
@@ -381,7 +379,7 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
 };
 
 const CompareBodySkeleton = () => (
-  <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
+  <div className="text-kumo-subtle flex items-center justify-center gap-2 py-8 text-sm">
     <Loader size="sm" />
     <span>Loading updates…</span>
   </div>

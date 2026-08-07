@@ -24,13 +24,13 @@ const cliLoginSearchSchema = z.object({
 const RetryInstructions = () => (
   <div className="mt-2 flex w-full flex-col gap-2 text-left">
     <CliCommandBlock commands={["better-update login"]} />
-    <p className="text-muted-foreground text-xs leading-relaxed">
+    <p className="text-kumo-subtle text-xs leading-relaxed">
       Return to your terminal and run the command again to retry. Need help? See the{" "}
       <a
         href="https://www.npmjs.com/package/@better-update/cli"
         target="_blank"
         rel="noreferrer"
-        className="text-foreground underline-offset-4 hover:underline"
+        className="text-kumo-default underline-offset-4 hover:underline"
       >
         CLI docs
       </a>
@@ -43,7 +43,7 @@ const CliLoginPage = () => {
   const { error } = Route.useRouteContext();
 
   return (
-    <div className="bg-background relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
+    <div className="bg-kumo-canvas relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
         <BrandWordmark />
         <Card className="w-full">

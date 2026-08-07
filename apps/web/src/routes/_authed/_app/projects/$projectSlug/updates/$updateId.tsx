@@ -56,11 +56,11 @@ const OverviewCard = ({
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Message</div>
+          <div className="text-kumo-subtle text-sm">Message</div>
           <div className="font-medium">{primary.message || "—"}</div>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Branch</div>
+          <div className="text-kumo-subtle text-sm">Branch</div>
           {branchName ? (
             <Link
               to="/projects/$projectSlug/updates"
@@ -68,7 +68,7 @@ const OverviewCard = ({
               search={{ page: 1, sort: "-createdAt" as const, branchId: [primary.branchId] }}
               className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
             >
-              <GitBranchIcon weight="bold" className="text-muted-foreground size-3.5" />
+              <GitBranchIcon weight="bold" className="text-kumo-subtle size-3.5" />
               {branchName}
             </Link>
           ) : (
@@ -76,7 +76,7 @@ const OverviewCard = ({
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Runtime version</div>
+          <div className="text-kumo-subtle text-sm">Runtime version</div>
           <Link
             to="/projects/$projectSlug/runtimes/$version"
             params={{ projectSlug, version: primary.runtimeVersion }}
@@ -86,7 +86,7 @@ const OverviewCard = ({
           </Link>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Environment</div>
+          <div className="text-kumo-subtle text-sm">Environment</div>
           {environment ? (
             <EnvironmentBadge environment={environment} className="self-start" />
           ) : (
@@ -94,27 +94,27 @@ const OverviewCard = ({
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Total size</div>
+          <div className="text-kumo-subtle text-sm">Total size</div>
           <div className="font-medium">
             {groupTotalSize > 0 ? formatBytes(groupTotalSize) : "—"}
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Created</div>
+          <div className="text-kumo-subtle text-sm">Created</div>
           <div className="font-medium">
             <RelativeTime value={primary.createdAt} />
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Fingerprint</div>
+          <div className="text-kumo-subtle text-sm">Fingerprint</div>
           {primary.fingerprintHash === null ? (
-            <span className="text-muted-foreground text-sm italic">Not recorded</span>
+            <span className="text-kumo-subtle text-sm italic">Not recorded</span>
           ) : (
             <div className="flex items-center gap-1">
               <Link
                 to="/projects/$projectSlug/fingerprints/$hash"
                 params={{ projectSlug, hash: primary.fingerprintHash }}
-                className="hover:text-foreground text-muted-foreground inline-flex items-center gap-1 font-mono text-xs transition-colors"
+                className="hover:text-kumo-default text-kumo-subtle inline-flex items-center gap-1 font-mono text-xs transition-colors"
               >
                 <FingerprintIcon weight="bold" className="size-3" />
                 {primary.fingerprintHash.slice(0, 16)}
@@ -146,7 +146,7 @@ const AssetList = ({ assets }: { assets: readonly UpdateAsset[] }) => {
                 <CopyButton value={asset.key} label="Asset key" size="xs" />
               </div>
               <div className="flex items-center gap-1">
-                <code className="text-muted-foreground min-w-0 truncate font-mono text-xs">
+                <code className="text-kumo-subtle min-w-0 truncate font-mono text-xs">
                   {asset.hash.slice(0, 16)}
                 </code>
                 <CopyButton value={asset.hash} label="Asset hash" size="xs" />
@@ -177,7 +177,7 @@ const PlatformVariantAssets = ({
   const { data: assets } = useSuspenseQuery(updateAssetsQueryOptions(orgId, projectId, updateId));
   const [query, setQuery] = useState("");
   if (assets.length === 0) {
-    return <p className="text-muted-foreground text-sm">No asset references recorded.</p>;
+    return <p className="text-kumo-subtle text-sm">No asset references recorded.</p>;
   }
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAssets = normalizedQuery
@@ -205,7 +205,7 @@ const PlatformVariantAssets = ({
         </InputGroup>
       ) : null}
       {visibleAssets.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No assets match “{query.trim()}”.</p>
+        <p className="text-kumo-subtle text-sm">No assets match “{query.trim()}”.</p>
       ) : (
         <AssetList key={normalizedQuery} assets={visibleAssets} />
       )}
@@ -251,13 +251,13 @@ const PlatformVariantCard = ({
     <CardContent className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-xs">Signature</div>
+          <div className="text-kumo-subtle text-xs">Signature</div>
           <Badge variant={update.signature === null ? "outline" : "success"} className="self-start">
             {update.signature === null ? "Unsigned" : "Signed"}
           </Badge>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-xs">Manifest body</div>
+          <div className="text-kumo-subtle text-xs">Manifest body</div>
           <Badge
             variant={update.manifestBody === null ? "outline" : "secondary"}
             className="self-start"
@@ -266,21 +266,21 @@ const PlatformVariantCard = ({
           </Badge>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-xs">Size</div>
+          <div className="text-kumo-subtle text-xs">Size</div>
           <div className="text-xs">
             {update.totalAssetSize > 0 ? formatBytes(update.totalAssetSize) : "—"}
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-xs">Downloads (30d)</div>
-          <Suspense fallback={<div className="text-muted-foreground text-xs">…</div>}>
+          <div className="text-kumo-subtle text-xs">Downloads (30d)</div>
+          <Suspense fallback={<div className="text-kumo-subtle text-xs">…</div>}>
             <PlatformVariantDownloads orgId={orgId} projectId={projectId} updateId={update.id} />
           </Suspense>
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <div className="text-muted-foreground text-sm">Assets</div>
-        <Suspense fallback={<p className="text-muted-foreground text-xs">Loading assets...</p>}>
+        <div className="text-kumo-subtle text-sm">Assets</div>
+        <Suspense fallback={<p className="text-kumo-subtle text-xs">Loading assets...</p>}>
           <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
         </Suspense>
       </div>

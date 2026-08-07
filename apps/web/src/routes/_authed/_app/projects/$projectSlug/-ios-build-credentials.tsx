@@ -76,7 +76,7 @@ const CertRow = ({
           <StatusBadge status={certStatus} />
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{formatShortDateTime(cert.updatedAt)}</TableCell>
+      <TableCell className="text-kumo-subtle">{formatShortDateTime(cert.updatedAt)}</TableCell>
     </TableRow>
   );
 };
@@ -136,9 +136,7 @@ const ProfileRow = ({
           <StatusBadge status={profileStatus} />
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">
-        {formatShortDateTime(profile.updatedAt)}
-      </TableCell>
+      <TableCell className="text-kumo-subtle">{formatShortDateTime(profile.updatedAt)}</TableCell>
     </TableRow>
   );
 };
@@ -259,7 +257,7 @@ export const IosBuildCredentialsSection = ({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Distribution certificate and provisioning profile per distribution type.
         </p>
       </div>

@@ -122,7 +122,7 @@ export const StepUpGate = ({
   onVerify: () => void;
 }) => (
   <div className="flex flex-col items-start gap-3 text-sm">
-    <p className="text-muted-foreground">
+    <p className="text-kumo-subtle">
       Your passkey check has expired. Verify again to {action} this value.
     </p>
     <Button

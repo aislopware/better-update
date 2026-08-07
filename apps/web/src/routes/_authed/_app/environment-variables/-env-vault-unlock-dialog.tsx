@@ -48,13 +48,13 @@ const PasskeyPrompt = ({
   }
   if (hasPasskey) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-kumo-subtle text-sm">
         Manage your passkeys in <Link href="/account/passkeys">account settings</Link>.
       </p>
     );
   }
   return (
-    <p className="text-muted-foreground text-sm">
+    <p className="text-kumo-subtle text-sm">
       No passkey yet?{" "}
       <Link
         // eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Link supplies this button's label as its children

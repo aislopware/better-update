@@ -309,7 +309,7 @@ const EnvironmentRowActions = ({
       <Button
         variant="ghost"
         shape="square"
-        className="text-muted-foreground/70 hover:text-foreground"
+        className="text-kumo-subtle/70 hover:text-kumo-default"
         aria-label={`Rename ${environment.name}`}
         onClick={() => {
           setRenameOpen(true);
@@ -320,7 +320,7 @@ const EnvironmentRowActions = ({
       <Button
         variant="ghost"
         shape="square"
-        className="text-muted-foreground/70 hover:text-destructive"
+        className="text-kumo-subtle/70 hover:text-kumo-danger"
         aria-label={`Delete ${environment.name}`}
         onClick={() => {
           setDeleteOpen(true);
@@ -374,13 +374,13 @@ const EnvironmentsTable = ({
                   <div className="flex items-center gap-2 font-medium">
                     {environment.name}
                     {environment.isBuiltin ? (
-                      <Badge variant="outline" className="text-muted-foreground">
+                      <Badge variant="outline" className="text-kumo-subtle">
                         Built-in
                       </Badge>
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-kumo-subtle">
                   {/* Built-ins exist since the org was created; their seeded epoch timestamp is noise. */}
                   {environment.isBuiltin ? "—" : formatShortDateTime(environment.createdAt)}
                 </TableCell>
@@ -432,7 +432,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
         </InputGroup>
       ) : null}
       {visibleItems.length === 0 && normalizedQuery ? (
-        <p className="text-muted-foreground text-sm">No environments match “{query.trim()}”.</p>
+        <p className="text-kumo-subtle text-sm">No environments match “{query.trim()}”.</p>
       ) : (
         // Filter identity as key: a filter change remounts the table so client
         // pagination resets to page 1.

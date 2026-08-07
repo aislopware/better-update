@@ -110,7 +110,7 @@ const PendingGrantsTable = ({
           <TableCell>
             <CopyableMono value={key.fingerprint} label="Fingerprint" />
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={key.createdAt} />
           </TableCell>
           <TableCell className="text-right">
@@ -128,7 +128,7 @@ const PendingGrants = ({ orgId, unlocked }: { orgId: string; unlocked: UnlockedE
 
   if (accountKeysQuery.isPending || wrapsQuery.isPending) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 p-4 text-sm">
+      <div className="text-kumo-subtle flex items-center gap-2 p-4 text-sm">
         <Loader size="sm" /> Loading enrolled account keys…
       </div>
     );
@@ -150,7 +150,7 @@ const PendingGrants = ({ orgId, unlocked }: { orgId: string; unlocked: UnlockedE
 
   if (pending.length === 0) {
     return (
-      <p className="text-muted-foreground p-4 text-sm">
+      <p className="text-kumo-subtle p-4 text-sm">
         Every enrolled member already has env-vault access.
       </p>
     );
@@ -195,7 +195,7 @@ export const VaultAccessGrant = ({ orgId }: { orgId: string }) => {
         </div>
       ) : (
         <div className="flex flex-col items-start gap-2">
-          <p className="text-muted-foreground text-sm">
+          <p className="text-kumo-subtle text-sm">
             Unlock the env vault to grant a member access (you must hold the env-vault key to wrap
             it to them).
           </p>

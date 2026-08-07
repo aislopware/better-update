@@ -56,7 +56,7 @@ const PushKeyTableCard = ({
             <TableCell>
               <ProtectedBadgeCell isProtected={pushKey.protected} />
             </TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="text-kumo-subtle">
               {formatShortDateTime(pushKey.createdAt)}
             </TableCell>
           </TableRow>
@@ -107,7 +107,7 @@ const AscKeyTableCard = ({
             <TableCell>
               <RolesCell roles={ascKey.roles} />
             </TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="text-kumo-subtle">
               {formatShortDateTime(ascKey.createdAt)}
             </TableCell>
           </TableRow>
@@ -176,7 +176,7 @@ export const IosServiceCredentialsSection = ({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Push notification key and App Store Connect API key for this bundle identifier.
         </p>
       </div>

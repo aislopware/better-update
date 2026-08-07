@@ -99,8 +99,8 @@ const ProjectNameCell = ({ project }: { project: ProjectItem }) => (
       shape="square"
     />
     <div className="flex min-w-0 flex-col">
-      <span className="text-foreground truncate font-medium">{project.name}</span>
-      <code className="text-muted-foreground truncate font-mono text-xs">/{project.slug}</code>
+      <span className="text-kumo-default truncate font-medium">{project.name}</span>
+      <code className="text-kumo-subtle truncate font-mono text-xs">/{project.slug}</code>
     </div>
   </Link>
 );
@@ -133,16 +133,14 @@ export const ActivityCell = ({ project }: { project: ProjectItem }) => {
     );
   }
   const tone = activityTone(project.lastActivityAt);
-  const time = (
-    <RelativeTime value={project.lastActivityAt} className="text-muted-foreground text-sm" />
-  );
+  const time = <RelativeTime value={project.lastActivityAt} className="text-kumo-subtle text-sm" />;
   return tone ? <StatusDot tone={tone}>{time}</StatusDot> : time;
 };
 
 // One secondary cell for project shape — counts are context, not KPIs, so they
 // share a column instead of claiming two numeric ones. Exported for tests.
 export const StructureCell = ({ project }: { project: ProjectItem }) => (
-  <span className="text-muted-foreground text-sm whitespace-nowrap">
+  <span className="text-kumo-subtle text-sm whitespace-nowrap">
     {project.branchCount} {pluralize(project.branchCount, "branch", "branches")}
     {" · "}
     {project.channelCount} {pluralize(project.channelCount, "channel")}

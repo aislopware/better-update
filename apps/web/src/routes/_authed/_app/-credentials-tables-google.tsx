@@ -52,7 +52,7 @@ export const GoogleServiceAccountKeysTable = ({
                 <span className="truncate font-mono text-xs font-medium">{key.clientEmail}</span>
                 <CopyButton value={key.clientEmail} label="Client email" size="xs" />
               </span>
-              <span className="text-muted-foreground flex items-center gap-1 font-mono text-xs">
+              <span className="text-kumo-subtle flex items-center gap-1 font-mono text-xs">
                 <CopyableId value={key.googleProjectId} label="Project ID" length={16} />
                 <span aria-hidden>·</span>
                 <CopyableId value={key.privateKeyId} label="Private key ID" />
@@ -73,7 +73,7 @@ export const GoogleServiceAccountKeysTable = ({
               canManage={canManageProtection}
             />
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>

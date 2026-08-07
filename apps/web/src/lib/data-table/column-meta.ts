@@ -25,8 +25,8 @@ declare module "@tanstack/react-table" {
 }
 
 const CELL_TYPE_CLASSES: Partial<Record<DataTableCellType, string>> = {
-  id: "font-mono text-xs text-muted-foreground",
-  date: "text-muted-foreground",
+  id: "font-mono text-xs text-kumo-subtle",
+  date: "text-kumo-subtle",
   numeric: "text-right tabular-nums",
 };
 
@@ -37,7 +37,7 @@ export const headerAlignsRight = (meta: DataTableColumnMeta | undefined): boolea
 export const cellAlignClass = (meta: DataTableColumnMeta | undefined): string =>
   [
     meta?.align === "right" ? "text-right tabular-nums" : undefined,
-    meta?.muted ? "text-muted-foreground" : undefined,
+    meta?.muted ? "text-kumo-subtle" : undefined,
     meta?.cellType === undefined ? undefined : CELL_TYPE_CLASSES[meta.cellType],
   ]
     .filter((entry) => entry !== undefined)

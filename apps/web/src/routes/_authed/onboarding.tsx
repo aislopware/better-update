@@ -31,8 +31,8 @@ const SignedInAs = () => {
   });
 
   return (
-    <p className="text-muted-foreground text-center text-sm">
-      Signed in as <span className="text-foreground font-medium">{user.email}</span>.{" "}
+    <p className="text-kumo-subtle text-center text-sm">
+      Signed in as <span className="text-kumo-default font-medium">{user.email}</span>.{" "}
       <Link
         render={
           // eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Link supplies this button's label as its children
@@ -77,7 +77,7 @@ const Onboarding = () => {
   });
 
   return (
-    <div className="bg-background relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-16">
+    <div className="bg-kumo-canvas relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-16">
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
         <BrandWordmark />
         <Card className="w-full">

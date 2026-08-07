@@ -137,7 +137,7 @@ const KeystoreCard = ({
             <TableCell className="font-medium">{keystore.keyAlias}</TableCell>
             <TableCell>
               {keystore.keystoreType === null ? (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-kumo-subtle">—</span>
               ) : (
                 <Badge variant="secondary">{keystore.keystoreType}</Badge>
               )}
@@ -154,7 +154,7 @@ const KeystoreCard = ({
             <TableCell>
               <KeystoreBindingsCell orgId={orgId} keystore={keystore} />
             </TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="text-kumo-subtle">
               {formatShortDateTime(keystore.updatedAt)}
             </TableCell>
           </TableRow>
@@ -259,7 +259,7 @@ export const AndroidBuildCredentialsSection = ({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Saved credential groups for this application identifier. The CLI picks a group by build
           profile name.
         </p>

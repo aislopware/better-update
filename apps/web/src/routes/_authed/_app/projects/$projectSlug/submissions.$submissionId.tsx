@@ -29,7 +29,7 @@ const DetailRow = ({
   copyLabel?: string;
 }) => (
   <div className="flex items-baseline gap-3 text-sm">
-    <span className="text-muted-foreground w-40 shrink-0">{label}</span>
+    <span className="text-kumo-subtle w-40 shrink-0">{label}</span>
     {value === null || value === undefined || value === "" ? (
       <span className="font-mono break-all">—</span>
     ) : (
@@ -72,7 +72,7 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
         <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
         {submission.iosConfig ? (
           <>
-            <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
+            <h2 className="text-kumo-subtle mt-3 text-xs uppercase">iOS config</h2>
             <DetailRow
               label="Bundle identifier"
               value={submission.iosConfig.bundleIdentifier}
@@ -94,7 +94,7 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
         ) : null}
         {submission.androidConfig ? (
           <>
-            <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
+            <h2 className="text-kumo-subtle mt-3 text-xs uppercase">Android config</h2>
             <DetailRow
               label="Application ID"
               value={submission.androidConfig.applicationId}

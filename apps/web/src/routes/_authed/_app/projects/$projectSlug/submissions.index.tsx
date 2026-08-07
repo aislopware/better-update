@@ -62,7 +62,7 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
       <div className="flex max-w-80 flex-col gap-0.5">
         <span className="truncate font-medium">{row.original.profileName}</span>
         {row.original.buildVersion ? (
-          <span className="text-muted-foreground truncate font-mono text-xs">
+          <span className="text-kumo-subtle truncate font-mono text-xs">
             {row.original.buildVersion}
           </span>
         ) : null}
@@ -92,12 +92,12 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
         <Link
           to="/projects/$projectSlug/builds/$buildId"
           params={{ projectSlug, buildId: row.original.buildId }}
-          className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition-colors hover:underline"
+          className="text-kumo-subtle hover:text-kumo-default text-sm underline-offset-4 transition-colors hover:underline"
         >
           View build →
         </Link>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-kumo-subtle">—</span>
       ),
     enableSorting: false,
     meta: { stopRowClick: true },

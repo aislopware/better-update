@@ -117,7 +117,7 @@ const ProjectGrantRow = ({
     <Button
       variant="ghost"
       shape="square"
-      className="text-muted-foreground/70 hover:text-destructive"
+      className="text-kumo-subtle/70 hover:text-kumo-danger"
       aria-label="Remove project access"
       onClick={onRemove}
     >
@@ -140,7 +140,7 @@ const AllProjectsDraftRow = ({
   <div className="flex items-center justify-between gap-3">
     <label htmlFor="invite-all-projects" className="grid gap-0.5">
       <span className="text-sm">All projects</span>
-      <span className="text-muted-foreground text-xs">
+      <span className="text-kumo-subtle text-xs">
         Member of every project, including projects created later.
       </span>
     </label>
@@ -183,7 +183,7 @@ export const ProjectGrantsSection = ({
   <div className="flex flex-col gap-3 rounded-md border p-3">
     <div className="grid gap-0.5">
       <span className="text-sm font-medium">Project access</span>
-      <span className="text-muted-foreground text-xs">
+      <span className="text-kumo-subtle text-xs">
         Optional — grants apply when the invitation is accepted.
       </span>
     </div>

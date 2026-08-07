@@ -54,10 +54,10 @@ const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>
   owner ? (
     <div className="flex flex-col">
       <span>{owner.name}</span>
-      {owner.detail ? <span className="text-muted-foreground text-xs">{owner.detail}</span> : null}
+      {owner.detail ? <span className="text-kumo-subtle text-xs">{owner.detail}</span> : null}
     </div>
   ) : (
-    <span className="text-muted-foreground">—</span>
+    <span className="text-kumo-subtle">—</span>
   );
 
 const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
@@ -94,10 +94,10 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
                   <TableCell>
                     <CopyableMono value={row.fingerprint} label="Fingerprint" />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-kumo-subtle">
                     <RelativeTime value={row.grantedAt} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-kumo-subtle">
                     <RelativeTime value={row.lastUsedAt} />
                   </TableCell>
                 </TableRow>
@@ -197,7 +197,7 @@ const EnvVaultRecipientsSection = ({
       {rows.length > 0 ? (
         <RecipientsTable rows={rows} />
       ) : (
-        <p className="text-muted-foreground text-sm">No env-vault recipients yet.</p>
+        <p className="text-kumo-subtle text-sm">No env-vault recipients yet.</p>
       )}
     </section>
   );

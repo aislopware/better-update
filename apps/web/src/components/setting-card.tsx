@@ -36,7 +36,7 @@ export const SettingCard = ({
       // A real border, not a ring: the ring is a separate box-shadow shape and
       // its anti-aliasing seams against the card edge on rounded corners.
       destructive &&
-        "border-destructive/40 *:data-[slot=card-footer]:border-destructive/20 border ring-0",
+        "border-kumo-danger/40 *:data-[slot=card-footer]:border-kumo-danger/20 border ring-0",
       className,
     )}
   >

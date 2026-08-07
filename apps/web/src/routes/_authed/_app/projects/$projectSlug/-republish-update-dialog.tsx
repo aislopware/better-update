@@ -82,8 +82,8 @@ const RepublishForm = ({
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span>{update.message || `Update ${update.groupId.slice(0, 8)}`}</span>
             <PlatformBadge platform={update.platform} />
-            <span className="text-muted-foreground">v{update.runtimeVersion}</span>
-            <span className="text-muted-foreground">on {branchName}</span>
+            <span className="text-kumo-subtle">v{update.runtimeVersion}</span>
+            <span className="text-kumo-subtle">on {branchName}</span>
           </div>
         </Field>
 
@@ -103,7 +103,7 @@ const RepublishForm = ({
           )}
         </form.Field>
 
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Republishing creates a new update group on the same branch. Devices receive it as a fresh
           update — useful to reset a stalled rollout or re-issue after a rollback.
         </p>

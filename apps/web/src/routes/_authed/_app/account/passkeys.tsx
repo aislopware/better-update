@@ -42,14 +42,14 @@ const PasskeysList = () => {
       action={<AddPasskeyDialog invalidate={invalidate} />}
     >
       {passkeys.length === 0 ? (
-        <p className="text-muted-foreground py-2 text-sm">
+        <p className="text-kumo-subtle py-2 text-sm">
           No passkeys added yet. Add one to unlock the env-vault from your browser.
         </p>
       ) : (
         <ItemGroup>
           {passkeys.map((passkey) => (
             <Item key={passkey.id} variant="outline" size="sm">
-              <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
+              <ItemMedia variant="icon" className="bg-kumo-tint/72 size-8 rounded-md border">
                 <FingerprintIcon weight="bold" />
               </ItemMedia>
               <ItemContent>

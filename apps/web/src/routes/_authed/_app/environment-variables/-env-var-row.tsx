@@ -37,7 +37,7 @@ export const EnvVarRow = ({
         </div>
         {envVar.label || envVar.description ? (
           <span
-            className="text-muted-foreground truncate text-xs"
+            className="text-kumo-subtle truncate text-xs"
             title={[envVar.label, envVar.description].filter(Boolean).join(" — ")}
           >
             {[envVar.label, envVar.description].filter(Boolean).join(" — ")}
@@ -56,15 +56,15 @@ export const EnvVarRow = ({
       {/* Sensitive is the exception worth color; plaintext is the quiet default.
           Both stay plain text so the column keeps one left edge. */}
       {envVar.visibility === "sensitive" ? (
-        <span className="text-warning-foreground text-sm font-medium">Sensitive</span>
+        <span className="text-kumo-warning text-sm font-medium">Sensitive</span>
       ) : (
-        <span className="text-muted-foreground text-sm">Plaintext</span>
+        <span className="text-kumo-subtle text-sm">Plaintext</span>
       )}
     </TableCell>
-    <TableCell className="text-muted-foreground text-sm">
+    <TableCell className="text-kumo-subtle text-sm">
       {envVar.revisionCount} {pluralize(envVar.revisionCount, "revision")}
     </TableCell>
-    <TableCell className="text-muted-foreground text-sm">
+    <TableCell className="text-kumo-subtle text-sm">
       <RelativeTime value={envVar.updatedAt} />
     </TableCell>
     {hasActions ? <TableCell className="w-px text-right">{actions}</TableCell> : null}

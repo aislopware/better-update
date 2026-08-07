@@ -172,7 +172,7 @@ const ActiveRolloutSection = ({
             Revert
           </Button>
         </div>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Complete switches every client to {newBranchName}. Revert restores {oldBranchName}.
         </p>
       </div>
@@ -323,7 +323,7 @@ const StartRolloutSection = (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium">Branch rollout</span>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Gradually shift a share of clients to another branch before switching over completely.
         </p>
       </div>

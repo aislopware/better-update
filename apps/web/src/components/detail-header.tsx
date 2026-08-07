@@ -34,7 +34,7 @@ export const DetailHeader = ({ title, badges, meta, actions, className }: Detail
         {badges ? <span className="flex shrink-0 items-center gap-2">{badges}</span> : null}
       </h1>
       {meta ? (
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
+        <div className="text-kumo-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
           {meta}
         </div>
       ) : null}

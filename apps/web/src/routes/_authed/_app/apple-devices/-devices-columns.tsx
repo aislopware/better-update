@@ -28,7 +28,7 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => (
   <div className="flex items-center gap-1.5">
     <code
       title={identifier}
-      className="bg-muted max-w-[22ch] truncate rounded px-1.5 py-0.5 font-mono text-xs"
+      className="bg-kumo-tint max-w-[22ch] truncate rounded px-1.5 py-0.5 font-mono text-xs"
     >
       {identifier}
     </code>
@@ -42,9 +42,9 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => (
 // confirmation is colored text (not a pill, so the column keeps one left edge).
 const AppleSyncCell = ({ portalId }: { portalId: string | null }) =>
   portalId === null ? (
-    <span className="text-muted-foreground text-sm">Not synced</span>
+    <span className="text-kumo-subtle text-sm">Not synced</span>
   ) : (
-    <span className="text-success-foreground text-sm" title={`Apple device ID: ${portalId}`}>
+    <span className="text-kumo-success text-sm" title={`Apple device ID: ${portalId}`}>
       Synced
     </span>
   );
@@ -53,7 +53,7 @@ const actionsTrigger = (
   <Button
     variant="ghost"
     shape="square"
-    className="text-muted-foreground/70 hover:text-foreground"
+    className="text-kumo-subtle/70 hover:text-kumo-default"
     aria-label="Device actions"
   >
     <DotsThreeVerticalIcon weight="bold" />
@@ -130,7 +130,7 @@ export const buildDeviceColumns = (
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium">
         {row.original.enabled ? null : (
-          <Badge variant="outline" className="text-muted-foreground">
+          <Badge variant="outline" className="text-kumo-subtle">
             Disabled
           </Badge>
         )}
@@ -171,7 +171,7 @@ export const buildDeviceColumns = (
     id: "model",
     header: "Model",
     cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">{row.original.model ?? "—"}</span>
+      <span className="text-kumo-subtle text-sm">{row.original.model ?? "—"}</span>
     ),
     enableSorting: false,
   },

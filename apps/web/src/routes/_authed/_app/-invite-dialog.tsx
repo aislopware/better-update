@@ -175,7 +175,7 @@ const InviteFormContent = ({
           onRemove={removeGrant}
         />
 
-        <p className="text-muted-foreground text-xs">
+        <p className="text-kumo-subtle text-xs">
           {orgRole === "admin"
             ? "Admins manage the organization and hold Maintainer access on every project."
             : "Members see only the projects granted here; you can grant more after they join."}

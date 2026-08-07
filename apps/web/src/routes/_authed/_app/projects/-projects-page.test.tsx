@@ -25,7 +25,7 @@ describe(ActivityCell, () => {
         project={makeProject({ lastActivityAt: subHours(new Date(), 5).toISOString() })}
       />,
     );
-    expect(container.querySelector('[class*="bg-success"]')).not.toBeNull();
+    expect(container.querySelector('[class*="bg-kumo-success"]')).not.toBeNull();
     expect(screen.getByText("5 hours ago")).toBeInTheDocument();
   });
 
@@ -35,8 +35,8 @@ describe(ActivityCell, () => {
         project={makeProject({ lastActivityAt: subDays(new Date(), 45).toISOString() })}
       />,
     );
-    expect(container.querySelector('[class*="bg-muted-foreground"]')).not.toBeNull();
-    expect(container.querySelector('[class*="bg-success"]')).toBeNull();
+    expect(container.querySelector('[class*="bg-kumo-badge-neutral"]')).not.toBeNull();
+    expect(container.querySelector('[class*="bg-kumo-success"]')).toBeNull();
   });
 
   it("renders plain relative time in the unremarkable middle band", () => {

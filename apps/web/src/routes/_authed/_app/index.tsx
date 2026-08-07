@@ -43,12 +43,12 @@ const ActivityRow = ({ entry }: { entry: ActivityEntry }) => (
       <span className="truncate text-sm font-medium" title={entry.action}>
         {actionLabel(entry.action)}
       </span>
-      <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+      <span className="text-kumo-subtle flex min-w-0 items-center gap-1.5 text-xs">
         <span className="truncate">{entry.actorEmail}</span>
         {entry.source === "robot" ? <Badge variant="secondary">Robot</Badge> : null}
       </span>
     </span>
-    <span className="text-muted-foreground shrink-0 text-xs">
+    <span className="text-kumo-subtle shrink-0 text-xs">
       <RelativeTime value={entry.createdAt} />
     </span>
   </div>
@@ -79,10 +79,10 @@ const ActivityBody = ({
     return activitySkeleton;
   }
   if (items.length === 0) {
-    return <p className="text-muted-foreground px-2 py-4 text-sm">No activity recorded yet.</p>;
+    return <p className="text-kumo-subtle px-2 py-4 text-sm">No activity recorded yet.</p>;
   }
   return (
-    <div className="divide-border/60 flex flex-col divide-y">
+    <div className="divide-kumo-line/60 flex flex-col divide-y">
       {items.map((entry) => (
         <ActivityRow key={entry.id} entry={entry} />
       ))}
@@ -104,7 +104,7 @@ const RecentActivityCard = ({ orgId }: { orgId: string }) => {
         <CardAction>
           <Link
             to="/audit-log"
-            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            className="text-kumo-subtle hover:text-kumo-default text-sm transition-colors"
           >
             View audit log →
           </Link>

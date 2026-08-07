@@ -82,7 +82,7 @@ const ConnectionsList = () => {
           const canUnlink = isLinked && provider.id !== "credential" && accounts.length > 1;
           return (
             <Item key={provider.id} variant="outline" size="sm">
-              <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
+              <ItemMedia variant="icon" className="bg-kumo-tint/72 size-8 rounded-md border">
                 <provider.icon weight="bold" />
               </ItemMedia>
               <ItemContent>
@@ -114,7 +114,7 @@ const ConnectionsList = () => {
                   </Button>
                 ) : null}
                 {isLinked && !canUnlink ? (
-                  <span className="text-muted-foreground text-xs">Connected</span>
+                  <span className="text-kumo-subtle text-xs">Connected</span>
                 ) : null}
               </ItemActions>
             </Item>

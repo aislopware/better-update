@@ -74,7 +74,7 @@ export const PushCertificatesTable = ({
             <CopyableMono value={cert.serialNumber} label="Serial number" />
           </TableCell>
           <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={cert.createdAt} />
           </TableCell>
         </TableRow>
@@ -132,7 +132,7 @@ export const PayCertificatesTable = ({
             <CopyableMono value={cert.serialNumber} label="Serial" />
           </TableCell>
           <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={cert.createdAt} />
           </TableCell>
         </TableRow>
@@ -189,7 +189,7 @@ export const PassTypeCertificatesTable = ({
             <CopyableMono value={cert.serialNumber} label="Serial" />
           </TableCell>
           <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={cert.createdAt} />
           </TableCell>
         </TableRow>

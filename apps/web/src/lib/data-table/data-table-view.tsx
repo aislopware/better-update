@@ -93,7 +93,7 @@ const DataTableFooterArea = ({
     );
   }
   return countLabel === undefined ? null : (
-    <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
+    <span className="text-kumo-subtle text-xs tabular-nums">{countLabel}</span>
   );
 };
 
@@ -147,7 +147,7 @@ const DataTableRow = <TData,>({
       <TableCell aria-hidden className="w-8 pl-0">
         <CaretRightIcon
           weight="bold"
-          className="text-muted-foreground size-4 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
+          className="text-kumo-subtle size-4 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
         />
       </TableCell>
     ) : null}
@@ -158,7 +158,7 @@ const MessageEmptyRow = ({ columnsCount, message }: { columnsCount: number; mess
   <TableRow>
     <TableCell
       colSpan={columnsCount}
-      className="text-muted-foreground h-24 text-center whitespace-normal"
+      className="text-kumo-subtle h-24 text-center whitespace-normal"
     >
       {message}
     </TableCell>
@@ -177,8 +177,8 @@ const FilteredEmptyRow = ({
   <TableRow className="hover:bg-transparent">
     <TableCell colSpan={columnsCount} className="whitespace-normal">
       <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <MagnifyingGlassIcon className="text-muted-foreground/72 size-5" aria-hidden />
-        <p className="text-muted-foreground text-sm">No {entity} match your filters.</p>
+        <MagnifyingGlassIcon className="text-kumo-subtle/72 size-5" aria-hidden />
+        <p className="text-kumo-subtle text-sm">No {entity} match your filters.</p>
         <Button variant="secondary" size="sm" onClick={onClear}>
           Clear filters
         </Button>

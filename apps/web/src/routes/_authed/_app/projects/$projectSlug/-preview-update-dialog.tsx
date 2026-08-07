@@ -88,7 +88,7 @@ const CompatibleBuildsList = ({
               <PlatformBadge platform={build.platform} />
               <DistributionBadge distribution={build.distribution} />
               {build.appVersion ? (
-                <span className="text-muted-foreground text-xs">app v{build.appVersion}</span>
+                <span className="text-kumo-subtle text-xs">app v{build.appVersion}</span>
               ) : null}
             </div>
           </div>
@@ -108,7 +108,7 @@ const CompatibleBuildsList = ({
 const CompatibleBuildsSkeleton = () => (
   <div className="flex items-center justify-center gap-2 py-6">
     <Loader size="sm" />
-    <span className="text-muted-foreground text-sm">Loading compatible builds…</span>
+    <span className="text-kumo-subtle text-sm">Loading compatible builds…</span>
   </div>
 );
 
@@ -139,11 +139,11 @@ const PreviewBody = ({
         <PlatformBadge platform={update.platform} />
         <Badge variant="outline">v{update.runtimeVersion}</Badge>
         {channelName ? <ChannelBadge name={channelName} /> : null}
-        {branchName ? <span className="text-muted-foreground">on {branchName}</span> : null}
+        {branchName ? <span className="text-kumo-subtle">on {branchName}</span> : null}
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs font-medium uppercase">Update group</span>
+        <span className="text-kumo-subtle text-xs font-medium uppercase">Update group</span>
         <InputGroup>
           <InputGroup.Input readOnly value={update.groupId} className="font-mono text-xs" />
           <InputGroup.Addon align="end">
@@ -153,9 +153,7 @@ const PreviewBody = ({
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs font-medium uppercase">
-          Compatible builds
-        </span>
+        <span className="text-kumo-subtle text-xs font-medium uppercase">Compatible builds</span>
         <Suspense fallback={<CompatibleBuildsSkeleton />}>
           <CompatibleBuildsList
             orgId={orgId}

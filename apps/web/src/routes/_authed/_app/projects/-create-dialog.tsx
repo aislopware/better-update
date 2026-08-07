@@ -107,8 +107,9 @@ export const CreateProjectFormContent = ({
                 label="Slug"
                 description={
                   <>
-                    Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
-                    in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
+                    Must match{" "}
+                    <code className="bg-kumo-tint/72 rounded px-1 font-mono">expo.slug</code> in
+                    your <code className="bg-kumo-tint/72 rounded px-1 font-mono">app.json</code>.
                   </>
                 }
                 error={errorMessage}

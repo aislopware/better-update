@@ -29,7 +29,7 @@ Turborepo + bun workspaces (`apps/*`, `packages/*`). Run tasks from root — `bu
 - Expressions over statements, data over classes. Errors as values via Effect; Effect `HttpApi`/`HttpApiGroup`/`HttpApiEndpoint` for web handlers.
 - UI primitives = `@cloudflare/kumo` only, imported from `@better-update/ui/components/<name>`. Never import `@cloudflare/kumo` in an app.
 - Kumo pass-throughs in `packages/ui/src/components/` are GENERATED — regenerate with `bun run scripts/gen-kumo-passthrough.ts`, never hand-edit. Hand-written compositions live beside them and must be negated back into `packages/ui/oxlint.config.ts`.
-- Style with Kumo tokens (`text-kumo-*` / `bg-kumo-*`), not the shadcn colour roles. Toasts via `components/toast` (`toast.success` / `toast.error`); menus = `dropdown`.
+- Style with Kumo tokens (`text-kumo-*` / `bg-kumo-*`) only. The shadcn colour roles are gone; the sole app-level roles left are `terminal*` and `brand*`, which Kumo has no word for. Toasts via `components/toast` (`toast.success` / `toast.error`); menus = `dropdown`.
 
 ## Lint disables
 

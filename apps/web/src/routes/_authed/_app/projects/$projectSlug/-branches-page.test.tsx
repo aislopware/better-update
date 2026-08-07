@@ -29,7 +29,7 @@ const EmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
       <p className="text-lg font-medium">No branches yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
+      <p className="text-kumo-subtle mt-1 text-sm">
         Create your first branch to start organizing updates.
       </p>
     </CardContent>

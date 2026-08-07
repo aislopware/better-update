@@ -80,17 +80,15 @@ const RouterErrorFallback = ({
     <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-8">
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold">Something went wrong</h2>
-        <p className="text-muted-foreground text-sm">A route failed to load.</p>
+        <p className="text-kumo-subtle text-sm">A route failed to load.</p>
       </div>
-      <pre className="bg-muted/40 max-h-96 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
+      <pre className="bg-kumo-tint/40 max-h-96 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
         {formatError(error)}
       </pre>
       {info?.componentStack ? (
         <details className="w-full">
-          <summary className="text-muted-foreground cursor-pointer text-xs">
-            Component stack
-          </summary>
-          <pre className="bg-muted/40 mt-2 max-h-72 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
+          <summary className="text-kumo-subtle cursor-pointer text-xs">Component stack</summary>
+          <pre className="bg-kumo-tint/40 mt-2 max-h-72 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
             {info.componentStack}
           </pre>
         </details>

@@ -58,7 +58,7 @@ export const StatCard = ({ label, value, action, children, footer, className }: 
     </CardHeader>
     {children ? <CardContent>{children}</CardContent> : null}
     {footer ? (
-      <CardFooter className="text-muted-foreground flex-col items-start gap-1 text-sm">
+      <CardFooter className="text-kumo-subtle flex-col items-start gap-1 text-sm">
         {footer}
       </CardFooter>
     ) : null}

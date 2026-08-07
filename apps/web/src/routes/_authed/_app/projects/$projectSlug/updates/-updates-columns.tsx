@@ -31,11 +31,11 @@ export const buildUpdateColumns = (
               <EnvironmentBadge environment={environment} />
             ) : null}
           </div>
-          <span className="text-muted-foreground truncate font-mono text-xs">
+          <span className="text-kumo-subtle truncate font-mono text-xs">
             {row.original.gitCommit ? (
               <>
                 {row.original.gitCommit.slice(0, 7)}
-                {row.original.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+                {row.original.gitDirty ? <span className="text-kumo-warning"> ·dirty</span> : null}
               </>
             ) : (
               `#${row.original.groupId.slice(0, 8)}`

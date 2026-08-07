@@ -45,7 +45,7 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
         <EntityAvatar name={row.name || "U"} image={row.image} className="size-9" />
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate text-sm leading-none font-medium">{row.name}</span>
-          <span className="text-muted-foreground truncate text-xs">{row.email}</span>
+          <span className="text-kumo-subtle truncate text-xs">{row.email}</span>
         </div>
       </div>
     );
@@ -57,7 +57,7 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
       <EntityAvatar name={row.email} className="size-9" />
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-sm leading-none font-medium">{row.email}</span>
-        <span className="text-muted-foreground truncate text-xs">Invited</span>
+        <span className="text-kumo-subtle truncate text-xs">Invited</span>
       </div>
     </div>
   );
@@ -68,9 +68,9 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
 // edge — a pill's own padding would misalign the column.
 const StatusCell = ({ status }: { status: MemberStatus }) =>
   status === "active" ? (
-    <span className="text-muted-foreground text-sm">Active</span>
+    <span className="text-kumo-subtle text-sm">Active</span>
   ) : (
-    <span className="text-warning-foreground text-sm font-medium">Pending</span>
+    <span className="text-kumo-warning text-sm font-medium">Pending</span>
   );
 
 const JoinedCell = ({ row }: { row: Row }) => {
@@ -82,7 +82,7 @@ const JoinedCell = ({ row }: { row: Row }) => {
       <span>
         Invited <RelativeTime value={row.invitedAt} />
       </span>
-      <span className="text-muted-foreground/72 text-xs italic">
+      <span className="text-kumo-subtle/72 text-xs italic">
         Expires {formatRelativeFuture(row.expiresAt)}
       </span>
     </div>
@@ -196,7 +196,7 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
       const { membershipsByPrincipal, canManageProjects, onManageProjects } = params;
       // Invitations hold no memberships yet (they materialize on accept).
       if (row.original.kind !== "member") {
-        return <span className="text-muted-foreground text-xs">—</span>;
+        return <span className="text-kumo-subtle text-xs">—</span>;
       }
       return (
         <MemberProjectsCell

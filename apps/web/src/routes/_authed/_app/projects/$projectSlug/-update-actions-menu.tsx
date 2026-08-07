@@ -98,7 +98,7 @@ export const UpdateActionsMenu = ({
             <Button
               variant="ghost"
               shape="square"
-              className="text-muted-foreground/70 hover:text-foreground"
+              className="text-kumo-subtle/70 hover:text-kumo-default"
               aria-label="Update actions"
             />
           }

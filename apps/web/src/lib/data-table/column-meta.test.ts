@@ -6,13 +6,13 @@ describe(cellAlignClass, () => {
     expect(cellAlignClass({})).toBe("");
     expect(cellAlignClass({ align: "right" })).toBe("text-right tabular-nums");
     expect(cellAlignClass({ align: "right", muted: true })).toBe(
-      "text-right tabular-nums text-muted-foreground",
+      "text-right tabular-nums text-kumo-subtle",
     );
   });
 
   it("maps typed cells to their presentation classes", () => {
-    expect(cellAlignClass({ cellType: "id" })).toBe("font-mono text-xs text-muted-foreground");
-    expect(cellAlignClass({ cellType: "date" })).toBe("text-muted-foreground");
+    expect(cellAlignClass({ cellType: "id" })).toBe("font-mono text-xs text-kumo-subtle");
+    expect(cellAlignClass({ cellType: "date" })).toBe("text-kumo-subtle");
     expect(cellAlignClass({ cellType: "numeric" })).toBe("text-right tabular-nums");
   });
 

@@ -21,37 +21,13 @@
   --font-heading: var(--font-sans);
   --font-mono: "Geist Mono Variable", monospace;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-surface: var(--surface);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-brand: var(--brand);
-  --color-brand-foreground: var(--brand-foreground);
+  /* Kumo's own tokens are what the app styles against now. The two left here
+     name things Kumo has no word for: the terminal surface a CLI block is drawn
+     on, and the brand accent. */
   --color-terminal: var(--terminal);
   --color-terminal-foreground: var(--terminal-foreground);
-  --color-destructive: var(--destructive);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-border: var(--border);
-  --color-border-subtle: var(--border-subtle);
-  --color-border-strong: var(--border-strong);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   /* Themed layered shadows — light/dark values live on :root/.dark. */
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -103,47 +79,13 @@
 }
 
 :root {
-  /* Every shadcn role below resolves to a Kumo token, so the components that
-     have not been ported yet share one palette with the ones that have. Kumo
-     swaps the underlying values on `data-mode`, which is why there is no
-     `.dark` counterpart for anything derived here.
-
-     Kumo's surface ladder: canvas (page) → elevated (layer shell) → base
-     (raised card) → recessed (inset well). Overlays sit on base, dropdowns on
-     overlay, the sidebar on recessed. */
-  --background: var(--color-kumo-canvas);
-  --foreground: var(--text-color-kumo-default);
-  --card: var(--color-kumo-base);
-  --card-foreground: var(--text-color-kumo-default);
-  --popover: var(--color-kumo-base);
-  --popover-foreground: var(--text-color-kumo-default);
-  --surface: var(--color-kumo-elevated);
-  /* Kumo reserves brand blue for `Button variant="primary"`; the neutral
-     inverted surface is `contrast`, which is what shadcn's `primary` means. */
-  --primary: var(--color-kumo-contrast);
-  --primary-foreground: var(--text-color-kumo-inverse);
-  --secondary: var(--color-kumo-fill);
-  --secondary-foreground: var(--text-color-kumo-default);
-  --muted: var(--color-kumo-tint);
-  --muted-foreground: var(--text-color-kumo-subtle);
-  --accent: var(--color-kumo-tint);
-  --accent-foreground: var(--text-color-kumo-default);
-  --brand: var(--color-kumo-brand);
-  --brand-foreground: oklch(1 0 0);
+  /* Kumo swaps its own values on `data-mode`, which is why the two roles below
+     have no `.dark` counterpart — they are derived from tokens that already
+     flip. `terminal` is the inverted surface a CLI block sits on. */
   --terminal: var(--color-kumo-contrast);
   --terminal-foreground: var(--text-color-kumo-inverse);
-  --destructive: var(--color-kumo-danger);
-  --info: var(--color-kumo-info);
-  --info-foreground: var(--text-color-kumo-info);
-  --success: var(--color-kumo-success);
-  --success-foreground: var(--text-color-kumo-success);
-  --warning: var(--color-kumo-warning);
-  --warning-foreground: var(--text-color-kumo-warning);
-  --border-subtle: var(--color-kumo-hairline);
-  --border: var(--color-kumo-line);
-  --border-strong: var(--color-kumo-interact);
-  --input: var(--color-kumo-line);
-  --ring: var(--color-kumo-brand);
+  --brand: var(--color-kumo-brand);
+  --brand-foreground: oklch(1 0 0);
   --radius: 0.5rem;
 
   --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.03);
@@ -180,7 +122,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-kumo-line outline-kumo-focus/50;
   }
   html {
     font-size: 16px;
@@ -190,7 +132,7 @@
     /* `text-base` is 14px on Kumo's scale — the size every dashboard control
        and table cell is drawn at. Unsized text must land there too, otherwise
        it inherits the 16px root and towers over the components next to it. */
-    @apply bg-background text-foreground text-base;
+    @apply bg-kumo-canvas text-kumo-default text-base;
     position: relative;
   }
   code,

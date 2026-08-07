@@ -76,10 +76,10 @@ export const RollbackToEmbeddedDialog = ({
             <div className="flex items-center gap-2 text-sm">
               <span>{branchName}</span>
               <PlatformBadge platform={update.platform} />
-              <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+              <span className="text-kumo-subtle">v{update.runtimeVersion}</span>
             </div>
           </div>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-kumo-subtle text-sm">
             This creates a new rollback directive entry on the branch. No assets will be uploaded.
           </p>
         </div>

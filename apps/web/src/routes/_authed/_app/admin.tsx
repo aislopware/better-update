@@ -69,8 +69,8 @@ const StatusBadge = ({ approved }: { approved: boolean }) =>
 
 const UserCell = ({ user }: { user: AdminUserItem }) => (
   <div className="flex min-w-0 flex-col">
-    <span className="text-foreground truncate font-medium">{user.name}</span>
-    <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+    <span className="text-kumo-default truncate font-medium">{user.name}</span>
+    <span className="text-kumo-subtle truncate text-xs">{user.email}</span>
   </div>
 );
 
@@ -117,7 +117,7 @@ const buildColumns = (
     cell: ({ row }) => {
       const user = row.original;
       if (isSuperadminUser(user)) {
-        return <span className="text-muted-foreground text-xs">—</span>;
+        return <span className="text-kumo-subtle text-xs">—</span>;
       }
       const isPending = pendingUserId === user.id;
       return user.approved ? (

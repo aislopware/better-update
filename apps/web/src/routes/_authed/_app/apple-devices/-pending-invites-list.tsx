@@ -35,7 +35,7 @@ const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => (
       </ItemDescription>
     </ItemContent>
     <ItemActions>
-      <span className="text-muted-foreground text-xs">
+      <span className="text-kumo-subtle text-xs">
         Expires {formatRelativeFuture(invite.expiresAt)}
       </span>
       <CopyButton value={invite.url} label="Invite link" variant="secondary" size="base" />

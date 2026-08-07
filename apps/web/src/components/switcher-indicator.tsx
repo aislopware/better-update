@@ -8,10 +8,10 @@ export const renderSwitcherIndicator = (
   isActive: boolean,
 ): ReactElement | null => {
   if (isPending) {
-    return <Loader size={16} className="text-muted-foreground" />;
+    return <Loader size={16} className="text-kumo-subtle" />;
   }
   if (isActive) {
-    return <CheckIcon weight="bold" className="text-primary size-4" />;
+    return <CheckIcon weight="bold" className="text-kumo-strong size-4" />;
   }
   return null;
 };

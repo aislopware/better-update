@@ -80,7 +80,7 @@ const UpdateRow = ({
   <Link
     to="/projects/$projectSlug/updates/$updateId"
     params={{ projectSlug, updateId: update.id }}
-    className="hover:bg-muted/50 border-border/60 flex items-center justify-between gap-3 border-b px-2 py-2.5 transition-colors first:pt-0 last:border-0 last:pb-0"
+    className="hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-2 py-2.5 transition-colors first:pt-0 last:border-0 last:pb-0"
   >
     <div className="flex min-w-0 flex-col gap-0.5">
       <span className="flex items-center gap-2">
@@ -91,7 +91,7 @@ const UpdateRow = ({
           <Badge variant="secondary">Rollout {update.rolloutPercentage}%</Badge>
         ) : null}
       </span>
-      <span className="text-muted-foreground flex items-center gap-2 text-xs">
+      <span className="text-kumo-subtle flex items-center gap-2 text-xs">
         <PlatformIndicator platform={update.platform} className="gap-1" />
         {branchName ? (
           <span className="truncate">{branchName}</span>
@@ -102,7 +102,7 @@ const UpdateRow = ({
         )}
       </span>
     </div>
-    <RelativeTime value={update.createdAt} className="text-muted-foreground shrink-0 text-xs" />
+    <RelativeTime value={update.createdAt} className="text-kumo-subtle shrink-0 text-xs" />
   </Link>
 );
 
@@ -172,7 +172,7 @@ const RuntimeDetailContent = () => {
         <SectionHeader
           title={
             <span className="flex items-center gap-2">
-              <PackageIcon weight="bold" className="text-muted-foreground size-4" />
+              <PackageIcon weight="bold" className="text-kumo-subtle size-4" />
               Builds on this runtime
             </span>
           }
@@ -185,7 +185,7 @@ const RuntimeDetailContent = () => {
         {buildsCount === 0 ? (
           <Card>
             <CardContent>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-kumo-subtle text-sm">
                 Build a binary against this runtime to see it here.
               </p>
             </CardContent>
@@ -206,7 +206,7 @@ const RuntimeDetailContent = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CloudArrowUpIcon weight="bold" className="text-muted-foreground size-4" />
+            <CloudArrowUpIcon weight="bold" className="text-kumo-subtle size-4" />
             Updates on this runtime
           </CardTitle>
           <CardDescription>
@@ -217,7 +217,7 @@ const RuntimeDetailContent = () => {
         </CardHeader>
         <CardContent>
           {updatesCount === 0 ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-kumo-subtle text-sm">
               Publish an update with this runtime version to see it here.
             </p>
           ) : (
@@ -235,7 +235,7 @@ const RuntimeDetailContent = () => {
                   to="/projects/$projectSlug/updates"
                   params={{ projectSlug }}
                   search={{ page: 1, sort: "-createdAt" as const }}
-                  className="text-muted-foreground hover:text-foreground pt-3 text-sm transition-colors"
+                  className="text-kumo-subtle hover:text-kumo-default pt-3 text-sm transition-colors"
                 >
                   View all updates →
                 </Link>

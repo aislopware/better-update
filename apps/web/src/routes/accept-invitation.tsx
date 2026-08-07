@@ -43,7 +43,7 @@ const AcceptInvitationPage = () => {
   });
 
   return (
-    <div className="bg-background relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-12">
+    <div className="bg-kumo-canvas relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-12">
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
         <BrandWordmark />
         <Card className="w-full">
@@ -83,8 +83,8 @@ const PendingState = ({ isPending }: { readonly isPending: boolean }) => (
       <Loader size={24} data-state={isPending ? "pending" : "idle"} />
     </StatusMedallion>
     <div className="flex flex-col gap-1.5">
-      <h1 className="font-heading text-foreground text-xl font-semibold">Accepting invitation</h1>
-      <p className="text-muted-foreground text-sm">Hang on while we add you to the organization.</p>
+      <h1 className="font-heading text-kumo-default text-xl font-semibold">Accepting invitation</h1>
+      <p className="text-kumo-subtle text-sm">Hang on while we add you to the organization.</p>
     </div>
   </>
 );
@@ -95,8 +95,8 @@ const SuccessState = () => (
       <CheckCircleIcon />
     </StatusMedallion>
     <div className="flex flex-col gap-1.5">
-      <h1 className="font-heading text-foreground text-xl font-semibold">Invitation accepted</h1>
-      <p className="text-muted-foreground text-sm">Redirecting you to your dashboard…</p>
+      <h1 className="font-heading text-kumo-default text-xl font-semibold">Invitation accepted</h1>
+      <p className="text-kumo-subtle text-sm">Redirecting you to your dashboard…</p>
     </div>
   </>
 );
@@ -107,10 +107,10 @@ const FailedState = ({ message }: { readonly message: string }) => (
       <EnvelopeSimpleIcon />
     </StatusMedallion>
     <div className="flex flex-col gap-1.5">
-      <h1 className="font-heading text-foreground text-xl font-semibold">
+      <h1 className="font-heading text-kumo-default text-xl font-semibold">
         Could not accept invitation
       </h1>
-      <p className="text-muted-foreground text-sm">{message}</p>
+      <p className="text-kumo-subtle text-sm">{message}</p>
     </div>
     <LinkButton variant="primary" className="mt-2" href="/">
       Go to dashboard

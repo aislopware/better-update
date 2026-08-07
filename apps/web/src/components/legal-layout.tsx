@@ -25,18 +25,18 @@ const blockKey = (block: LegalBlock): string =>
 
 const BlockView = ({ block }: { readonly block: LegalBlock }) =>
   block.kind === "list" ? (
-    <ul className="text-muted-foreground flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed">
+    <ul className="text-kumo-subtle flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed">
       {block.items.map((item) => (
         <li key={item}>{item}</li>
       ))}
     </ul>
   ) : (
-    <p className="text-muted-foreground text-sm leading-relaxed">{block.text}</p>
+    <p className="text-kumo-subtle text-sm leading-relaxed">{block.text}</p>
   );
 
 const SectionView = ({ section }: { readonly section: LegalSectionData }) => (
   <section className="flex flex-col gap-3">
-    <h2 className="font-heading text-foreground text-lg font-semibold tracking-tight">
+    <h2 className="font-heading text-kumo-default text-lg font-semibold tracking-tight">
       {section.heading}
     </h2>
     {section.blocks.map((block) => (
@@ -46,7 +46,7 @@ const SectionView = ({ section }: { readonly section: LegalSectionData }) => (
 );
 
 const LegalHeader = () => (
-  <header className="border-border/60 border-b">
+  <header className="border-kumo-line/60 border-b">
     <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-6 py-5">
       <Link to="/">
         <BrandWordmark iconSize={32} />
@@ -54,13 +54,13 @@ const LegalHeader = () => (
       <nav className="flex items-center gap-4 text-sm">
         <Link
           to="/terms"
-          className="text-muted-foreground hover:text-foreground hidden transition-colors sm:inline"
+          className="text-kumo-subtle hover:text-kumo-default hidden transition-colors sm:inline"
         >
           Terms
         </Link>
         <Link
           to="/privacy"
-          className="text-muted-foreground hover:text-foreground hidden transition-colors sm:inline"
+          className="text-kumo-subtle hover:text-kumo-default hidden transition-colors sm:inline"
         >
           Privacy
         </Link>
@@ -73,25 +73,25 @@ const LegalHeader = () => (
 );
 
 const LegalFooter = () => (
-  <footer className="border-border/60 mt-2 flex flex-col gap-3 border-t pt-8">
-    <p className="text-muted-foreground text-sm leading-relaxed">
+  <footer className="border-kumo-line/60 mt-2 flex flex-col gap-3 border-t pt-8">
+    <p className="text-kumo-subtle text-sm leading-relaxed">
       Questions about this page? Email{" "}
       <a
         href={`mailto:${SITE.legalEmail}`}
-        className="text-foreground underline-offset-4 hover:underline"
+        className="text-kumo-default underline-offset-4 hover:underline"
       >
         {SITE.legalEmail}
       </a>
       .
     </p>
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      <Link to="/terms" className="text-foreground underline-offset-4 hover:underline">
+      <Link to="/terms" className="text-kumo-default underline-offset-4 hover:underline">
         Terms of Service
       </Link>
-      <Link to="/privacy" className="text-foreground underline-offset-4 hover:underline">
+      <Link to="/privacy" className="text-kumo-default underline-offset-4 hover:underline">
         Privacy Policy
       </Link>
-      <Link to="/auth/login" className="text-muted-foreground underline-offset-4 hover:underline">
+      <Link to="/auth/login" className="text-kumo-subtle underline-offset-4 hover:underline">
         Back to sign in
       </Link>
     </div>
@@ -99,15 +99,15 @@ const LegalFooter = () => (
 );
 
 export const LegalLayout = ({ title, lastUpdated, intro, sections }: LegalLayoutProps) => (
-  <div className="bg-background min-h-dvh">
+  <div className="bg-kumo-canvas min-h-dvh">
     <LegalHeader />
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-12 sm:py-16">
       <div className="flex flex-col gap-3">
-        <h1 className="font-heading text-foreground text-3xl font-semibold tracking-tight">
+        <h1 className="font-heading text-kumo-default text-3xl font-semibold tracking-tight">
           {title}
         </h1>
-        <p className="text-muted-foreground text-sm">Last updated {lastUpdated}</p>
-        <p className="text-muted-foreground text-sm leading-relaxed">{intro}</p>
+        <p className="text-kumo-subtle text-sm">Last updated {lastUpdated}</p>
+        <p className="text-kumo-subtle text-sm leading-relaxed">{intro}</p>
       </div>
       <div className="flex flex-col gap-8">
         {sections.map((section) => (

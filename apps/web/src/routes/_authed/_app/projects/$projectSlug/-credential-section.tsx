@@ -10,5 +10,5 @@ export const CredentialSection = ({ title, children }: { title: string; children
 );
 
 export const EmptyBindingMessage = ({ message }: { message: string }) => (
-  <p className="text-muted-foreground px-3 py-4 text-sm">{message}</p>
+  <p className="text-kumo-subtle px-3 py-4 text-sm">{message}</p>
 );

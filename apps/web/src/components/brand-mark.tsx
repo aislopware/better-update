@@ -42,12 +42,12 @@ interface BrandWordmarkProps {
 
 export const BrandWordmark = ({ className, iconSize = 44 }: BrandWordmarkProps) => (
   <div className={cn("flex items-center gap-3", className)}>
-    <BrandIcon size={iconSize} className="text-foreground" />
+    <BrandIcon size={iconSize} className="text-kumo-default" />
     <div className="flex flex-col leading-none">
-      <span className="font-heading text-foreground text-lg font-semibold tracking-tight">
+      <span className="font-heading text-kumo-default text-lg font-semibold tracking-tight">
         Better Update
       </span>
-      <span className="text-muted-foreground mt-1 text-[0.7rem] tracking-wide uppercase">
+      <span className="text-kumo-subtle mt-1 text-[0.7rem] tracking-wide uppercase">
         Ship faster
       </span>
     </div>

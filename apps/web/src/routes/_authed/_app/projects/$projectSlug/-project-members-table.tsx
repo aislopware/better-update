@@ -47,7 +47,7 @@ const NameCell = ({ row }: { row: ProjectMemberItem }) => {
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-sm leading-none font-medium">{name}</span>
         {row.email === null ? null : (
-          <span className="text-muted-foreground truncate text-xs">{row.email}</span>
+          <span className="text-kumo-subtle truncate text-xs">{row.email}</span>
         )}
       </div>
     </div>
@@ -122,7 +122,7 @@ const RowActions = ({
         <Button
           variant="ghost"
           shape="square"
-          className="text-muted-foreground/70 hover:text-foreground"
+          className="text-kumo-subtle/70 hover:text-kumo-default"
           disabled={isPending}
           aria-label="Project member actions"
         />

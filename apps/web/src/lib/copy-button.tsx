@@ -99,14 +99,14 @@ export const CopyChip = ({ value, className }: { value: string; className?: stri
       aria-label={`Copy ${value}`}
       onClick={handleCopy}
       className={cn(
-        "bg-muted hover:bg-secondary inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-semibold",
+        "bg-kumo-tint hover:bg-kumo-fill inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-semibold",
         className,
       )}
     >
       {value}
       {/* No colour change on the icon: the swap to a tick is the whole signal,
           and Kumo does not transition colour on hover. */}
-      <Icon weight="bold" className="text-muted-foreground" />
+      <Icon weight="bold" className="text-kumo-subtle" />
     </button>
   );
 };
@@ -123,7 +123,7 @@ export const CopyableMono = ({
   className?: string;
 }) =>
   value === null || value === undefined || value === "" ? (
-    <span className="text-muted-foreground">—</span>
+    <span className="text-kumo-subtle">—</span>
   ) : (
     <span className="flex min-w-0 items-center gap-1">
       <span className={cn("min-w-0 font-mono text-xs break-all", className)}>{value}</span>

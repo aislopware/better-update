@@ -68,7 +68,7 @@ describe(DataTableView, () => {
     render(<TestTable />);
 
     const idCell = screen.getByText("upd_123").closest("td");
-    expect(idCell).toHaveClass("font-mono", "text-xs", "text-muted-foreground");
+    expect(idCell).toHaveClass("font-mono", "text-xs", "text-kumo-subtle");
 
     const numericCell = screen.getByText("42").closest("td");
     expect(numericCell).toHaveClass("text-right", "tabular-nums");

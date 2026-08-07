@@ -42,7 +42,7 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     header: "Runtime",
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium">
-        <StackIcon weight="bold" className="text-muted-foreground size-4" />v{row.original.version}
+        <StackIcon weight="bold" className="text-kumo-subtle size-4" />v{row.original.version}
       </div>
     ),
     enableSorting: false,
@@ -51,7 +51,7 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     id: "buildsCount",
     header: "Builds",
     cell: ({ row }) => (
-      <span className={row.original.buildsCount > 0 ? undefined : "text-muted-foreground"}>
+      <span className={row.original.buildsCount > 0 ? undefined : "text-kumo-subtle"}>
         {row.original.buildsCount} {pluralize(row.original.buildsCount, "build")}
       </span>
     ),
@@ -61,7 +61,7 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     id: "updatesCount",
     header: "Updates",
     cell: ({ row }) => (
-      <span className={row.original.updatesCount > 0 ? undefined : "text-muted-foreground"}>
+      <span className={row.original.updatesCount > 0 ? undefined : "text-kumo-subtle"}>
         {row.original.updatesCount} {pluralize(row.original.updatesCount, "update")}
       </span>
     ),

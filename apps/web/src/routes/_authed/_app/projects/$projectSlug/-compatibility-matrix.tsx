@@ -59,9 +59,9 @@ const ServableTooltipBody = ({ channel }: { channel: SyntheticBuildChannel }) =>
       {channel.updateCount} {pluralize(channel.updateCount, "update")} servable
     </span>
     {channel.latestUpdateMessage ? (
-      <span className="text-background/70 truncate">Latest: {channel.latestUpdateMessage}</span>
+      <span className="text-kumo-inverse/70 truncate">Latest: {channel.latestUpdateMessage}</span>
     ) : null}
-    {channel.rolloutActive ? <span className="text-background/70">Rollout active</span> : null}
+    {channel.rolloutActive ? <span className="text-kumo-inverse/70">Rollout active</span> : null}
   </span>
 );
 
@@ -75,7 +75,7 @@ const MatrixStatusCell = ({
   if (channel.isPaused) {
     return (
       <MatrixCellGlyph label="Channel paused — updates are not served">
-        <span className="bg-warning size-2 rounded-full" aria-hidden="true" />
+        <span className="bg-kumo-warning size-2 rounded-full" aria-hidden="true" />
       </MatrixCellGlyph>
     );
   }
@@ -83,7 +83,7 @@ const MatrixStatusCell = ({
   if (!build.runtimeVersion) {
     return (
       <MatrixCellGlyph label="No runtime version on this build">
-        <span className="text-muted-foreground">—</span>
+        <span className="text-kumo-subtle">—</span>
       </MatrixCellGlyph>
     );
   }
@@ -94,12 +94,12 @@ const MatrixStatusCell = ({
       label={`${channel.updateCount} ${pluralize(channel.updateCount, "update")} servable`}
       tooltip={<ServableTooltipBody channel={channel} />}
     >
-      <CheckCircleIcon weight="bold" className="text-success size-3.5" aria-hidden="true" />
+      <CheckCircleIcon weight="bold" className="text-kumo-success size-3.5" aria-hidden="true" />
       <span className="font-medium tabular-nums">{channel.updateCount}</span>
     </MatrixCellGlyph>
   ) : (
     <MatrixCellGlyph label="No updates on this channel yet">
-      <span className="bg-muted-foreground/40 size-2 rounded-full" aria-hidden="true" />
+      <span className="bg-kumo-badge-neutral/40 size-2 rounded-full" aria-hidden="true" />
     </MatrixCellGlyph>
   );
 };
@@ -109,7 +109,7 @@ const MatrixBuildRow = ({ build }: { build: BuildWithSyntheticChannels }) => (
     <TableCell>
       <div className="flex max-w-80 flex-col gap-0.5">
         <span className="truncate font-medium">{buildLabel(build)}</span>
-        <span className="text-muted-foreground flex items-center gap-2 font-mono text-xs">
+        <span className="text-kumo-subtle flex items-center gap-2 font-mono text-xs">
           <PlatformIndicator platform={build.platform} className="gap-1" />
           {build.appVersion ? <span>App {build.appVersion}</span> : null}
           {build.buildNumber ? <span>#{build.buildNumber}</span> : null}
@@ -187,7 +187,7 @@ export const CompatibilityMatrix = ({
               </Table>
             </div>
             {hiddenCount > 0 && (
-              <p className="text-muted-foreground text-xs">
+              <p className="text-kumo-subtle text-xs">
                 Showing the first {MATRIX_ROW_LIMIT} builds of the current view — {hiddenCount} more
                 in the table below.
               </p>

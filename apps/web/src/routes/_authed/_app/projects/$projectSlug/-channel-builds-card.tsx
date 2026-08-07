@@ -40,7 +40,7 @@ const UpdateCountStatus = ({ status }: { status: SyntheticBuildChannel }) => {
     );
   }
 
-  return <span className="text-muted-foreground text-xs">No updates</span>;
+  return <span className="text-kumo-subtle text-xs">No updates</span>;
 };
 
 const CompatibleBuildRow = ({
@@ -50,7 +50,7 @@ const CompatibleBuildRow = ({
   projectSlug: string;
   entry: CompatibleBuildEntry;
 }) => (
-  <div className="border-border/60 flex items-start justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
+  <div className="border-kumo-line/60 flex items-start justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
     <div className="flex min-w-0 flex-col gap-1">
       <Link
         to="/projects/$projectSlug/builds/$buildId"
@@ -59,7 +59,7 @@ const CompatibleBuildRow = ({
       >
         {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
       </Link>
-      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <div className="text-kumo-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <PlatformIndicator platform={build.platform} className="gap-1" />
         <DistributionIndicator distribution={build.distribution} className="gap-1" />
         {build.runtimeVersion ? (
@@ -109,7 +109,7 @@ export const ChannelBuildsCard = ({
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-kumo-subtle text-sm">
             No uploaded builds can install this channel&apos;s updates yet.
           </p>
         )}
@@ -117,7 +117,7 @@ export const ChannelBuildsCard = ({
           <Link
             to="/projects/$projectSlug/builds"
             params={{ projectSlug }}
-            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            className="text-kumo-subtle hover:text-kumo-default text-sm transition-colors"
           >
             {hiddenCount} more compatible {pluralize(hiddenCount, "build")} — view all builds →
           </Link>

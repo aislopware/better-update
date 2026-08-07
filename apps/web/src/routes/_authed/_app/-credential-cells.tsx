@@ -7,15 +7,13 @@ import type { ReactNode } from "react";
 
 import { formatAppleTeamType } from "./-credentials-utils";
 
-export const EmptyDash = () => <span className="text-muted-foreground">—</span>;
+export const EmptyDash = () => <span className="text-kumo-subtle">—</span>;
 
 // The credentials page stacks eight sections — an empty section collapses to a
 // single quiet row instead of a full-height Empty card so populated sections
 // stay above the fold.
 export const CredentialEmptyRow = ({ children }: { children: ReactNode }) => (
-  <p className="text-muted-foreground rounded-md border border-dashed px-4 py-3 text-sm">
-    {children}
-  </p>
+  <p className="text-kumo-subtle rounded-md border border-dashed px-4 py-3 text-sm">{children}</p>
 );
 
 // Read-only per-row protected indicator (GITLAB-RBAC-SPEC §3b) for
@@ -41,7 +39,7 @@ export const TeamCell = ({ team }: { team: AppleTeamItem | null | undefined }) =
   return (
     <div className="flex flex-col">
       <span className="font-medium">{team.name ?? team.appleTeamId}</span>
-      <span className="text-muted-foreground text-xs">
+      <span className="text-kumo-subtle text-xs">
         {team.name === null ? type : `${type} · ${team.appleTeamId}`}
       </span>
     </div>

@@ -80,10 +80,10 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
     header: "Branch",
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium">
-        <GitBranchIcon weight="bold" className="text-muted-foreground size-4" />
+        <GitBranchIcon weight="bold" className="text-kumo-subtle size-4" />
         {row.original.name}
         {row.original.isBuiltin ? (
-          <Badge variant="outline" className="text-muted-foreground">
+          <Badge variant="outline" className="text-kumo-subtle">
             Built-in
           </Badge>
         ) : null}

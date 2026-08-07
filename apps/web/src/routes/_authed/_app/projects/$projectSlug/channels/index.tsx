@@ -83,7 +83,7 @@ const PauseToggleButton = ({
     <Button
       variant="ghost"
       shape="square"
-      className="text-muted-foreground/70 hover:text-foreground"
+      className="text-kumo-subtle/70 hover:text-kumo-default"
       onClick={() => {
         togglePauseMutation.mutate();
       }}
@@ -103,10 +103,10 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
     header: "Channel",
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium">
-        <BroadcastIcon weight="bold" className="text-muted-foreground size-4" />
+        <BroadcastIcon weight="bold" className="text-kumo-subtle size-4" />
         {row.original.name}
         {row.original.isBuiltin ? (
-          <Badge variant="outline" className="text-muted-foreground">
+          <Badge variant="outline" className="text-kumo-subtle">
             Built-in
           </Badge>
         ) : null}
@@ -119,7 +119,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
     header: "Branch",
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-1.5">
-        <GitBranchIcon weight="bold" className="text-muted-foreground size-3.5" />
+        <GitBranchIcon weight="bold" className="text-kumo-subtle size-3.5" />
         {row.original.branchName ?? <CopyableId value={row.original.branchId} label="Branch ID" />}
       </span>
     ),

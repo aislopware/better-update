@@ -62,17 +62,17 @@ const BuildMetadataCard = ({
     </CardHeader>
     <CardContent className="grid gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-muted-foreground text-sm">Build ID</div>
+        <div className="text-kumo-subtle text-sm">Build ID</div>
         <CopyableMono value={build.id} label="Build ID" />
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-muted-foreground text-sm">Runtime version</div>
+        <div className="text-kumo-subtle text-sm">Runtime version</div>
         <div className="font-medium">
           {build.runtimeVersion ? `v${build.runtimeVersion}` : "Missing"}
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-muted-foreground text-sm">Bundle ID</div>
+        <div className="text-kumo-subtle text-sm">Bundle ID</div>
         {build.bundleId === null ? (
           <div className="font-medium">Missing</div>
         ) : (
@@ -83,45 +83,45 @@ const BuildMetadataCard = ({
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-muted-foreground text-sm">App version</div>
+        <div className="text-kumo-subtle text-sm">App version</div>
         <div className="font-medium">{build.appVersion ?? "Missing"}</div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-muted-foreground text-sm">Build number</div>
+        <div className="text-kumo-subtle text-sm">Build number</div>
         <div className="font-medium">{build.buildNumber ?? "Missing"}</div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-muted-foreground text-sm">Git ref</div>
+        <div className="text-kumo-subtle text-sm">Git ref</div>
         <div className="font-medium">{build.gitRef ?? "Not provided"}</div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-muted-foreground text-sm">Git commit</div>
+        <div className="text-kumo-subtle text-sm">Git commit</div>
         {build.gitCommit === null ? (
           <div className="font-medium">Not provided</div>
         ) : (
           <div className="flex items-center gap-1">
             <code className="min-w-0 font-mono text-sm break-all">{build.gitCommit}</code>
-            {build.gitDirty ? <span className="text-warning text-xs">·dirty</span> : null}
+            {build.gitDirty ? <span className="text-kumo-warning text-xs">·dirty</span> : null}
             <CopyButton value={build.gitCommit} label="Git commit" />
           </div>
         )}
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-muted-foreground text-sm">Created</div>
+        <div className="text-kumo-subtle text-sm">Created</div>
         <div className="font-medium">
           <RelativeTime value={build.createdAt} />
         </div>
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-muted-foreground text-sm">Fingerprint</div>
+        <div className="text-kumo-subtle text-sm">Fingerprint</div>
         {build.fingerprintHash === null ? (
-          <div className="text-muted-foreground text-sm italic">Not recorded</div>
+          <div className="text-kumo-subtle text-sm italic">Not recorded</div>
         ) : (
           <div className="flex items-start gap-1">
             <Link
               to="/projects/$projectSlug/fingerprints/$hash"
               params={{ projectSlug, hash: build.fingerprintHash }}
-              className="hover:text-foreground text-muted-foreground min-w-0 font-mono text-sm break-all transition-colors"
+              className="hover:text-kumo-default text-kumo-subtle min-w-0 font-mono text-sm break-all transition-colors"
             >
               {build.fingerprintHash}
             </Link>
@@ -130,8 +130,8 @@ const BuildMetadataCard = ({
         )}
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-muted-foreground text-sm">Metadata JSON</div>
-        <pre className="bg-muted overflow-x-auto rounded-xl p-3 text-xs">
+        <div className="text-kumo-subtle text-sm">Metadata JSON</div>
+        <pre className="bg-kumo-tint overflow-x-auto rounded-xl p-3 text-xs">
           {formatMetadataJson(build.metadataJson)}
         </pre>
       </div>
@@ -155,14 +155,14 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <div className="text-muted-foreground text-sm">SHA-256</div>
+              <div className="text-kumo-subtle text-sm">SHA-256</div>
               <div className="flex items-start gap-1">
                 <code className="min-w-0 flex-1 text-xs break-all">{build.artifact.sha256}</code>
                 <CopyButton value={build.artifact.sha256} label="SHA-256" />
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <div className="text-muted-foreground text-sm">Storage key</div>
+              <div className="text-kumo-subtle text-sm">Storage key</div>
               <div className="flex items-start gap-1">
                 <code className="min-w-0 flex-1 text-xs break-all">{build.artifact.r2Key}</code>
                 <CopyButton value={build.artifact.r2Key} label="Storage key" />
@@ -185,7 +185,7 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
           </div>
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           No artifact has been finalized for this build yet.
         </p>
       )}
@@ -218,7 +218,7 @@ const DebugArtifactRow = ({
     },
   });
   return (
-    <div className="border-border/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
+    <div className="border-kumo-line/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{DEBUG_ARTIFACT_LABELS[artifact.type]}</span>
         <Badge variant="secondary">{formatBytes(artifact.byteSize)}</Badge>
@@ -261,7 +261,7 @@ const DebugSymbolsCard = ({
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           No debug symbols were stored for this build. Builds made with a current CLI capture dSYMs,
           JS sourcemaps, and R8 mappings automatically.
         </p>
@@ -292,13 +292,13 @@ const RelatedChannelsCard = ({
             {pagination.pageItems.map((channel) => (
               <div
                 key={`${build.id}:${channel.channelId}`}
-                className="border-border/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0"
+                className="border-kumo-line/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0"
               >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <ChannelBadge name={channel.channelName} />
                   {channel.isPaused && <Badge variant="warning">Paused</Badge>}
                   {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
-                  <span className="text-muted-foreground text-sm">
+                  <span className="text-kumo-subtle text-sm">
                     {channel.updateCount > 0
                       ? `${channel.updateCount} matching ${pluralize(channel.updateCount, "update")}`
                       : "No matching updates"}
@@ -307,7 +307,7 @@ const RelatedChannelsCard = ({
                 <Link
                   to="/projects/$projectSlug/channels/$channelId"
                   params={{ projectSlug, channelId: channel.channelId }}
-                  className="text-muted-foreground hover:text-foreground shrink-0 text-sm transition-colors"
+                  className="text-kumo-subtle hover:text-kumo-default shrink-0 text-sm transition-colors"
                 >
                   Open →
                 </Link>
@@ -315,7 +315,7 @@ const RelatedChannelsCard = ({
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-kumo-subtle text-sm">
             No channels currently match this build&apos;s runtime version.
           </p>
         )}
@@ -356,7 +356,7 @@ const BuildHeaderMeta = ({ build }: { build: BuildWithArtifact }) => (
     {build.gitRef ? (
       <span className="font-mono text-xs">
         {build.gitRef}
-        {build.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+        {build.gitDirty ? <span className="text-kumo-warning"> ·dirty</span> : null}
       </span>
     ) : null}
     <span>

@@ -51,7 +51,7 @@ const FingerprintHashCard = ({
   <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2">
-        <FingerprintIcon weight="bold" className="text-muted-foreground size-5" />
+        <FingerprintIcon weight="bold" className="text-kumo-subtle size-5" />
         Fingerprint
       </CardTitle>
       <CardDescription>
@@ -60,7 +60,7 @@ const FingerprintHashCard = ({
     </CardHeader>
     <CardContent className="flex flex-col gap-3">
       <div className="flex items-start gap-2">
-        <pre className="bg-muted min-w-0 flex-1 overflow-x-auto rounded-xl p-3 font-mono text-xs">
+        <pre className="bg-kumo-tint min-w-0 flex-1 overflow-x-auto rounded-xl p-3 font-mono text-xs">
           {hash}
         </pre>
         <CopyButton value={hash} label="Fingerprint" />
@@ -89,7 +89,7 @@ const FingerprintBuildsCard = ({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {builds.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No builds carry this fingerprint.</p>
+          <p className="text-kumo-subtle text-sm">No builds carry this fingerprint.</p>
         ) : (
           <ItemGroup>
             {pagination.pageItems.map((build) => (
@@ -108,10 +108,10 @@ const FingerprintBuildsCard = ({
                   <PlatformBadge platform={build.platform} />
                   <DistributionBadge distribution={build.distribution} />
                   <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
-                  <span className="text-muted-foreground text-sm">{build.profile}</span>
+                  <span className="text-kumo-subtle text-sm">{build.profile}</span>
                 </ItemContent>
                 <ItemActions>
-                  <RelativeTime value={build.createdAt} className="text-muted-foreground text-xs" />
+                  <RelativeTime value={build.createdAt} className="text-kumo-subtle text-xs" />
                 </ItemActions>
               </Item>
             ))}
@@ -139,7 +139,7 @@ const FingerprintUpdatesCard = ({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {updates.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No updates carry this fingerprint.</p>
+          <p className="text-kumo-subtle text-sm">No updates carry this fingerprint.</p>
         ) : (
           <ItemGroup>
             {pagination.pageItems.map((update) => (
@@ -158,15 +158,12 @@ const FingerprintUpdatesCard = ({
                   <PlatformBadge platform={update.platform} />
                   <span className="font-medium">v{update.runtimeVersion}</span>
                   {update.isRollback && <Badge variant="error">Rollback</Badge>}
-                  <span className="text-muted-foreground line-clamp-1 text-sm">
+                  <span className="text-kumo-subtle line-clamp-1 text-sm">
                     {update.message || `Update ${update.groupId.slice(0, 8)}`}
                   </span>
                 </ItemContent>
                 <ItemActions>
-                  <RelativeTime
-                    value={update.createdAt}
-                    className="text-muted-foreground text-xs"
-                  />
+                  <RelativeTime value={update.createdAt} className="text-kumo-subtle text-xs" />
                 </ItemActions>
               </Item>
             ))}

@@ -109,7 +109,7 @@ export const PlatformIndicator = ({
   const { label, icon: Icon } = PLATFORM_DEFS[platform];
   return (
     <span className={cn("flex items-center gap-1.5", className)}>
-      <Icon className="text-muted-foreground size-3.5 shrink-0" />
+      <Icon className="text-kumo-subtle size-3.5 shrink-0" />
       {label}
     </span>
   );
@@ -137,7 +137,7 @@ export const DistributionIndicator = ({
   const { label, icon: Icon } = DISTRIBUTION_DEFS[distribution];
   return (
     <span className={cn("flex items-center gap-1.5", className)}>
-      <Icon className="text-muted-foreground size-3.5 shrink-0" />
+      <Icon className="text-kumo-subtle size-3.5 shrink-0" />
       {label}
     </span>
   );
@@ -161,12 +161,12 @@ export const SubmissionMetadataBadge = ({
   className,
 }: AttributeBadgeProps & { complete: boolean }): ReactElement =>
   complete ? (
-    <span className={cn("text-muted-foreground flex items-center gap-1.5 text-sm", className)}>
+    <span className={cn("text-kumo-subtle flex items-center gap-1.5 text-sm", className)}>
       <CheckCircleIcon weight="bold" className="size-3.5 shrink-0" />
       Complete
     </span>
   ) : (
-    <span className={cn("text-warning-foreground flex items-center gap-1.5 text-sm", className)}>
+    <span className={cn("text-kumo-warning flex items-center gap-1.5 text-sm", className)}>
       <WarningIcon weight="bold" className="size-3.5 shrink-0" />
       Metadata pending
     </span>

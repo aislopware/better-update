@@ -90,7 +90,7 @@ export const BoundProjectChips = ({
     return <Badge variant="secondary">All projects</Badge>;
   }
   if (boundProjectIds.length === 0) {
-    return <span className="text-muted-foreground text-xs">Not bound to any project</span>;
+    return <span className="text-kumo-subtle text-xs">Not bound to any project</span>;
   }
   const named = boundProjectIds.map((projectId) => ({
     id: projectId,
@@ -171,7 +171,7 @@ const AllProjectsToggle = ({
     <div className="flex items-center justify-between gap-3 rounded-md border p-3">
       <label htmlFor={switchId} className="grid gap-0.5">
         <span className="text-sm font-medium">All projects</span>
-        <span className="text-muted-foreground text-xs">
+        <span className="text-kumo-subtle text-xs">
           Usable in every project, including projects created later.
         </span>
       </label>
@@ -191,9 +191,9 @@ const AllProjectsToggle = ({
 // "Searching…" state before the definitive no-match copy.
 const ChecklistEmptyState = ({ query, isPending }: { query: string; isPending: boolean }) => {
   if (isPending) {
-    return <p className="text-muted-foreground text-sm">Searching…</p>;
+    return <p className="text-kumo-subtle text-sm">Searching…</p>;
   }
-  return <p className="text-muted-foreground text-sm">No projects match “{query}”.</p>;
+  return <p className="text-kumo-subtle text-sm">No projects match “{query}”.</p>;
 };
 
 const BindingsChecklist = ({
@@ -239,7 +239,7 @@ const BindingsChecklist = ({
   });
 
   if (projects.length === 0) {
-    return <p className="text-muted-foreground text-sm">No projects in this organization yet.</p>;
+    return <p className="text-kumo-subtle text-sm">No projects in this organization yet.</p>;
   }
 
   const visibleProjects = list.items.toSorted((left, right) => left.name.localeCompare(right.name));
@@ -331,11 +331,7 @@ export const BoundProjectsCell = ({
         >
           <DialogTrigger
             render={
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-6 px-1.5 text-xs"
-              />
+              <Button variant="ghost" size="sm" className="text-kumo-subtle h-6 px-1.5 text-xs" />
             }
           >
             Manage projects
@@ -394,7 +390,7 @@ export const InheritedProjectsCell = ({
         projects={projects}
       />
       {boundProjectIds.length === 0 && !boundToAllProjects ? null : (
-        <span className="text-muted-foreground text-xs">Inherited from team</span>
+        <span className="text-kumo-subtle text-xs">Inherited from team</span>
       )}
     </div>
   );

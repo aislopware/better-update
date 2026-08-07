@@ -90,7 +90,7 @@ const AddMemberForm = ({
           onValueChange={onPicked(setRole)}
         />
 
-        <p className="text-muted-foreground text-xs">{PROJECT_ROLE_HINTS[role]}</p>
+        <p className="text-kumo-subtle text-xs">{PROJECT_ROLE_HINTS[role]}</p>
       </FieldGroup>
 
       <DialogFooter>

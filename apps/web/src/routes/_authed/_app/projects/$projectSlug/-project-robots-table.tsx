@@ -38,7 +38,7 @@ const RowActions = ({
         <Button
           variant="ghost"
           shape="square"
-          className="text-muted-foreground/70 hover:text-foreground"
+          className="text-kumo-subtle/70 hover:text-kumo-default"
           disabled={isPending}
           aria-label="Robot account actions"
         />
@@ -91,10 +91,10 @@ export const ProjectRobotsTableView = ({
           <TableCell>
             <Badge variant="outline">{PROJECT_ROLE_LABELS[robot.role]}</Badge>
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <CopyableId value={robot.id} label="Robot ID" />
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={robot.createdAt} />
           </TableCell>
           <TableCell className="text-right">

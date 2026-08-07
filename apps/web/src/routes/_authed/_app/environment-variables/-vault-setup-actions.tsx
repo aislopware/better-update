@@ -62,7 +62,7 @@ export const VaultSetupActions = ({
   );
   if (hasEnvWrap === false) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-kumo-subtle text-sm">
         Account key enrolled — waiting for an admin to grant env-vault access.{" "}
         <Link href="/account/passkeys">Add a passkey</Link> while you wait.
       </p>

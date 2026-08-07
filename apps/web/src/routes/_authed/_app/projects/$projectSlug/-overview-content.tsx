@@ -65,11 +65,11 @@ const LiveNowRow = ({ scope, channel }: { scope: OverviewScope; channel: Channel
     <Link
       to="/projects/$projectSlug/channels/$channelId"
       params={{ projectSlug: scope.projectSlug, channelId: channel.id }}
-      className="hover:bg-muted/50 grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition-colors"
+      className="hover:bg-kumo-tint/50 grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition-colors"
     >
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{channel.name}</span>
-        <span className="text-muted-foreground flex items-center gap-1 text-xs">
+        <span className="text-kumo-subtle flex items-center gap-1 text-xs">
           <GitBranchIcon weight="bold" className="size-3 shrink-0" />
           <span className="truncate">{channel.branchName ?? channel.branchId.slice(0, 8)}</span>
         </span>
@@ -78,12 +78,12 @@ const LiveNowRow = ({ scope, channel }: { scope: OverviewScope; channel: Channel
         {latest ? (
           <>
             <span className="truncate text-sm">{latest.message || "Untitled update"}</span>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-kumo-subtle text-xs">
               <RelativeTime value={latest.createdAt} />
             </span>
           </>
         ) : (
-          <span className="text-muted-foreground text-sm">No updates on this branch yet</span>
+          <span className="text-kumo-subtle text-sm">No updates on this branch yet</span>
         )}
       </span>
       <ChannelStatusBadge channel={channel} />
@@ -106,14 +106,14 @@ const LiveNowCard = ({
         <Link
           to="/projects/$projectSlug/channels"
           params={{ projectSlug: scope.projectSlug }}
-          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+          className="text-kumo-subtle hover:text-kumo-default text-sm transition-colors"
         >
           View channels →
         </Link>
       </CardAction>
     </CardHeader>
     <CardContent className="px-2">
-      <div className="divide-border/60 flex flex-col divide-y">
+      <div className="divide-kumo-line/60 flex flex-col divide-y">
         {channels.map((channel) => (
           <LiveNowRow key={channel.id} scope={scope} channel={channel} />
         ))}
@@ -151,21 +151,21 @@ const RecentListCard = ({
     </CardHeader>
     <CardContent className="px-2">
       {entries.length === 0 ? (
-        <p className="text-muted-foreground px-2 py-4 text-sm">{emptyMessage}</p>
+        <p className="text-kumo-subtle px-2 py-4 text-sm">{emptyMessage}</p>
       ) : (
-        <div className="divide-border/60 flex flex-col divide-y">
+        <div className="divide-kumo-line/60 flex flex-col divide-y">
           {entries.map((entry) =>
             renderLink(
               entry,
               <>
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate text-sm font-medium">{entry.title}</span>
-                  <span className="text-muted-foreground flex items-center gap-2 text-xs">
+                  <span className="text-kumo-subtle flex items-center gap-2 text-xs">
                     <PlatformIndicator platform={entry.platform} className="gap-1" />
                     <span className="truncate font-mono">{entry.meta}</span>
                   </span>
                 </span>
-                <span className="text-muted-foreground shrink-0 text-xs">
+                <span className="text-kumo-subtle shrink-0 text-xs">
                   <RelativeTime value={entry.createdAt} />
                 </span>
               </>,
@@ -181,14 +181,14 @@ const viewAllLink = (scope: OverviewScope, to: "updates" | "builds") => (
   <Link
     to={to === "updates" ? "/projects/$projectSlug/updates" : "/projects/$projectSlug/builds"}
     params={{ projectSlug: scope.projectSlug }}
-    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+    className="text-kumo-subtle hover:text-kumo-default text-sm transition-colors"
   >
     View all →
   </Link>
 );
 
 const ROW_LINK_CLASS =
-  "hover:bg-muted/50 flex items-center justify-between gap-3 rounded-sm px-2 py-2.5 transition-colors";
+  "hover:bg-kumo-tint/50 flex items-center justify-between gap-3 rounded-sm px-2 py-2.5 transition-colors";
 
 export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
   const { orgId, projectId } = scope;

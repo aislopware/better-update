@@ -40,9 +40,7 @@ const getMinuteSnapshot = () => Math.floor(Date.now() / 60_000);
 const ExpiryBadge = ({ expires }: { expires: number }) => {
   useSyncExternalStore(subscribeMinuteTick, getMinuteSnapshot);
   return (
-    <span className="text-muted-foreground text-xs">
-      Expires in {minutesRemaining(expires)} min
-    </span>
+    <span className="text-kumo-subtle text-xs">Expires in {minutesRemaining(expires)} min</span>
   );
 };
 
@@ -65,7 +63,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
       {status === "idle" || status === "pending" ? (
         <div className="flex items-center justify-center gap-2 py-6">
           <Loader size="sm" />
-          <span className="text-muted-foreground text-sm">Generating install link...</span>
+          <span className="text-kumo-subtle text-sm">Generating install link...</span>
         </div>
       ) : null}
 

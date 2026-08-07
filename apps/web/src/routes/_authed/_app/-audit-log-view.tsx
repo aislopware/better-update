@@ -191,7 +191,7 @@ const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string 
   <span className="flex items-center gap-2">
     {source === "robot" ? (
       <span
-        className="bg-muted text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-full border"
+        className="bg-kumo-tint text-kumo-subtle flex size-6 shrink-0 items-center justify-center rounded-full border"
         title="Robot account"
       >
         <RobotIcon weight="bold" className="size-3.5" aria-hidden />
@@ -250,7 +250,7 @@ const AuditLogRow = ({
           <span className="max-w-56 truncate" title={resourceName}>
             {resourceName ?? resourceTypeLabel(entry.resourceType)}
           </span>
-          <span className="text-muted-foreground flex items-center gap-1 text-xs">
+          <span className="text-kumo-subtle flex items-center gap-1 text-xs">
             {resourceName ? <span>{resourceTypeLabel(entry.resourceType)}</span> : null}
             {entry.resourceId ? (
               <>
@@ -267,7 +267,7 @@ const AuditLogRow = ({
       <TableCell>
         <ActorCell actorEmail={entry.actorEmail} source={entry.source} />
       </TableCell>
-      <TableCell className="text-muted-foreground text-right whitespace-nowrap">
+      <TableCell className="text-kumo-subtle text-right whitespace-nowrap">
         <span title={`${formatWeekdayShort(entry.createdAt)} ${formatTimeShort(entry.createdAt)}`}>
           {formatRelativeTime(entry.createdAt)}
         </span>
@@ -285,7 +285,7 @@ const metadataTrigger = (
     shape="square"
     size="sm"
     aria-label="View metadata"
-    className="text-muted-foreground"
+    className="text-kumo-subtle"
   >
     <BracketsCurlyIcon weight="bold" />
   </Button>
@@ -307,7 +307,7 @@ const MetadataDialog = ({
         </DialogTitle>
         <DialogDescription>Raw event payload recorded for this audit entry.</DialogDescription>
       </DialogHeader>
-      <pre className="bg-muted/40 max-h-[60vh] overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
+      <pre className="bg-kumo-tint/40 max-h-[60vh] overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
         {JSON.stringify(parsed, null, 2)}
       </pre>
     </DialogContent>

@@ -5,11 +5,11 @@ import type { ReactNode } from "react";
 type StatusTone = "success" | "warning" | "info" | "destructive" | "muted";
 
 const DOT_TONE_CLASSES: Record<StatusTone, string> = {
-  success: "bg-success",
-  warning: "bg-warning",
-  info: "bg-info",
-  destructive: "bg-destructive",
-  muted: "bg-muted-foreground/60",
+  success: "bg-kumo-success",
+  warning: "bg-kumo-warning",
+  info: "bg-kumo-info",
+  destructive: "bg-kumo-danger",
+  muted: "bg-kumo-badge-neutral/60",
 };
 
 /**

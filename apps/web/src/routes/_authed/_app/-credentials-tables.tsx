@@ -80,7 +80,7 @@ export const DistributionCertificatesTable = ({
               <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
             </TableCell>
             <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="text-kumo-subtle">
               <RelativeTime value={cert.createdAt} />
             </TableCell>
           </TableRow>
@@ -132,7 +132,7 @@ export const PushKeysTable = ({
               canManage={canManageProtection}
             />
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>
@@ -175,7 +175,7 @@ export const AscApiKeysTable = ({
           <TableCell>
             <div className="flex max-w-72 flex-col gap-0.5">
               <span className="truncate font-medium">{key.name}</span>
-              <span className="text-muted-foreground flex items-center gap-1 font-mono text-xs">
+              <span className="text-kumo-subtle flex items-center gap-1 font-mono text-xs">
                 <CopyableId value={key.keyId} label="Key ID" length={10} />
                 <span aria-hidden>·</span>
                 <CopyableId value={key.issuerId} label="Issuer ID" />
@@ -219,7 +219,7 @@ export const AscApiKeysTable = ({
               />
             )}
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>
@@ -262,7 +262,7 @@ export const AppleTeamsTable = ({
       {items.map((team) => (
         <TableRow key={team.id}>
           <TableCell className="font-medium">{formatAppleTeamLabel(team)}</TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-kumo-subtle">
             {formatAppleTeamType(team.appleTeamType)}
           </TableCell>
           <TableCell>

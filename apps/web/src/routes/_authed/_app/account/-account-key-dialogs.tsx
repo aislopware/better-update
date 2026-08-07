@@ -99,7 +99,7 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
       }}
     >
       <FieldGroup>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           Choose a passphrase that unlocks your env-vault access. It never leaves this browser and
           cannot be recovered — if you forget it you must re-enroll.
         </p>

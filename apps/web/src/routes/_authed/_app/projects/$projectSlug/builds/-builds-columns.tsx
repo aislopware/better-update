@@ -34,7 +34,7 @@ const BuildActions = ({
       <>
         <InstallLinkDialog
           build={build}
-          buttonClassName="text-muted-foreground/70 hover:text-foreground"
+          buttonClassName="text-kumo-subtle/70 hover:text-kumo-default"
         />
         <Tooltip
           content="Download artifact"
@@ -43,7 +43,7 @@ const BuildActions = ({
               aria-label="Download artifact"
               className={cn(
                 buttonVariants({ variant: "ghost", shape: "square" }),
-                "text-muted-foreground/70 hover:text-foreground",
+                "text-kumo-subtle/70 hover:text-kumo-default",
               )}
               href={`/api/builds/${build.id}/artifact`}
               onClick={(event) => {
@@ -73,11 +73,11 @@ export const buildBuildsColumns = (
       return (
         <div className="flex max-w-96 flex-col gap-0.5">
           <span className="truncate font-medium">{buildLabel(row.original)}</span>
-          <span className="text-muted-foreground truncate font-mono text-xs">
+          <span className="text-kumo-subtle truncate font-mono text-xs">
             {git ? (
               <>
                 {git}
-                {row.original.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+                {row.original.gitDirty ? <span className="text-kumo-warning"> ·dirty</span> : null}
               </>
             ) : (
               (row.original.bundleId ?? `#${row.original.id.slice(0, 8)}`)
@@ -108,7 +108,7 @@ export const buildBuildsColumns = (
     header: "Runtime",
     cell: ({ row }) =>
       row.original.runtimeVersion === null ? (
-        <span className="text-muted-foreground text-xs">—</span>
+        <span className="text-kumo-subtle text-xs">—</span>
       ) : (
         <span className="font-mono text-xs">v{row.original.runtimeVersion}</span>
       ),
@@ -120,7 +120,7 @@ export const buildBuildsColumns = (
     header: "App version",
     cell: ({ row }) =>
       row.original.appVersion === null ? (
-        <span className="text-muted-foreground text-xs">—</span>
+        <span className="text-kumo-subtle text-xs">—</span>
       ) : (
         <span className="font-mono text-xs">{row.original.appVersion}</span>
       ),
@@ -133,7 +133,7 @@ export const buildBuildsColumns = (
     header: "Build number",
     cell: ({ row }) =>
       row.original.buildNumber === null ? (
-        <span className="text-muted-foreground text-xs">—</span>
+        <span className="text-kumo-subtle text-xs">—</span>
       ) : (
         <code className="font-mono text-xs">{row.original.buildNumber}</code>
       ),

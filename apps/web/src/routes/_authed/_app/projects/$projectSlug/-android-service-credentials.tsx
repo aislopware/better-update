@@ -64,13 +64,11 @@ const GsaTableCard = ({
               <div className="flex flex-col gap-0.5">
                 <CopyableMono value={sa.clientEmail} label="Client email" />
                 {sa.clientId === null ? null : (
-                  <span className="text-muted-foreground text-xs">ID: {sa.clientId}</span>
+                  <span className="text-kumo-subtle text-xs">ID: {sa.clientId}</span>
                 )}
               </div>
             </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatShortDateTime(sa.createdAt)}
-            </TableCell>
+            <TableCell className="text-kumo-subtle">{formatShortDateTime(sa.createdAt)}</TableCell>
           </TableRow>
         </TableBody>
       </Table>
@@ -114,7 +112,7 @@ export const AndroidServiceCredentialsSection = ({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-kumo-subtle text-sm">
           FCM v1 service account for push notifications.
           {sharedAcrossGroups
             ? " Applied across all credential groups for this application identifier."

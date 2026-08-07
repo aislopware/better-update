@@ -62,7 +62,7 @@ const GoogleIcon = ({ className }: { readonly className?: string }) => (
 );
 
 const LeftHero = () => (
-  <section className="border-border/60 relative flex min-h-[38dvh] flex-col overflow-hidden border-b lg:min-h-dvh lg:border-r lg:border-b-0">
+  <section className="border-kumo-line/60 relative flex min-h-[38dvh] flex-col overflow-hidden border-b lg:min-h-dvh lg:border-r lg:border-b-0">
     <div className="relative mx-auto flex h-full w-full max-w-[1180px] flex-1 flex-col">
       <HeroMotion />
       <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between gap-10 px-8 pt-8 pb-8 sm:px-12 lg:px-16 lg:pt-12 lg:pb-12">
@@ -76,10 +76,10 @@ const LeftHero = () => (
 
 const HeroHeadline = () => (
   <div className="flex max-w-[22ch] flex-col gap-3">
-    <h1 className="font-heading text-foreground text-2xl leading-[1.1] font-semibold tracking-tight text-balance lg:text-3xl xl:text-4xl">
+    <h1 className="font-heading text-kumo-default text-2xl leading-[1.1] font-semibold tracking-tight text-balance lg:text-3xl xl:text-4xl">
       Ship updates at the speed of code.
     </h1>
-    <p className="text-muted-foreground hidden max-w-[32ch] text-sm leading-relaxed sm:block">
+    <p className="text-kumo-subtle hidden max-w-[32ch] text-sm leading-relaxed sm:block">
       Over-the-air delivery for React Native, across 330+ edge cities in 125+ countries.
     </p>
   </div>
@@ -88,24 +88,24 @@ const HeroHeadline = () => (
 const HeroMeta = () => (
   <div className="hidden flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-wide lg:flex">
     <LiveIndicator />
-    <span className="text-border" aria-hidden="true">
+    <span className="text-kumo-line" aria-hidden="true">
       ·
     </span>
-    <span className="text-muted-foreground">330+ edge cities</span>
-    <span className="text-border" aria-hidden="true">
+    <span className="text-kumo-subtle">330+ edge cities</span>
+    <span className="text-kumo-line" aria-hidden="true">
       ·
     </span>
-    <span className="text-muted-foreground">99.99% SLA</span>
+    <span className="text-kumo-subtle">99.99% SLA</span>
   </div>
 );
 
 const LiveIndicator = () => (
   <span className="inline-flex items-center gap-2">
     <span className="relative flex size-1.5">
-      <span className="bg-primary absolute inline-flex size-full animate-ping rounded-full opacity-75" />
-      <span className="bg-primary relative inline-flex size-full rounded-full" />
+      <span className="bg-kumo-contrast absolute inline-flex size-full animate-ping rounded-full opacity-75" />
+      <span className="bg-kumo-contrast relative inline-flex size-full rounded-full" />
     </span>
-    <span className="text-muted-foreground uppercase">Live</span>
+    <span className="text-kumo-subtle uppercase">Live</span>
   </span>
 );
 
@@ -133,10 +133,10 @@ const AuthPanel = ({ onGithub, onGoogle, isGithubPending, isGooglePending }: Aut
 
 const AuthHeader = () => (
   <div className="flex flex-col gap-2">
-    <h2 className="font-heading text-foreground text-3xl leading-tight font-semibold tracking-tight">
+    <h2 className="font-heading text-kumo-default text-3xl leading-tight font-semibold tracking-tight">
       Welcome back
     </h2>
-    <p className="text-muted-foreground text-sm leading-relaxed">
+    <p className="text-kumo-subtle text-sm leading-relaxed">
       Sign in to continue shipping updates to your users.
     </p>
   </div>
@@ -190,11 +190,11 @@ const GoogleButton = ({ onClick, isPending }: GoogleButtonProps) => (
 
 const SecureDivider = () => (
   <div className="flex items-center gap-3">
-    <span className="border-border/60 flex-1 border-t" />
-    <span className="text-muted-foreground text-[0.7rem] tracking-wider uppercase">
+    <span className="border-kumo-line/60 flex-1 border-t" />
+    <span className="text-kumo-subtle text-[0.7rem] tracking-wider uppercase">
       Fast and secure by default
     </span>
-    <span className="border-border/60 flex-1 border-t" />
+    <span className="border-kumo-line/60 flex-1 border-t" />
   </div>
 );
 
@@ -205,10 +205,10 @@ const TRUST_POINTS = [
 ] as const;
 
 const TrustPoints = () => (
-  <ul className="text-muted-foreground flex flex-col gap-2 text-xs leading-relaxed">
+  <ul className="text-kumo-subtle flex flex-col gap-2 text-xs leading-relaxed">
     {TRUST_POINTS.map((text) => (
       <li key={text} className="flex items-start gap-2">
-        <CheckIcon weight="bold" className="text-primary mt-0.5 size-3.5 shrink-0" />
+        <CheckIcon weight="bold" className="text-kumo-strong mt-0.5 size-3.5 shrink-0" />
         {text}
       </li>
     ))}
@@ -216,13 +216,13 @@ const TrustPoints = () => (
 );
 
 const LegalFootnote = () => (
-  <p className="text-muted-foreground max-w-[38ch] text-[0.7rem] leading-relaxed">
+  <p className="text-kumo-subtle max-w-[38ch] text-[0.7rem] leading-relaxed">
     By continuing you agree to our{" "}
-    <a href="/terms" className="text-foreground underline-offset-4 hover:underline">
+    <a href="/terms" className="text-kumo-default underline-offset-4 hover:underline">
       Terms of Service
     </a>{" "}
     and{" "}
-    <a href="/privacy" className="text-foreground underline-offset-4 hover:underline">
+    <a href="/privacy" className="text-kumo-default underline-offset-4 hover:underline">
       Privacy Policy
     </a>
     .
@@ -256,7 +256,7 @@ const LoginPage = () => {
   });
 
   return (
-    <div className="bg-background relative min-h-dvh overflow-hidden">
+    <div className="bg-kumo-canvas relative min-h-dvh overflow-hidden">
       <div className="relative grid min-h-dvh lg:grid-cols-[1.15fr_1fr]">
         <LeftHero />
         <AuthPanel

@@ -42,13 +42,13 @@ const RevealBody = ({
   }
   if (guarded.kind === "loading") {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="text-kumo-subtle flex items-center gap-2 text-sm">
         <Loader size="sm" /> Decrypting…
       </div>
     );
   }
   if (guarded.kind === "error") {
-    return <p className="text-destructive text-sm">{guarded.message}</p>;
+    return <p className="text-kumo-danger text-sm">{guarded.message}</p>;
   }
   return (
     <InputGroup>

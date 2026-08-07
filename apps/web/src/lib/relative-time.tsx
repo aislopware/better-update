@@ -16,5 +16,5 @@ export const RelativeTime = ({
       {formatRelativeTime(value)}
     </span>
   ) : (
-    <span className="text-muted-foreground">—</span>
+    <span className="text-kumo-subtle">—</span>
   );

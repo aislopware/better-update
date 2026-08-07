@@ -46,14 +46,14 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
         className={cn(
           "-ml-2 h-7 font-medium",
           // Unsorted headers stay quiet so the active sort stands out.
-          sortDir === false ? "text-muted-foreground hover:text-foreground" : "text-foreground",
+          sortDir === false ? "text-kumo-subtle hover:text-kumo-default" : "text-kumo-default",
           alignRight && "-mr-2 ml-0",
         )}
         onClick={cycleSorting}
       >
         {content}
         {sortDir === false ? (
-          <CaretUpDownIcon weight="bold" className="text-muted-foreground/72 size-3.5" />
+          <CaretUpDownIcon weight="bold" className="text-kumo-subtle/72 size-3.5" />
         ) : (
           <SortIcon direction={sortDir} />
         )}

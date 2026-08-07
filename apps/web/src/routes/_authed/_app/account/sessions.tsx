@@ -82,7 +82,7 @@ const SessionsList = () => {
           const isRevoking = revokingToken === session.token;
           return (
             <Item key={session.id} variant="outline" size="sm">
-              <ItemMedia variant="icon" className="bg-muted/72 size-8 rounded-md border">
+              <ItemMedia variant="icon" className="bg-kumo-tint/72 size-8 rounded-md border">
                 <MonitorIcon weight="bold" />
               </ItemMedia>
               <ItemContent>

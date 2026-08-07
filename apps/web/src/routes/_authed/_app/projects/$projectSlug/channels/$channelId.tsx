@@ -110,7 +110,7 @@ const ChannelSummaryCards = ({
       <StatCard label="Linked branch">
         {channel.branchName ? (
           <div className="flex items-center gap-2 font-medium">
-            <GitBranchIcon weight="bold" className="text-muted-foreground size-4" />
+            <GitBranchIcon weight="bold" className="text-kumo-subtle size-4" />
             {channel.branchName}
           </div>
         ) : (
@@ -121,7 +121,7 @@ const ChannelSummaryCards = ({
         <div className="flex flex-col items-start gap-2">
           <ChannelStatusBadge channel={channel} />
           {rolloutState ? (
-            <span className="text-muted-foreground text-sm tabular-nums">
+            <span className="text-kumo-subtle text-sm tabular-nums">
               {rolloutState.percentage}% →{" "}
               {channel.rolloutTargetBranchName ?? rolloutState.targetBranchId.slice(0, 8)}
             </span>
@@ -191,7 +191,7 @@ const ChannelDetailBody = ({
         title={channel.name}
         badges={
           channel.isBuiltin ? (
-            <Badge variant="outline" className="text-muted-foreground">
+            <Badge variant="outline" className="text-kumo-subtle">
               Built-in
             </Badge>
           ) : null

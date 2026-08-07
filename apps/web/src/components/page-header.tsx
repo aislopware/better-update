@@ -64,7 +64,7 @@ export const SectionHeader = ({ title, description, actions, className }: Sectio
   >
     <div className="flex flex-col gap-1">
       <h2 className="font-heading text-base leading-none font-semibold">{title}</h2>
-      {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
+      {description ? <p className="text-kumo-subtle text-sm">{description}</p> : null}
     </div>
     {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
   </div>

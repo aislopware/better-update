@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 type MedallionTone = "neutral" | "warning" | "success" | "destructive";
 
 const TONE_CLASSES: Record<MedallionTone, string> = {
-  neutral: "bg-muted text-muted-foreground",
-  warning: "bg-warning/10 text-warning-foreground",
-  success: "bg-success/10 text-success-foreground",
-  destructive: "bg-destructive/10 text-destructive",
+  neutral: "bg-kumo-tint text-kumo-subtle",
+  warning: "bg-kumo-warning/10 text-kumo-warning",
+  success: "bg-kumo-success/10 text-kumo-success",
+  destructive: "bg-kumo-danger/10 text-kumo-danger",
 };
 
 /**

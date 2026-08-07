@@ -385,7 +385,7 @@ export const EnvVarsView = ({
         vault={vault}
         invalidate={invalidateEnvVars}
       />
-      <p className="text-muted-foreground text-sm">
+      <p className="text-kumo-subtle text-sm">
         Values are end-to-end encrypted and managed from the CLI —{" "}
         <code className="font-mono">better-update env set</code> /{" "}
         <code className="font-mono">env pull</code>. You can still edit each variable&rsquo;s label

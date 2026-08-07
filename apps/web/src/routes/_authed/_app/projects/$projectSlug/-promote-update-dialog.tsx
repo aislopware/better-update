@@ -125,7 +125,7 @@ const PromoteForm = ({
           <div className="flex items-center gap-2 text-sm">
             <span>{update.message}</span>
             <PlatformBadge platform={update.platform} />
-            <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+            <span className="text-kumo-subtle">v{update.runtimeVersion}</span>
           </div>
         </div>
         <form.Field name="targetChannelName">

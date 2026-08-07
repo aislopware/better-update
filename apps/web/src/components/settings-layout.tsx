@@ -41,7 +41,7 @@ export const SettingsLayout = ({
         {nav.map((section, sectionIdx) => (
           <div key={section.label ?? sectionIdx} className="flex flex-col gap-1">
             {section.label ? (
-              <p className="text-muted-foreground/72 px-2 text-xs font-medium tracking-wider uppercase">
+              <p className="text-kumo-subtle/72 px-2 text-xs font-medium tracking-wider uppercase">
                 {section.label}
               </p>
             ) : null}
@@ -53,8 +53,8 @@ export const SettingsLayout = ({
                     activeOptions={{ exact: true }}
                     className={cn(
                       "group/settings-nav-item flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
-                      "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      "data-status-active:bg-muted data-status-active:text-foreground data-status-active:font-medium",
+                      "text-kumo-subtle hover:bg-kumo-tint hover:text-kumo-default",
+                      "data-status-active:bg-kumo-tint data-status-active:text-kumo-default data-status-active:font-medium",
                     )}
                   >
                     <item.icon

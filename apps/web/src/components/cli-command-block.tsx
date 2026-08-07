@@ -7,7 +7,7 @@ import { CopyButton } from "../lib/copy-button";
  * the dedicated `terminal` tokens.
  */
 export const CliCommandBlock = ({ commands }: { commands: readonly string[] }) => (
-  <div className="bg-terminal text-terminal-foreground dark:border-border flex flex-col gap-1 rounded-lg border border-transparent p-3 text-left shadow-2xs">
+  <div className="bg-terminal text-terminal-foreground dark:border-kumo-line flex flex-col gap-1 rounded-lg border border-transparent p-3 text-left shadow-2xs">
     {commands.map((command) => (
       <div key={command} className="group/cli flex items-center justify-between gap-2">
         <code className="truncate font-mono text-xs">

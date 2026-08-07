@@ -85,7 +85,7 @@ const IosEmpty = () => (
 );
 
 const ROW_CLASS =
-  "hover:bg-muted/50 flex items-center justify-between gap-2 px-3 py-3 font-mono text-sm transition-colors";
+  "hover:bg-kumo-tint/50 flex items-center justify-between gap-2 px-3 py-3 font-mono text-sm transition-colors";
 
 const AndroidIdentifierRow = ({
   projectSlug,
@@ -102,7 +102,7 @@ const AndroidIdentifierRow = ({
         className={ROW_CLASS}
       >
         <span>{item.packageName}</span>
-        <CaretRightIcon weight="bold" className="text-muted-foreground size-4" />
+        <CaretRightIcon weight="bold" className="text-kumo-subtle size-4" />
       </Link>
     </TableCell>
   </TableRow>
@@ -138,7 +138,7 @@ const IosIdentifierRow = ({
               </Badge>
             ) : null}
           </span>
-          <CaretRightIcon weight="bold" className="text-muted-foreground size-4" />
+          <CaretRightIcon weight="bold" className="text-kumo-subtle size-4" />
         </Link>
       </TableCell>
     </TableRow>

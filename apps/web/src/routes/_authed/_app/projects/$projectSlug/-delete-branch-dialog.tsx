@@ -33,7 +33,7 @@ export const DeleteBranchDialog = ({
       <Button
         variant="ghost"
         shape="square"
-        className="text-muted-foreground/70 hover:text-destructive size-8"
+        className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
         aria-label="Delete branch"
       >
         <TrashIcon weight="bold" className="size-4" />

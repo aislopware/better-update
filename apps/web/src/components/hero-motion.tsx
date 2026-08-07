@@ -398,13 +398,13 @@ export const HeroMotion = () => {
               className="pointer-events-none absolute transition-opacity duration-300 ease-out"
               style={edgeMarkerStyle(edge.id)}
             >
-              <BrandIcon size={22} className="text-foreground" />
+              <BrandIcon size={22} className="text-kumo-default" />
             </span>
           ))}
           {EDGES.map((edge) => (
             <span
               key={`label-${edge.id}`}
-              className="bg-background text-foreground ring-border/60 pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm ring-1 transition-opacity duration-300 ease-out max-lg:hidden"
+              className="bg-kumo-canvas text-kumo-default ring-kumo-line/60 pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm ring-1 transition-opacity duration-300 ease-out max-lg:hidden"
               style={edgeLabelStyle(edge.id)}
             >
               {edge.label}
@@ -413,7 +413,7 @@ export const HeroMotion = () => {
           {ARCS.map((arc) => (
             <span
               key={arc.id}
-              className="bg-foreground text-background pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm transition-opacity duration-300 ease-out max-lg:hidden"
+              className="bg-kumo-contrast text-kumo-inverse pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm transition-opacity duration-300 ease-out max-lg:hidden"
               style={arcLabelStyle(arc.id)}
             >
               {arc.label}
