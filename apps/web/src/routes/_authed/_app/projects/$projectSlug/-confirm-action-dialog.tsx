@@ -1,21 +1,10 @@
-import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@better-update/ui/components/ui/alert-dialog";
 import { useState } from "react";
 
-import type { Button } from "@better-update/ui/components/button";
-import type { ComponentProps, ReactElement } from "react";
+import type { ButtonProps } from "@better-update/ui/components/button";
+import type { ReactElement } from "react";
 
+import { ConfirmDialog } from "../../../../../components/confirm-dialog";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 interface ConfirmActionDialogProps {
@@ -26,14 +15,14 @@ interface ConfirmActionDialogProps {
   /** Label for the confirm button. */
   readonly confirmLabel: string;
   /** Confirm button variant — defaults to the primary action style. */
-  readonly confirmVariant?: ComponentProps<typeof Button>["variant"];
+  readonly confirmVariant?: ButtonProps["variant"];
   /** Async action handler — should throw on API error. */
   readonly onConfirm: () => Promise<unknown>;
   /** Toast message shown on success. */
   readonly successMessage: string;
   /** Post-action cleanup (query invalidation, navigation, etc.). */
   readonly onSuccess?: () => Promise<void>;
-  /** Trigger element wrapped as `AlertDialogTrigger`. */
+  /** Trigger element that opens the dialog. */
   readonly children: ReactElement;
 }
 
@@ -41,6 +30,9 @@ interface ConfirmActionDialogProps {
  * A lightweight confirm dialog for reversible / lower-risk actions (archive,
  * restore). Unlike {@link ConfirmDeleteDialog} it does not require typing the
  * entity name — use that one for irreversible destruction.
+ *
+ * Adds the mutation, the success toast and the self-closing to the plain
+ * {@link ConfirmDialog}, so callers hand it an action rather than wiring state.
  */
 export const ConfirmActionDialog = ({
   title,
@@ -64,27 +56,18 @@ export const ConfirmActionDialog = ({
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={children} />
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant={confirmVariant}
-            disabled={mutation.isPending}
-            onClick={() => {
-              mutation.mutate();
-            }}
-          >
-            {mutation.isPending && <Loader size="sm" data-icon="inline-start" />}
-            {confirmLabel}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={children}
+      title={title}
+      description={description}
+      confirmLabel={confirmLabel}
+      confirmVariant={confirmVariant}
+      isPending={mutation.isPending}
+      onConfirm={() => {
+        mutation.mutate();
+      }}
+    />
   );
 };

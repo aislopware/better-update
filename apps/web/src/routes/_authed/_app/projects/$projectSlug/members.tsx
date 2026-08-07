@@ -1,15 +1,4 @@
 import { meQueryOptions, projectMembersQueryOptions } from "@better-update/api-client/react";
-import { Loader } from "@better-update/ui/components/loader";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@better-update/ui/components/ui/alert-dialog";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -28,6 +17,7 @@ import { z } from "zod";
 import type { MeResult } from "@better-update/api-client/react";
 import type { ReactNode } from "react";
 
+import { ConfirmDialog } from "../../../../../components/confirm-dialog";
 import { SectionHeader } from "../../../../../components/page-header";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { sortParam, useDataTableSearch } from "../../../../../lib/data-table";
@@ -62,24 +52,15 @@ const RemoveProjectMemberDialog = ({
   onConfirm: () => void;
   isRemoving: boolean;
 }) => (
-  <AlertDialog open={open} onOpenChange={onOpenChange}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>Remove from project</AlertDialogTitle>
-        <AlertDialogDescription>
-          Remove {name} from this project? They keep their organization membership but lose access
-          to this project immediately.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <AlertDialogAction variant="destructive" disabled={isRemoving} onClick={onConfirm}>
-          {isRemoving && <Loader size="sm" data-icon="inline-start" />}
-          Remove
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
+  <ConfirmDialog
+    open={open}
+    onOpenChange={onOpenChange}
+    title="Remove from project"
+    description={`Remove ${name} from this project? They keep their organization membership but lose access to this project immediately.`}
+    confirmLabel="Remove"
+    isPending={isRemoving}
+    onConfirm={onConfirm}
+  />
 );
 
 const EmptyMembers = ({ actions }: { actions?: ReactNode }) => (

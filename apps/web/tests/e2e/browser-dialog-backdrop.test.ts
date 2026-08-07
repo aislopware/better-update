@@ -40,16 +40,22 @@ interface TracingWindow {
   backdropTrace?: Promise<BackdropTrace>;
 }
 
+// Kumo puts no identifying attribute on the backdrop, so it is addressed
+// structurally: `DialogContent` renders it as the sibling immediately before the
+// popup inside the portal, and the popup carries the dialog role.
+const backdropSelector = (role: "alertdialog" | "dialog"): string =>
+  `[role="presentation"]:has(+ [role="${role}"])`;
+
 /**
  * Installs a per-frame sampler on the on-screen backdrop and parks the resulting
  * promise on `window`. Awaited before the close interaction so no frame of the
  * fade-out is missed to a round-trip.
  */
-const startBackdropTrace = async (slot: string): Promise<void> =>
-  page.evaluate(async (backdropSlot: string) => {
-    const backdrop = document.querySelector(`[data-slot="${backdropSlot}"]`);
+const startBackdropTrace = async (selector: string): Promise<void> =>
+  page.evaluate(async (backdropSelector_: string) => {
+    const backdrop = document.querySelector(backdropSelector_);
     if (!backdrop) {
-      throw new Error(`no [data-slot="${backdropSlot}"] on screen to trace`);
+      throw new Error(`no ${backdropSelector_} on screen to trace`);
     }
 
     // Let the opening fade settle first — otherwise the trace opens on a rising
@@ -79,7 +85,7 @@ const startBackdropTrace = async (slot: string): Promise<void> =>
         requestAnimationFrame(tick);
       },
     );
-  }, slot);
+  }, selector);
 
 const readBackdropTrace = async (): Promise<BackdropTrace> =>
   page.evaluate(async () => {
@@ -148,11 +154,11 @@ afterAll(async () => {
 describe("dialog backdrop fade-out (browser)", () => {
   it("does not flash the command palette backdrop back on when closing", async () => {
     await page.keyboard.press("ControlOrMeta+k");
-    const backdrop = page.locator('[data-slot="dialog-overlay"]');
+    const backdrop = page.locator(backdropSelector("dialog"));
     await backdrop.waitFor({ state: "visible" });
     await page.getByPlaceholder("Search pages, projects…").waitFor();
 
-    await startBackdropTrace("dialog-overlay");
+    await startBackdropTrace(backdropSelector("dialog"));
     await page.keyboard.press("Escape");
 
     expectNoBackdropFlash(await readBackdropTrace(), "command palette");
@@ -163,11 +169,11 @@ describe("dialog backdrop fade-out (browser)", () => {
     await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/settings`);
     await page.getByRole("button", { name: "Delete project" }).click();
 
-    const backdrop = page.locator('[data-slot="dialog-overlay"]');
+    const backdrop = page.locator(backdropSelector("dialog"));
     await backdrop.waitFor({ state: "visible" });
     await page.getByRole("heading", { name: `Delete ${projectName}?` }).waitFor();
 
-    await startBackdropTrace("dialog-overlay");
+    await startBackdropTrace(backdropSelector("dialog"));
     await page.keyboard.press("Escape");
 
     expectNoBackdropFlash(await readBackdropTrace(), "delete project dialog");
@@ -178,16 +184,14 @@ describe("dialog backdrop fade-out (browser)", () => {
     await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/settings`);
     await page.getByRole("button", { name: "Archive project" }).click();
 
-    const backdrop = page.locator('[data-slot="alert-dialog-overlay"]');
+    const backdrop = page.locator(backdropSelector("alertdialog"));
     await backdrop.waitFor({ state: "visible" });
     await page.getByRole("heading", { name: `Archive ${projectName}?` }).waitFor();
 
-    await startBackdropTrace("alert-dialog-overlay");
-    // AlertDialog ignores Escape by design, so close it through its cancel action.
-    await page
-      .locator('[data-slot="alert-dialog-content"]')
-      .getByRole("button", { name: "Cancel" })
-      .click();
+    await startBackdropTrace(backdropSelector("alertdialog"));
+    // An alert dialog is not dismissible from outside, so close it through its
+    // cancel action.
+    await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
 
     expectNoBackdropFlash(await readBackdropTrace(), "archive project alert dialog");
     await backdrop.waitFor({ state: "detached" });

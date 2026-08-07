@@ -1,19 +1,9 @@
 import { deleteEnvVar } from "@better-update/api-client/react";
-import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@better-update/ui/components/ui/alert-dialog";
 
 import type { EnvVar } from "@better-update/api";
 
+import { ConfirmDialog } from "../../../../components/confirm-dialog";
 import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
@@ -45,31 +35,20 @@ export const EnvVarDeleteDialog = ({
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            Delete <span className="font-mono">{envVar.key}</span>?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently removes the variable and all its revisions in the{" "}
-            {formatEnvironmentLabel(envVar.environment)} environment. This cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              deleteMutation.mutate();
-            }}
-          >
-            {deleteMutation.isPending ? <Loader size="sm" data-icon="inline-start" /> : null}
-            Delete variable
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        <>
+          Delete <span className="font-mono">{envVar.key}</span>?
+        </>
+      }
+      description={`This permanently removes the variable and all its revisions in the ${formatEnvironmentLabel(envVar.environment)} environment. This cannot be undone.`}
+      confirmLabel="Delete variable"
+      isPending={deleteMutation.isPending}
+      onConfirm={() => {
+        deleteMutation.mutate();
+      }}
+    />
   );
 };

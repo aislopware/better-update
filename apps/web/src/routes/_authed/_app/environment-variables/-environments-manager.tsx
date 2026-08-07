@@ -20,19 +20,8 @@ import {
 } from "@better-update/ui/components/dialog";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
-import { Loader } from "@better-update/ui/components/loader";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@better-update/ui/components/ui/alert-dialog";
 import {
   InputGroup,
   InputGroupAddon,
@@ -54,6 +43,7 @@ import { z } from "zod/v4";
 
 import type { EnvironmentItem } from "@better-update/api-client/react";
 
+import { ConfirmDialog } from "../../../../components/confirm-dialog";
 import { SectionHeader } from "../../../../components/page-header";
 import { ClientPaginationFooter, useClientPagination } from "../../../../lib/data-table";
 import { getFieldError } from "../../../../lib/form-utils";
@@ -260,29 +250,17 @@ const DeleteEnvironmentDialog = ({
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete {environment.name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This cannot be undone. The environment must have no environment variables bound to it.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              deleteMutation.mutate();
-            }}
-          >
-            {deleteMutation.isPending ? <Loader size="sm" data-icon="inline-start" /> : null}
-            Delete environment
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Delete ${environment.name}?`}
+      description="This cannot be undone. The environment must have no environment variables bound to it."
+      confirmLabel="Delete environment"
+      isPending={deleteMutation.isPending}
+      onConfirm={() => {
+        deleteMutation.mutate();
+      }}
+    />
   );
 };
 

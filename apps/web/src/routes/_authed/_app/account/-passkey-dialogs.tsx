@@ -10,22 +10,12 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
 import { Input } from "@better-update/ui/components/input";
-import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@better-update/ui/components/ui/alert-dialog";
 import { useForm } from "@tanstack/react-form";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
 
+import { ConfirmDialog } from "../../../../components/confirm-dialog";
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { VAULT_HOST, isVaultHost } from "../../../../lib/env-vault/host";
 import { getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
@@ -339,30 +329,16 @@ export const DeletePasskeyDialog = ({
   const label = passkey.name ?? "this passkey";
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remove {label}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            You will no longer be able to verify with this passkey. If it is your only one, you will
-            need to add a new passkey before you can unlock the env-vault again. This cannot be
-            undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              deleteMutation.mutate();
-            }}
-          >
-            {deleteMutation.isPending && <Loader size="sm" data-icon="inline-start" />}
-            Remove passkey
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Remove ${label}?`}
+      description="You will no longer be able to verify with this passkey. If it is your only one, you will need to add a new passkey before you can unlock the env-vault again. This cannot be undone."
+      confirmLabel="Remove passkey"
+      isPending={deleteMutation.isPending}
+      onConfirm={() => {
+        deleteMutation.mutate();
+      }}
+    />
   );
 };

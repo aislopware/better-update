@@ -1,23 +1,12 @@
 import { deleteDevice, devicesQueryKey } from "@better-update/api-client/react";
-import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@better-update/ui/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { DeviceItem } from "@better-update/api-client/react";
 import type { ReactElement } from "react";
 
+import { ConfirmDialog } from "../../../../components/confirm-dialog";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 
 export const DeleteDeviceDialog = ({
@@ -56,30 +45,22 @@ export const DeleteDeviceDialog = ({
   });
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      {children ? <AlertDialogTrigger render={children} /> : null}
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remove device?</AlertDialogTitle>
-          <AlertDialogDescription>
-            <strong className="font-semibold">{device.name}</strong> will no longer be eligible for
-            ad-hoc builds. You can re-register the UDID later if needed.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              deleteMutation.mutate();
-            }}
-          >
-            {deleteMutation.isPending ? <Loader size="sm" data-icon="inline-start" /> : null}
-            Remove device
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={children}
+      title="Remove device?"
+      description={
+        <>
+          <strong className="text-kumo-default font-medium">{device.name}</strong> will no longer be
+          eligible for ad-hoc builds. You can re-register the UDID later if needed.
+        </>
+      }
+      confirmLabel="Remove device"
+      isPending={deleteMutation.isPending}
+      onConfirm={() => {
+        deleteMutation.mutate();
+      }}
+    />
   );
 };
