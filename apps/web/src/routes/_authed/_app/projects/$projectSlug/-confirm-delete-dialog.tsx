@@ -1,4 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -10,8 +11,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useState } from "react";
 
 import type { ReactElement } from "react";
@@ -98,19 +97,19 @@ export const ConfirmDeleteDialog = ({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Field>
-          <FieldLabel htmlFor="confirm-delete">
-            Type <span className="font-mono font-bold">{name}</span> to confirm
-          </FieldLabel>
-          <Input
-            id="confirm-delete"
-            value={confirmText}
-            onChange={(event) => {
-              setConfirmText(event.target.value);
-            }}
-            placeholder={name}
-          />
-        </Field>
+        <Input
+          label={
+            <>
+              Type <span className="font-mono font-bold">{name}</span> to confirm
+            </>
+          }
+          id="confirm-delete"
+          value={confirmText}
+          onChange={(event) => {
+            setConfirmText(event.target.value);
+          }}
+          placeholder={name}
+        />
         <DialogFooter>
           <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
           <Button

@@ -1,6 +1,8 @@
 import { updateEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Textarea } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
 import {
@@ -12,8 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
@@ -90,24 +90,20 @@ const EditForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="env-var-edit-value">Value</FieldLabel>
-                <Textarea
-                  id="env-var-edit-value"
-                  rows={3}
-                  autoComplete="off"
-                  className="font-mono text-sm"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Textarea
+                label="Value"
+                error={errorMessage}
+                id="env-var-edit-value"
+                rows={3}
+                autoComplete="off"
+                className="font-mono text-sm"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>

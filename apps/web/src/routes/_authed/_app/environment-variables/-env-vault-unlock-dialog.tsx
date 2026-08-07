@@ -1,4 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { Link } from "@better-update/ui/components/link";
 import { toast } from "@better-update/ui/components/toast";
 import {
@@ -11,8 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FingerprintIcon, LockKeyholeOpenIcon } from "lucide-react";
@@ -128,24 +128,20 @@ const UnlockForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="env-vault-passphrase">Account passphrase</FieldLabel>
-                <Input
-                  id="env-vault-passphrase"
-                  type="password"
-                  autoComplete="off"
-                  placeholder="Your env-vault account passphrase"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Account passphrase"
+                error={errorMessage}
+                id="env-vault-passphrase"
+                type="password"
+                autoComplete="off"
+                placeholder="Your env-vault account passphrase"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>

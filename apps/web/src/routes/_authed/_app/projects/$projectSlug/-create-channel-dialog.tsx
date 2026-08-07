@@ -1,5 +1,8 @@
 import { branchesQueryOptions, createChannel } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -10,8 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -72,8 +73,7 @@ const BranchField = ({
       {(field) => {
         const errorMessage = getFieldError(field);
         return (
-          <Field data-invalid={Boolean(errorMessage)}>
-            <FieldLabel>Branch</FieldLabel>
+          <Field label="Branch" error={errorMessage}>
             <ServerSearchCombobox
               value={field.state.value}
               onValueChange={(next) => {
@@ -90,7 +90,6 @@ const BranchField = ({
               ariaLabel="Branch"
               invalid={Boolean(errorMessage)}
             />
-            {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
           </Field>
         );
       }}
@@ -150,20 +149,17 @@ const CreateChannelForm = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={Boolean(errorMessage)}>
-                <FieldLabel htmlFor="channel-name">Name</FieldLabel>
-                <Input
-                  id="channel-name"
-                  aria-invalid={Boolean(errorMessage) || undefined}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  placeholder="e.g. production, staging"
-                />
-                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Name"
+                error={errorMessage}
+                id="channel-name"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                placeholder="e.g. production, staging"
+              />
             );
           }}
         </form.Field>

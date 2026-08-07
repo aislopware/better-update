@@ -1,6 +1,7 @@
 import { updateAssetsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { Label } from "@better-update/ui/components/label";
 import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
@@ -16,7 +17,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeftRightIcon, ArrowRightIcon, GitCompareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -253,8 +253,8 @@ const UpdateSelector = ({
     ),
   );
   return (
-    <Field className="w-full gap-1.5">
-      <FieldLabel>{label}</FieldLabel>
+    <div className="grid w-full gap-1.5">
+      <Label>{label}</Label>
       <ServerSearchCombobox
         value={selected ? selected.id : ""}
         onValueChange={(next) => {
@@ -276,7 +276,7 @@ const UpdateSelector = ({
         emptyMessage="No updates found."
         ariaLabel={label}
       />
-    </Field>
+    </div>
   );
 };
 

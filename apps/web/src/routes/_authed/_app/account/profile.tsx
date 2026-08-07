@@ -4,9 +4,8 @@ import {
   uploadUserAvatar,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -195,33 +194,26 @@ const ProfileForm = () => {
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={Boolean(errorMessage)}>
-                <FieldLabel htmlFor="profile-name">Name</FieldLabel>
-                <Input
-                  id="profile-name"
-                  aria-invalid={Boolean(errorMessage) || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Name"
+                error={errorMessage}
+                id="profile-name"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>
-        <Field>
-          <FieldLabel>Email</FieldLabel>
-          <Input
-            // eslint-disable-next-line eslint-js/no-restricted-syntax -- session.user is non-null on /account/* routes; controlled input requires string
-            value={session?.user.email ?? ""}
-            disabled
-          />
-          <p className="text-muted-foreground text-xs">
-            Tied to your sign-in identity. Contact support to change it.
-          </p>
-        </Field>
+        <Input
+          label="Email"
+          description="Tied to your sign-in identity. Contact support to change it."
+          // eslint-disable-next-line eslint-js/no-restricted-syntax -- session.user is non-null on /account/* routes; controlled input requires string
+          value={session?.user.email ?? ""}
+          disabled
+        />
       </SettingCard>
     </form>
   );

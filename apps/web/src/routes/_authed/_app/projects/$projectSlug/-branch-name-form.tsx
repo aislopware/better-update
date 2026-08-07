@@ -1,7 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
+import { Input } from "@better-update/ui/components/input";
 import { DialogClose, DialogFooter } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 
 import type { LucideIcon } from "lucide-react";
@@ -49,20 +48,17 @@ export const BranchNameForm = ({
         {(field) => {
           const errorMessage = getFieldError(field);
           return (
-            <Field data-invalid={Boolean(errorMessage)}>
-              <FieldLabel htmlFor="branch-name">Branch name</FieldLabel>
-              <Input
-                id="branch-name"
-                placeholder="production"
-                aria-invalid={Boolean(errorMessage) || undefined}
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                onBlur={field.handleBlur}
-              />
-              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-            </Field>
+            <Input
+              label="Branch name"
+              error={errorMessage}
+              id="branch-name"
+              placeholder="production"
+              value={field.state.value}
+              onChange={(event) => {
+                field.handleChange(event.target.value);
+              }}
+              onBlur={field.handleBlur}
+            />
           );
         }}
       </form.Field>

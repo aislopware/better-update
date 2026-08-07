@@ -1,5 +1,7 @@
 import { createProject, projectsQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -11,14 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -74,29 +68,25 @@ export const CreateProjectFormContent = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="project-name">Project name</FieldLabel>
-                <Input
-                  id="project-name"
-                  placeholder="My App"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    const name = event.target.value;
-                    field.handleChange(name);
-                    if (!slugEdited.current) {
-                      form.setFieldValue("slug", generateSlug(name), {
-                        dontUpdateMeta: true,
-                        dontValidate: true,
-                      });
-                    }
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Project name"
+                error={errorMessage}
+                id="project-name"
+                placeholder="My App"
+                value={field.state.value}
+                onChange={(event) => {
+                  const name = event.target.value;
+                  field.handleChange(name);
+                  if (!slugEdited.current) {
+                    form.setFieldValue("slug", generateSlug(name), {
+                      dontUpdateMeta: true,
+                      dontValidate: true,
+                    });
+                  }
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>
@@ -112,27 +102,25 @@ export const CreateProjectFormContent = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
-                <Input
-                  id="project-slug"
-                  placeholder="my-app"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                    slugEdited.current = event.target.value !== "";
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                <FieldDescription>
-                  Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
-                  in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
-                </FieldDescription>
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Slug"
+                description={
+                  <>
+                    Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
+                    in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
+                  </>
+                }
+                error={errorMessage}
+                id="project-slug"
+                placeholder="my-app"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                  slugEdited.current = event.target.value !== "";
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>

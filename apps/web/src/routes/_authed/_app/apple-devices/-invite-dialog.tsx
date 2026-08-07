@@ -3,6 +3,9 @@ import {
   registrationRequestsQueryKey,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import {
   Dialog,
   DialogClose,
@@ -13,14 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -108,7 +103,7 @@ const DeviceClassHintSelect = ({
       onChange(next);
     }}
   >
-    <SelectTrigger className="w-full">
+    <SelectTrigger className="w-full" aria-label="Device class">
       <SelectValue placeholder="No hint" />
     </SelectTrigger>
     <DeviceClassOptions />
@@ -125,7 +120,7 @@ const TtlSelect = ({ value, onChange }: { value: string; onChange: (next: string
       onChange(next);
     }}
   >
-    <SelectTrigger className="w-full">
+    <SelectTrigger className="w-full" aria-label="Expires after">
       <SelectValue />
     </SelectTrigger>
     <TtlOptions />
@@ -158,17 +153,25 @@ const ShareInvite = ({
       <div className="flex items-center justify-center rounded-xl border bg-white p-4">
         <QRCodeSVG value={invite.url} size={192} marginSize={2} />
       </div>
-      <Field>
-        <FieldLabel>Invite link</FieldLabel>
+      <Field
+        label="Invite link"
+        description={
+          <>
+            Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
+          </>
+        }
+      >
         <InputGroup>
-          <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
+          <InputGroupInput
+            readOnly
+            aria-label="Invite link"
+            value={invite.url}
+            className="font-mono text-xs"
+          />
           <InputGroupAddon align="inline-end">
             <CopyButton value={invite.url} label="Invite link" size="xs" />
           </InputGroupAddon>
         </InputGroup>
-        <FieldDescription>
-          Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
-        </FieldDescription>
       </Field>
     </div>
     <DialogFooter>
@@ -230,33 +233,26 @@ const CreateInviteForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
-                <Input
-                  id="invite-name"
-                  placeholder="Alex's iPhone"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                <FieldDescription>
-                  Shown on the landing page. Device owner can override.
-                </FieldDescription>
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Device name hint (optional)"
+                description="Shown on the landing page. Device owner can override."
+                error={errorMessage}
+                id="invite-name"
+                placeholder="Alex's iPhone"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>
 
         <form.Field name="deviceClassHint">
           {(field) => (
-            <Field>
-              <FieldLabel>Device class (optional)</FieldLabel>
+            <Field label="Device class (optional)">
               <DeviceClassHintSelect
                 value={field.state.value}
                 onChange={(next) => {
@@ -282,8 +278,7 @@ const CreateInviteForm = ({
 
         <form.Field name="ttlHours">
           {(field) => (
-            <Field>
-              <FieldLabel>Expires after</FieldLabel>
+            <Field label="Expires after">
               <TtlSelect
                 value={field.state.value}
                 onChange={(next) => {

@@ -1,5 +1,8 @@
 import { republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Textarea } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -9,8 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
@@ -77,8 +78,7 @@ const RepublishForm = ({
       }}
     >
       <FieldGroup>
-        <Field>
-          <FieldLabel>Source update</FieldLabel>
+        <Field label="Source update">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span>{update.message || `Update ${update.groupId.slice(0, 8)}`}</span>
             <PlatformBadge platform={update.platform} />
@@ -89,18 +89,16 @@ const RepublishForm = ({
 
         <form.Field name="message">
           {(field) => (
-            <Field>
-              <FieldLabel htmlFor="republish-message">Message (optional)</FieldLabel>
-              <Textarea
-                id="republish-message"
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                rows={3}
-                placeholder={`Republish of "${update.message}"`}
-              />
-            </Field>
+            <Textarea
+              label="Message (optional)"
+              id="republish-message"
+              value={field.state.value}
+              onChange={(event) => {
+                field.handleChange(event.target.value);
+              }}
+              rows={3}
+              placeholder={`Republish of "${update.message}"`}
+            />
           )}
         </form.Field>
 

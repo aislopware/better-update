@@ -7,6 +7,7 @@ import {
   setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
+import { Field } from "@better-update/ui/components/field";
 import { toast } from "@better-update/ui/components/toast";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
@@ -17,7 +18,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -201,8 +201,7 @@ const GroupSwitcher = ({
   onChange: (id: string) => void;
   group: AndroidBuildCredentialsItem;
 }) => (
-  <Field>
-    <FieldLabel>Credential group</FieldLabel>
+  <Field label="Credential group">
     <Select
       value={selectedId}
       onValueChange={(next) => {
@@ -211,7 +210,7 @@ const GroupSwitcher = ({
         }
       }}
     >
-      <SelectTrigger className="min-w-64">
+      <SelectTrigger className="min-w-64" aria-label="Credential group">
         <SelectValue>{() => <GroupOptionLabel group={group} />}</SelectValue>
       </SelectTrigger>
       <SelectContent>

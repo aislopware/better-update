@@ -1,7 +1,7 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Label } from "@better-update/ui/components/label";
 import { Switch } from "@better-update/ui/components/switch";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { cn } from "@better-update/ui/lib/utils";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
@@ -57,8 +58,8 @@ export const SelectField = ({
   className?: string;
   onChange: (next: string) => void;
 }) => (
-  <Field className={className}>
-    {label === undefined ? null : <FieldLabel>{label}</FieldLabel>}
+  <div className={cn("grid gap-2", className)}>
+    {label === undefined ? null : <Label>{label}</Label>}
     <Select
       items={items}
       value={value}
@@ -81,7 +82,7 @@ export const SelectField = ({
         </SelectGroup>
       </SelectContent>
     </Select>
-  </Field>
+  </div>
 );
 
 // Server-searched project picker: orgs can outgrow the dropdown fetch limit,
@@ -102,7 +103,7 @@ const ProjectGrantPicker = ({
     ),
   );
   return (
-    <Field className="min-w-0 flex-1">
+    <div className="min-w-0 flex-1">
       <ServerSearchCombobox
         value={value === null ? "" : value}
         onValueChange={onChange}
@@ -116,7 +117,7 @@ const ProjectGrantPicker = ({
         emptyMessage="No projects found."
         ariaLabel="Project"
       />
-    </Field>
+    </div>
   );
 };
 

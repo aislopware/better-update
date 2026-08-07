@@ -1,5 +1,6 @@
 import { appleTeamsQueryOptions } from "@better-update/api-client/react";
-import { Field, FieldDescription, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field } from "@better-update/ui/components/field";
+import { FieldSetDescription } from "@better-update/ui/components/field-layout";
 import {
   Select,
   SelectContent,
@@ -41,8 +42,7 @@ export const AppleTeamField = ({
   }
 
   return (
-    <Field>
-      <FieldLabel>Apple team (optional)</FieldLabel>
+    <Field label="Apple team (optional)">
       <Select
         value={value}
         onValueChange={(next) => {
@@ -52,7 +52,7 @@ export const AppleTeamField = ({
           onChange(next);
         }}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-label="Apple team">
           <SelectValue placeholder="No team" />
         </SelectTrigger>
         <SelectContent>
@@ -66,7 +66,7 @@ export const AppleTeamField = ({
           </SelectGroup>
         </SelectContent>
       </Select>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
+      {description ? <FieldSetDescription>{description}</FieldSetDescription> : null}
     </Field>
   );
 };

@@ -8,6 +8,8 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
@@ -31,8 +33,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -108,22 +108,18 @@ const EnvironmentNameForm = ({
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="environment-name">Environment name</FieldLabel>
-                <Input
-                  id="environment-name"
-                  placeholder="staging"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Environment name"
+                error={errorMessage}
+                id="environment-name"
+                placeholder="staging"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>

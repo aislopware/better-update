@@ -5,6 +5,7 @@ import {
   uploadOrganizationLogo,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -16,8 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -191,25 +190,22 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="org-name">Organization name</FieldLabel>
-                  <Input
-                    id="org-name"
-                    aria-invalid={Boolean(errorMessage) || undefined}
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                      if (!slugEdited.current) {
-                        form.setFieldValue("slug", generateSlug(event.target.value), {
-                          dontUpdateMeta: true,
-                          dontValidate: true,
-                        });
-                      }
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-                </Field>
+                <Input
+                  label="Organization name"
+                  error={errorMessage}
+                  id="org-name"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    if (!slugEdited.current) {
+                      form.setFieldValue("slug", generateSlug(event.target.value), {
+                        dontUpdateMeta: true,
+                        dontValidate: true,
+                      });
+                    }
+                  }}
+                  onBlur={field.handleBlur}
+                />
               );
             }}
           </form.Field>
@@ -226,20 +222,17 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="org-slug">URL slug</FieldLabel>
-                  <Input
-                    id="org-slug"
-                    aria-invalid={Boolean(errorMessage) || undefined}
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                      slugEdited.current = event.target.value !== "";
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-                </Field>
+                <Input
+                  label="URL slug"
+                  error={errorMessage}
+                  id="org-slug"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    slugEdited.current = event.target.value !== "";
+                  }}
+                  onBlur={field.handleBlur}
+                />
               );
             }}
           </form.Field>
@@ -261,19 +254,19 @@ const DeleteOrgConfirmForm = ({
   const [confirmText, setConfirmText] = useState("");
   return (
     <>
-      <Field>
-        <FieldLabel htmlFor="confirm-delete">
-          Type <span className="font-mono font-bold">{slug}</span> to confirm
-        </FieldLabel>
-        <Input
-          id="confirm-delete"
-          value={confirmText}
-          onChange={(event) => {
-            setConfirmText(event.target.value);
-          }}
-          placeholder={slug}
-        />
-      </Field>
+      <Input
+        label={
+          <>
+            Type <span className="font-mono font-bold">{slug}</span> to confirm
+          </>
+        }
+        id="confirm-delete"
+        value={confirmText}
+        onChange={(event) => {
+          setConfirmText(event.target.value);
+        }}
+        placeholder={slug}
+      />
       <DialogFooter>
         <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <Button

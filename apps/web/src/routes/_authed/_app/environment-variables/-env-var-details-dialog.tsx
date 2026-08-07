@@ -1,5 +1,7 @@
 import { updateEnvVarDescription } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input, Textarea } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -10,14 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
-import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
@@ -83,43 +77,37 @@ const DetailsForm = ({
       <FieldGroup>
         <form.Field name="label">
           {(field) => (
-            <Field>
-              <FieldLabel htmlFor="env-var-details-label">Label</FieldLabel>
-              <Input
-                id="env-var-details-label"
-                autoComplete="off"
-                maxLength={120}
-                placeholder="Payment API base URL"
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                onBlur={field.handleBlur}
-              />
-              <FieldDescription>A short, human-readable name for this variable.</FieldDescription>
-            </Field>
+            <Input
+              label="Label"
+              description="A short, human-readable name for this variable."
+              id="env-var-details-label"
+              autoComplete="off"
+              maxLength={120}
+              placeholder="Payment API base URL"
+              value={field.state.value}
+              onChange={(event) => {
+                field.handleChange(event.target.value);
+              }}
+              onBlur={field.handleBlur}
+            />
           )}
         </form.Field>
         <form.Field name="description">
           {(field) => (
-            <Field>
-              <FieldLabel htmlFor="env-var-details-description">Description</FieldLabel>
-              <Textarea
-                id="env-var-details-description"
-                rows={3}
-                autoComplete="off"
-                maxLength={500}
-                placeholder="What this value is for and where it comes from, so anyone can update it confidently."
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                onBlur={field.handleBlur}
-              />
-              <FieldDescription>
-                Shown next to the variable in every environment. Not a secret.
-              </FieldDescription>
-            </Field>
+            <Textarea
+              label="Description"
+              description="Shown next to the variable in every environment. Not a secret."
+              id="env-var-details-description"
+              rows={3}
+              autoComplete="off"
+              maxLength={500}
+              placeholder="What this value is for and where it comes from, so anyone can update it confidently."
+              value={field.state.value}
+              onChange={(event) => {
+                field.handleChange(event.target.value);
+              }}
+              onBlur={field.handleBlur}
+            />
           )}
         </form.Field>
       </FieldGroup>

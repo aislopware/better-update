@@ -1,5 +1,7 @@
 import { createInvitation } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -11,8 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
@@ -142,21 +142,18 @@ const InviteFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={Boolean(errorMessage)}>
-                <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="colleague@example.com"
-                  aria-invalid={Boolean(errorMessage) || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Email address"
+                error={errorMessage}
+                id="invite-email"
+                type="email"
+                placeholder="colleague@example.com"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>

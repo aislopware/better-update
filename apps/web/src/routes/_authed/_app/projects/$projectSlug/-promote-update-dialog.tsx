@@ -1,5 +1,6 @@
 import { channelsQueryOptions, republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RocketIcon } from "lucide-react";
@@ -130,8 +130,7 @@ const PromoteForm = ({
         </div>
         <form.Field name="targetChannelName">
           {(field) => (
-            <Field>
-              <FieldLabel>Target channel</FieldLabel>
+            <Field label="Target channel">
               <TargetChannelCombobox
                 value={field.state.value}
                 onValueChange={field.handleChange}

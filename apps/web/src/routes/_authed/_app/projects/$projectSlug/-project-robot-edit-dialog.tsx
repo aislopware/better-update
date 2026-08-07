@@ -1,4 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import {
   Dialog,
   DialogClose,
@@ -8,8 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -52,18 +53,15 @@ const EditForm = ({
   return (
     <>
       <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="robot-name">Name</FieldLabel>
-          <Input
-            id="robot-name"
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-            }}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>Role</FieldLabel>
+        <Input
+          label="Name"
+          id="robot-name"
+          value={name}
+          onChange={(event) => {
+            setName(event.target.value);
+          }}
+        />
+        <Field label="Role">
           <Select
             items={PROJECT_ROLE_LABELS}
             value={role}

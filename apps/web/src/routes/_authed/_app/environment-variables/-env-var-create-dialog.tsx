@@ -1,6 +1,15 @@
 import { createEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import {
+  FieldGroup,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+  FieldSetDescription,
+} from "@better-update/ui/components/field-layout";
+import { Input, Textarea } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -13,17 +22,6 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSeparator,
-  FieldSet,
-} from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
-import {
   Select,
   SelectContent,
   SelectGroup,
@@ -31,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { useForm } from "@tanstack/react-form";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -64,8 +61,7 @@ const SelectField = ({
   items: Record<string, string>;
   onChange: (next: string) => void;
 }) => (
-  <Field>
-    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+  <Field label={label}>
     <Select
       items={items}
       value={value}
@@ -75,7 +71,7 @@ const SelectField = ({
         }
       }}
     >
-      <SelectTrigger id={id} className="w-full">
+      <SelectTrigger id={id} className="w-full" aria-label={label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -205,9 +201,9 @@ const CreateForm = ({
       <FieldGroup>
         <FieldSet>
           <FieldLegend>Variable</FieldLegend>
-          <FieldDescription>
+          <FieldSetDescription>
             Pick the environment this variable applies to and name its key.
-          </FieldDescription>
+          </FieldSetDescription>
           <FieldGroup>
             <SelectField
               id="env-var-create-environment"
@@ -227,24 +223,20 @@ const CreateForm = ({
             >
               {(field) => {
                 const errorMessage = getFieldError(field);
-                const invalid = Boolean(errorMessage);
                 return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor="env-var-create-key">Key</FieldLabel>
-                    <Input
-                      id="env-var-create-key"
-                      autoComplete="off"
-                      placeholder="API_TOKEN"
-                      className="font-mono text-sm"
-                      aria-invalid={invalid || undefined}
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                      }}
-                      onBlur={field.handleBlur}
-                    />
-                    {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-                  </Field>
+                  <Input
+                    label="Key"
+                    error={errorMessage}
+                    id="env-var-create-key"
+                    autoComplete="off"
+                    placeholder="API_TOKEN"
+                    className="font-mono text-sm"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
                 );
               }}
             </form.Field>
@@ -253,9 +245,9 @@ const CreateForm = ({
         <FieldSeparator />
         <FieldSet>
           <FieldLegend>Value</FieldLegend>
-          <FieldDescription>
+          <FieldSetDescription>
             The value is encrypted before upload; visibility controls how it shows up in logs.
-          </FieldDescription>
+          </FieldSetDescription>
           <FieldGroup>
             <form.Field
               name="value"
@@ -266,24 +258,20 @@ const CreateForm = ({
             >
               {(field) => {
                 const errorMessage = getFieldError(field);
-                const invalid = Boolean(errorMessage);
                 return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor="env-var-create-value">Value</FieldLabel>
-                    <Textarea
-                      id="env-var-create-value"
-                      rows={3}
-                      autoComplete="off"
-                      className="font-mono text-sm"
-                      aria-invalid={invalid || undefined}
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                      }}
-                      onBlur={field.handleBlur}
-                    />
-                    {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-                  </Field>
+                  <Textarea
+                    label="Value"
+                    error={errorMessage}
+                    id="env-var-create-value"
+                    rows={3}
+                    autoComplete="off"
+                    className="font-mono text-sm"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
                 );
               }}
             </form.Field>
@@ -301,47 +289,41 @@ const CreateForm = ({
         <FieldSeparator />
         <FieldSet>
           <FieldLegend>Documentation</FieldLegend>
-          <FieldDescription>
+          <FieldSetDescription>
             Optional non-secret notes, shared across environments for this key.
-          </FieldDescription>
+          </FieldSetDescription>
           <FieldGroup>
             <form.Field name="label">
               {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="env-var-create-label">Label (optional)</FieldLabel>
-                  <Input
-                    id="env-var-create-label"
-                    autoComplete="off"
-                    maxLength={120}
-                    placeholder="Payment API base URL"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                </Field>
+                <Input
+                  label="Label (optional)"
+                  id="env-var-create-label"
+                  autoComplete="off"
+                  maxLength={120}
+                  placeholder="Payment API base URL"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                  onBlur={field.handleBlur}
+                />
               )}
             </form.Field>
             <form.Field name="description">
               {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="env-var-create-description">
-                    Description (optional)
-                  </FieldLabel>
-                  <Textarea
-                    id="env-var-create-description"
-                    rows={2}
-                    autoComplete="off"
-                    maxLength={500}
-                    placeholder="What this value is for, so anyone can update it confidently."
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                </Field>
+                <Textarea
+                  label="Description (optional)"
+                  id="env-var-create-description"
+                  rows={2}
+                  autoComplete="off"
+                  maxLength={500}
+                  placeholder="What this value is for, so anyone can update it confidently."
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                  onBlur={field.handleBlur}
+                />
               )}
             </form.Field>
           </FieldGroup>

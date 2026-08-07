@@ -1,4 +1,7 @@
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import {
   Dialog,
   DialogClose,
@@ -8,8 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -68,28 +69,24 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
-                <Input
-                  id="create-org-name"
-                  placeholder="Acme Inc."
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                    if (!slugEdited.current) {
-                      form.setFieldValue("slug", generateSlug(event.target.value), {
-                        dontUpdateMeta: true,
-                        dontValidate: true,
-                      });
-                    }
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Organization name"
+                error={errorMessage}
+                id="create-org-name"
+                placeholder="Acme Inc."
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                  if (!slugEdited.current) {
+                    form.setFieldValue("slug", generateSlug(event.target.value), {
+                      dontUpdateMeta: true,
+                      dontValidate: true,
+                    });
+                  }
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>
@@ -105,15 +102,18 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
+              <Field
+                label="Workspace URL"
+                description="Lowercase letters, numbers and dashes only."
+                error={errorMessage}
+              >
                 <SlugInput
                   addonStart={`${SITE.host}/`}
                   id="create-org-slug"
+                  aria-label="Workspace URL"
                   placeholder="acme-inc"
-                  aria-invalid={invalid || undefined}
+                  aria-invalid={Boolean(errorMessage) || undefined}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
@@ -121,10 +121,6 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
                   }}
                   onBlur={field.handleBlur}
                 />
-                <p className="text-muted-foreground text-xs">
-                  Lowercase letters, numbers and dashes only.
-                </p>
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
               </Field>
             );
           }}

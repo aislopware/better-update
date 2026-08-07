@@ -1,4 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { Link } from "@better-update/ui/components/link";
 import {
   Card,
@@ -7,8 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
@@ -109,26 +109,23 @@ const Onboarding = () => {
                   {(field) => {
                     const errorMessage = getFieldError(field);
                     return (
-                      <Field data-invalid={Boolean(errorMessage)}>
-                        <FieldLabel htmlFor="name">Organization name</FieldLabel>
-                        <Input
-                          id="name"
-                          placeholder="Acme Inc."
-                          aria-invalid={Boolean(errorMessage) || undefined}
-                          value={field.state.value}
-                          onChange={(event) => {
-                            field.handleChange(event.target.value);
-                            if (!slugEdited.current) {
-                              form.setFieldValue("slug", generateSlug(event.target.value), {
-                                dontUpdateMeta: true,
-                                dontValidate: true,
-                              });
-                            }
-                          }}
-                          onBlur={field.handleBlur}
-                        />
-                        {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-                      </Field>
+                      <Input
+                        label="Organization name"
+                        error={errorMessage}
+                        id="name"
+                        placeholder="Acme Inc."
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          if (!slugEdited.current) {
+                            form.setFieldValue("slug", generateSlug(event.target.value), {
+                              dontUpdateMeta: true,
+                              dontValidate: true,
+                            });
+                          }
+                        }}
+                        onBlur={field.handleBlur}
+                      />
                     );
                   }}
                 </form.Field>
@@ -145,21 +142,18 @@ const Onboarding = () => {
                   {(field) => {
                     const errorMessage = getFieldError(field);
                     return (
-                      <Field data-invalid={Boolean(errorMessage)}>
-                        <FieldLabel htmlFor="slug">URL slug</FieldLabel>
-                        <Input
-                          id="slug"
-                          placeholder="acme-inc"
-                          aria-invalid={Boolean(errorMessage) || undefined}
-                          value={field.state.value}
-                          onChange={(event) => {
-                            field.handleChange(event.target.value);
-                            slugEdited.current = event.target.value !== "";
-                          }}
-                          onBlur={field.handleBlur}
-                        />
-                        {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-                      </Field>
+                      <Input
+                        label="URL slug"
+                        error={errorMessage}
+                        id="slug"
+                        placeholder="acme-inc"
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          slugEdited.current = event.target.value !== "";
+                        }}
+                        onBlur={field.handleBlur}
+                      />
                     );
                   }}
                 </form.Field>

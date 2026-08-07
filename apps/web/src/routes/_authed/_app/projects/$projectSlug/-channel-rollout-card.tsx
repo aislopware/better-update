@@ -8,6 +8,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
 import { toast } from "@better-update/ui/components/toast";
 import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
@@ -17,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { Field, FieldDescription, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -122,12 +122,12 @@ const ActiveRolloutSection = ({
         newBranchName={newBranchName}
         newBranchPercentage={rolloutState.percentage}
       />
-      <Field>
-        <FieldLabel htmlFor="rollout-percentage">Rollout percentage</FieldLabel>
+      <Field label="Rollout percentage" description={<>Share of clients served {newBranchName}.</>}>
         <div className="flex items-center gap-2">
           <InputGroup className="w-28">
             <InputGroupInput
               id="rollout-percentage"
+              aria-label="Rollout percentage"
               type="number"
               min={1}
               max={100}
@@ -151,7 +151,6 @@ const ActiveRolloutSection = ({
             Apply
           </Button>
         </div>
-        <FieldDescription>Share of clients served {newBranchName}.</FieldDescription>
       </Field>
       <Separator />
       <div className="flex flex-col gap-2">
@@ -242,8 +241,7 @@ const StartRolloutForm = ({
       <div className="grid gap-4 sm:grid-cols-2">
         <form.Field name="branchId">
           {(field) => (
-            <Field>
-              <FieldLabel>Target branch</FieldLabel>
+            <Field label="Target branch" description="Branch the rollout shifts clients to.">
               <ServerSearchCombobox
                 value={field.state.value}
                 onValueChange={(next) => {
@@ -259,17 +257,16 @@ const StartRolloutForm = ({
                 emptyMessage="No branches found."
                 ariaLabel="Target branch"
               />
-              <FieldDescription>Branch the rollout shifts clients to.</FieldDescription>
             </Field>
           )}
         </form.Field>
         <form.Field name="percentage">
           {(field) => (
-            <Field>
-              <FieldLabel htmlFor="rollout-start-percentage">Initial percentage</FieldLabel>
+            <Field label="Initial percentage" description="Share of clients to start with.">
               <InputGroup className="w-28">
                 <InputGroupInput
                   id="rollout-start-percentage"
+                  aria-label="Initial percentage"
                   type="number"
                   min={1}
                   max={100}
@@ -284,7 +281,6 @@ const StartRolloutForm = ({
                   <InputGroupText>%</InputGroupText>
                 </InputGroupAddon>
               </InputGroup>
-              <FieldDescription>Share of clients to start with.</FieldDescription>
             </Field>
           )}
         </form.Field>
@@ -395,8 +391,14 @@ const LinkedBranchField = ({
     : [{ value: channel.branchId, label: channel.branchName ?? channel.branchId }, ...options];
 
   return (
-    <Field>
-      <FieldLabel>Linked branch</FieldLabel>
+    <Field
+      label="Linked branch"
+      description={
+        isRolloutActive
+          ? "Locked while a rollout is active — complete or revert the rollout first."
+          : "Clients on this channel receive updates published to this branch."
+      }
+    >
       <div className="w-full sm:max-w-xs">
         <ServerSearchCombobox
           value={channel.branchId}
@@ -417,11 +419,6 @@ const LinkedBranchField = ({
           disabled={disabled}
         />
       </div>
-      <FieldDescription>
-        {isRolloutActive
-          ? "Locked while a rollout is active — complete or revert the rollout first."
-          : "Clients on this channel receive updates published to this branch."}
-      </FieldDescription>
     </Field>
   );
 };

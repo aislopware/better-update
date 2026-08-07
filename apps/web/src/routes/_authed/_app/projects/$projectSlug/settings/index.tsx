@@ -11,9 +11,8 @@ import {
   uploadProjectLogo,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -183,20 +182,17 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={Boolean(errorMessage)}>
-                <FieldLabel htmlFor="project-name">Project name</FieldLabel>
-                <Input
-                  id="project-name"
-                  value={field.state.value}
-                  disabled={isArchived}
-                  aria-invalid={Boolean(errorMessage) || undefined}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Project name"
+                error={errorMessage}
+                id="project-name"
+                value={field.state.value}
+                disabled={isArchived}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>

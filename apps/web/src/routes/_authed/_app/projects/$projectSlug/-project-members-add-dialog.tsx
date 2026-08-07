@@ -1,5 +1,7 @@
 import { addProjectMember, projectMembersQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -11,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -81,8 +82,7 @@ const AddMemberForm = ({
   return (
     <>
       <FieldGroup>
-        <Field>
-          <FieldLabel>Member</FieldLabel>
+        <Field label="Member">
           <Select items={principalItems} value={principalId} onValueChange={setPrincipalId}>
             <SelectTrigger aria-label="Member" className="w-full">
               <SelectValue placeholder="Select a member" />
@@ -99,8 +99,7 @@ const AddMemberForm = ({
           </Select>
         </Field>
 
-        <Field>
-          <FieldLabel>Role</FieldLabel>
+        <Field label="Role">
           <Select
             items={PROJECT_ROLE_LABELS}
             value={role}

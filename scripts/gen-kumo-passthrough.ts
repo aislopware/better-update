@@ -32,7 +32,6 @@ const COMPONENTS = [
   "dialog",
   "dropdown",
   "empty",
-  "field",
   "flow",
   "grid",
   "input",
@@ -58,8 +57,9 @@ const COMPONENTS = [
   "toolbar",
   "tooltip",
 ];
-// `toast` is deliberately absent: `components/toast.tsx` is hand-written, since
-// Kumo ships no default manager and no `toast.success` / `toast.error` sugar.
+// `field` and `toast` are deliberately absent: both are hand-written. Kumo
+// ships no default toast manager and no `toast.success` / `toast.error` sugar,
+// and its `Field` takes only the structured error shape its `Input` normalizes.
 
 /** Base UI primitives Kumo re-exports without styling them. */
 const PRIMITIVES = ["scroll-area", "separator", "toggle", "toggle-group"];

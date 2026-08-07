@@ -1,6 +1,8 @@
 import { accountKeysQueryKey, registerAccountKey } from "@better-update/api-client/react";
 import { generateAccountKey, sealAccountKey } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
 import {
@@ -13,8 +15,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon } from "lucide-react";
@@ -35,25 +35,22 @@ const PassphraseField = ({
   id: string;
   label: string;
   value: string;
-  error: string | undefined;
+  error: string;
   onChange: (value: string) => void;
   onBlur: () => void;
 }) => (
-  <Field data-invalid={Boolean(error)}>
-    <FieldLabel htmlFor={id}>{label}</FieldLabel>
-    <Input
-      id={id}
-      type="password"
-      autoComplete="new-password"
-      aria-invalid={Boolean(error) || undefined}
-      value={value}
-      onChange={(event) => {
-        onChange(event.target.value);
-      }}
-      onBlur={onBlur}
-    />
-    {error ? <FieldError>{error}</FieldError> : null}
-  </Field>
+  <Input
+    label={label}
+    error={error}
+    id={id}
+    type="password"
+    autoComplete="new-password"
+    value={value}
+    onChange={(event) => {
+      onChange(event.target.value);
+    }}
+    onBlur={onBlur}
+  />
 );
 
 const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {

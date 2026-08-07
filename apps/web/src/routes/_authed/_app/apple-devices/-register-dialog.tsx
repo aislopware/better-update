@@ -1,5 +1,8 @@
 import { devicesQueryKey, registerDevice } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Field } from "@better-update/ui/components/field";
+import { FieldGroup } from "@better-update/ui/components/field-layout";
+import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
@@ -11,14 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -97,7 +92,7 @@ const DeviceClassField = ({
       onChange(next);
     }}
   >
-    <SelectTrigger className="w-full">
+    <SelectTrigger className="w-full" aria-label="Device class">
       <SelectValue placeholder="Select class" />
     </SelectTrigger>
     <DeviceClassOptions />
@@ -165,34 +160,28 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
-                <Input
-                  id="device-identifier"
-                  placeholder="00008030-001C45663C90802E"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    field.handleChange(next);
-                    const inferred = inferClass(next);
-                    if (inferred !== null) {
-                      form.setFieldValue("deviceClass", inferred, {
-                        dontUpdateMeta: true,
-                        dontValidate: true,
-                      });
-                    }
-                  }}
-                  onBlur={field.handleBlur}
-                  className="font-mono"
-                />
-                <FieldDescription>
-                  40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
-                </FieldDescription>
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="UDID"
+                description="40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac)."
+                error={errorMessage}
+                id="device-identifier"
+                placeholder="00008030-001C45663C90802E"
+                value={field.state.value}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  field.handleChange(next);
+                  const inferred = inferClass(next);
+                  if (inferred !== null) {
+                    form.setFieldValue("deviceClass", inferred, {
+                      dontUpdateMeta: true,
+                      dontValidate: true,
+                    });
+                  }
+                }}
+                onBlur={field.handleBlur}
+                className="font-mono"
+              />
             );
           }}
         </form.Field>
@@ -208,30 +197,25 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         >
           {(field) => {
             const errorMessage = getFieldError(field);
-            const invalid = Boolean(errorMessage);
             return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="device-name">Name</FieldLabel>
-                <Input
-                  id="device-name"
-                  placeholder="Alex's iPhone 15 Pro"
-                  aria-invalid={invalid || undefined}
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {invalid ? <FieldError>{errorMessage}</FieldError> : null}
-              </Field>
+              <Input
+                label="Name"
+                error={errorMessage}
+                id="device-name"
+                placeholder="Alex's iPhone 15 Pro"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
             );
           }}
         </form.Field>
 
         <form.Field name="deviceClass">
           {(field) => (
-            <Field>
-              <FieldLabel>Class</FieldLabel>
+            <Field label="Class">
               <DeviceClassField
                 value={field.state.value}
                 onChange={(next) => {
@@ -244,17 +228,15 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
 
         <form.Field name="model">
           {(field) => (
-            <Field>
-              <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
-              <Input
-                id="device-model"
-                placeholder="iPhone 15 Pro"
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-              />
-            </Field>
+            <Input
+              label="Model (optional)"
+              id="device-model"
+              placeholder="iPhone 15 Pro"
+              value={field.state.value}
+              onChange={(event) => {
+                field.handleChange(event.target.value);
+              }}
+            />
           )}
         </form.Field>
 

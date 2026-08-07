@@ -1,4 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
+import { Input } from "@better-update/ui/components/input";
 import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
 import {
@@ -21,8 +22,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
@@ -41,25 +40,22 @@ const NameField = ({
   onBlur,
 }: {
   value: string;
-  error: string | undefined;
+  error: string;
   onChange: (value: string) => void;
   onBlur: () => void;
 }) => (
-  <Field data-invalid={Boolean(error)}>
-    <FieldLabel htmlFor="passkey-name">Name</FieldLabel>
-    <Input
-      id="passkey-name"
-      autoComplete="off"
-      placeholder="e.g. MacBook Touch ID"
-      aria-invalid={Boolean(error) || undefined}
-      value={value}
-      onChange={(event) => {
-        onChange(event.target.value);
-      }}
-      onBlur={onBlur}
-    />
-    {error ? <FieldError>{error}</FieldError> : null}
-  </Field>
+  <Input
+    label="Name"
+    error={error}
+    id="passkey-name"
+    autoComplete="off"
+    placeholder="e.g. MacBook Touch ID"
+    value={value}
+    onChange={(event) => {
+      onChange(event.target.value);
+    }}
+    onBlur={onBlur}
+  />
 );
 
 const nameValidator = {
