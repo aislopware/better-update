@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Item,
   ItemActions,
@@ -8,7 +8,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@better-update/ui/components/ui/item";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -93,25 +92,24 @@ const ConnectionsList = () => {
               <ItemActions>
                 {provider.id === "github" && !isLinked ? (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
                       linkGithubMutation.mutate();
                     }}
-                    disabled={linkGithubMutation.isPending}
+                    loading={linkGithubMutation.isPending}
                   >
-                    {linkGithubMutation.isPending && <Spinner data-icon="inline-start" />}
                     Connect
                   </Button>
                 ) : null}
                 {canUnlink ? (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
                       unlinkMutation.mutate(provider.id);
                     }}
                     disabled={isUnlinking || unlinkMutation.isPending}
+                    loading={isUnlinking}
                   >
-                    {isUnlinking && <Spinner data-icon="inline-start" />}
                     Disconnect
                   </Button>
                 ) : null}

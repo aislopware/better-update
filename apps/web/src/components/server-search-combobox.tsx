@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Combobox,
   ComboboxContent,
@@ -176,7 +176,11 @@ export const ServerSearchCombobox = ({
         aria-label={ariaLabel}
         aria-invalid={invalid || undefined}
         render={
-          <Button type="button" variant="outline" className="w-full justify-between font-normal" />
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full justify-between font-normal"
+          />
         }
       >
         <ComboboxValue>

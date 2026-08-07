@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -8,10 +8,16 @@ import type { ComponentProps } from "react";
 import { useCopyToClipboard } from "./use-copy-to-clipboard";
 
 type ButtonProps = ComponentProps<typeof Button>;
+type ButtonSize = NonNullable<ButtonProps["size"]>;
 
-const ICON_CLASS_BY_SIZE: Partial<Record<NonNullable<ButtonProps["size"]>, string>> = {
-  icon: "size-4",
-  "icon-sm": "size-3.5",
+// Kumo sizes the button box, not what we put inside it — lucide icons default
+// to 24px and would blow the square out. Drop this once the icon sweep lands
+// and Phosphor's 1em default takes over.
+const ICON_CLASS_BY_SIZE: Record<ButtonSize, string> = {
+  xs: "size-3",
+  sm: "size-3.5",
+  base: "size-4",
+  lg: "size-4",
 };
 
 // Ghost icon button that copies `value` to the clipboard and toasts the outcome.
@@ -20,14 +26,14 @@ export const CopyButton = ({
   value,
   label,
   variant = "ghost",
-  size = "icon-sm",
+  size = "sm",
   iconClassName,
   className,
 }: {
   value: string;
   label: string;
   variant?: ButtonProps["variant"];
-  size?: ButtonProps["size"];
+  size?: ButtonSize;
   iconClassName?: string;
   className?: string;
 }) => {
@@ -45,18 +51,17 @@ export const CopyButton = ({
   };
 
   const Icon = copied ? CheckIcon : CopyIcon;
-  const resolvedIconClass = iconClassName ?? (size ? ICON_CLASS_BY_SIZE[size] : undefined);
 
   return (
     <Button
       variant={variant}
+      shape="square"
       size={size}
       aria-label={`Copy ${label}`}
       onClick={handleCopy}
-      className={className}
-    >
-      <Icon strokeWidth={2} className={resolvedIconClass} />
-    </Button>
+      className={cn(className)}
+      icon={<Icon strokeWidth={2} className={iconClassName ?? ICON_CLASS_BY_SIZE[size]} />}
+    />
   );
 };
 

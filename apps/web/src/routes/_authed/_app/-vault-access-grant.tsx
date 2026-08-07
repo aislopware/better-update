@@ -7,8 +7,8 @@ import {
 } from "@better-update/api-client/react";
 import { wrapVaultKey } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
-import { Button } from "@better-update/ui/components/ui/button";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Table,
   TableBody,
@@ -75,13 +75,13 @@ const GrantButton = ({
 
   return (
     <Button
+      variant="primary"
       size="sm"
-      disabled={grantMutation.isPending}
       onClick={() => {
         grantMutation.mutate();
       }}
+      loading={grantMutation.isPending}
     >
-      {grantMutation.isPending && <Spinner data-icon="inline-start" />}
       Grant env access
     </Button>
   );
@@ -129,7 +129,7 @@ const PendingGrants = ({ orgId, unlocked }: { orgId: string; unlocked: UnlockedE
   if (accountKeysQuery.isPending || wrapsQuery.isPending) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 p-4 text-sm">
-        <Spinner /> Loading enrolled account keys…
+        <Loader size="sm" /> Loading enrolled account keys…
       </div>
     );
   }

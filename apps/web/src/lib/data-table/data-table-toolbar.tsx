@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   InputGroup,
   InputGroupAddon,

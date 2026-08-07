@@ -1,7 +1,6 @@
 import { getApiError } from "@better-update/api-client";
 import { getEnvVarValue } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { Button } from "@better-update/ui/components/button";
 import { useQuery } from "@tanstack/react-query";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
@@ -126,12 +125,14 @@ export const StepUpGate = ({
     <p className="text-muted-foreground">
       Your passkey check has expired. Verify again to {action} this value.
     </p>
-    <Button type="button" disabled={verifying} onClick={onVerify}>
-      {verifying ? (
-        <Spinner data-icon="inline-start" />
-      ) : (
-        <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
-      )}
+    <Button
+      variant="primary"
+      type="button"
+      disabled={verifying}
+      onClick={onVerify}
+      loading={verifying}
+      icon={<FingerprintIcon strokeWidth={2} />}
+    >
       Verify with passkey
     </Button>
   </div>

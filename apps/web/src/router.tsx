@@ -1,7 +1,7 @@
 import "./app.css";
 
 import { configureApiBaseUrl, getTypedApiError } from "@better-update/api-client";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { QueryClient, defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
@@ -95,7 +95,7 @@ const RouterErrorFallback = ({
           </pre>
         </details>
       ) : null}
-      <Button type="button" variant="outline" onClick={reset}>
+      <Button type="button" variant="secondary" onClick={reset}>
         Try again
       </Button>
     </div>

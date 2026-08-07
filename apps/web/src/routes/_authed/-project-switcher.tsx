@@ -1,5 +1,5 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Command,
   CommandGroup,

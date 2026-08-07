@@ -1,5 +1,6 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { buttonVariants } from "@better-update/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { cn } from "@better-update/ui/lib/utils";
 import { DownloadIcon } from "lucide-react";
 
 import type { BuildWithArtifact } from "@better-update/api";
@@ -38,20 +39,16 @@ const BuildActions = ({
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground/70 hover:text-foreground"
+              <a
                 aria-label="Download artifact"
-                render={
-                  <a
-                    aria-label="Download artifact"
-                    href={`/api/builds/${build.id}/artifact`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                    }}
-                  />
-                }
+                className={cn(
+                  buttonVariants({ variant: "ghost", shape: "square" }),
+                  "text-muted-foreground/70 hover:text-foreground",
+                )}
+                href={`/api/builds/${build.id}/artifact`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
               />
             }
           >

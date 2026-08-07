@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { TableHead } from "@better-update/ui/components/ui/table";
 import { cn } from "@better-update/ui/lib/utils";
 import { flexRender } from "@tanstack/react-table";

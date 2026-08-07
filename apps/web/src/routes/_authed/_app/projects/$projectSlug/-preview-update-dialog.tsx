@@ -1,6 +1,6 @@
 import { buildsQueryOptions, channelsQueryOptions } from "@better-update/api-client/react";
+import { Loader } from "@better-update/ui/components/loader";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +20,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
@@ -35,6 +33,7 @@ import {
   PlatformBadge,
 } from "../../../../../components/attribute-badges";
 import { CopyButton } from "../../../../../lib/copy-button";
+import { RouterLinkButton } from "../../../../../lib/router-link-button";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
 type UpdateItem = Update;
@@ -109,18 +108,13 @@ const CompatibleBuildsList = ({
               ) : null}
             </div>
           </div>
-          <Button
-            variant="outline"
+          <RouterLinkButton
             size="sm"
-            render={
-              <Link
-                to="/projects/$projectSlug/builds/$buildId"
-                params={{ projectSlug, buildId: build.id }}
-              />
-            }
+            to="/projects/$projectSlug/builds/$buildId"
+            params={{ projectSlug, buildId: build.id }}
           >
             Open build
-          </Button>
+          </RouterLinkButton>
         </li>
       ))}
     </ul>
@@ -129,7 +123,7 @@ const CompatibleBuildsList = ({
 
 const CompatibleBuildsSkeleton = () => (
   <div className="flex items-center justify-center gap-2 py-6">
-    <Spinner />
+    <Loader size="sm" />
     <span className="text-muted-foreground text-sm">Loading compatible builds…</span>
   </div>
 );
@@ -169,7 +163,7 @@ const PreviewBody = ({
         <InputGroup>
           <InputGroupInput readOnly value={update.groupId} className="font-mono text-xs" />
           <InputGroupAddon align="inline-end">
-            <CopyButton value={update.groupId} label="Group ID" size="icon-xs" />
+            <CopyButton value={update.groupId} label="Group ID" size="xs" />
           </InputGroupAddon>
         </InputGroup>
       </div>

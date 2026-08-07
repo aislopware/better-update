@@ -1,5 +1,5 @@
 import { getApiError, getTypedApiError } from "@better-update/api-client";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -43,7 +43,7 @@ export const QueryErrorState = ({ error, onRetry }: QueryErrorStateProps) => {
           <EmptyContent>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 const result = onRetry();
                 if (result instanceof Promise) {

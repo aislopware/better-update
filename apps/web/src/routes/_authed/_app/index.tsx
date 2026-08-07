@@ -2,8 +2,8 @@ import {
   auditLogsInfiniteQueryOptions,
   projectsQueryOptions,
 } from "@better-update/api-client/react";
+import { LinkButton } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardAction,
@@ -137,7 +137,9 @@ const FirstProjectCard = () => (
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button render={<Link to="/projects" />}>Go to projects</Button>
+        <LinkButton variant="primary" href="/projects">
+          Go to projects
+        </LinkButton>
       </EmptyContent>
     </Empty>
   </Card>

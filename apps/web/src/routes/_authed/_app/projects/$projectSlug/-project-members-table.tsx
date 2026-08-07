@@ -1,5 +1,6 @@
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -143,14 +143,14 @@ const RowActions = ({
       render={
         <Button
           variant="ghost"
-          size="icon"
+          shape="square"
           className="text-muted-foreground/70 hover:text-foreground"
           disabled={isPending}
           aria-label="Project member actions"
         />
       }
     >
-      {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
+      {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
     </DropdownMenuTrigger>
     {/* w-auto: size to the labels, not the icon-button anchor width. */}
     <DropdownMenuContent align="end" className="w-auto">

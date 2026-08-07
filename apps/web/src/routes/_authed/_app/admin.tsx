@@ -4,8 +4,8 @@ import {
   approveUser,
   revokeUser,
 } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -14,7 +14,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
@@ -132,23 +131,22 @@ const buildColumns = (
         <Button
           variant="ghost"
           size="sm"
-          disabled={isPending}
           onClick={() => {
             onSetApproval({ userId: user.id, approve: false });
           }}
+          loading={isPending}
         >
-          {isPending && <Spinner data-icon="inline-start" />}
           Revoke
         </Button>
       ) : (
         <Button
+          variant="primary"
           size="sm"
-          disabled={isPending}
           onClick={() => {
             onSetApproval({ userId: user.id, approve: true });
           }}
+          loading={isPending}
         >
-          {isPending && <Spinner data-icon="inline-start" />}
           Approve
         </Button>
       );

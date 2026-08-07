@@ -1,5 +1,5 @@
 import { channelsQueryOptions, republishUpdate } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -149,12 +148,13 @@ const PromoteForm = ({
           selector={(state) => [state.values.targetChannelName, state.isSubmitting] as const}
         >
           {([targetChannelName, isSubmitting]) => (
-            <Button type="submit" disabled={!targetChannelName || isSubmitting}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RocketIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!targetChannelName || isSubmitting}
+              loading={isSubmitting}
+              icon={<RocketIcon strokeWidth={2} />}
+            >
               Promote
             </Button>
           )}

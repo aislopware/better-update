@@ -1,9 +1,9 @@
 import { useMountEffect } from "@better-update/react-hooks";
-import { Button } from "@better-update/ui/components/ui/button";
+import { LinkButton } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { CheckCircle2Icon, MailWarningIcon } from "lucide-react";
 import { z } from "zod";
@@ -80,7 +80,7 @@ const Body = ({ isError, isSuccess, isPending, error }: BodyProps) => {
 const PendingState = ({ isPending }: { readonly isPending: boolean }) => (
   <>
     <StatusMedallion tone="neutral">
-      <Spinner className="size-6" data-state={isPending ? "pending" : "idle"} />
+      <Loader size={24} data-state={isPending ? "pending" : "idle"} />
     </StatusMedallion>
     <div className="flex flex-col gap-1.5">
       <h1 className="font-heading text-foreground text-xl font-semibold">Accepting invitation</h1>
@@ -112,9 +112,9 @@ const FailedState = ({ message }: { readonly message: string }) => (
       </h1>
       <p className="text-muted-foreground text-sm">{message}</p>
     </div>
-    <Button className="mt-2" render={<Link to="/" />}>
+    <LinkButton variant="primary" className="mt-2" href="/">
       Go to dashboard
-    </Button>
+    </LinkButton>
   </>
 );
 

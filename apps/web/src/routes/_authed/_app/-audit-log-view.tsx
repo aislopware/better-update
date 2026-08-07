@@ -1,6 +1,6 @@
 import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
@@ -18,7 +18,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -272,7 +271,7 @@ const AuditLogRow = ({
                 <code className="max-w-24 truncate font-mono" title={entry.resourceId}>
                   {entry.resourceId.slice(0, 8)}
                 </code>
-                <CopyButton value={entry.resourceId} label="Resource ID" size="icon-xs" />
+                <CopyButton value={entry.resourceId} label="Resource ID" size="xs" />
               </>
             ) : null}
           </span>
@@ -295,8 +294,9 @@ const AuditLogRow = ({
 
 const metadataTrigger = (
   <Button
-    variant="outline"
-    size="icon-xs"
+    variant="secondary"
+    shape="square"
+    size="sm"
     aria-label="View metadata"
     className="text-muted-foreground"
   >
@@ -409,13 +409,12 @@ export const AuditLogView = ({
           {hasNextPage ? (
             <div className="flex justify-center">
               <Button
-                variant="outline"
-                disabled={isFetchingNextPage}
+                variant="secondary"
                 onClick={async () => {
                   await fetchNextPage();
                 }}
+                loading={isFetchingNextPage}
               >
-                {isFetchingNextPage && <Spinner data-icon="inline-start" />}
                 Load more
               </Button>
             </div>

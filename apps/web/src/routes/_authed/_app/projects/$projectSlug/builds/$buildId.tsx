@@ -5,8 +5,8 @@ import {
   fetchDebugArtifactDownload,
 } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
+import { Button, buttonVariants } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -36,6 +36,7 @@ import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
 import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
@@ -169,14 +170,13 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              render={
-                <a aria-label="Download artifact" href={`/api/builds/${build.id}/artifact`} />
-              }
+            <a
+              aria-label="Download artifact"
+              className={buttonVariants({ variant: "secondary" })}
+              href={`/api/builds/${build.id}/artifact`}
             >
               Download artifact
-            </Button>
+            </a>
             <InstallLinkDialog
               build={build}
               buttonVariant="outline"
@@ -224,7 +224,7 @@ const DebugArtifactRow = ({
         <Badge variant="secondary">{formatBytes(artifact.byteSize)}</Badge>
       </div>
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         disabled={download.isPending}
         onClick={() => {
@@ -330,8 +330,11 @@ const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
     icon={<PackageXIcon strokeWidth={1.5} />}
     title="Build not found in this project"
     description="The requested build exists outside this project or was removed."
-    backLink={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
-    backLabel="Back to project"
+    backLink={
+      <RouterLinkButton to="/projects/$projectSlug" params={{ projectSlug }}>
+        Back to project
+      </RouterLinkButton>
+    }
   />
 );
 
@@ -383,14 +386,13 @@ const BuildDetailHeader = ({
         {build.artifact ? (
           <>
             <InstallLinkDialog build={build} buttonVariant="outline" buttonLabel="Install" />
-            <Button
-              variant="outline"
-              render={
-                <a aria-label="Download artifact" href={`/api/builds/${build.id}/artifact`} />
-              }
+            <a
+              aria-label="Download artifact"
+              className={buttonVariants({ variant: "secondary" })}
+              href={`/api/builds/${build.id}/artifact`}
             >
               Download
-            </Button>
+            </a>
           </>
         ) : null}
         <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />

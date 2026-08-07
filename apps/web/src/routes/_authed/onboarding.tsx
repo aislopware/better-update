@@ -1,4 +1,5 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Link } from "@better-update/ui/components/link";
 import {
   Card,
   CardContent,
@@ -8,7 +9,6 @@ import {
 } from "@better-update/ui/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
@@ -33,18 +33,20 @@ const SignedInAs = () => {
   return (
     <p className="text-muted-foreground text-center text-sm">
       Signed in as <span className="text-foreground font-medium">{user.email}</span>.{" "}
-      <Button
-        variant="link"
-        size="sm"
-        className="h-auto p-0 align-baseline"
-        disabled={logoutMutation.isPending}
-        onClick={() => {
-          logoutMutation.mutate();
-        }}
+      <Link
+        render={
+          // eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Link supplies this button's label as its children
+          <button
+            type="button"
+            disabled={logoutMutation.isPending}
+            onClick={() => {
+              logoutMutation.mutate();
+            }}
+          />
+        }
       >
-        {logoutMutation.isPending && <Spinner data-icon="inline-start" />}
         Log out
-      </Button>
+      </Link>
     </p>
   );
 };
@@ -165,11 +167,12 @@ const Onboarding = () => {
               <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
                 {([canSubmit, isSubmitting]) => (
                   <Button
+                    variant="primary"
                     type="submit"
                     className="w-full"
                     disabled={!canSubmit || Boolean(isSubmitting)}
+                    loading={Boolean(isSubmitting)}
                   >
-                    {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
                     Create organization
                   </Button>
                 )}

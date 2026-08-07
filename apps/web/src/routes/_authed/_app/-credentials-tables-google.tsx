@@ -50,7 +50,7 @@ export const GoogleServiceAccountKeysTable = ({
                 title={key.clientId === null ? undefined : `Client ID: ${key.clientId}`}
               >
                 <span className="truncate font-mono text-xs font-medium">{key.clientEmail}</span>
-                <CopyButton value={key.clientEmail} label="Client email" size="icon-xs" />
+                <CopyButton value={key.clientEmail} label="Client email" size="xs" />
               </span>
               <span className="text-muted-foreground flex items-center gap-1 font-mono text-xs">
                 <CopyableId value={key.googleProjectId} label="Project ID" length={16} />

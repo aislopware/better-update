@@ -23,6 +23,7 @@ import { StatCard } from "../../../../../../components/stat-card";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { buildBuildsColumns } from "../builds/-builds-columns";
 
 const RUNTIME_PAGE_LIMIT = 25;
@@ -35,8 +36,11 @@ const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
     icon={<LayersIcon strokeWidth={1.5} />}
     title="No data for this runtime version"
     description="Nothing in this project references this runtime yet."
-    backLink={<Link to="/projects/$projectSlug/runtimes" params={{ projectSlug }} />}
-    backLabel="Back to runtimes"
+    backLink={
+      <RouterLinkButton to="/projects/$projectSlug/runtimes" params={{ projectSlug }}>
+        Back to runtimes
+      </RouterLinkButton>
+    }
   />
 );
 

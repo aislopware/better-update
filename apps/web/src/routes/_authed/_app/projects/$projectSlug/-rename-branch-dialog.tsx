@@ -1,5 +1,5 @@
 import { branchesQueryKey, renameBranch } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -56,7 +56,7 @@ export const RenameBranchDialog = ({
         <TooltipTrigger
           render={
             <DialogTrigger
-              render={<Button variant="ghost" size="icon" aria-label="Rename branch" />}
+              render={<Button variant="ghost" shape="square" aria-label="Rename branch" />}
             />
           }
         >

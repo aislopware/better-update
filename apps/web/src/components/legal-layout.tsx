@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { LinkButton } from "@better-update/ui/components/button";
 import { Link } from "@tanstack/react-router";
 
 import { SITE } from "../lib/site-config";
@@ -64,9 +64,9 @@ const LegalHeader = () => (
         >
           Privacy
         </Link>
-        <Button size="sm" render={<Link to="/auth/login" />}>
+        <LinkButton variant="primary" size="sm" href="/auth/login">
           Sign in
-        </Button>
+        </LinkButton>
       </nav>
     </div>
   </header>

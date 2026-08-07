@@ -1,6 +1,6 @@
 import { createEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -30,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -90,6 +89,20 @@ const SelectField = ({
       </SelectContent>
     </Select>
   </Field>
+);
+
+const submitSelector = (state: { canSubmit: boolean; isSubmitting: boolean }) =>
+  [state.canSubmit, state.isSubmitting] as const;
+
+const renderSubmitButton = ([canSubmit, isSubmitting]: readonly [boolean, boolean]) => (
+  <Button
+    variant="primary"
+    type="submit"
+    disabled={!canSubmit || isSubmitting}
+    loading={isSubmitting}
+  >
+    Create variable
+  </Button>
 );
 
 const CreateForm = ({
@@ -335,15 +348,8 @@ const CreateForm = ({
         </FieldSet>
       </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-          {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
-              Create variable
-            </Button>
-          )}
-        </form.Subscribe>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
+        <form.Subscribe selector={submitSelector}>{renderSubmitButton}</form.Subscribe>
       </DialogFooter>
     </form>
   );
@@ -381,7 +387,7 @@ export const EnvVarCreateDialog = ({
         }
       }}
     >
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant="primary" />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add variable
       </DialogTrigger>

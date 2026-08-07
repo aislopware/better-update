@@ -1,4 +1,5 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
   DialogClose,
@@ -13,7 +14,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 
 import type { EnvVar } from "@better-update/api";
 
@@ -47,7 +47,7 @@ const RevealBody = ({
   if (guarded.kind === "loading") {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Spinner /> Decrypting…
+        <Loader size="sm" /> Decrypting…
       </div>
     );
   }
@@ -58,7 +58,7 @@ const RevealBody = ({
     <InputGroup>
       <InputGroupInput readOnly value={guarded.value} className="font-mono text-sm" />
       <InputGroupAddon align="inline-end">
-        <CopyButton value={guarded.value} label={envVar.key} size="icon-xs" />
+        <CopyButton value={guarded.value} label={envVar.key} size="xs" />
       </InputGroupAddon>
     </InputGroup>
   );
@@ -95,7 +95,7 @@ export const EnvVarRevealDialog = ({
       </DialogHeader>
       {open ? <RevealBody envVar={envVar} orgId={orgId} vault={vault} /> : null}
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Close</DialogClose>
       </DialogFooter>
     </DialogContent>
   </Dialog>

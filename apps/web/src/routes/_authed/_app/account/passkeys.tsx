@@ -1,5 +1,5 @@
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Item,
   ItemActions,
@@ -63,7 +63,7 @@ const PasskeysList = () => {
               </ItemContent>
               <ItemActions>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => {
                     setActive({ mode: "rename", passkey });
                   }}

@@ -1,5 +1,5 @@
 import { branchesQueryKey, createBranch } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
         }
       }}
     >
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant="primary" />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create branch
       </DialogTrigger>

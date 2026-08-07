@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Table,
   TableBody,
@@ -167,7 +167,7 @@ const FilteredEmptyRow = ({
       <div className="flex flex-col items-center gap-2 py-8 text-center">
         <SearchXIcon strokeWidth={1.5} className="text-muted-foreground/72 size-5" aria-hidden />
         <p className="text-muted-foreground text-sm">No {entity} match your filters.</p>
-        <Button variant="outline" size="sm" onClick={onClear}>
+        <Button variant="secondary" size="sm" onClick={onClear}>
           Clear filters
         </Button>
       </div>

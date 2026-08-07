@@ -1,5 +1,5 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
@@ -152,7 +152,7 @@ const ProjectGrantRow = ({
     />
     <Button
       variant="ghost"
-      size="icon"
+      shape="square"
       className="text-muted-foreground/70 hover:text-destructive"
       aria-label="Remove project access"
       onClick={onRemove}
@@ -249,7 +249,7 @@ export const ProjectGrantsSection = ({
         }}
       />
     ))}
-    <Button type="button" variant="outline" size="sm" className="self-start" onClick={onAdd}>
+    <Button type="button" variant="secondary" size="sm" className="self-start" onClick={onAdd}>
       <PlusIcon strokeWidth={2} data-icon="inline-start" />
       Add project
     </Button>

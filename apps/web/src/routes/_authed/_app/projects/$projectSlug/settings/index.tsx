@@ -10,10 +10,9 @@ import {
   unarchiveProject,
   uploadProjectLogo,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -94,17 +93,17 @@ const LogoSection = ({ project }: { project: ProjectDetail }) => {
               onClick={() => {
                 removeMutation.mutate();
               }}
+              loading={removeMutation.isPending}
             >
-              {removeMutation.isPending && <Spinner data-icon="inline-start" />}
               Remove
             </Button>
           )}
           <Button
-            variant="outline"
+            variant="secondary"
             disabled={isArchived || busy}
             onClick={() => inputRef.current?.click()}
+            loading={uploadMutation.isPending}
           >
-            {uploadMutation.isPending && <Spinner data-icon="inline-start" />}
             {project.logoUrl === null ? "Upload logo" : "Replace logo"}
           </Button>
         </>
@@ -160,8 +159,12 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isArchived || Boolean(isSubmitting)}>
-                {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
+              <Button
+                variant="primary"
+                type="submit"
+                disabled={!canSubmit || isArchived || Boolean(isSubmitting)}
+                loading={Boolean(isSubmitting)}
+              >
                 Save changes
               </Button>
             )}
@@ -221,13 +224,12 @@ const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
         description="This project is archived and read-only. Publishing, builds, and other changes are blocked until you unarchive it. Updates already on devices keep serving."
         footer={
           <Button
-            variant="outline"
-            disabled={unarchiveMutation.isPending}
+            variant="secondary"
             onClick={() => {
               unarchiveMutation.mutate();
             }}
+            loading={unarchiveMutation.isPending}
           >
-            {unarchiveMutation.isPending && <Spinner data-icon="inline-start" />}
             Unarchive project
           </Button>
         }
@@ -250,7 +252,7 @@ const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
             await invalidateProjects(queryClient, project.organizationId, project.id);
           }}
         >
-          <Button variant="outline">Archive project</Button>
+          <Button variant="secondary">Archive project</Button>
         </ConfirmActionDialog>
       }
     />

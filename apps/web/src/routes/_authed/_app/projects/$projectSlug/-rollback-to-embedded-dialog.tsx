@@ -1,6 +1,6 @@
 import { createUpdate } from "@better-update/api-client/react";
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Undo2Icon } from "lucide-react";
@@ -86,16 +85,14 @@ export const RollbackToEmbeddedDialog = ({
         </div>
         <DialogFooter>
           <Button
+            variant="primary"
             onClick={() => {
               rollbackMutation.mutate();
             }}
             disabled={rollbackMutation.isPending}
+            loading={rollbackMutation.isPending}
+            icon={<Undo2Icon strokeWidth={2} />}
           >
-            {rollbackMutation.isPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <Undo2Icon strokeWidth={2} data-icon="inline-start" />
-            )}
             Create rollback
           </Button>
         </DialogFooter>

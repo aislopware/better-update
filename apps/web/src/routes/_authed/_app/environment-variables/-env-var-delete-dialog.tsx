@@ -1,4 +1,5 @@
 import { deleteEnvVar } from "@better-update/api-client/react";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 
 import type { EnvVar } from "@better-update/api";
@@ -65,7 +65,7 @@ export const EnvVarDeleteDialog = ({
               deleteMutation.mutate();
             }}
           >
-            {deleteMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+            {deleteMutation.isPending ? <Loader size="sm" data-icon="inline-start" /> : null}
             Delete variable
           </AlertDialogAction>
         </AlertDialogFooter>

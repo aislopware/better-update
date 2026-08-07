@@ -1,3 +1,5 @@
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -21,7 +22,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { FingerprintIcon } from "lucide-react";
@@ -116,15 +116,16 @@ const AddPasskeyForm = ({
         </form.Field>
       </div>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+              icon={<FingerprintIcon strokeWidth={2} />}
+            >
               Add passkey
             </Button>
           )}
@@ -157,7 +158,7 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
   if (!isVaultHost()) {
     return (
       <Button
-        variant="outline"
+        variant="secondary"
         onClick={() => {
           globalThis.location.assign(`https://${VAULT_HOST}/account/passkeys`);
         }}
@@ -178,7 +179,7 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
         }
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="secondary" />}>
         <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
         Add passkey
       </DialogTrigger>
@@ -254,11 +255,15 @@ const RenamePasskeyForm = ({
         </form.Field>
       </div>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+            >
               Save name
             </Button>
           )}
@@ -357,7 +362,7 @@ export const DeletePasskeyDialog = ({
               deleteMutation.mutate();
             }}
           >
-            {deleteMutation.isPending && <Spinner data-icon="inline-start" />}
+            {deleteMutation.isPending && <Loader size="sm" data-icon="inline-start" />}
             Remove passkey
           </AlertDialogAction>
         </AlertDialogFooter>

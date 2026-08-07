@@ -4,7 +4,7 @@ import {
   updateOrganization,
   uploadOrganizationLogo,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -17,7 +17,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -94,13 +93,17 @@ const OrgLogoSection = () => {
               onClick={() => {
                 removeMutation.mutate();
               }}
+              loading={removeMutation.isPending}
             >
-              {removeMutation.isPending && <Spinner data-icon="inline-start" />}
               Remove
             </Button>
           ) : null}
-          <Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
-            {uploadMutation.isPending && <Spinner data-icon="inline-start" />}
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            loading={uploadMutation.isPending}
+          >
             {activeOrg.logo ? "Replace logo" : "Upload logo"}
           </Button>
         </>
@@ -163,8 +166,12 @@ const OrgGeneralForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-                {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
+              <Button
+                variant="primary"
+                type="submit"
+                disabled={!canSubmit || Boolean(isSubmitting)}
+                loading={Boolean(isSubmitting)}
+              >
                 Save changes
               </Button>
             )}
@@ -268,13 +275,13 @@ const DeleteOrgConfirmForm = ({
         />
       </Field>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <Button
           variant="destructive"
           disabled={confirmText !== slug || isPending}
           onClick={onConfirm}
+          loading={isPending}
         >
-          {isPending && <Spinner data-icon="inline-start" />}
           Delete permanently
         </Button>
       </DialogFooter>

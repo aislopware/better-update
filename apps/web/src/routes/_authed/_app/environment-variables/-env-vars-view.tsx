@@ -1,5 +1,5 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -10,7 +10,6 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -171,21 +170,18 @@ const VaultToolbarActions = ({
         invalidate={invalidate}
       />
       <Button
-        variant="outline"
+        variant="secondary"
         disabled={reverifyMutation.isPending}
         onClick={() => {
           reverifyMutation.mutate();
         }}
+        loading={reverifyMutation.isPending}
+        icon={<FingerprintIcon strokeWidth={2} />}
       >
-        {reverifyMutation.isPending ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
-        )}
         Re-verify
       </Button>
       <Button
-        variant="outline"
+        variant="secondary"
         onClick={() => {
           vault.lock();
         }}

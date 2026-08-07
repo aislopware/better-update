@@ -6,12 +6,11 @@ import {
   pauseChannel,
   resumeChannel,
 } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, PauseIcon, PlayIcon, RadioTowerIcon } from "lucide-react";
 import { Suspense } from "react";
 
@@ -34,6 +33,7 @@ import { StatCard } from "../../../../../../components/stat-card";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
@@ -41,8 +41,11 @@ const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
     icon={<RadioTowerIcon strokeWidth={1.5} />}
     title="Channel not found in this project"
     description="The requested channel does not belong to this project or was removed."
-    backLink={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
-    backLabel="Back to project"
+    backLink={
+      <RouterLinkButton to="/projects/$projectSlug" params={{ projectSlug }}>
+        Back to project
+      </RouterLinkButton>
+    }
   />
 );
 
@@ -68,13 +71,12 @@ const ChannelHeaderActions = ({
   return (
     <>
       <Button
-        variant="outline"
-        disabled={togglePauseMutation.isPending}
+        variant="secondary"
         onClick={() => {
           togglePauseMutation.mutate();
         }}
+        loading={togglePauseMutation.isPending}
       >
-        {togglePauseMutation.isPending && <Spinner data-icon="inline-start" />}
         {!togglePauseMutation.isPending &&
           (channel.isPaused ? (
             <PlayIcon strokeWidth={2} data-icon="inline-start" />

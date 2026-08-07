@@ -1,6 +1,6 @@
 import { channelsQueryOptions, pauseChannel, resumeChannel } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -9,7 +9,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -98,15 +97,14 @@ const PauseToggleButton = ({
   return (
     <Button
       variant="ghost"
-      size="icon"
+      shape="square"
       className="text-muted-foreground/70 hover:text-foreground"
-      disabled={togglePauseMutation.isPending}
       onClick={() => {
         togglePauseMutation.mutate();
       }}
       aria-label={channel.isPaused ? "Resume channel" : "Pause channel"}
+      loading={togglePauseMutation.isPending}
     >
-      {togglePauseMutation.isPending && <Spinner />}
       {!togglePauseMutation.isPending &&
         (channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />)}
     </Button>

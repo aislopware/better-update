@@ -6,6 +6,8 @@ import {
   renameEnvironment,
   setEnvironmentProtection,
 } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +19,6 @@ import {
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -35,7 +36,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Switch } from "@better-update/ui/components/ui/switch";
 import {
   Table,
@@ -129,11 +129,15 @@ const EnvironmentNameForm = ({
         </form.Field>
       </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+            >
               {submitLabel}
             </Button>
           )}
@@ -166,7 +170,7 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant="primary" />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add environment
       </DialogTrigger>
@@ -277,7 +281,7 @@ const DeleteEnvironmentDialog = ({
               deleteMutation.mutate();
             }}
           >
-            {deleteMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+            {deleteMutation.isPending ? <Loader size="sm" data-icon="inline-start" /> : null}
             Delete environment
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -334,7 +338,7 @@ const EnvironmentRowActions = ({
     <div className="flex items-center justify-end gap-1">
       <Button
         variant="ghost"
-        size="icon"
+        shape="square"
         className="text-muted-foreground/70 hover:text-foreground"
         aria-label={`Rename ${environment.name}`}
         onClick={() => {
@@ -345,7 +349,7 @@ const EnvironmentRowActions = ({
       </Button>
       <Button
         variant="ghost"
-        size="icon"
+        shape="square"
         className="text-muted-foreground/70 hover:text-destructive"
         aria-label={`Delete ${environment.name}`}
         onClick={() => {

@@ -147,13 +147,13 @@ const AssetList = ({ assets }: { assets: readonly UpdateAsset[] }) => {
             <ItemContent className="min-w-0 gap-0.5">
               <div className="flex items-center gap-1">
                 <code className="min-w-0 truncate font-mono text-xs">{asset.key}</code>
-                <CopyButton value={asset.key} label="Asset key" size="icon-xs" />
+                <CopyButton value={asset.key} label="Asset key" size="xs" />
               </div>
               <div className="flex items-center gap-1">
                 <code className="text-muted-foreground min-w-0 truncate font-mono text-xs">
                   {asset.hash.slice(0, 16)}
                 </code>
-                <CopyButton value={asset.hash} label="Asset hash" size="icon-xs" />
+                <CopyButton value={asset.hash} label="Asset hash" size="xs" />
               </div>
             </ItemContent>
             {asset.isLaunch ? (

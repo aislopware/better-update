@@ -2,10 +2,10 @@ import {
   accountKeysQueryOptions,
   envVaultWrapsQueryOptions,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { Button } from "@better-update/ui/components/button";
+import { Link } from "@better-update/ui/components/link";
+import { Loader } from "@better-update/ui/components/loader";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 
 import { meQueryOptions } from "../../../../queries/org";
 import { EnrollAccountKeyDialog } from "../account/-account-key-dialogs";
@@ -40,8 +40,8 @@ export const VaultSetupActions = ({
 
   if (meQuery.isPending || accountKeysQuery.isPending) {
     return (
-      <Button variant="outline" disabled>
-        <Spinner data-icon="inline-start" />
+      <Button variant="secondary" disabled>
+        <Loader size="sm" data-icon="inline-start" />
         Checking access…
       </Button>
     );
@@ -64,10 +64,7 @@ export const VaultSetupActions = ({
     return (
       <p className="text-muted-foreground text-sm">
         Account key enrolled — waiting for an admin to grant env-vault access.{" "}
-        <Button variant="link" size="sm" render={<Link to="/account/passkeys" />}>
-          Add a passkey
-        </Button>{" "}
-        while you wait.
+        <Link href="/account/passkeys">Add a passkey</Link> while you wait.
       </p>
     );
   }

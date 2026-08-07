@@ -1,6 +1,7 @@
 import { updateAssetsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,6 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeftRightIcon, ArrowRightIcon, GitCompareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -224,7 +224,7 @@ const AssetComparison = ({
 
 const AssetComparisonSkeleton = () => (
   <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
-    <Spinner />
+    <Loader size="sm" />
     <span>Loading asset diff…</span>
   </div>
 );
@@ -370,7 +370,7 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
         />
         <Button
           variant="ghost"
-          size="icon"
+          shape="square"
           aria-label="Swap A and B"
           disabled={!left || !right}
           onClick={swap}
@@ -393,7 +393,7 @@ const CompareBody = ({ orgId, projectId }: { orgId: string; projectId: string })
 
 const CompareBodySkeleton = () => (
   <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
-    <Spinner />
+    <Loader size="sm" />
     <span>Loading updates…</span>
   </div>
 );
@@ -405,7 +405,7 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
   return (
     <>
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={() => {
           setOpen(true);

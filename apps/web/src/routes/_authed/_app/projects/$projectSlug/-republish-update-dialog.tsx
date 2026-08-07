@@ -1,5 +1,5 @@
 import { republishUpdate } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -113,12 +112,13 @@ const RepublishForm = ({
       <DialogFooter>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RefreshCwIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={isSubmitting}
+              loading={isSubmitting}
+              icon={<RefreshCwIcon strokeWidth={2} />}
+            >
               Republish
             </Button>
           )}

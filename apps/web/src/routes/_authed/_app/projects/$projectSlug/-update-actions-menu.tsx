@@ -1,5 +1,5 @@
 import { channelsQueryOptions, deleteUpdateGroup } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,7 +103,7 @@ export const UpdateActionsMenu = ({
           render={
             <Button
               variant="ghost"
-              size="icon"
+              shape="square"
               className="text-muted-foreground/70 hover:text-foreground"
               aria-label="Update actions"
             />

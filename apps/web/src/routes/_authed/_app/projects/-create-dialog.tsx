@@ -1,5 +1,5 @@
 import { createProject, projectsQueryKey } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -18,7 +18,6 @@ import {
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -140,15 +139,16 @@ export const CreateProjectFormContent = ({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <PlusIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+              icon={<PlusIcon strokeWidth={2} />}
+            >
               Create project
             </Button>
           )}
@@ -172,7 +172,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant="primary" />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create project
       </DialogTrigger>

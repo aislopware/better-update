@@ -1,5 +1,5 @@
 import { createInvitation } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -12,7 +12,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -192,15 +191,16 @@ const InviteFormContent = ({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+              icon={<UserPlusIcon strokeWidth={2} />}
+            >
               Send invitation
             </Button>
           )}
@@ -232,7 +232,7 @@ export const InviteDialog = ({
         }
       }}
     >
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant="primary" />}>
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Invite member
       </DialogTrigger>
@@ -276,9 +276,8 @@ export const RemoveDialog = ({
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-        <Button variant="destructive" disabled={isRemoving} onClick={onConfirm}>
-          {isRemoving && <Spinner data-icon="inline-start" />}
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
+        <Button variant="destructive" onClick={onConfirm} loading={isRemoving}>
           Remove
         </Button>
       </DialogFooter>

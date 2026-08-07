@@ -1,6 +1,7 @@
 import { updateEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
   DialogClose,
@@ -11,7 +12,6 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -113,13 +113,17 @@ const EditForm = ({
         </form.Field>
       </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting, state.values.value] as const}
         >
           {([canSubmit, isSubmitting, value]) => (
-            <Button type="submit" disabled={!canSubmit || value === initialValue || isSubmitting}>
-              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || value === initialValue || isSubmitting}
+              loading={isSubmitting}
+            >
               Save new value
             </Button>
           )}
@@ -162,7 +166,7 @@ const EditBody = ({
           }}
         />
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         </DialogFooter>
       </>
     );
@@ -170,7 +174,7 @@ const EditBody = ({
   if (guarded.kind === "loading") {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Spinner /> Decrypting current value…
+        <Loader size="sm" /> Decrypting current value…
       </div>
     );
   }
@@ -179,7 +183,7 @@ const EditBody = ({
       <>
         <p className="text-destructive text-sm">{guarded.message}</p>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
+          <DialogClose render={<Button variant="secondary" />}>Close</DialogClose>
         </DialogFooter>
       </>
     );

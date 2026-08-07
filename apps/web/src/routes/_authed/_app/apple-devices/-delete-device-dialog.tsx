@@ -1,4 +1,5 @@
 import { deleteDevice, devicesQueryKey } from "@better-update/api-client/react";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +11,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -75,7 +75,7 @@ export const DeleteDeviceDialog = ({
               deleteMutation.mutate();
             }}
           >
-            {deleteMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+            {deleteMutation.isPending ? <Loader size="sm" data-icon="inline-start" /> : null}
             Remove device
           </AlertDialogAction>
         </AlertDialogFooter>

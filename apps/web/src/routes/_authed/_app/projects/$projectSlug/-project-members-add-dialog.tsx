@@ -1,5 +1,5 @@
 import { addProjectMember, projectMembersQueryKey } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
@@ -130,20 +129,18 @@ const AddMemberForm = ({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <Button
+          variant="primary"
           disabled={selected === undefined || addMutation.isPending}
           onClick={() => {
             if (selected !== undefined) {
               addMutation.mutate({ principalId: selected.id, role });
             }
           }}
+          loading={addMutation.isPending}
+          icon={<UserPlusIcon strokeWidth={2} />}
         >
-          {addMutation.isPending ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
-          )}
           Add to project
         </Button>
       </DialogFooter>
@@ -189,7 +186,7 @@ export const AddProjectMemberDialog = ({
         }
       }}
     >
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant="primary" />}>
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Add member
       </DialogTrigger>

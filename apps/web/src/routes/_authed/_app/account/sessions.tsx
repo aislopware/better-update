@@ -1,5 +1,5 @@
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Item,
   ItemActions,
@@ -9,7 +9,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@better-update/ui/components/ui/item";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -66,13 +65,12 @@ const SessionsList = () => {
       action={
         sessions.length > 1 ? (
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => {
               revokeAllMutation.mutate();
             }}
-            disabled={isRevokingAll}
+            loading={isRevokingAll}
           >
-            {isRevokingAll && <Spinner data-icon="inline-start" />}
             Revoke all others
           </Button>
         ) : null
@@ -100,13 +98,13 @@ const SessionsList = () => {
               {isCurrent ? null : (
                 <ItemActions>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
                       revokeMutation.mutate(session.token);
                     }}
                     disabled={isRevoking || isRevokingAll || revokeMutation.isPending}
+                    loading={isRevoking}
                   >
-                    {isRevoking && <Spinner data-icon="inline-start" />}
                     Revoke
                   </Button>
                 </ItemActions>

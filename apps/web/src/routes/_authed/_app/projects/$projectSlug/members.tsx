@@ -1,4 +1,5 @@
 import { meQueryOptions, projectMembersQueryOptions } from "@better-update/api-client/react";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -74,7 +74,7 @@ const RemoveProjectMemberDialog = ({
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction variant="destructive" disabled={isRemoving} onClick={onConfirm}>
-          {isRemoving && <Spinner data-icon="inline-start" />}
+          {isRemoving && <Loader size="sm" data-icon="inline-start" />}
           Remove
         </AlertDialogAction>
       </AlertDialogFooter>

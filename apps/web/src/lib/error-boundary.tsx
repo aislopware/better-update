@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { useRouterState } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
@@ -31,7 +31,7 @@ const ErrorScreen = ({
       <h2 className="text-xl font-semibold">Something went wrong</h2>
       <p className="text-muted-foreground text-sm">{message}</p>
     </div>
-    <Button onClick={onAction} variant="outline">
+    <Button onClick={onAction} variant="secondary">
       {actionLabel}
     </Button>
   </div>

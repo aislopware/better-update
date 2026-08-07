@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -18,7 +18,7 @@ const renderDialog = (
       successMessage="Project archived"
       onSuccess={onSuccess}
     >
-      <Button>Archive project</Button>
+      <Button variant="primary">Archive project</Button>
     </ConfirmActionDialog>,
   );
 

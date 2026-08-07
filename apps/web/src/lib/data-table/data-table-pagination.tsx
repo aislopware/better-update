@@ -1,4 +1,5 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { cn } from "@better-update/ui/lib/utils";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -28,9 +29,10 @@ const PageButton = ({
   children: React.ReactNode;
 }) => (
   <Button
-    variant="outline"
-    size="icon-xs"
-    className={hiddenOnMobile ? "hidden lg:inline-flex" : undefined}
+    variant="secondary"
+    shape="square"
+    size="sm"
+    className={cn(hiddenOnMobile && "hidden lg:inline-flex")}
     disabled={disabled}
     onClick={onClick}
     aria-label={label}

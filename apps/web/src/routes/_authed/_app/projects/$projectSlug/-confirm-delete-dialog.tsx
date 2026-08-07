@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -11,7 +11,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useState } from "react";
 
@@ -113,13 +112,13 @@ export const ConfirmDeleteDialog = ({
           />
         </Field>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
             disabled={confirmText !== name || deleteMutation.isPending}
             onClick={handleDelete}
+            loading={deleteMutation.isPending}
           >
-            {deleteMutation.isPending && <Spinner data-icon="inline-start" />}
             Delete permanently
           </Button>
         </DialogFooter>

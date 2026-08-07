@@ -1,3 +1,4 @@
+import { Loader } from "@better-update/ui/components/loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,11 +10,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useState } from "react";
 
-import type { Button } from "@better-update/ui/components/ui/button";
+import type { Button } from "@better-update/ui/components/button";
 import type { ComponentProps, ReactElement } from "react";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
@@ -46,7 +46,7 @@ export const ConfirmActionDialog = ({
   title,
   description,
   confirmLabel,
-  confirmVariant = "default",
+  confirmVariant = "primary",
   onConfirm,
   successMessage,
   onSuccess,
@@ -80,7 +80,7 @@ export const ConfirmActionDialog = ({
               mutation.mutate();
             }}
           >
-            {mutation.isPending && <Spinner data-icon="inline-start" />}
+            {mutation.isPending && <Loader size="sm" data-icon="inline-start" />}
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

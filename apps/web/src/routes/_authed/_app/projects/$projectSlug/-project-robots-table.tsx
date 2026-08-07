@@ -1,12 +1,12 @@
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -42,14 +42,14 @@ const RowActions = ({
       render={
         <Button
           variant="ghost"
-          size="icon"
+          shape="square"
           className="text-muted-foreground/70 hover:text-foreground"
           disabled={isPending}
           aria-label="Robot account actions"
         />
       }
     >
-      {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
+      {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem

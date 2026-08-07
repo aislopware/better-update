@@ -1,10 +1,10 @@
 import { iosBundleConfigurationsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { DetailHeader, DetailNotFound } from "../../../../../components/detail-header";
+import { RouterLinkButton } from "../../../../../lib/router-link-button";
 import { DISTRIBUTION_LABELS } from "./-ios-detail-shared";
 
 // `projectSlug` stays in the props type for the caller; the shell breadcrumb
@@ -74,7 +74,10 @@ export const IosNotFoundEmpty = ({
         <code className="text-foreground font-mono">{bundleIdentifier}</code> on this project.
       </>
     }
-    backLink={<Link to="/projects/$projectSlug/credentials" params={{ projectSlug }} />}
-    backLabel="Back to credentials"
+    backLink={
+      <RouterLinkButton to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
+        Back to credentials
+      </RouterLinkButton>
+    }
   />
 );

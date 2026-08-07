@@ -1,8 +1,7 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { DialogClose, DialogFooter } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 
 import type { LucideIcon } from "lucide-react";
@@ -69,11 +68,15 @@ export const BranchNameForm = ({
       </form.Field>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+            >
               {!isSubmitting && SubmitIcon ? (
                 <SubmitIcon strokeWidth={2} data-icon="inline-start" />
               ) : null}

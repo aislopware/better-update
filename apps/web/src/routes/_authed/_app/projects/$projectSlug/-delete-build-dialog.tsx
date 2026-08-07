@@ -1,5 +1,5 @@
 import { deleteBuild } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2Icon } from "lucide-react";
 
@@ -32,7 +32,7 @@ export const DeleteBuildDialog = ({
     >
       <Button
         variant="ghost"
-        size="icon"
+        shape="square"
         className="text-muted-foreground/70 hover:text-destructive size-8"
         aria-label="Delete build"
       >

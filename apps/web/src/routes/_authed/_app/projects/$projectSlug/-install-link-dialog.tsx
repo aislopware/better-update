@@ -1,6 +1,8 @@
 import { getApiError } from "@better-update/api-client";
 import { fetchInstallLink } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Alert,
   AlertAction,
@@ -8,7 +10,6 @@ import {
   AlertTitle,
 } from "@better-update/ui/components/ui/alert";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { cn } from "@better-update/ui/lib/utils";
 import { differenceInMinutes } from "date-fns";
 import { CircleAlertIcon, SmartphoneIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -72,7 +73,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
     <>
       {status === "idle" || status === "pending" ? (
         <div className="flex items-center justify-center gap-2 py-6">
-          <Spinner />
+          <Loader size="sm" />
           <span className="text-muted-foreground text-sm">Generating install link...</span>
         </div>
       ) : null}
@@ -85,7 +86,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
           <AlertAction>
             <Button
               size="xs"
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 fetchInstallLinkMutation.mutate();
               }}
@@ -115,7 +116,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
             <InputGroup>
               <InputGroupInput readOnly value={primaryUrl} className="font-mono text-xs" />
               <InputGroupAddon align="inline-end">
-                <CopyButton value={primaryUrl} label="Install link" size="icon-xs" />
+                <CopyButton value={primaryUrl} label="Install link" size="xs" />
               </InputGroupAddon>
             </InputGroup>
 
@@ -123,7 +124,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
               <InputGroup>
                 <InputGroupInput readOnly value={data.artifactUrl} className="font-mono text-xs" />
                 <InputGroupAddon align="inline-end">
-                  <CopyButton value={data.artifactUrl} label="Artifact URL" size="icon-xs" />
+                  <CopyButton value={data.artifactUrl} label="Artifact URL" size="xs" />
                 </InputGroupAddon>
               </InputGroup>
             ) : null}
@@ -147,24 +148,32 @@ export const InstallLinkDialog = ({
   buttonSize?: ComponentProps<typeof Button>["size"];
   buttonClassName?: string;
 }) => {
-  const effectiveButtonSize = buttonSize ?? (buttonLabel ? undefined : "icon");
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
+  // Kumo discriminates its Button props on `shape`, so the icon-only form has
+  // to be its own element rather than a computed shape.
+  const triggerProps = {
+    variant: buttonVariant,
+    size: buttonSize ?? "base",
+    className: cn(buttonClassName),
+    icon: <SmartphoneIcon strokeWidth={2} className="size-4" />,
+    onClick: () => {
+      setOpen(true);
+    },
+  } as const;
+
   return (
     <>
-      <Button
-        variant={buttonVariant}
-        size={effectiveButtonSize}
-        className={buttonClassName}
-        title={buttonLabel ?? "Install link"}
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <SmartphoneIcon strokeWidth={2} data-icon={buttonLabel ? "inline-start" : undefined} />
-        {buttonLabel ? <span>{buttonLabel}</span> : null}
-      </Button>
+      {buttonLabel ? (
+        // eslint-disable-next-line react/jsx-props-no-spreading -- shared trigger props, spelled out above
+        <Button {...triggerProps} title={buttonLabel}>
+          {buttonLabel}
+        </Button>
+      ) : (
+        // eslint-disable-next-line react/jsx-props-no-spreading -- shared trigger props, spelled out above
+        <Button {...triggerProps} shape="square" title="Install link" />
+      )}
       <Dialog
         open={open}
         onOpenChange={setOpen}

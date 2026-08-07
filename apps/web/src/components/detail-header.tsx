@@ -1,4 +1,3 @@
-import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -10,7 +9,7 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import { cn } from "@better-update/ui/lib/utils";
 
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface DetailHeaderProps {
   /** Entity name — single line, truncates with a hover tooltip when a string. */
@@ -57,19 +56,12 @@ interface DetailNotFoundProps {
   readonly icon: ReactNode;
   readonly title: ReactNode;
   readonly description: ReactNode;
-  /** Back-navigation Link element passed to the Button `render` prop. */
-  readonly backLink?: NonNullable<ComponentProps<typeof Button>["render"]>;
-  readonly backLabel?: ReactNode;
+  /** Back-navigation action — pass a `RouterLinkButton` carrying its own label. */
+  readonly backLink?: ReactNode;
 }
 
 /** Shared not-found state for entity detail pages: icon Empty inside a Card. */
-export const DetailNotFound = ({
-  icon,
-  title,
-  description,
-  backLink,
-  backLabel,
-}: DetailNotFoundProps) => (
+export const DetailNotFound = ({ icon, title, description, backLink }: DetailNotFoundProps) => (
   <Card>
     <Empty>
       <EmptyHeader>
@@ -77,13 +69,7 @@ export const DetailNotFound = ({
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
-      {backLink ? (
-        <EmptyContent>
-          <Button variant="outline" render={backLink}>
-            {backLabel}
-          </Button>
-        </EmptyContent>
-      ) : null}
+      {backLink ? <EmptyContent>{backLink}</EmptyContent> : null}
     </Empty>
   </Card>
 );

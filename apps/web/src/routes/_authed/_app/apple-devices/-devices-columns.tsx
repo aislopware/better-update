@@ -1,6 +1,6 @@
 import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +58,7 @@ const AppleSyncCell = ({ portalId }: { portalId: string | null }) =>
 const actionsTrigger = (
   <Button
     variant="ghost"
-    size="icon"
+    shape="square"
     className="text-muted-foreground/70 hover:text-foreground"
     aria-label="Device actions"
   >

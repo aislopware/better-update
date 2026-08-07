@@ -1,11 +1,10 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 import { ClockIcon } from "lucide-react";
@@ -44,14 +43,13 @@ const PendingApproval = () => {
               </CardDescription>
             </div>
             <Button
-              variant="outline"
+              variant="secondary"
               className="mt-2"
-              disabled={logoutMutation.isPending}
               onClick={() => {
                 logoutMutation.mutate();
               }}
+              loading={logoutMutation.isPending}
             >
-              {logoutMutation.isPending && <Spinner data-icon="inline-start" />}
               Sign out
             </Button>
           </CardContent>

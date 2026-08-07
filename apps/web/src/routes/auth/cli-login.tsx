@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Card,
   CardContent,
@@ -62,7 +62,7 @@ const CliLoginPage = () => {
             </div>
             <RetryInstructions />
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 globalThis.location.assign("/");
               }}

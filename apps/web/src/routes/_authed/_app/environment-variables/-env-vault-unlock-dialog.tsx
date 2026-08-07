@@ -1,4 +1,5 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Link } from "@better-update/ui/components/link";
 import {
   Dialog,
   DialogClose,
@@ -11,11 +12,9 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { FingerprintIcon, LockKeyholeOpenIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -50,21 +49,19 @@ const PasskeyPrompt = ({
   if (hasPasskey) {
     return (
       <p className="text-muted-foreground text-sm">
-        Manage your passkeys in{" "}
-        <Button variant="link" size="sm" render={<Link to="/account/passkeys" />}>
-          account settings
-        </Button>
-        .
+        Manage your passkeys in <Link href="/account/passkeys">account settings</Link>.
       </p>
     );
   }
   return (
     <p className="text-muted-foreground text-sm">
       No passkey yet?{" "}
-      <Button variant="link" size="sm" type="button" disabled={enrolling} onClick={onAdd}>
-        {enrolling ? <Spinner data-icon="inline-start" /> : null}
+      <Link
+        // eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Link supplies this button's label as its children
+        render={<button type="button" disabled={enrolling} onClick={onAdd} />}
+      >
         Add a passkey
-      </Button>
+      </Link>
     </p>
   );
 };
@@ -161,15 +158,16 @@ const UnlockForm = ({
         />
       </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || Boolean(isSubmitting)}
+              loading={Boolean(isSubmitting)}
+              icon={<FingerprintIcon strokeWidth={2} />}
+            >
               Verify &amp; unlock
             </Button>
           )}
@@ -206,7 +204,7 @@ export const EnvVaultUnlockDialog = ({
         }
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="secondary" />}>
         <LockKeyholeOpenIcon strokeWidth={2} data-icon="inline-start" />
         Unlock env vault
       </DialogTrigger>

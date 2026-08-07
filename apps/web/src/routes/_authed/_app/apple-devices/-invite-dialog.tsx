@@ -2,7 +2,7 @@ import {
   createRegistrationRequest,
   registrationRequestsQueryKey,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -34,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkIcon } from "lucide-react";
@@ -164,7 +163,7 @@ const ShareInvite = ({
         <InputGroup>
           <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
           <InputGroupAddon align="inline-end">
-            <CopyButton value={invite.url} label="Invite link" size="icon-xs" />
+            <CopyButton value={invite.url} label="Invite link" size="xs" />
           </InputGroupAddon>
         </InputGroup>
         <FieldDescription>
@@ -173,7 +172,9 @@ const ShareInvite = ({
       </Field>
     </div>
     <DialogFooter>
-      <Button onClick={onClose}>Done</Button>
+      <Button variant="primary" onClick={onClose}>
+        Done
+      </Button>
     </DialogFooter>
   </>
 );
@@ -295,11 +296,15 @@ const CreateInviteForm = ({
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit || isSubmitting}
+              loading={isSubmitting}
+            >
               Generate link
             </Button>
           )}
@@ -325,7 +330,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="secondary" />}>
         <LinkIcon strokeWidth={2} data-icon="inline-start" />
         Invite link
       </DialogTrigger>

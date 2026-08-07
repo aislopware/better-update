@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useState } from "react";
 
 import type { RobotAccountRoleValue } from "@better-update/api-client/react";
@@ -90,14 +89,15 @@ const EditForm = ({
         </Field>
       </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <Button
+          variant="primary"
           disabled={trimmed.length === 0 || !hasChanges || isPending}
           onClick={() => {
             onSubmit(changes);
           }}
+          loading={isPending}
         >
-          {isPending && <Spinner data-icon="inline-start" />}
           Save changes
         </Button>
       </DialogFooter>

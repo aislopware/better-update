@@ -8,8 +8,8 @@ import {
   setMemberAllProjectsRole,
   updateProjectMemberRole,
 } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
 import { Badge, badgeVariants } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import {
   Dialog,
@@ -477,7 +477,7 @@ export const ManageProjectsDialog = ({
           </div>
         )}
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
+          <DialogClose render={<Button variant="secondary" />}>Close</DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

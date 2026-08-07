@@ -1,4 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +53,7 @@ export const EnvVarRowActions = ({
           render={
             <Button
               variant="ghost"
-              size="icon"
+              shape="square"
               className="text-muted-foreground/70 hover:text-foreground"
               aria-label={`Actions for ${envVar.key}`}
             />

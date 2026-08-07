@@ -3,10 +3,9 @@ import {
   removeUserAvatar,
   uploadUserAvatar,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -100,13 +99,17 @@ const AvatarSection = () => {
               onClick={() => {
                 removeMutation.mutate();
               }}
+              loading={removeMutation.isPending}
             >
-              {removeMutation.isPending && <Spinner data-icon="inline-start" />}
               Remove
             </Button>
           ) : null}
-          <Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
-            {uploadMutation.isPending && <Spinner data-icon="inline-start" />}
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            loading={uploadMutation.isPending}
+          >
             {user?.image ? "Replace avatar" : "Upload avatar"}
           </Button>
         </>
@@ -168,8 +171,12 @@ const ProfileForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || Boolean(isSubmitting)}>
-                {Boolean(isSubmitting) && <Spinner data-icon="inline-start" />}
+              <Button
+                variant="primary"
+                type="submit"
+                disabled={!canSubmit || Boolean(isSubmitting)}
+                loading={Boolean(isSubmitting)}
+              >
                 Save changes
               </Button>
             )}

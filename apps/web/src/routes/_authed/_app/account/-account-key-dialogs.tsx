@@ -1,6 +1,7 @@
 import { accountKeysQueryKey, registerAccountKey } from "@better-update/api-client/react";
 import { generateAccountKey, sealAccountKey } from "@better-update/credentials-crypto";
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   Dialog,
   DialogClose,
@@ -13,7 +14,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -149,13 +149,13 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
         </form.Field>
       </FieldGroup>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+            <Button variant="primary" type="submit" disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <Spinner data-icon="inline-start" /> Generating &amp; sealing…
+                  <Loader size="sm" data-icon="inline-start" /> Generating &amp; sealing…
                 </>
               ) : (
                 <>
@@ -194,7 +194,7 @@ export const EnrollAccountKeyDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="secondary" />}>
         <KeyRoundIcon strokeWidth={2} data-icon="inline-start" />
         Set up vault access
       </DialogTrigger>

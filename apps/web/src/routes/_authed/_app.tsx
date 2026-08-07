@@ -1,4 +1,5 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +26,6 @@ import {
   useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -261,7 +261,7 @@ const UserMenu = () => {
             closeOnClick={false}
           >
             {logoutMutation.isPending ? (
-              <Spinner className="size-4" />
+              <Loader size={16} />
             ) : (
               <LogOutIcon strokeWidth={2} className="size-4" />
             )}
@@ -341,7 +341,7 @@ const HeaderSidebarControls = () => {
 // pseudo-input with the shortcut hint from `sm` up.
 const HeaderSearchButton = ({ onClick }: { onClick: () => void }) => (
   <Button
-    variant="outline"
+    variant="secondary"
     aria-label="Search"
     onClick={onClick}
     className="text-muted-foreground size-8 justify-center p-0 font-normal shadow-none sm:w-48 sm:justify-start sm:px-2.5"

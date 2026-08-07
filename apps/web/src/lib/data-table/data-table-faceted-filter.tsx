@@ -1,5 +1,5 @@
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -108,7 +108,7 @@ export const DataTableFacetedFilter = ({
         }
       }}
     >
-      <PopoverTrigger render={<Button variant="outline" className="border-dashed" />}>
+      <PopoverTrigger render={<Button variant="secondary" className="border-dashed" />}>
         <CirclePlusIcon strokeWidth={2} />
         {title}
         {selected.length > 0 ? <SelectedSummary options={options} selected={selected} /> : null}

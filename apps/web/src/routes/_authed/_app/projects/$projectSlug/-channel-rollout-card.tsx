@@ -6,8 +6,8 @@ import {
   updateBranchRollout,
   updateChannel,
 } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/button";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,7 +23,6 @@ import {
   InputGroupText,
 } from "@better-update/ui/components/ui/input-group";
 import { Separator } from "@better-update/ui/components/ui/separator";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toast } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useForm } from "@tanstack/react-form";
@@ -144,11 +143,11 @@ const ActiveRolloutSection = ({
           </InputGroup>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             disabled={isUpdatingRollout || rolloutInput === currentPercentage}
             onClick={handleUpdateRollout}
+            loading={updateBranchRolloutMutation.isPending}
           >
-            {updateBranchRolloutMutation.isPending && <Spinner data-icon="inline-start" />}
             Apply
           </Button>
         </div>
@@ -158,32 +157,27 @@ const ActiveRolloutSection = ({
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            variant="primary"
             type="button"
             disabled={isUpdatingRollout}
             onClick={() => {
               completeBranchRolloutMutation.mutate();
             }}
+            loading={completeBranchRolloutMutation.isPending}
+            icon={<CircleCheckIcon strokeWidth={2} />}
           >
-            {completeBranchRolloutMutation.isPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <CircleCheckIcon strokeWidth={2} data-icon="inline-start" />
-            )}
             Complete rollout
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             disabled={isUpdatingRollout}
             onClick={() => {
               revertBranchRolloutMutation.mutate();
             }}
+            loading={revertBranchRolloutMutation.isPending}
+            icon={<Undo2Icon strokeWidth={2} />}
           >
-            {revertBranchRolloutMutation.isPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <Undo2Icon strokeWidth={2} data-icon="inline-start" />
-            )}
             Revert
           </Button>
         </div>
@@ -302,12 +296,13 @@ const StartRolloutForm = ({
           }
         >
           {([branchId, percentage, isSubmitting]) => (
-            <Button type="submit" disabled={!branchId || !percentage || isSubmitting}>
-              {isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RocketIcon strokeWidth={2} data-icon="inline-start" />
-              )}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!branchId || !percentage || isSubmitting}
+              loading={isSubmitting}
+              icon={<RocketIcon strokeWidth={2} />}
+            >
               Start rollout
             </Button>
           )}
@@ -362,7 +357,7 @@ const StartRolloutSection = (
             render={
               <span className="inline-flex w-fit">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   disabled={noTargetsReason !== undefined}
                   onClick={() => {
                     setIsStartingRollout(true);

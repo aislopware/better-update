@@ -1,8 +1,8 @@
-import { Link } from "@tanstack/react-router";
 import { screen } from "@testing-library/react";
 import { PackageXIcon } from "lucide-react";
 
 import { renderWithQuery } from "../../tests/helpers/render-with-query";
+import { RouterLinkButton } from "../lib/router-link-button";
 import { DetailHeader, DetailNotFound } from "./detail-header";
 
 describe(DetailHeader, () => {
@@ -44,8 +44,7 @@ describe(DetailNotFound, () => {
         icon={<PackageXIcon />}
         title="Build not found in this project"
         description="The requested build exists outside this project or was removed."
-        backLink={<Link to="/" />}
-        backLabel="Back to project"
+        backLink={<RouterLinkButton to="/">Back to project</RouterLinkButton>}
       />,
     );
 

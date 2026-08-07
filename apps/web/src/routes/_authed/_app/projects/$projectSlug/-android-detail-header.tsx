@@ -1,7 +1,6 @@
-import { Link } from "@tanstack/react-router";
-
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { DetailHeader, DetailNotFound } from "../../../../../components/detail-header";
+import { RouterLinkButton } from "../../../../../lib/router-link-button";
 
 // `projectSlug` stays in the props type for the caller; the shell breadcrumb
 // now covers the route, so the header itself no longer links back.
@@ -38,7 +37,10 @@ export const AndroidNotFoundEmpty = ({
         this project.
       </>
     }
-    backLink={<Link to="/projects/$projectSlug/credentials" params={{ projectSlug }} />}
-    backLabel="Back to credentials"
+    backLink={
+      <RouterLinkButton to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
+        Back to credentials
+      </RouterLinkButton>
+    }
   />
 );

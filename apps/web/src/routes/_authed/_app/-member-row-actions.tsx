@@ -1,4 +1,5 @@
-import { Button } from "@better-update/ui/components/ui/button";
+import { Button } from "@better-update/ui/components/button";
+import { Loader } from "@better-update/ui/components/loader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,24 +7,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { EllipsisVerticalIcon, UserMinusIcon } from "lucide-react";
 
 import type { Row } from "./-members-row";
 
-const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label?: string }) => (
+const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label: string }) => (
   <DropdownMenuTrigger
     render={
       <Button
         variant="ghost"
-        size="icon"
+        shape="square"
         className="text-muted-foreground/70 hover:text-foreground"
         disabled={isPending}
         aria-label={label}
       />
     }
   >
-    {isPending ? <Spinner /> : <EllipsisVerticalIcon strokeWidth={2} />}
+    {isPending ? <Loader size="sm" /> : <EllipsisVerticalIcon strokeWidth={2} />}
   </DropdownMenuTrigger>
 );
 

@@ -1,5 +1,4 @@
-import { Button } from "@better-update/ui/components/ui/button";
-import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { Button } from "@better-update/ui/components/button";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
@@ -150,12 +149,14 @@ interface GithubButtonProps {
 
 const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
   <Button
+    variant="primary"
     size="lg"
     className="relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
     disabled={isPending}
+    loading={isPending}
+    icon={<GithubIcon className="size-5" />}
   >
-    {isPending ? <Spinner className="size-5" /> : <GithubIcon className="size-5" />}
     Continue with GitHub
     <ArrowRightIcon
       strokeWidth={2}
@@ -172,12 +173,13 @@ interface GoogleButtonProps {
 const GoogleButton = ({ onClick, isPending }: GoogleButtonProps) => (
   <Button
     size="lg"
-    variant="outline"
+    variant="secondary"
     className="relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
     disabled={isPending}
+    loading={isPending}
+    icon={<GoogleIcon className="size-5" />}
   >
-    {isPending ? <Spinner className="size-5" /> : <GoogleIcon className="size-5" />}
     Continue with Google
     <ArrowRightIcon
       strokeWidth={2}
