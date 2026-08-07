@@ -9,6 +9,8 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { Switch } from "@better-update/ui/components/switch";
+import { toast } from "@better-update/ui/components/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +38,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
-import { Switch } from "@better-update/ui/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -45,7 +46,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";

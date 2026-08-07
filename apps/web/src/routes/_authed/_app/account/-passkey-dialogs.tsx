@@ -1,5 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +23,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";

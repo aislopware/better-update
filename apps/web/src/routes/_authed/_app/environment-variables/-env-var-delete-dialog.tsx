@@ -1,5 +1,6 @@
 import { deleteEnvVar } from "@better-update/api-client/react";
 import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +11,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { toast } from "@better-update/ui/components/ui/toast";
 
 import type { EnvVar } from "@better-update/api";
 

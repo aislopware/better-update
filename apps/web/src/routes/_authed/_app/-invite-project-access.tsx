@@ -1,5 +1,6 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { Switch } from "@better-update/ui/components/switch";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
@@ -9,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Switch } from "@better-update/ui/components/ui/switch";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";

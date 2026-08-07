@@ -2,6 +2,7 @@ import { accountKeysQueryKey, registerAccountKey } from "@better-update/api-clie
 import { generateAccountKey, sealAccountKey } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -14,7 +15,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon } from "lucide-react";

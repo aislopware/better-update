@@ -1,6 +1,7 @@
 import { createEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -31,7 +32,6 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";

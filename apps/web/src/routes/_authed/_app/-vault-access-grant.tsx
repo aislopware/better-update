@@ -9,6 +9,7 @@ import { wrapVaultKey } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Table,
   TableBody,
@@ -17,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { SectionHeader } from "../../../components/page-header";

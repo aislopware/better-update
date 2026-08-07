@@ -1,5 +1,7 @@
 import { branchesQueryKey, renameBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -8,8 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { toast } from "@better-update/ui/components/ui/toast";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";
 import { useState } from "react";
@@ -52,17 +52,15 @@ export const RenameBranchDialog = ({
         }
       }}
     >
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <DialogTrigger
-              render={<Button variant="ghost" shape="square" aria-label="Rename branch" />}
-            />
-          }
-        >
-          <PencilIcon strokeWidth={2} />
-        </TooltipTrigger>
-        <TooltipContent>Rename branch</TooltipContent>
+      <Tooltip
+        content="Rename branch"
+        render={
+          <DialogTrigger
+            render={<Button variant="ghost" shape="square" aria-label="Rename branch" />}
+          />
+        }
+      >
+        <PencilIcon strokeWidth={2} />
       </Tooltip>
       <DialogContent>
         <DialogHeader>

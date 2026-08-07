@@ -1,5 +1,5 @@
 import { useMountEffect } from "@better-update/react-hooks";
-import { Toaster } from "@better-update/ui/components/ui/toast";
+import { Toaster } from "@better-update/ui/components/toast";
 import { LinkProvider } from "@cloudflare/kumo/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {

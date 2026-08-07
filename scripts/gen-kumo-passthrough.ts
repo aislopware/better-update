@@ -28,6 +28,7 @@ const COMPONENTS = [
   "combobox",
   "command-palette",
   "date-picker",
+  "date-range-picker",
   "dialog",
   "dropdown",
   "empty",
@@ -48,15 +49,17 @@ const COMPONENTS = [
   "select",
   "sensitive-input",
   "sidebar",
+  "surface",
   "switch",
   "table",
   "table-of-contents",
   "tabs",
   "text",
-  "toast",
   "toolbar",
   "tooltip",
 ];
+// `toast` is deliberately absent: `components/toast.tsx` is hand-written, since
+// Kumo ships no default manager and no `toast.success` / `toast.error` sugar.
 
 /** Base UI primitives Kumo re-exports without styling them. */
 const PRIMITIVES = ["scroll-area", "separator", "toggle", "toggle-group"];

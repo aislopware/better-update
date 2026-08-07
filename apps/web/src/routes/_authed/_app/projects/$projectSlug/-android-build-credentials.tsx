@@ -7,6 +7,7 @@ import {
   setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
+import { toast } from "@better-update/ui/components/toast";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -32,7 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon, KeyRoundIcon } from "lucide-react";
 import { useState } from "react";

@@ -1,5 +1,5 @@
 import { buttonVariants } from "@better-update/ui/components/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import { cn } from "@better-update/ui/lib/utils";
 import { DownloadIcon } from "lucide-react";
 
@@ -36,25 +36,23 @@ const BuildActions = ({
           build={build}
           buttonClassName="text-muted-foreground/70 hover:text-foreground"
         />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <a
-                aria-label="Download artifact"
-                className={cn(
-                  buttonVariants({ variant: "ghost", shape: "square" }),
-                  "text-muted-foreground/70 hover:text-foreground",
-                )}
-                href={`/api/builds/${build.id}/artifact`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
-              />
-            }
-          >
-            <DownloadIcon strokeWidth={2} />
-          </TooltipTrigger>
-          <TooltipContent>Download artifact</TooltipContent>
+        <Tooltip
+          content="Download artifact"
+          render={
+            <a
+              aria-label="Download artifact"
+              className={cn(
+                buttonVariants({ variant: "ghost", shape: "square" }),
+                "text-muted-foreground/70 hover:text-foreground",
+              )}
+              href={`/api/builds/${build.id}/artifact`}
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            />
+          }
+        >
+          <DownloadIcon strokeWidth={2} />
         </Tooltip>
       </>
     ) : null}

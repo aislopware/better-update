@@ -1,6 +1,7 @@
 import { channelsQueryOptions, pauseChannel, resumeChannel } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -9,7 +10,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";

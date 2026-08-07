@@ -10,7 +10,9 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Checkbox } from "@better-update/ui/components/ui/checkbox";
+import { Checkbox } from "@better-update/ui/components/checkbox";
+import { Switch } from "@better-update/ui/components/switch";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -40,8 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Switch } from "@better-update/ui/components/ui/switch";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
 import { useState } from "react";

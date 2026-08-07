@@ -12,7 +12,9 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import { Checkbox } from "@better-update/ui/components/ui/checkbox";
+import { Checkbox } from "@better-update/ui/components/checkbox";
+import { Switch } from "@better-update/ui/components/switch";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -35,8 +37,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@better-update/ui/components/ui/popover";
-import { Switch } from "@better-update/ui/components/ui/switch";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { cn } from "@better-update/ui/lib/utils";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";

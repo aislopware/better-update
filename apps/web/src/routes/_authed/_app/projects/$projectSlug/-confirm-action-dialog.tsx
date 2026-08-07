@@ -1,4 +1,5 @@
 import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +11,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@better-update/ui/components/ui/alert-dialog";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useState } from "react";
 
 import type { Button } from "@better-update/ui/components/button";

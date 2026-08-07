@@ -1,5 +1,6 @@
 import { republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";

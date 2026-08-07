@@ -1,4 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -11,7 +12,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useState } from "react";
 
 import type { ReactElement } from "react";

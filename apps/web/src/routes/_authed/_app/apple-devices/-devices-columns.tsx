@@ -1,6 +1,7 @@
 import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";

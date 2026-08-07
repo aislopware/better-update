@@ -1,5 +1,6 @@
 import { addProjectMember, projectMembersQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -19,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";

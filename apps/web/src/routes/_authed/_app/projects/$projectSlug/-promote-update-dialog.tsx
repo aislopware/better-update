@@ -1,5 +1,6 @@
 import { channelsQueryOptions, republishUpdate } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { RocketIcon } from "lucide-react";

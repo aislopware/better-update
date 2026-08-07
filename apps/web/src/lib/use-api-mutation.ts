@@ -1,5 +1,5 @@
 import { getApiError } from "@better-update/api-client";
-import { toast } from "@better-update/ui/components/ui/toast";
+import { toast } from "@better-update/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
 
 import type { MutationFunctionContext, UseMutationOptions } from "@tanstack/react-query";

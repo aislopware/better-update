@@ -8,6 +8,8 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Card,
   CardContent,
@@ -23,8 +25,6 @@ import {
   InputGroupText,
 } from "@better-update/ui/components/ui/input-group";
 import { Separator } from "@better-update/ui/components/ui/separator";
-import { toast } from "@better-update/ui/components/ui/toast";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, RocketIcon, Undo2Icon } from "lucide-react";
@@ -352,24 +352,20 @@ const StartRolloutSection = (
           }}
         />
       ) : (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span className="inline-flex w-fit">
-                <Button
-                  variant="secondary"
-                  disabled={noTargetsReason !== undefined}
-                  onClick={() => {
-                    setIsStartingRollout(true);
-                  }}
-                >
-                  <RocketIcon strokeWidth={2} data-icon="inline-start" />
-                  Start rollout
-                </Button>
-              </span>
-            }
-          />
-          <TooltipContent>{noTargetsReason ?? "Start a branch rollout"}</TooltipContent>
+        <Tooltip
+          content={noTargetsReason ?? "Start a branch rollout"}
+          render={<span className="inline-flex w-fit" />}
+        >
+          <Button
+            variant="secondary"
+            disabled={noTargetsReason !== undefined}
+            onClick={() => {
+              setIsStartingRollout(true);
+            }}
+          >
+            <RocketIcon strokeWidth={2} data-icon="inline-start" />
+            Start rollout
+          </Button>
         </Tooltip>
       )}
     </div>

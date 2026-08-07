@@ -1,5 +1,6 @@
 import { updateEnvVarDescription } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -17,7 +18,6 @@ import {
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 

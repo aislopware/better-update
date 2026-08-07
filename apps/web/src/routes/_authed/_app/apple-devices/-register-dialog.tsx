@@ -1,5 +1,6 @@
 import { devicesQueryKey, registerDevice } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -26,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";

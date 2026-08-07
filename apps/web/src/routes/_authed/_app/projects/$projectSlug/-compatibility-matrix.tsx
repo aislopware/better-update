@@ -1,4 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
+import { Tooltip } from "@better-update/ui/components/tooltip";
 import {
   Card,
   CardContent,
@@ -14,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { CircleCheckIcon } from "lucide-react";
 
 import type {
@@ -45,15 +45,11 @@ const MatrixCellGlyph = ({
   tooltip?: ReactNode;
   children: ReactNode;
 }) => (
-  <Tooltip>
-    <TooltipTrigger
-      render={
-        <span aria-label={label} className="flex h-6 w-fit items-center gap-1.5 text-xs">
-          {children}
-        </span>
-      }
-    />
-    <TooltipContent>{tooltip ?? label}</TooltipContent>
+  <Tooltip
+    content={tooltip ?? label}
+    render={<span aria-label={label} className="flex h-6 w-fit items-center gap-1.5 text-xs" />}
+  >
+    {children}
   </Tooltip>
 );
 

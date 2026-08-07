@@ -2,6 +2,7 @@ import { updateEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
 import { Loader } from "@better-update/ui/components/loader";
+import { toast } from "@better-update/ui/components/toast";
 import {
   Dialog,
   DialogClose,
@@ -13,7 +14,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toast } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
