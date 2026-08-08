@@ -1,19 +1,11 @@
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { inputVariants } from "@better-update/ui/components/input";
 import { Kbd } from "@better-update/ui/components/kbd";
-import { Loader } from "@better-update/ui/components/loader";
 import { Sidebar } from "@better-update/ui/components/sidebar";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
 import { cn } from "@better-update/ui/lib/utils";
-import {
-  CaretUpDownIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  SignOutIcon,
-  UserIcon,
-} from "@phosphor-icons/react";
+import { CaretUpDownIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
@@ -32,7 +24,6 @@ import { authClient, rejectOnAuthClientError } from "../../lib/auth-client";
 import { DocumentTitle } from "../../lib/document-title";
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { ErrorBoundary } from "../../lib/error-boundary";
-import { logout } from "../../lib/logout";
 import { useApiMutation } from "../../lib/use-api-mutation";
 import { sessionQueryOptions } from "../../queries/auth";
 import { orgKeyPrefix } from "../../queries/org";
@@ -40,6 +31,7 @@ import { CreateOrgDialog } from "./-create-org-dialog";
 import { HeaderBreadcrumbs } from "./-header-breadcrumbs";
 import { ProjectSwitcher } from "./-project-switcher";
 import { AccountNavSections, OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
+import { UserMenu } from "./-user-menu";
 import { CommandPalette } from "./_app/-command-palette";
 
 const useActiveProjectSlug = (): string | undefined =>
@@ -79,16 +71,6 @@ const renderOrgTrigger = (
     </div>
     <CaretUpDownIcon weight="bold" className="text-kumo-subtle size-3.5 shrink-0" />
   </button>
-);
-
-// Top-right, the way the Cloudflare dashboard carries the account menu: the
-// avatar is the constant, the name appears once there is room for it.
-const renderUserTrigger = (name: string | undefined, image: string | null | undefined) => (
-  <Button variant="ghost" aria-label="Account" className="h-8 gap-2 px-1.5">
-    <EntityAvatar name={name ?? "U"} image={image} size="sm" />
-    <span className="hidden max-w-32 truncate font-normal lg:inline">{name}</span>
-    <CaretUpDownIcon weight="bold" className="text-kumo-subtle size-3 shrink-0" />
-  </Button>
 );
 
 const OrgSwitcher = () => {
@@ -199,63 +181,6 @@ const OrgSwitcher = () => {
       </DropdownMenu>
       <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
     </>
-  );
-};
-
-const UserMenu = () => {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { session } = Route.useRouteContext();
-  const { user } = session;
-
-  const logoutMutation = useApiMutation({
-    mutationFn: async () => logout(queryClient),
-  });
-
-  return (
-    <DropdownMenu>
-      <DropdownMenu.Trigger render={renderUserTrigger(user.name, user.image)} />
-      <DropdownMenu.Content align="end" side="bottom" sideOffset={4} className="min-w-56">
-        <DropdownMenu.Group>
-          {/* Canonical nav-user label block: avatar + name + email. */}
-          <DropdownMenu.Label className="p-0 font-normal">
-            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-              <EntityAvatar name={user.name || "U"} image={user.image} className="size-8" />
-              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                <span className="text-kumo-strong truncate font-medium">{user.name}</span>
-                <span className="text-kumo-subtle truncate text-xs">{user.email}</span>
-              </div>
-            </div>
-          </DropdownMenu.Label>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item
-            onClick={async () => {
-              await router.navigate({ to: "/account/profile" });
-            }}
-            disabled={logoutMutation.isPending}
-          >
-            <UserIcon weight="bold" className="size-4" />
-            <span>Account</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item
-            variant="danger"
-            onClick={() => {
-              logoutMutation.mutate();
-            }}
-            disabled={logoutMutation.isPending}
-            closeOnClick={false}
-          >
-            {logoutMutation.isPending ? (
-              <Loader size={16} />
-            ) : (
-              <SignOutIcon weight="bold" className="size-4" />
-            )}
-            <span>{logoutMutation.isPending ? "Logging out…" : "Log out"}</span>
-          </DropdownMenu.Item>
-        </DropdownMenu.Group>
-      </DropdownMenu.Content>
-    </DropdownMenu>
   );
 };
 
@@ -391,7 +316,7 @@ const AppLayout = () => {
               </Suspense>
               <HeaderBreadcrumbs projectSlug={projectSlug} />
             </div>
-            <UserMenu />
+            <UserMenu user={user} />
           </header>
           {/* The measure is Kumo's own: past ~1400px a table stops being
               readable and starts being a stretch, so the page centres rather

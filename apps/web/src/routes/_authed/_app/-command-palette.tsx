@@ -2,7 +2,6 @@ import { projectsQueryOptions } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { CommandPalette as Palette } from "@better-update/ui/components/command-palette";
 import { Kbd } from "@better-update/ui/components/kbd";
-import { MonitorIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -12,10 +11,9 @@ import type { ReactNode } from "react";
 import { PROJECT_NAV, useOrgNavSections } from "../-sidebar-nav";
 import { fireAndForget } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
+import { THEME_CHOICES } from "../../../lib/theme-choices";
 import { useTheme } from "../../../lib/use-theme";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
-
-import type { Theme } from "../../../lib/use-theme";
 
 /**
  * Kumo's palette is data-driven — it takes the groups as a prop and iterates
@@ -47,12 +45,6 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
 
 const matches = (item: PaletteItem, query: string): boolean =>
   query === "" || item.haystack.includes(query);
-
-const THEME_ITEMS: { value: Theme; label: string; icon: typeof SunIcon }[] = [
-  { value: "light", label: "Light", icon: SunIcon },
-  { value: "dark", label: "Dark", icon: MoonIcon },
-  { value: "system", label: "System", icon: MonitorIcon },
-];
 
 // Palette entries mirror the sidebar exactly: org-level nav (capability-gated
 // via useOrgNavSections) outside a project, project subpages inside one.
@@ -135,7 +127,7 @@ const useThemeItems = (): PaletteItem[] => {
   const { updateTheme } = useTheme();
   return useMemo(
     () =>
-      THEME_ITEMS.map((item) => ({
+      THEME_CHOICES.map((item) => ({
         id: `theme:${item.value}`,
         label: `${item.label} theme`,
         haystack: `theme ${item.label.toLowerCase()}`,
