@@ -45,7 +45,7 @@ import { TablePanelSkeleton } from "../../../../components/skeletons";
 import { TablePanel } from "../../../../components/table-panel";
 import { ROW_ACTION_DISCLOSURE, useClientPagination } from "../../../../lib/data-table";
 import { getFieldError } from "../../../../lib/form-utils";
-import { formatShortDateTime } from "../../../../lib/format-date";
+import { RelativeTime } from "../../../../lib/relative-time";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
 const environmentNameSchema = z
@@ -373,7 +373,7 @@ const EnvironmentRow = ({
     </TableCell>
     <TableCell className="text-kumo-subtle">
       {/* Built-ins exist since the org was created; their seeded epoch timestamp is noise. */}
-      {environment.isBuiltin ? "—" : formatShortDateTime(environment.createdAt)}
+      {environment.isBuiltin ? "—" : <RelativeTime value={environment.createdAt} />}
     </TableCell>
     <TableCell>
       <ProtectionSwitch orgId={orgId} environment={environment} />
@@ -413,7 +413,7 @@ const EnvironmentsPanel = ({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Created at</TableHead>
+              <TableHead>Created</TableHead>
               <TableHead>Protected</TableHead>
               <TableHead className="w-px text-right">
                 <span className="sr-only">Actions</span>
