@@ -13,7 +13,6 @@ import { BracketsCurlyIcon, RobotIcon } from "@phosphor-icons/react";
 
 import { CopyButton } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
-import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
 import {
@@ -35,9 +34,18 @@ export interface AuditLogEntry {
   readonly metadata: string | null;
 }
 
-// Actor identity media (spec §5.9): humans get the shared EntityAvatar seeded
-// by email; robot actors get a RobotIcon medallion — the `robot:` name prefix
-// keeps the state readable as text, so the old "Robot" badge is redundant.
+/**
+ * Who did it.
+ *
+ * A person is just their address. There used to be an avatar in front of it,
+ * seeded by hashing that same address, which put fifty saturated discs down a
+ * column already carrying the only thing they encoded — the same trade the
+ * Members table made and lost.
+ *
+ * The robot medallion stays, because it is the exception: an unattended actor
+ * is worth marking, and the `robot:` prefix on the address then reads as a
+ * caption rather than the only clue.
+ */
 const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string }) => (
   <span className="flex items-center gap-2">
     {source === "robot" ? (
@@ -47,9 +55,7 @@ const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string 
       >
         <RobotIcon weight="bold" className="size-3.5" aria-hidden />
       </span>
-    ) : (
-      <EntityAvatar name={actorEmail} size="sm" />
-    )}
+    ) : null}
     <span className="truncate" title={actorEmail}>
       {actorEmail}
     </span>
