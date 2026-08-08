@@ -18,7 +18,7 @@ import type {
 } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { EmptyDash } from "../../-credential-cells";
+import { EmptyDash, TeamNameCell } from "../../-credential-cells";
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
@@ -110,18 +110,7 @@ const IosTeamCell = ({
   if (rest.length > 0) {
     return <span className="text-kumo-subtle">{teamIds.length} teams</span>;
   }
-  const team = teams.find((item) => item.id === first);
-  if (!team) {
-    return <EmptyDash />;
-  }
-  // The team's name only: the stacked cell the detail page uses spends a third
-  // of this table's width on a raw team id, and the column it starves is the
-  // bundle identifier the row is named by.
-  return (
-    <span className="truncate" title={team.appleTeamId}>
-      {team.name ?? team.appleTeamId}
-    </span>
-  );
+  return <TeamNameCell team={teams.find((item) => item.id === first)} />;
 };
 
 const iosColumns = (teams: readonly AppleTeamItem[]): readonly ColumnDef<IosBundleGroup>[] => [

@@ -10,7 +10,7 @@ import { useState } from "react";
 import type { AppleTeamItem, DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { TeamCell } from "../-credential-cells";
+import { TeamNameCell } from "../-credential-cells";
 import { StatusDot } from "../../../../components/status-dot";
 import { CopyButton } from "../../../../lib/copy-button";
 import { RelativeTime } from "../../../../lib/relative-time";
@@ -29,21 +29,26 @@ const CLASS_LABEL: Record<DeviceClassValue, string> = {
 // hardware model and the class it belongs to said the same thing three times
 // across the row, and only the model is specific enough to be worth the width.
 // Class survives as a filter chip, and as the fallback when the model is unknown.
-const NameCell = ({ device }: { device: DeviceItem }) => (
-  <div className="flex min-w-0 flex-col gap-0.5">
-    <div className="flex items-center gap-2">
-      {device.enabled ? null : (
-        <Badge variant="outline" className="text-kumo-subtle">
-          Disabled
-        </Badge>
-      )}
-      <span className="truncate font-medium">{device.name}</span>
+const NameCell = ({ device }: { device: DeviceItem }) => {
+  const detail = device.model ?? CLASS_LABEL[device.deviceClass];
+  // Devices are usually named after themselves — "Diego's iPad Pro 13-inch (M4)"
+  // over "iPad Pro 13-inch (M4)" printed the model twice, and the second copy
+  // was the reason the first one truncated.
+  const namesItself = device.name.toLowerCase().includes(detail.toLowerCase());
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex items-center gap-2">
+        {device.enabled ? null : (
+          <Badge variant="outline" className="text-kumo-subtle">
+            Disabled
+          </Badge>
+        )}
+        <span className="truncate font-medium">{device.name}</span>
+      </div>
+      {namesItself ? null : <span className="text-kumo-subtle truncate text-xs">{detail}</span>}
     </div>
-    <span className="text-kumo-subtle truncate text-xs">
-      {device.model ?? CLASS_LABEL[device.deviceClass]}
-    </span>
-  </div>
-);
+  );
+};
 
 const IdentifierCell = ({ identifier }: { identifier: string }) => (
   <div className="flex items-center gap-1.5">
@@ -161,11 +166,15 @@ export const buildDeviceColumns = (
     enableSorting: false,
   },
   {
+    // The team's name, not the stacked cell the credentials tables use: a
+    // device belongs to a team the way a file belongs to a folder, and spelling
+    // out the type and the raw id on every row cost the Name column the width
+    // it was truncating for.
     id: "team",
     header: "Team",
     cell: ({ row }) => {
       const teamId = row.original.appleTeamId;
-      return <TeamCell team={teamId === null ? null : teamsById.get(teamId)} />;
+      return <TeamNameCell team={teamId === null ? null : teamsById.get(teamId)} />;
     },
     enableSorting: false,
   },

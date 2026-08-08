@@ -59,6 +59,19 @@ export const TeamCell = ({ team }: { team: AppleTeamItem | null | undefined }) =
   );
 };
 
+// The team's name on its own, for a table where the team is context rather than
+// the subject — a device list, a bundle-identifier list. The stacked cell spends
+// a third of the row's width on a raw team id, and the column it starves is the
+// one the row is named by; the id stays a hover away.
+export const TeamNameCell = ({ team }: { team: AppleTeamItem | null | undefined }) =>
+  team ? (
+    <span className="truncate" title={team.appleTeamId}>
+      {team.name ?? team.appleTeamId}
+    </span>
+  ) : (
+    <EmptyDash />
+  );
+
 // The date first, and a badge only when the date is a problem: a column of
 // green "Active" pills tells a reader nothing they came for, while a single
 // amber one is the whole reason this table is worth looking at. It also folds
