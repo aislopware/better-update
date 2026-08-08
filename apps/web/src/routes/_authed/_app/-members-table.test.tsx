@@ -347,10 +347,11 @@ describe(MembersTableView, () => {
     expect(screen.getByText("All projects")).toBeInTheDocument();
   });
 
-  it("canManageProjects renders a Manage-projects trigger for plain member rows only", () => {
+  it("canManageProjects offers Manage projects in a plain member's row menu", async () => {
+    const user = userEvent.setup();
     renderWithQuery(
       <MembersTableView
-        members={allMembers}
+        members={[ownerMember, regularMember, adminMember]}
         invitations={[]}
         sorting={noopSorting}
         onSortingChange={noopOnSortingChange}
@@ -363,8 +364,20 @@ describe(MembersTableView, () => {
       />,
     );
 
-    // Two role-"member" rows get the dialog trigger; the owner row is implicit.
-    expect(screen.getAllByRole("button", { name: "Manage projects" })).toHaveLength(2);
+    // Owner rows have no menu at all, so only the member and the admin do; of
+    // those, the admin is an implicit maintainer with no memberships to edit.
+    const [memberMenu, adminMenu] = screen.getAllByRole("button", { name: /member actions/i });
+    await user.click(memberMenu!);
+    await expect(
+      screen.findByRole("menuitem", { name: /manage projects/i }),
+    ).resolves.toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await user.click(adminMenu!);
+    await expect(
+      screen.findByRole("menuitem", { name: /remove member/i }),
+    ).resolves.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /manage projects/i })).not.toBeInTheDocument();
   });
 
   it("cancel invitation menu item calls onCancelInvitation with invitation id", async () => {

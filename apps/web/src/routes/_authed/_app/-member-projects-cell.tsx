@@ -348,23 +348,18 @@ const MembershipChecklist = ({
   );
 };
 
-// Chips + (for org admins) a trigger for the page-level manage dialog.
-// Owner/admin rows are implicit maintainers on every project — a static
-// badge, nothing to manage.
+// Which projects the member is in, and nothing else: editing them is a row
+// action and lives in the row's menu, where every other per-row verb lives. A
+// "Manage projects" button repeated down the column read as data, doubled the
+// height of every row, and shouted over the chips it was standing under.
+// Owner/admin rows are implicit maintainers on every project — a static badge,
+// nothing to manage.
 export const MemberProjectsCell = ({
-  principalId,
-  memberName,
   orgRole,
   summary,
-  canManage,
-  onManage,
 }: {
-  principalId: string;
-  memberName: string;
   orgRole: string;
   summary: MemberProjectMembershipsItem | undefined;
-  canManage: boolean;
-  onManage: (target: ManageProjectsTarget) => void;
 }) => {
   if (orgRole === "owner" || orgRole === "admin") {
     return (
@@ -375,23 +370,7 @@ export const MemberProjectsCell = ({
     );
   }
 
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <MemberProjectChips summary={summary} />
-      {canManage ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-kumo-subtle h-6 px-1.5 text-xs"
-          onClick={() => {
-            onManage({ id: principalId, name: memberName });
-          }}
-        >
-          Manage projects
-        </Button>
-      ) : null}
-    </div>
-  );
+  return <MemberProjectChips summary={summary} />;
 };
 
 // One dialog instance at page level (like RemoveDialog): a cell-hosted dialog

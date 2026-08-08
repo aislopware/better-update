@@ -53,14 +53,12 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
     );
   }
   // One avatar implementation everywhere: invited rows use EntityAvatar too,
-  // seeded by email; the "Invited" caption + Pending status carry the state.
+  // seeded by email. An invitation has no name to put under its address, and
+  // captioning it "Invited" only said what the Status column says in colour.
   return (
     <div className="flex items-center gap-3">
       <EntityAvatar name={row.email} className="size-9" />
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm leading-none font-medium">{row.email}</span>
-        <span className="text-kumo-subtle truncate text-xs">Invited</span>
-      </div>
+      <span className="truncate text-sm font-medium">{row.email}</span>
     </div>
   );
 };
@@ -85,12 +83,14 @@ const JoinedCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
     return <RelativeTime value={row.joinedAt} />;
   }
+  // An invitation has no join date; what it has is a clock running out, which is
+  // the one thing about it anybody acts on.
   return (
     <div className="flex flex-col items-end gap-0.5">
       <span>
         Invited <RelativeTime value={row.invitedAt} />
       </span>
-      <span className="text-kumo-subtle/72 text-xs italic">
+      <span className="text-kumo-subtle text-xs">
         Expires {formatRelativeFuture(row.expiresAt)}
       </span>
     </div>
@@ -202,19 +202,15 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
     id: "projects",
     header: "Projects",
     cell: ({ row }) => {
-      const { membershipsByPrincipal, canManageProjects, onManageProjects } = params;
+      const { membershipsByPrincipal } = params;
       // Invitations hold no memberships yet (they materialize on accept).
       if (row.original.kind !== "member") {
         return <span className="text-kumo-subtle text-xs">—</span>;
       }
       return (
         <MemberProjectsCell
-          principalId={row.original.id}
-          memberName={row.original.name}
           orgRole={row.original.role}
           summary={membershipsByPrincipal.get(row.original.id)}
-          canManage={canManageProjects}
-          onManage={onManageProjects}
         />
       );
     },
@@ -242,10 +238,12 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
       const {
         currentUserId,
         canRemoveMembers,
+        canManageProjects,
         pendingMemberId,
         pendingInvitationId,
         onRemove: handleRemove,
         onCancelInvitation: handleCancelInvitation,
+        onManageProjects: handleManageProjects,
       } = params;
       const isPending =
         row.original.kind === "member"
@@ -256,9 +254,11 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
           row={row.original}
           currentUserId={currentUserId}
           canRemoveMembers={canRemoveMembers}
+          canManageProjects={canManageProjects}
           isPending={isPending}
           onRemove={handleRemove}
           onCancelInvitation={handleCancelInvitation}
+          onManageProjects={handleManageProjects}
         />
       );
     },
