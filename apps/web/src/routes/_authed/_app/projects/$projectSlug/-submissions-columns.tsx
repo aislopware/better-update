@@ -1,0 +1,125 @@
+import { Badge } from "@better-update/ui/components/badge";
+
+import type { SubmissionItem } from "@better-update/api-client/react";
+import type { ColumnDef } from "@tanstack/react-table";
+
+import { PlatformIndicator } from "../../../../../components/attribute-badges";
+import { RelativeTime } from "../../../../../lib/relative-time";
+
+const PERCENT = 100;
+
+/**
+ * Where the archive came from, said only when it is not the ordinary case: all
+ * but a handful of submissions start from a build this project already has, so
+ * a column of "Uploaded build" told a reader nothing they came for.
+ */
+const ARCHIVE_SOURCE_LABELS: Partial<Record<SubmissionItem["archiveSource"], string>> = {
+  path: "Local archive",
+  url: "Archive URL",
+};
+
+export interface SubmissionDestination {
+  /** The store-side surface the build landed on. */
+  readonly target: string;
+  /** Which slice of it — testing groups, or the track and its rollout. */
+  readonly detail: string | null;
+  /** Play only: the release was stopped part-way and is serving nobody new. */
+  readonly halted: boolean;
+}
+
+/**
+ * A submission is only interesting for where it went, and both platforms record
+ * that in their own config. The row used to carry the archive source instead,
+ * which is a fact about this side of the upload rather than the store's.
+ */
+export const readSubmissionDestination = (
+  submission: SubmissionItem,
+): SubmissionDestination | null => {
+  if (submission.iosConfig) {
+    const { groups } = submission.iosConfig;
+    return groups.length > 0
+      ? { target: "TestFlight", detail: groups.join(", "), halted: false }
+      : { target: "App Store Connect", detail: null, halted: false };
+  }
+  if (submission.androidConfig) {
+    const { track, rollout, releaseStatus } = submission.androidConfig;
+    return {
+      target: "Play Console",
+      detail: rollout === null ? track : `${track} · ${Math.round(rollout * PERCENT)}% rollout`,
+      halted: releaseStatus === "halted",
+    };
+  }
+  return null;
+};
+
+// The build number leads and the profile follows: a project submits from one or
+// two profiles, so a column of "production" tells nobody which row is which,
+// while the number it shipped does. Pending metadata rides along here rather
+// than in a column of its own — it is the exception on a handful of rows, and a
+// column whose every other cell reads "Complete" is a column of filler.
+//
+// No width cap of its own — the column is the primary one, so the cell is as
+// wide as the table has to spare and truncates against that.
+const SubmissionCell = ({ submission }: { submission: SubmissionItem }) => (
+  <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span className="truncate font-medium">
+        {submission.buildVersion === null
+          ? submission.profileName
+          : `Build ${submission.buildVersion}`}
+      </span>
+      {submission.metadataComplete ? null : <Badge variant="warning">Metadata pending</Badge>}
+    </div>
+    <span className="text-kumo-subtle truncate font-mono text-xs">
+      {submission.profileName}
+      {ARCHIVE_SOURCE_LABELS[submission.archiveSource]
+        ? ` · ${ARCHIVE_SOURCE_LABELS[submission.archiveSource]}`
+        : null}
+    </span>
+  </div>
+);
+
+const DestinationCell = ({ submission }: { submission: SubmissionItem }) => {
+  const destination = readSubmissionDestination(submission);
+  if (destination === null) {
+    return <span className="text-kumo-subtle">—</span>;
+  }
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="truncate">{destination.target}</span>
+      {destination.detail ? (
+        <span className="text-kumo-subtle truncate">· {destination.detail}</span>
+      ) : null}
+      {destination.halted ? <Badge variant="warning">Halted</Badge> : null}
+    </span>
+  );
+};
+
+export const submissionColumns: readonly ColumnDef<SubmissionItem>[] = [
+  {
+    id: "profile",
+    header: "Submission",
+    cell: ({ row }) => <SubmissionCell submission={row.original} />,
+    enableSorting: false,
+    meta: { primary: true },
+  },
+  {
+    id: "platform",
+    header: "Platform",
+    cell: ({ row }) => <PlatformIndicator platform={row.original.platform} />,
+    enableSorting: false,
+  },
+  {
+    id: "destination",
+    header: "Destination",
+    cell: ({ row }) => <DestinationCell submission={row.original} />,
+    enableSorting: false,
+  },
+  {
+    id: "createdAt",
+    header: "Created",
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
+    enableSorting: false,
+    meta: { align: "right", muted: true },
+  },
+];

@@ -8,13 +8,6 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { z } from "zod";
 
-import type { SubmissionItem } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
-
-import {
-  PlatformIndicator,
-  SubmissionMetadataBadge,
-} from "../../../../../components/attribute-badges";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { PageHeader } from "../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../components/query-error-state";
@@ -30,7 +23,7 @@ import {
   pageParam,
 } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
-import { RelativeTime } from "../../../../../lib/relative-time";
+import { submissionColumns } from "./-submissions-columns";
 
 const PLATFORMS = ["ios", "android"] as const;
 type PlatformFilter = (typeof PLATFORMS)[number];
@@ -47,66 +40,6 @@ const submissionsSearchSchema = z.object({
   page: pageParam(),
   platform: enumArrayParam(PLATFORMS),
 });
-
-// "build" reads as jargon in a cell — spell out where the archive came from.
-const ARCHIVE_SOURCE_LABELS: Record<string, string> = {
-  build: "Uploaded build",
-  url: "Archive URL",
-};
-
-const columns: readonly ColumnDef<SubmissionItem>[] = [
-  {
-    id: "profile",
-    header: "Submission",
-    // The build number leads and the profile follows: a project submits from
-    // one or two profiles, so a column of "production" tells nobody which row
-    // is which, while the number it shipped does.
-    //
-    // No width cap of its own — the column is the primary one, so the cell is
-    // as wide as the table has to spare and truncates against that.
-    cell: ({ row }) => (
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate font-medium">
-          {row.original.buildVersion === null
-            ? row.original.profileName
-            : `Build ${row.original.buildVersion}`}
-        </span>
-        <span className="text-kumo-subtle truncate font-mono text-xs">
-          {row.original.profileName}
-        </span>
-      </div>
-    ),
-    enableSorting: false,
-    meta: { primary: true },
-  },
-  {
-    id: "platform",
-    header: "Platform",
-    cell: ({ row }) => <PlatformIndicator platform={row.original.platform} />,
-    enableSorting: false,
-  },
-  {
-    id: "archiveSource",
-    header: "Source",
-    cell: ({ row }) =>
-      ARCHIVE_SOURCE_LABELS[row.original.archiveSource] ?? row.original.archiveSource,
-    enableSorting: false,
-    meta: { muted: true },
-  },
-  {
-    id: "metadata",
-    header: "Metadata",
-    cell: ({ row }) => <SubmissionMetadataBadge complete={row.original.metadataComplete} />,
-    enableSorting: false,
-  },
-  {
-    id: "createdAt",
-    header: "Created",
-    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
-    enableSorting: false,
-    meta: { align: "right", muted: true },
-  },
-];
 
 const SubmissionsEmpty = () => (
   <Empty
@@ -145,7 +78,7 @@ const SubmissionsPage = () => {
 
   const table = useReactTable({
     data: tableData,
-    columns: [...columns],
+    columns: [...submissionColumns],
     enableSorting: false,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -170,7 +103,7 @@ const SubmissionsPage = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={6} rows={4} />
+          <TableSkeleton columns={4} rows={4} />
         )}
       </div>
     );
@@ -213,7 +146,7 @@ const SubmissionsPage = () => {
       </DataTableToolbar>
       <DataTableView
         table={table}
-        columnsCount={columns.length}
+        columnsCount={submissionColumns.length}
         isPlaceholderData={isPlaceholderData}
         pagination={{
           page: safePage,
