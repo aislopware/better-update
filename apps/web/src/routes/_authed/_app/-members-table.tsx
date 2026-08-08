@@ -67,11 +67,14 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
 
 // Dot + label for both states, so the column reads as one vocabulary instead of
 // quiet text next to a colored word. The dot also keeps the labels on a shared
-// left edge, which a badge's own padding would have broken. A pending invite is
-// waiting on someone, so its dot pulses.
+// left edge, which a badge's own padding would have broken. Colour marks the
+// exception: an active member is the ordinary case and needs none, while a
+// pending invite is waiting on someone, so its dot is amber and pulses.
 const StatusCell = ({ status }: { status: MemberStatus }) =>
   status === "active" ? (
-    <StatusDot tone="success">Active</StatusDot>
+    <StatusDot tone="muted" className="text-kumo-subtle">
+      Active
+    </StatusDot>
   ) : (
     <StatusDot tone="warning" pulse>
       Pending
