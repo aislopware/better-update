@@ -11,7 +11,7 @@ import type { PlatformValue } from "@better-update/api-client/react";
 import { PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
-import { TablePanel } from "../../../../../../components/table-panel";
+import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -63,20 +63,6 @@ const RuntimeHeaderMeta = ({
       </span>
     ) : null}
   </>
-);
-
-/** Section title with its glyph, shared by the two panels on this page. */
-const RuntimeSectionTitle = ({
-  icon: Icon,
-  label,
-}: {
-  icon: typeof PackageIcon;
-  label: string;
-}) => (
-  <span className="flex items-center gap-2">
-    <Icon weight="bold" className="text-kumo-subtle size-4" />
-    {label}
-  </span>
 );
 
 const UpdateRow = ({
@@ -194,7 +180,7 @@ const RuntimeDetailContent = () => {
       />
 
       {buildsCount === 0 ? (
-        <TablePanel title={<RuntimeSectionTitle icon={PackageIcon} label="Builds" />}>
+        <TablePanel title={<PanelTitle icon={PackageIcon} label="Builds" />}>
           <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
             Build a binary against this runtime to see it here.
           </p>
@@ -203,7 +189,7 @@ const RuntimeDetailContent = () => {
         <DataTableView
           table={buildsTable}
           columnsCount={buildColumns.length}
-          title={<RuntimeSectionTitle icon={PackageIcon} label="Builds" />}
+          title={<PanelTitle icon={PackageIcon} label="Builds" />}
           isPlaceholderData={false}
           // A preview of the newest builds on this runtime rather than a page
           // of them, so the footer counts and does not paginate — the Builds
@@ -213,7 +199,7 @@ const RuntimeDetailContent = () => {
       )}
 
       <TablePanel
-        title={<RuntimeSectionTitle icon={CloudArrowUpIcon} label="Updates" />}
+        title={<PanelTitle icon={CloudArrowUpIcon} label="Updates" />}
         footer={
           updatesCount > RUNTIME_UPDATES_LIMIT ? (
             <Link

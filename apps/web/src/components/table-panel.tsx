@@ -1,3 +1,4 @@
+import type { Icon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import {
@@ -8,6 +9,18 @@ import {
 } from "../lib/data-table";
 
 import type { ClientPaginationState } from "../lib/data-table";
+
+/**
+ * Panel title carrying the glyph of the thing it lists — the mark a detail page
+ * uses to tell two stacked panels apart at a glance, where a list page can rely
+ * on its own header instead.
+ */
+export const PanelTitle = ({ icon: Glyph, label }: { icon: Icon; label: string }) => (
+  <span className="flex items-center gap-2">
+    <Glyph weight="bold" className="text-kumo-subtle size-4" />
+    {label}
+  </span>
+);
 
 interface TablePanelProps {
   readonly title: ReactNode;

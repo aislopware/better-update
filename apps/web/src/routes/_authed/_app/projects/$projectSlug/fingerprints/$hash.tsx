@@ -1,26 +1,24 @@
 import { fingerprintDetailQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
-import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/item";
-import { FingerprintIcon, PackageIcon } from "@phosphor-icons/react";
+import { CloudArrowUpIcon, PackageIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
 import type { BuildWithArtifact, Update } from "@better-update/api";
+import type { ReactNode } from "react";
 
-import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import {
+  DistributionIndicator,
+  PlatformIndicator,
+} from "../../../../../../components/attribute-badges";
 import { DetailHeader } from "../../../../../../components/detail-header";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
-import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
-import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
+import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
+import { CopyableId } from "../../../../../../lib/copy-button";
+import { useClientPagination } from "../../../../../../lib/data-table";
+import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 interface RouteParams {
@@ -31,49 +29,31 @@ interface RouteParams {
 type BuildItem = BuildWithArtifact;
 type UpdateItem = Update;
 
-const FingerprintEmpty = () => (
-  <Empty
-    icon={<PackageIcon className="text-kumo-inactive size-10" />}
-    title="No builds or updates yet"
-    description="Nothing in this project has been published with this fingerprint yet."
-  />
-);
+/** Row shell shared by the two panels: name on top, quiet facts under it, time trailing. */
+const ROW_CLASS =
+  "hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-4 py-3 last:border-0";
 
-const FingerprintHashCard = ({
-  hash,
-  buildCount,
-  updateCount,
+const RowBody = ({
+  name,
+  facts,
+  createdAt,
 }: {
-  hash: string;
-  buildCount: number;
-  updateCount: number;
+  name: string;
+  facts: ReactNode;
+  createdAt: string;
 }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <FingerprintIcon weight="bold" className="text-kumo-subtle size-5" />
-        Fingerprint
-      </CardTitle>
-      <CardDescription>
-        Native + JS surface hash. Builds and updates with this hash are runtime-compatible.
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-3">
-      <div className="flex items-start gap-2">
-        <pre className="bg-kumo-tint min-w-0 flex-1 overflow-x-auto rounded-md p-3 font-mono text-xs">
-          {hash}
-        </pre>
-        <CopyButton value={hash} label="Fingerprint" />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">{buildCount} builds</Badge>
-        <Badge variant="secondary">{updateCount} updates</Badge>
-      </div>
-    </CardContent>
-  </Card>
+  <>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="truncate text-sm font-medium">{name}</span>
+      <span className="text-kumo-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {facts}
+      </span>
+    </div>
+    <RelativeTime value={createdAt} className="text-kumo-subtle shrink-0 text-xs" />
+  </>
 );
 
-const FingerprintBuildsCard = ({
+const FingerprintBuildsPanel = ({
   projectSlug,
   builds,
 }: {
@@ -82,48 +62,42 @@ const FingerprintBuildsCard = ({
 }) => {
   const pagination = useClientPagination(builds, "build");
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Builds ({builds.length})</CardTitle>
-        <CardDescription>Binaries produced against this fingerprint.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {builds.length === 0 ? (
-          <p className="text-kumo-subtle text-sm">No builds carry this fingerprint.</p>
-        ) : (
-          <ItemGroup>
-            {pagination.pageItems.map((build) => (
-              <Item
-                key={build.id}
-                variant="outline"
-                size="sm"
-                render={
-                  <Link
-                    to="/projects/$projectSlug/builds/$buildId"
-                    params={{ projectSlug, buildId: build.id }}
-                  />
-                }
-              >
-                <ItemContent className="flex-row flex-wrap items-center gap-2">
-                  <PlatformBadge platform={build.platform} />
-                  <DistributionBadge distribution={build.distribution} />
-                  <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
-                  <span className="text-kumo-subtle text-sm">{build.profile}</span>
-                </ItemContent>
-                <ItemActions>
-                  <RelativeTime value={build.createdAt} className="text-kumo-subtle text-xs" />
-                </ItemActions>
-              </Item>
-            ))}
-          </ItemGroup>
-        )}
-        <ClientPaginationFooter state={pagination} />
-      </CardContent>
-    </Card>
+    <TablePanel
+      title={<PanelTitle icon={PackageIcon} label="Builds" />}
+      pagination={builds.length > 0 ? pagination : undefined}
+    >
+      {builds.length === 0 ? (
+        <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">No builds carry this fingerprint.</p>
+      ) : (
+        pagination.pageItems.map((build) => (
+          <Link
+            key={build.id}
+            to="/projects/$projectSlug/builds/$buildId"
+            params={{ projectSlug, buildId: build.id }}
+            className={ROW_CLASS}
+          >
+            <RowBody
+              name={build.message ?? build.profile}
+              createdAt={build.createdAt}
+              facts={
+                <>
+                  <PlatformIndicator platform={build.platform} className="gap-1" />
+                  <DistributionIndicator distribution={build.distribution} className="gap-1" />
+                  {build.runtimeVersion ? (
+                    <span className="font-mono">v{build.runtimeVersion}</span>
+                  ) : null}
+                  <span>{build.profile}</span>
+                </>
+              }
+            />
+          </Link>
+        ))
+      )}
+    </TablePanel>
   );
 };
 
-const FingerprintUpdatesCard = ({
+const FingerprintUpdatesPanel = ({
   projectSlug,
   updates,
 }: {
@@ -132,46 +106,35 @@ const FingerprintUpdatesCard = ({
 }) => {
   const pagination = useClientPagination(updates, "update");
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Updates ({updates.length})</CardTitle>
-        <CardDescription>OTA updates published against this fingerprint.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {updates.length === 0 ? (
-          <p className="text-kumo-subtle text-sm">No updates carry this fingerprint.</p>
-        ) : (
-          <ItemGroup>
-            {pagination.pageItems.map((update) => (
-              <Item
-                key={update.id}
-                variant="outline"
-                size="sm"
-                render={
-                  <Link
-                    to="/projects/$projectSlug/updates/$updateId"
-                    params={{ projectSlug, updateId: update.id }}
-                  />
-                }
-              >
-                <ItemContent className="flex-row flex-wrap items-center gap-2">
-                  <PlatformBadge platform={update.platform} />
-                  <span className="font-medium">v{update.runtimeVersion}</span>
-                  {update.isRollback && <Badge variant="error">Rollback</Badge>}
-                  <span className="text-kumo-subtle line-clamp-1 text-sm">
-                    {update.message || `Update ${update.groupId.slice(0, 8)}`}
-                  </span>
-                </ItemContent>
-                <ItemActions>
-                  <RelativeTime value={update.createdAt} className="text-kumo-subtle text-xs" />
-                </ItemActions>
-              </Item>
-            ))}
-          </ItemGroup>
-        )}
-        <ClientPaginationFooter state={pagination} />
-      </CardContent>
-    </Card>
+    <TablePanel
+      title={<PanelTitle icon={CloudArrowUpIcon} label="Updates" />}
+      pagination={updates.length > 0 ? pagination : undefined}
+    >
+      {updates.length === 0 ? (
+        <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">No updates carry this fingerprint.</p>
+      ) : (
+        pagination.pageItems.map((update) => (
+          <Link
+            key={update.id}
+            to="/projects/$projectSlug/updates/$updateId"
+            params={{ projectSlug, updateId: update.id }}
+            className={ROW_CLASS}
+          >
+            <RowBody
+              name={update.message || `Update ${update.groupId.slice(0, 8)}`}
+              createdAt={update.createdAt}
+              facts={
+                <>
+                  <PlatformIndicator platform={update.platform} className="gap-1" />
+                  <span className="font-mono">v{update.runtimeVersion}</span>
+                  {update.isRollback ? <Badge variant="error">Rollback</Badge> : null}
+                </>
+              }
+            />
+          </Link>
+        ))
+      )}
+    </TablePanel>
   );
 };
 
@@ -179,18 +142,44 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
   const { activeOrg, project } = Route.useRouteContext();
   const { data } = useSuspenseQuery(fingerprintDetailQueryOptions(activeOrg.id, project.id, hash));
 
+  const buildCount = data.builds.length;
+  const updateCount = data.updates.length;
+
   const header = (
     <DetailHeader
       title="Fingerprint"
-      meta={<CopyableId value={hash} label="Fingerprint" length={16} />}
+      meta={
+        <>
+          {/* The hash used to be printed twice — once here and once as a code
+              block in a card titled with the page's own title. This is the copy
+              of it that was already next to the name it belongs to. */}
+          <CopyableId value={hash} label="Fingerprint" length={16} />
+          {/* Nothing carries this hash yet is what the empty state below says;
+              saying it again as two zeroes is the same sentence in digits. */}
+          {buildCount > 0 || updateCount > 0 ? (
+            <>
+              <span>
+                {buildCount} {pluralize(buildCount, "build")}
+              </span>
+              <span>
+                {updateCount} {pluralize(updateCount, "update")}
+              </span>
+            </>
+          ) : null}
+        </>
+      }
     />
   );
 
-  if (data.builds.length === 0 && data.updates.length === 0) {
+  if (buildCount === 0 && updateCount === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
         {header}
-        <FingerprintEmpty />
+        <Empty
+          icon={<PackageIcon className="text-kumo-inactive size-10" />}
+          title="No builds or updates yet"
+          description="Nothing in this project has been published with this fingerprint yet."
+        />
       </div>
     );
   }
@@ -198,13 +187,8 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
   return (
     <div className="flex w-full flex-col gap-4">
       {header}
-      <FingerprintHashCard
-        hash={data.hash}
-        buildCount={data.builds.length}
-        updateCount={data.updates.length}
-      />
-      <FingerprintBuildsCard projectSlug={projectSlug} builds={data.builds} />
-      <FingerprintUpdatesCard projectSlug={projectSlug} updates={data.updates} />
+      <FingerprintBuildsPanel projectSlug={projectSlug} builds={data.builds} />
+      <FingerprintUpdatesPanel projectSlug={projectSlug} updates={data.updates} />
     </div>
   );
 };
@@ -212,7 +196,6 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
 const FingerprintSkeleton = () => (
   <div className="flex w-full flex-col gap-4">
     <DetailHeader title="Fingerprint" />
-    <DetailCardSkeleton rows={2} columns={1} />
     <DetailCardSkeleton rows={3} columns={1} />
     <DetailCardSkeleton rows={3} columns={1} />
   </div>
