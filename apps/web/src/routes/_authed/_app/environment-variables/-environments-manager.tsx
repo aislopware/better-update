@@ -41,8 +41,9 @@ import type { EnvironmentItem } from "@better-update/api-client/react";
 import type { ReactNode } from "react";
 
 import { ConfirmDialog } from "../../../../components/confirm-dialog";
+import { TablePanelSkeleton } from "../../../../components/skeletons";
 import { TablePanel } from "../../../../components/table-panel";
-import { useClientPagination } from "../../../../lib/data-table";
+import { ROW_ACTION_DISCLOSURE, useClientPagination } from "../../../../lib/data-table";
 import { getFieldError } from "../../../../lib/form-utils";
 import { formatShortDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
@@ -357,7 +358,9 @@ const EnvironmentRow = ({
   orgId: string;
   environment: EnvironmentItem;
 }) => (
-  <TableRow>
+  // Same disclosure every other list gives its row controls: at rest on a fine
+  // pointer they are invisible, and the row reveals them on hover or focus.
+  <TableRow className={ROW_ACTION_DISCLOSURE}>
     <TableCell>
       <div className="flex items-center gap-2 font-medium">
         {environment.name}
@@ -412,7 +415,9 @@ const EnvironmentsPanel = ({
               <TableHead>Name</TableHead>
               <TableHead>Created at</TableHead>
               <TableHead>Protected</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-px text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -429,7 +434,7 @@ const EnvironmentsPanel = ({
 };
 
 export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
-  const { data } = useQuery(environmentsQueryOptions(orgId));
+  const { data, isLoading } = useQuery(environmentsQueryOptions(orgId));
   const [query, setQuery] = useState("");
   const items = data?.items ?? [];
   const normalizedQuery = query.trim().toLowerCase();
@@ -459,6 +464,13 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
       <CreateEnvironmentDialog orgId={orgId} />
     </>
   );
+
+  // An org always has its three built-ins, so an empty table here means the
+  // answer has not arrived yet — and a frame with a header, no rows and a
+  // "1-0 of 0" footer reads as a list that came back empty.
+  if (isLoading || !data) {
+    return <TablePanelSkeleton columns={4} rows={3} />;
+  }
 
   return (
     <EnvironmentsPanel

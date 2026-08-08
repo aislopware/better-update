@@ -21,10 +21,17 @@ const SCOPE_LABELS: Record<string, string> = {
 // header even while the vault is locked (the cell renders empty).
 export const EnvVarRow = ({
   envVar,
+  showScope = true,
   hasActions = false,
   actions,
 }: {
   envVar: EnvVar;
+  /**
+   * Only a project's list mixes scopes. On the organization list every row is
+   * global by definition, and a column that says the same word all the way down
+   * is width spent on the page title.
+   */
+  showScope?: boolean;
   hasActions?: boolean;
   actions?: ReactNode;
 }) => (
@@ -50,12 +57,14 @@ export const EnvVarRow = ({
       </div>
     </TableCell>
     <TableCell className="text-sm">{formatEnvironmentLabel(envVar.environment)}</TableCell>
-    <TableCell>
-      <div className="flex flex-wrap items-center gap-1.5 text-sm">
-        {SCOPE_LABELS[envVar.scope] ?? envVar.scope}
-        {envVar.overridesGlobal ? <Badge variant="warning">overrides global</Badge> : null}
-      </div>
-    </TableCell>
+    {showScope ? (
+      <TableCell>
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          {SCOPE_LABELS[envVar.scope] ?? envVar.scope}
+          {envVar.overridesGlobal ? <Badge variant="warning">overrides global</Badge> : null}
+        </div>
+      </TableCell>
+    ) : null}
     <TableCell>
       {/* Sensitive is the exception worth color; plaintext is the quiet default.
           Both stay plain text so the column keeps one left edge. */}

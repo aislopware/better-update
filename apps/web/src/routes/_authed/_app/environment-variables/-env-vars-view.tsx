@@ -20,6 +20,7 @@ import type { EnvVar } from "@better-update/api";
 import type { EnvVarsFilters } from "@better-update/api-client/react";
 
 import { CliCommandBlock } from "../../../../components/cli-command-block";
+import { SectionHeader } from "../../../../components/page-header";
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
@@ -71,6 +72,15 @@ export const envVarsSearchSchema = z.object({
 export type EnvVarsSearch = z.infer<typeof envVarsSearchSchema>;
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+const ENCRYPTION_NOTE = (
+  <>
+    Values are end-to-end encrypted and managed from the CLI —{" "}
+    <InlineCode>better-update env set</InlineCode> / <InlineCode>env pull</InlineCode>. You can
+    still edit each variable&rsquo;s label and description here (non-secret documentation) from the
+    row menu.
+  </>
+);
 
 const isScopeFilter = (value: string): value is ScopeFilter =>
   (SCOPE_VALUES as readonly string[]).includes(value);
@@ -228,11 +238,13 @@ const Toolbar = ({
 const EnvVarsTable = ({
   items,
   orgId,
+  showScope,
   vault,
   invalidate,
 }: {
   items: readonly EnvVar[];
   orgId: string;
+  showScope: boolean;
   vault: EnvVaultController;
   invalidate: () => Promise<void>;
 }) => {
@@ -247,7 +259,7 @@ const EnvVarsTable = ({
           <TableRow>
             <TableHead className={PRIMARY_COLUMN_CLASS}>Key</TableHead>
             <TableHead>Environment</TableHead>
-            <TableHead>Scope</TableHead>
+            {showScope ? <TableHead>Scope</TableHead> : null}
             <TableHead>Visibility</TableHead>
             <TableHead className="text-right">Revisions</TableHead>
             <TableHead>Updated</TableHead>
@@ -261,6 +273,7 @@ const EnvVarsTable = ({
             <EnvVarRow
               key={envVar.id}
               envVar={envVar}
+              showScope={showScope}
               hasActions
               actions={
                 // Editing the label/description needs no vault, so the row menu is
@@ -293,6 +306,8 @@ export const EnvVarsView = ({
   onChangeSearch: (next: EnvVarsSearch) => void;
 }) => {
   const { query, scope, environments } = search;
+  // Only a project's list mixes project rows with inherited globals.
+  const showScope = mode.kind === "project";
 
   const vault = useEnvVault(mode.orgId);
   const queryClient = useQueryClient();
@@ -350,7 +365,7 @@ export const EnvVarsView = ({
       return (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton columns={7} rows={4} hasFooter={false} />
+          <TableSkeleton columns={showScope ? 7 : 6} rows={4} hasFooter={false} />
         </div>
       );
     }
@@ -361,6 +376,7 @@ export const EnvVarsView = ({
         key={JSON.stringify(filters)}
         items={data.items}
         orgId={mode.orgId}
+        showScope={showScope}
         vault={vault}
         invalidate={invalidateEnvVars}
       />
@@ -369,14 +385,14 @@ export const EnvVarsView = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Above the toolbar, where a note about the whole list belongs — under it
-          the same sentence read as a caption for the filters. */}
-      <p className="text-kumo-subtle text-sm">
-        Values are end-to-end encrypted and managed from the CLI —{" "}
-        <InlineCode>better-update env set</InlineCode> / <InlineCode>env pull</InlineCode>. You can
-        still edit each variable&rsquo;s label and description here (non-secret documentation) from
-        the row menu.
-      </p>
+      {/* The organization page puts this list under the environments panel, so
+          the list is named and the note hangs off that name; on a project page
+          the list is the page and the note follows the page's own title. */}
+      {mode.kind === "global" ? (
+        <SectionHeader title="Variables" description={ENCRYPTION_NOTE} />
+      ) : (
+        <p className="text-kumo-subtle text-sm">{ENCRYPTION_NOTE}</p>
+      )}
       <Toolbar
         mode={mode}
         searchDraft={searchDraft}
