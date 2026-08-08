@@ -61,24 +61,35 @@ export const readSubmissionDestination = (
 // No column claims the table's leftover width: a build number is a short thing
 // to say, and handing it half the page only moved the whitespace into one
 // column instead of spreading it between them.
-const SubmissionCell = ({ submission }: { submission: SubmissionItem }) => (
-  <div className="flex min-w-0 flex-col gap-0.5">
-    <div className="flex min-w-0 items-center gap-1.5">
-      <span className="truncate font-medium">
-        {submission.buildVersion === null
-          ? submission.profileName
-          : `Build ${submission.buildVersion}`}
-      </span>
-      {submission.metadataComplete ? null : <Badge variant="warning">Metadata pending</Badge>}
+const SubmissionCell = ({ submission }: { submission: SubmissionItem }) => {
+  // Without a build number the profile is already the row's title, and printing
+  // it again underneath is the cell talking to itself. (It still shows against a
+  // Play track of the same name: a profile and a track are two facts that happen
+  // to share a word, and dropping one of them costs the reader the other.)
+  const namesItself = submission.buildVersion === null;
+  const subtitle = [
+    namesItself ? undefined : submission.profileName,
+    ARCHIVE_SOURCE_LABELS[submission.archiveSource],
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate font-medium">
+          {submission.buildVersion === null
+            ? submission.profileName
+            : `Build ${submission.buildVersion}`}
+        </span>
+        {submission.metadataComplete ? null : <Badge variant="warning">Metadata pending</Badge>}
+      </div>
+      {subtitle ? (
+        <span className="text-kumo-subtle truncate font-mono text-xs">{subtitle}</span>
+      ) : null}
     </div>
-    <span className="text-kumo-subtle truncate font-mono text-xs">
-      {submission.profileName}
-      {ARCHIVE_SOURCE_LABELS[submission.archiveSource]
-        ? ` · ${ARCHIVE_SOURCE_LABELS[submission.archiveSource]}`
-        : null}
-    </span>
-  </div>
-);
+  );
+};
 
 const DestinationCell = ({ submission }: { submission: SubmissionItem }) => {
   const destination = readSubmissionDestination(submission);

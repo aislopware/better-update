@@ -98,7 +98,7 @@ const SubmissionsPage = () => {
       <div className="flex w-full flex-col gap-4">
         <PageHeader
           title="Submissions"
-          description="Builds handed to the App Store and Play Console, and how each one landed."
+          description="Builds handed to App Store Connect or the Play Console. A row appears once its upload succeeds."
         />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
@@ -114,7 +114,7 @@ const SubmissionsPage = () => {
       <div className="flex w-full flex-col gap-4">
         <PageHeader
           title="Submissions"
-          description="Builds handed to the App Store and Play Console, and how each one landed."
+          description="Builds handed to App Store Connect or the Play Console. A row appears once its upload succeeds."
         />
         <SubmissionsEmpty />
       </div>
@@ -127,7 +127,7 @@ const SubmissionsPage = () => {
     <div className="flex w-full flex-col gap-4">
       <PageHeader
         title="Submissions"
-        description="Builds handed to the App Store and Play Console, and how each one landed."
+        description="Builds handed to App Store Connect or the Play Console. A row appears once its upload succeeds."
       />
       <DataTableToolbar
         isFiltered={hasFilters}
