@@ -184,7 +184,11 @@ const BranchesPage = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Branches" actions={createCta} />
+        <PageHeader
+          title="Branches"
+          description="Where updates land when published. A channel points at a branch to serve it."
+          actions={createCta}
+        />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -201,7 +205,11 @@ const BranchesPage = () => {
   if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Branches" actions={createCta} />
+        <PageHeader
+          title="Branches"
+          description="Where updates land when published. A channel points at a branch to serve it."
+          actions={createCta}
+        />
         <BranchesEmptyState />
       </div>
     );
@@ -209,7 +217,11 @@ const BranchesPage = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <PageHeader size="sub" title="Branches" actions={createCta} />
+      <PageHeader
+        title="Branches"
+        description="Where updates land when published. A channel points at a branch to serve it."
+        actions={createCta}
+      />
       <DataTableToolbar
         search={{
           value: searchDraft,

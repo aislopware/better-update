@@ -84,7 +84,10 @@ const BuildsEmptyState = () => (
 
 const BuildsSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Builds" />
+    <PageHeader
+      title="Builds"
+      description="Native binaries this project has produced, and which channels can update each one."
+    />
     <FilterBarSkeleton hasSearch selectCount={3} />
     <TableSkeleton columns={7} rows={6} />
   </>
@@ -203,7 +206,10 @@ const BuildsContent = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Builds" />
+        <PageHeader
+          title="Builds"
+          description="Native binaries this project has produced, and which channels can update each one."
+        />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -222,7 +228,10 @@ const BuildsContent = () => {
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Builds" />
+        <PageHeader
+          title="Builds"
+          description="Native binaries this project has produced, and which channels can update each one."
+        />
         <BuildsEmptyState />
       </div>
     );
@@ -232,7 +241,10 @@ const BuildsContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <PageHeader size="sub" title="Builds" />
+      <PageHeader
+        title="Builds"
+        description="Native binaries this project has produced, and which channels can update each one."
+      />
       <CompatibilityMatrix
         builds={tableData}
         matrix={matrix}

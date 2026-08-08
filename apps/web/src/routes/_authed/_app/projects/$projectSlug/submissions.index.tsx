@@ -173,7 +173,10 @@ const SubmissionsPage = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Submissions" />
+        <PageHeader
+          title="Submissions"
+          description="Builds handed to the App Store and Play Console, and how each one landed."
+        />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -186,7 +189,10 @@ const SubmissionsPage = () => {
   if (data.total === 0 && !hasFilters) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Submissions" />
+        <PageHeader
+          title="Submissions"
+          description="Builds handed to the App Store and Play Console, and how each one landed."
+        />
         <SubmissionsEmpty />
       </div>
     );
@@ -196,7 +202,10 @@ const SubmissionsPage = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <PageHeader size="sub" title="Submissions" />
+      <PageHeader
+        title="Submissions"
+        description="Builds handed to the App Store and Play Console, and how each one landed."
+      />
       <DataTableToolbar
         isFiltered={hasFilters}
         onReset={() => {

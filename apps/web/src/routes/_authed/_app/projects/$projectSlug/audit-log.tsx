@@ -13,11 +13,7 @@ const ProjectAuditLogPage = () => {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <PageHeader
-        size="sub"
-        title="Audit log"
-        description="Review every action performed in this project."
-      />
+      <PageHeader title="Audit log" description="Review every action performed in this project." />
       <Suspense fallback={<AuditLogSkeleton />}>
         <AuditLogView
           orgId={activeOrg.id}

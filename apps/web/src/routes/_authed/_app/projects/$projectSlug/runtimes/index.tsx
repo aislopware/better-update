@@ -101,7 +101,10 @@ const RuntimesContent = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Runtimes" />
+        <PageHeader
+          title="Runtimes"
+          description="Native runtime versions this project's builds report, and what can target them."
+        />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -114,7 +117,10 @@ const RuntimesContent = () => {
   if (data.total === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Runtimes" />
+        <PageHeader
+          title="Runtimes"
+          description="Native runtime versions this project's builds report, and what can target them."
+        />
         <RuntimesEmptyState />
       </div>
     );
@@ -128,7 +134,10 @@ const RuntimesContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <PageHeader size="sub" title="Runtimes" />
+      <PageHeader
+        title="Runtimes"
+        description="Native runtime versions this project's builds report, and what can target them."
+      />
       <DataTableView
         table={table}
         columnsCount={columns.length}

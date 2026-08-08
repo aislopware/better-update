@@ -252,7 +252,6 @@ const ProjectCredentialsIndex = () => {
   return (
     <div className="flex w-full flex-col gap-8">
       <PageHeader
-        size="sub"
         title="Credentials"
         description="App identifiers and their signing credentials for this project. Manage bindings from the CLI."
       />

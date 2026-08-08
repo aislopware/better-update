@@ -305,7 +305,6 @@ const SettingsContent = () => {
 const SettingsPage = () => (
   <div className="flex flex-col gap-6">
     <PageHeader
-      size="sub"
       title="Project settings"
       description="Rename, archive, or permanently delete this project."
     />

@@ -16,7 +16,6 @@ const ProjectOverview = () => {
   return (
     <div className="flex w-full flex-col gap-8">
       <PageHeader
-        size="sub"
         title={project.name}
         description="What's live on each channel and what changed recently."
       />

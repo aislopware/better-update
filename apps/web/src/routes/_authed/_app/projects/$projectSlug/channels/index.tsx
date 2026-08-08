@@ -157,7 +157,10 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
 
 const ChannelsSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Channels" />
+    <PageHeader
+      title="Channels"
+      description="Release tracks. Each channel serves one update to the builds that match it."
+    />
     <TableSkeleton columns={5} rows={5} />
   </>
 );
@@ -230,7 +233,11 @@ const ChannelsContent = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Channels" actions={createCta} />
+        <PageHeader
+          title="Channels"
+          description="Release tracks. Each channel serves one update to the builds that match it."
+          actions={createCta}
+        />
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
@@ -245,7 +252,11 @@ const ChannelsContent = () => {
   if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <PageHeader size="sub" title="Channels" actions={createCta} />
+        <PageHeader
+          title="Channels"
+          description="Release tracks. Each channel serves one update to the builds that match it."
+          actions={createCta}
+        />
         <ChannelsEmptyState />
       </div>
     );
@@ -255,7 +266,11 @@ const ChannelsContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <PageHeader size="sub" title="Channels" actions={createCta} />
+      <PageHeader
+        title="Channels"
+        description="Release tracks. Each channel serves one update to the builds that match it."
+        actions={createCta}
+      />
       <DataTableToolbar
         search={{
           value: searchDraft,

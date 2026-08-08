@@ -70,7 +70,7 @@ const UpdatesEmptyState = () => (
 
 const UpdatesSkeleton = () => (
   <>
-    <PageHeader size="sub" title="Updates" />
+    <PageHeader title="Updates" description="Every JavaScript bundle published to this project." />
     <FilterBarSkeleton hasSearch selectCount={2} />
     <TableSkeleton columns={7} rows={6} />
   </>
@@ -211,8 +211,8 @@ const UpdatesContent = () => {
 
   const header = (
     <PageHeader
-      size="sub"
       title="Updates"
+      description="Every JavaScript bundle published to this project."
       actions={<CompareUpdatesDialog orgId={orgId} projectId={projectId} />}
     />
   );
