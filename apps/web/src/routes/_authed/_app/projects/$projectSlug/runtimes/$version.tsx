@@ -1,27 +1,27 @@
 import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/badge";
 import { CloudArrowUpIcon, PackageIcon, StackIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Suspense, useMemo } from "react";
 
-import type { PlatformValue } from "@better-update/api-client/react";
-
-import { PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
-import { DetailCardSkeleton } from "../../../../../../components/skeletons";
+import { TablePanelSkeleton } from "../../../../../../components/skeletons";
 import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { buildBuildsColumns } from "../builds/-builds-columns";
+import { buildUpdateColumns } from "../updates/-updates-columns";
 
-const RUNTIME_PAGE_LIMIT = 25;
-
-/** The updates card only renders this many rows; "View all" covers the rest. */
-const RUNTIME_UPDATES_LIMIT = 10;
+/**
+ * How many rows each panel previews. Both lists show the same depth: this page
+ * is a way into the two full lists, not a place to page through either, and a
+ * runtime with twenty builds used to spend the whole screen on them before the
+ * updates below were reached.
+ */
+const RUNTIME_PREVIEW_LIMIT = 10;
 
 const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <DetailNotFound
@@ -65,68 +65,33 @@ const RuntimeHeaderMeta = ({
   </>
 );
 
-const UpdateRow = ({
-  update,
-  branchName,
-  projectSlug,
-}: {
-  update: {
-    readonly id: string;
-    readonly groupId: string;
-    readonly platform: PlatformValue;
-    readonly message: string;
-    readonly branchId: string;
-    readonly createdAt: string;
-    readonly rolloutPercentage: number;
-  };
-  branchName: string | undefined;
-  projectSlug: string;
-}) => (
-  <Link
-    to="/projects/$projectSlug/updates/$updateId"
-    params={{ projectSlug, updateId: update.id }}
-    className="hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-4 py-3 last:border-0"
-  >
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="flex items-center gap-2">
-        <span className="truncate text-sm font-medium">
-          {update.message || `Update ${update.groupId.slice(0, 8)}`}
-        </span>
-        {update.rolloutPercentage < 100 ? (
-          <Badge variant="secondary">Rollout {update.rolloutPercentage}%</Badge>
-        ) : null}
-      </span>
-      <span className="text-kumo-subtle flex items-center gap-2 text-xs">
-        <PlatformIndicator platform={update.platform} className="gap-1" />
-        {branchName ? (
-          <span className="truncate">{branchName}</span>
-        ) : (
-          <code className="font-mono" title={update.branchId}>
-            {update.branchId.slice(0, 8)}
-          </code>
-        )}
-      </span>
-    </div>
-    <RelativeTime value={update.createdAt} className="text-kumo-subtle shrink-0 text-xs" />
-  </Link>
-);
+/**
+ * The way out of a preview panel to the full list it previews.
+ *
+ * Parked in the panel header rather than under the rows: the closing bar counts
+ * how much of the set is on screen, and "view all" is a way out of the panel
+ * rather than a fact about it — which is where the Cloudflare dashboard puts
+ * it too.
+ */
+const VIEW_ALL_CLASS = "text-kumo-subtle hover:text-kumo-default text-sm no-underline";
 
 const RuntimeDetailContent = () => {
   const { version } = Route.useParams();
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { id: projectId, slug: projectSlug } = project;
+  const navigate = useNavigate();
 
   const { data: buildsData } = useSuspenseQuery(
     buildsQueryOptions(orgId, projectId, {
       runtimeVersion: version,
-      limit: RUNTIME_PAGE_LIMIT,
+      limit: RUNTIME_PREVIEW_LIMIT,
     }),
   );
   const { data: updatesData } = useSuspenseQuery(
     updatesQueryOptions(orgId, projectId, {
       runtimeVersion: version,
-      limit: RUNTIME_UPDATES_LIMIT,
+      limit: RUNTIME_PREVIEW_LIMIT,
     }),
   );
 
@@ -154,6 +119,19 @@ const RuntimeDetailContent = () => {
     initialState: {
       columnVisibility: { buildNumber: false, size: false, runtimeVersion: false },
     },
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const updateColumns = useMemo(
+    () => buildUpdateColumns(projectSlug, orgId, projectId),
+    [projectSlug, orgId, projectId],
+  );
+  const updatesTableData = useMemo(() => [...updatesData.items], [updatesData.items]);
+  const updatesTable = useReactTable({
+    data: updatesTableData,
+    columns: [...updateColumns],
+    enableMultiSort: false,
+    initialState: { columnVisibility: { runtimeVersion: false, size: false } },
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -190,53 +168,81 @@ const RuntimeDetailContent = () => {
           table={buildsTable}
           columnsCount={buildColumns.length}
           title={<PanelTitle icon={<PackageIcon weight="bold" />} label="Builds" />}
+          actions={
+            buildsCount > buildsTableData.length ? (
+              <Link
+                to="/projects/$projectSlug/builds"
+                params={{ projectSlug }}
+                className={VIEW_ALL_CLASS}
+              >
+                View all builds →
+              </Link>
+            ) : null
+          }
           isPlaceholderData={false}
           // A preview of the newest builds on this runtime rather than a page
           // of them, so the footer counts and does not paginate — the Builds
           // page is where they are paged through.
           countLabel={`${buildsTableData.length} of ${buildsCount}`}
+          onRowClick={async (build) => {
+            await navigate({
+              to: "/projects/$projectSlug/builds/$buildId",
+              params: { projectSlug, buildId: build.id },
+            });
+          }}
         />
       )}
 
-      <TablePanel
-        title={<PanelTitle icon={<CloudArrowUpIcon weight="bold" />} label="Updates" />}
-        footer={
-          updatesCount > RUNTIME_UPDATES_LIMIT ? (
-            <Link
-              to="/projects/$projectSlug/updates"
-              params={{ projectSlug }}
-              search={{ page: 1, sort: "-createdAt" as const }}
-              className="text-kumo-subtle hover:text-kumo-default text-sm"
-            >
-              View all updates →
-            </Link>
-          ) : undefined
-        }
-      >
-        {updatesCount === 0 ? (
+      {/* The updates below used to be item rows — name, platform and branch
+          stacked in a paragraph — under a table of builds carrying the same
+          kinds of fact in columns. One page, two vocabularies for two lists of
+          the same shape; this is the one the Updates page already speaks. */}
+      {updatesCount === 0 ? (
+        <TablePanel
+          title={<PanelTitle icon={<CloudArrowUpIcon weight="bold" />} label="Updates" />}
+        >
           <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
             Publish an update with this runtime version to see it here.
           </p>
-        ) : (
-          updatesData.items.map((update) => (
-            <UpdateRow
-              key={update.id}
-              update={update}
-              branchName={update.branchName}
-              projectSlug={projectSlug}
-            />
-          ))
-        )}
-      </TablePanel>
+        </TablePanel>
+      ) : (
+        <DataTableView
+          table={updatesTable}
+          columnsCount={updateColumns.length}
+          title={<PanelTitle icon={<CloudArrowUpIcon weight="bold" />} label="Updates" />}
+          actions={
+            updatesCount > updatesTableData.length ? (
+              <Link
+                to="/projects/$projectSlug/updates"
+                params={{ projectSlug }}
+                search={{ page: 1, sort: "-createdAt" as const }}
+                className={VIEW_ALL_CLASS}
+              >
+                View all updates →
+              </Link>
+            ) : null
+          }
+          isPlaceholderData={false}
+          countLabel={`${updatesTableData.length} of ${updatesCount}`}
+          onRowClick={async (update) => {
+            await navigate({
+              to: "/projects/$projectSlug/updates/$updateId",
+              params: { projectSlug, updateId: update.id },
+            });
+          }}
+        />
+      )}
     </>
   );
 };
 
+// Two table panels arrive, so two table panels stand in for them — the field
+// grids here stood in for lists that have never been fields.
 const RuntimeDetailSkeleton = () => (
   <>
     <DetailHeader title="Runtime" />
-    <DetailCardSkeleton rows={3} columns={2} />
-    <DetailCardSkeleton rows={3} columns={1} />
+    <TablePanelSkeleton columns={5} rows={4} />
+    <TablePanelSkeleton columns={5} rows={4} />
   </>
 );
 
