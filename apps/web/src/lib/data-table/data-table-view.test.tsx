@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableView } from "./data-table-view";
 
-import type { DataTableFilteredEmptyProps } from "./data-table-view";
+import type { FilteredEmptyProps } from "./list-empty-state";
 
 interface TestRow {
   readonly id: string;
@@ -49,7 +49,7 @@ const TestTable = ({
   data?: TestRow[];
   onRowClick?: (row: TestRow) => void;
   emptyMessage?: string;
-  filteredEmpty?: DataTableFilteredEmptyProps;
+  filteredEmpty?: FilteredEmptyProps;
 }) => {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
   return (

@@ -22,8 +22,6 @@ import { ListPanel, ListPanelFooter, ListPanelHeader } from "./list-panel";
 import type { FilteredEmptyProps } from "./list-empty-state";
 import type { ListPaginationFooter } from "./list-footer";
 
-export type DataTableFilteredEmptyProps = FilteredEmptyProps;
-
 export interface DataTableViewProps<TData> {
   readonly table: ReactTableT<TData>;
   readonly columnsCount: number;
@@ -47,7 +45,7 @@ export interface DataTableViewProps<TData> {
    * + Clear filters) shown instead of `emptyMessage` while filters are active.
    * True-zero (isFiltered false) falls back to the page's own empty handling.
    */
-  readonly filteredEmpty?: DataTableFilteredEmptyProps | undefined;
+  readonly filteredEmpty?: FilteredEmptyProps | undefined;
 }
 
 // ⋮ row-action triggers rest hidden on fine pointers and disclose on row hover,

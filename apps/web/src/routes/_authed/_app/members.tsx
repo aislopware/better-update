@@ -15,8 +15,10 @@ import {
   DataTableToolbar,
   enumArrayParam,
   fireAndForget,
+  queryParam,
   sortParam,
   useDataTableSearch,
+  useDebouncedSearch,
 } from "../../../lib/data-table";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
@@ -42,12 +44,22 @@ const DEFAULT_SORT = "status" as const;
 const membersSearchSchema = z.object({
   status: enumArrayParam(STATUS_VALUES),
   sort: sortParam(DEFAULT_SORT),
+  query: queryParam(),
 });
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+// Members and invitations both arrive in full — the org roster is small and the
+// table pages it client-side — so the search narrows what is already here. It
+// still lives in the URL, so a filtered roster is a link you can send.
+// `needle` is pre-lowercased by the caller; exported for tests.
+export const matchesQuery = (needle: string, ...haystack: readonly string[]): boolean =>
+  needle === "" || haystack.some((value) => value.toLowerCase().includes(needle));
 
 const MembersSkeleton = () => (
   <div className="flex flex-col gap-3">
-    <FilterBarSkeleton selectCount={1} />
-    <TableSkeleton columns={6} rows={5} hasFooter={false} />
+    <FilterBarSkeleton selectCount={1} hasSearch />
+    <TableSkeleton columns={6} rows={5} />
   </div>
 );
 
@@ -74,10 +86,11 @@ const useMembershipsByPrincipal = (orgId: string) => {
   );
 };
 
-const MembersContent = () => {
-  const { activeOrg, user } = Route.useRouteContext();
-  const orgId = activeOrg.id;
-  const { status: statusFilter, sort } = Route.useSearch();
+// Everything that narrows the roster, read from and written back to the URL:
+// sort, the status chips, and the search box. Kept out of the page body so the
+// component below is about members rather than about search params.
+const useMembersFilters = () => {
+  const { status: statusFilter, sort, query } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const { sorting, onSortingChange } = useDataTableSearch({
@@ -87,9 +100,57 @@ const MembersContent = () => {
     navigate,
   });
 
-  const setStatusFilter = (next: readonly StatusFilter[]): void => {
-    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, status: [...next] }) }));
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: query,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        navigate({ to: ".", search: (prev) => ({ ...prev, query: value }), replace: true }),
+      );
+    },
+  });
+
+  const handleStatusChange = (next: readonly string[]): void => {
+    fireAndForget(
+      navigate({ to: ".", search: (prev) => ({ ...prev, status: next.filter(isStatusFilter) }) }),
+    );
   };
+
+  const handleResetFilters = (): void => {
+    handleSearchChange("");
+    fireAndForget(
+      navigate({ to: ".", search: (prev) => ({ ...prev, status: [], query: "" }), replace: true }),
+    );
+  };
+
+  const needle = query.trim().toLowerCase();
+  return {
+    statusFilter,
+    needle,
+    searchDraft,
+    sorting,
+    isFiltered: statusFilter.length > 0 || needle !== "",
+    onSortingChange,
+    handleSearchChange,
+    handleStatusChange,
+    handleResetFilters,
+  };
+};
+
+const MembersContent = () => {
+  const { activeOrg, user } = Route.useRouteContext();
+  const orgId = activeOrg.id;
+  const {
+    statusFilter,
+    needle,
+    searchDraft,
+    sorting,
+    isFiltered,
+    onSortingChange,
+    handleSearchChange,
+    handleStatusChange,
+    handleResetFilters,
+  } = useMembersFilters();
 
   // "Only active selected" is the one state that never shows invitations.
   const activeOnly = statusFilter.length === 1 && statusFilter[0] === "active";
@@ -146,16 +207,28 @@ const MembersContent = () => {
     clearManageProjects,
   } = useMembersHandlers(orgId);
 
-  const filteredMembers = useMemo(() => (pendingOnly ? [] : members), [pendingOnly, members]);
+  const filteredMembers = useMemo(
+    () =>
+      pendingOnly
+        ? []
+        : members.filter((member) => matchesQuery(needle, member.user.name, member.user.email)),
+    [pendingOnly, members, needle],
+  );
   const filteredInvitations = useMemo(
-    () => (activeOnly ? [] : pendingInvitations),
-    [activeOnly, pendingInvitations],
+    () =>
+      activeOnly
+        ? []
+        : pendingInvitations.filter((invitation) => matchesQuery(needle, invitation.email)),
+    [activeOnly, pendingInvitations, needle],
   );
   const inviteCta = canInviteMembers ? (
     <InviteDialog orgId={orgId} isOwner={isOwner} canGrantAllProjects={canManageMembers} />
   ) : undefined;
   const isOrgEmpty =
-    statusFilter.length === 0 && members.length === 0 && pendingInvitations.length === 0;
+    statusFilter.length === 0 &&
+    needle === "" &&
+    members.length === 0 &&
+    pendingInvitations.length === 0;
 
   if (isOrgEmpty) {
     return (
@@ -172,18 +245,19 @@ const MembersContent = () => {
     <>
       <div className="flex flex-col gap-3">
         <DataTableToolbar
-          isFiltered={statusFilter.length > 0}
-          onReset={() => {
-            setStatusFilter([]);
+          search={{
+            value: searchDraft,
+            onChange: handleSearchChange,
+            placeholder: "Search members…",
           }}
+          isFiltered={isFiltered}
+          onReset={handleResetFilters}
         >
           <DataTableFacetedFilter
             title="Status"
             options={STATUS_OPTIONS}
             selected={statusFilter}
-            onChange={(next) => {
-              setStatusFilter(next.filter(isStatusFilter));
-            }}
+            onChange={handleStatusChange}
           />
         </DataTableToolbar>
         <MembersTableView
@@ -198,6 +272,7 @@ const MembersContent = () => {
           pendingInvitationId={invitationPendingId}
           pendingRoleMemberId={rolePendingId}
           emptyMessage="No members match the selected filter."
+          filteredEmpty={{ entity: "members", isFiltered, onClear: handleResetFilters }}
           sorting={sorting}
           onSortingChange={onSortingChange}
           onRemove={setRemoveMemberId}

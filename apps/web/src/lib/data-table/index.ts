@@ -4,6 +4,7 @@ export { DataTableFacetedFilter } from "./data-table-faceted-filter";
 export { DataTableToolbar } from "./data-table-toolbar";
 export { DataTableView } from "./data-table-view";
 export { DataTableViewOptions } from "./data-table-view-options";
+export type { FilteredEmptyProps } from "./list-empty-state";
 export { ListPanel, ListPanelFooter, ListPanelHeader } from "./list-panel";
 export { ListSortMenu } from "./list-sort-menu";
 export {

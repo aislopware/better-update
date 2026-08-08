@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import type { MemberProjectMembershipsItem } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
+import { StatusDot } from "../../../components/status-dot";
 import { DataTableView, PAGE_SIZE } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { onPicked } from "../../../lib/form-utils";
@@ -21,6 +22,7 @@ import { MemberProjectsCell } from "./-member-projects-cell";
 import { MemberRowActions } from "./-member-row-actions";
 import { buildRows } from "./-members-row";
 
+import type { FilteredEmptyProps } from "../../../lib/data-table";
 import type { ManageProjectsTarget } from "./-member-projects-cell";
 import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members-row";
 
@@ -63,14 +65,17 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
   );
 };
 
-// Active is the expected state — plain quiet text. Pending is the exception,
-// but stays plain text (warning-colored) so both states share the same left
-// edge — a pill's own padding would misalign the column.
+// Dot + label for both states, so the column reads as one vocabulary instead of
+// quiet text next to a colored word. The dot also keeps the labels on a shared
+// left edge, which a badge's own padding would have broken. A pending invite is
+// waiting on someone, so its dot pulses.
 const StatusCell = ({ status }: { status: MemberStatus }) =>
   status === "active" ? (
-    <span className="text-kumo-subtle text-sm">Active</span>
+    <StatusDot tone="success">Active</StatusDot>
   ) : (
-    <span className="text-kumo-warning text-sm font-medium">Pending</span>
+    <StatusDot tone="warning" pulse>
+      Pending
+    </StatusDot>
   );
 
 const JoinedCell = ({ row }: { row: Row }) => {
@@ -270,6 +275,7 @@ export const MembersTableView = ({
   pendingInvitationId,
   pendingRoleMemberId,
   emptyMessage,
+  filteredEmpty,
   sorting,
   onSortingChange,
   onRemove,
@@ -288,6 +294,8 @@ export const MembersTableView = ({
   pendingInvitationId?: string | undefined;
   pendingRoleMemberId?: string | undefined;
   emptyMessage?: string;
+  /** Zero-result state while search/filters are on — offers to clear them. */
+  filteredEmpty?: FilteredEmptyProps | undefined;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
   onRemove: (memberId: string) => void;
@@ -359,6 +367,7 @@ export const MembersTableView = ({
         },
       }}
       emptyMessage={emptyMessage}
+      filteredEmpty={filteredEmpty}
     />
   );
 };
