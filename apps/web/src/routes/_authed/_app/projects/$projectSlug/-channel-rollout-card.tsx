@@ -8,13 +8,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/card";
 import { Field } from "@better-update/ui/components/field";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Separator } from "@better-update/ui/components/separator";
@@ -437,11 +431,12 @@ export const ChannelRolloutCard = ({ channel, orgId, projectId }: ChannelRollout
 
   return (
     <Card>
+      {/* No description: every control below already carries its own hint —
+          what locks the branch picker, what the percentage is a share of, what
+          completing does — so a fourth sentence saying "control which branch
+          this channel serves" only pushed them further down. */}
       <CardHeader>
         <CardTitle>Branch & rollout</CardTitle>
-        <CardDescription>
-          Control which branch this channel serves and shift traffic gradually between branches.
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <LinkedBranchField

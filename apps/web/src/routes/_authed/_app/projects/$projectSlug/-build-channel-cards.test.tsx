@@ -155,7 +155,8 @@ describe("build and channel cards", () => {
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("v3.0.0")).toBeInTheDocument();
     expect(screen.getByText("1 update but no uploaded build.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Release build" })).toHaveAttribute(
+    // The whole row is the link, so its accessible name is everything in it.
+    expect(screen.getByRole("link", { name: /Release build/ })).toHaveAttribute(
       "href",
       "/projects/my-app/builds/build-1",
     );
@@ -186,8 +187,10 @@ describe("build and channel cards", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("link", { name: "8 more compatible builds — view all builds →" }),
-    ).toHaveAttribute("href", "/projects/my-app/builds");
+    expect(screen.getByText("Showing 1 of 9 builds")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View all builds →" })).toHaveAttribute(
+      "href",
+      "/projects/my-app/builds",
+    );
   });
 });

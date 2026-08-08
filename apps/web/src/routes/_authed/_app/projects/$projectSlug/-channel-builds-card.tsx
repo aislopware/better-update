@@ -1,11 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
@@ -14,6 +8,7 @@ import {
   DistributionIndicator,
   PlatformIndicator,
 } from "../../../../../components/attribute-badges";
+import { ListPanel, ListPanelFooter, ListPanelHeader } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { MissingMatchingBuilds } from "./-channel-compatibility";
@@ -43,6 +38,9 @@ const UpdateCountStatus = ({ status }: { status: SyntheticBuildChannel }) => {
   return <span className="text-kumo-subtle shrink-0 text-xs">No updates</span>;
 };
 
+// The whole row goes to the build, not just the words in its title: a build is
+// somewhere you go, and a link the width of a message is a target you have to
+// aim at.
 const CompatibleBuildRow = ({
   projectSlug,
   entry: { build, status },
@@ -50,16 +48,16 @@ const CompatibleBuildRow = ({
   projectSlug: string;
   entry: CompatibleBuildEntry;
 }) => (
-  <div className="border-kumo-line/60 flex items-start justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
-    <div className="flex min-w-0 flex-col gap-1">
-      <Link
-        to="/projects/$projectSlug/builds/$buildId"
-        params={{ projectSlug, buildId: build.id }}
-        className="truncate font-medium underline-offset-4 hover:underline"
-      >
+  <Link
+    to="/projects/$projectSlug/builds/$buildId"
+    params={{ projectSlug, buildId: build.id }}
+    className="border-kumo-line hover:bg-kumo-tint focus-visible:ring-kumo-focus group/row flex items-start justify-between gap-3 border-b px-4 py-3 no-underline outline-none last:border-0 focus-visible:ring-2 focus-visible:ring-inset"
+  >
+    <span className="flex min-w-0 flex-col gap-1">
+      <span className="truncate font-medium">
         {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
-      </Link>
-      <div className="text-kumo-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      </span>
+      <span className="text-kumo-subtle flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <PlatformIndicator platform={build.platform} className="gap-1" />
         <DistributionIndicator distribution={build.distribution} className="gap-1" />
         {build.runtimeVersion ? (
@@ -69,10 +67,17 @@ const CompatibleBuildRow = ({
         )}
         {build.appVersion && <span className="font-mono">App {build.appVersion}</span>}
         <RelativeTime value={build.createdAt} />
-      </div>
-    </div>
-    <UpdateCountStatus status={status} />
-  </div>
+      </span>
+    </span>
+    <span className="flex shrink-0 items-center gap-2">
+      <UpdateCountStatus status={status} />
+      <CaretRightIcon
+        aria-hidden
+        weight="bold"
+        className="text-kumo-subtle size-4 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
+      />
+    </span>
+  </Link>
 );
 
 export const ChannelBuildsCard = ({
@@ -90,43 +95,50 @@ export const ChannelBuildsCard = ({
   const hiddenCount = Math.max(0, totalCount - visible.length);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Compatible builds</CardTitle>
-        {/* The count leads the sentence that says what it counts, which is what
-            a card of its own used to do with a bare number. */}
-        <CardDescription>
-          {totalCount} {pluralize(totalCount, "build")} whose runtime version can install the
-          updates served by this channel.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {visible.length > 0 ? (
-          <div className="flex flex-col">
-            {visible.map((entry) => (
-              <CompatibleBuildRow
-                key={`${entry.status.channelId}:${entry.build.id}`}
-                projectSlug={projectSlug}
-                entry={entry}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-kumo-subtle text-sm">
+    // The description under the title used to define the title — "builds whose
+    // runtime version can install the updates served by this channel" — and
+    // carry the total inside the sentence. The total is what a panel's closing
+    // bar is for, so it says how much of the set is on screen there instead.
+    <ListPanel>
+      <ListPanelHeader title="Compatible builds" />
+      {missingRuntimeVersions.length > 0 ? (
+        <div className="border-kumo-line border-b p-4">
+          <MissingMatchingBuilds missingRuntimeVersions={missingRuntimeVersions} />
+        </div>
+      ) : null}
+      {visible.length > 0 ? (
+        visible.map((entry) => (
+          <CompatibleBuildRow
+            key={`${entry.status.channelId}:${entry.build.id}`}
+            projectSlug={projectSlug}
+            entry={entry}
+          />
+        ))
+      ) : (
+        <ListPanelFooter>
+          <span className="text-kumo-subtle text-sm">
             No uploaded builds can install this channel&apos;s updates yet.
-          </p>
-        )}
-        {hiddenCount > 0 && (
-          <Link
-            to="/projects/$projectSlug/builds"
-            params={{ projectSlug }}
-            className="text-kumo-subtle hover:text-kumo-default text-sm"
-          >
-            {hiddenCount} more compatible {pluralize(hiddenCount, "build")} — view all builds →
-          </Link>
-        )}
-        <MissingMatchingBuilds missingRuntimeVersions={missingRuntimeVersions} />
-      </CardContent>
-    </Card>
+          </span>
+        </ListPanelFooter>
+      )}
+      {visible.length > 0 ? (
+        <ListPanelFooter>
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <span className="text-kumo-subtle text-sm tabular-nums">
+              Showing {visible.length} of {totalCount} {pluralize(totalCount, "build")}
+            </span>
+            {hiddenCount > 0 ? (
+              <Link
+                to="/projects/$projectSlug/builds"
+                params={{ projectSlug }}
+                className="text-kumo-subtle hover:text-kumo-default text-sm"
+              >
+                View all builds →
+              </Link>
+            ) : null}
+          </div>
+        </ListPanelFooter>
+      ) : null}
+    </ListPanel>
   );
 };
