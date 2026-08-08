@@ -357,8 +357,11 @@ const DeleteOrgSection = () => {
   );
 };
 
+// Capped to a readable measure. A table wants every pixel of a wide screen; a
+// settings form does not — a single line of description running the full width
+// of a 1500px window is a paragraph nobody's eye can track back from.
 const Settings = () => (
-  <div className="flex w-full flex-col gap-6">
+  <div className="flex w-full max-w-3xl flex-col gap-6">
     <PageHeader
       title="Organization settings"
       description="Update organization details or permanently delete the organization."

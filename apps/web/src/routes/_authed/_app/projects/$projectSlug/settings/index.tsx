@@ -302,8 +302,9 @@ const SettingsContent = () => {
   );
 };
 
+// Capped to a readable measure — see the organization settings page for why.
 const SettingsPage = () => (
-  <div className="flex flex-col gap-6">
+  <div className="flex w-full max-w-3xl flex-col gap-6">
     <PageHeader
       title="Project settings"
       description="Rename, archive, or permanently delete this project."
