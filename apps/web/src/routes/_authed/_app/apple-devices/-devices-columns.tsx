@@ -30,22 +30,32 @@ const CLASS_LABEL: Record<DeviceClassValue, string> = {
 // across the row, and only the model is specific enough to be worth the width.
 // Class survives as a filter chip, and as the fallback when the model is unknown.
 const NameCell = ({ device }: { device: DeviceItem }) => {
-  const detail = device.model ?? CLASS_LABEL[device.deviceClass];
+  // A device Apple never told us anything about has no second line: "Unknown"
+  // under a name is a column admitting it has nothing to say.
+  const detail =
+    device.model ??
+    (device.deviceClass === "UNKNOWN" ? undefined : CLASS_LABEL[device.deviceClass]);
   // Devices are usually named after themselves — "Diego's iPad Pro 13-inch (M4)"
   // over "iPad Pro 13-inch (M4)" printed the model twice, and the second copy
   // was the reason the first one truncated.
-  const namesItself = device.name.toLowerCase().includes(detail.toLowerCase());
+  const namesItself =
+    detail !== undefined && device.name.toLowerCase().includes(detail.toLowerCase());
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <div className="flex items-center gap-2">
+      {/* The badge follows the name rather than leading it: a disabled device
+          pushed every name it preceded to a different left edge, and the column
+          a reader scans down is the one that must not move. */}
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="truncate font-medium">{device.name}</span>
         {device.enabled ? null : (
-          <Badge variant="outline" className="text-kumo-subtle">
+          <Badge variant="outline" className="text-kumo-subtle shrink-0">
             Disabled
           </Badge>
         )}
-        <span className="truncate font-medium">{device.name}</span>
       </div>
-      {namesItself ? null : <span className="text-kumo-subtle truncate text-xs">{detail}</span>}
+      {namesItself || detail === undefined ? null : (
+        <span className="text-kumo-subtle truncate text-xs">{detail}</span>
+      )}
     </div>
   );
 };

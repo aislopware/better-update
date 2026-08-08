@@ -32,7 +32,6 @@ import { TablePanel } from "../../../components/table-panel";
 import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS, useClientPagination } from "../../../lib/data-table";
-import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { membersQueryOptions } from "../../../queries/org";
 import { VaultAccessGrant } from "./-vault-access-grant";
@@ -142,17 +141,19 @@ const EnvRotationPendingBanner = () => (
  * badge, the recipients fill the body, and the count closes the bottom. Any
  * rotation warning stands above the panel, where it reads as a state of the
  * vault rather than a row in it.
+ *
+ * No description under the title — it read "3 recipients can decrypt this
+ * organization's credentials", which is the panel's own name plus the number the
+ * bar at the foot of it already reports.
  */
 const VaultPanel = ({
   title,
   version,
-  summary,
   banner,
   rows,
 }: {
   title: string;
   version: number;
-  summary: string;
   banner?: ReactNode;
   rows: readonly VaultRecipientRow[];
 }) => {
@@ -167,7 +168,6 @@ const VaultPanel = ({
             <Badge variant="outline">v{version}</Badge>
           </span>
         }
-        description={summary}
         pagination={rows.length === 0 ? undefined : pagination}
       >
         {rows.length === 0 ? (
@@ -206,7 +206,6 @@ const EnvVaultRecipientsSection = ({
     <VaultPanel
       title="Env vault"
       version={envVaultVersion}
-      summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's env values`}
       banner={rotationPending ? <EnvRotationPendingBanner /> : null}
       rows={rows}
     />
@@ -235,7 +234,6 @@ const VaultAccessContent = () => {
       <VaultPanel
         title="Credentials vault"
         version={vault.vaultVersion}
-        summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's credentials`}
         banner={
           orgVault?.rotationPending ? (
             <RotationPendingBanner reason={orgVault.rotationPendingReason} />
@@ -259,9 +257,11 @@ const VaultAccess = () => {
   const { activeOrg } = Route.useRouteContext();
   return (
     <div className="flex w-full flex-col gap-6">
+      {/* One line: the second sentence explained the card at the foot of this
+          page, which carries that explanation in its own description. */}
       <PageHeader
         title="Vault access"
-        description="Recipients that can decrypt this organization's credentials and env vaults (managed from the CLI). Env-vault access can be granted from the browser on the vault origin."
+        description="Keys that can decrypt this organization's credentials and environment values."
       />
       <Suspense fallback={<TablePanelSkeleton columns={6} rows={3} />}>
         <VaultAccessContent />

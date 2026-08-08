@@ -8,8 +8,7 @@ interface ResourceListPageProps {
   readonly actions?: ReactNode;
   /**
    * Standing context for the whole list — counts, limits, where to go next.
-   * Sticks beside the list on wide screens and drops below it otherwise, so it
-   * is never the first thing a narrow window shows.
+   * Sticks beside the list on wide screens and stacks above it otherwise.
    */
   readonly rail?: ReactNode;
   readonly children: ReactNode;
