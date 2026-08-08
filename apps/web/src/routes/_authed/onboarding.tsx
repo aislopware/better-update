@@ -84,7 +84,7 @@ const Onboarding = () => {
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Create your organization</CardTitle>
             <CardDescription>
-              Organizations are shared workspaces where teams manage projects and API keys together.
+              An organization is where a team manages its projects and API keys together.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -169,7 +169,7 @@ const ProfileForm = () => {
           name reads as the header having been written twice. */}
       <SettingCard
         title="Name and email"
-        description="This is how others will see you across the workspace."
+        description="How you appear to everyone in your organizations."
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (

@@ -39,7 +39,7 @@ import { orgKeyPrefix } from "../../queries/org";
 import { CreateOrgDialog } from "./-create-org-dialog";
 import { HeaderBreadcrumbs } from "./-header-breadcrumbs";
 import { ProjectSwitcher } from "./-project-switcher";
-import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
+import { AccountNavSections, OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
 import { CommandPalette } from "./_app/-command-palette";
 
 const useActiveProjectSlug = (): string | undefined =>
@@ -295,12 +295,37 @@ const SidebarSearchButton = ({ onClick }: { onClick: () => void }) => (
   </Sidebar.Group>
 );
 
+/**
+ * Whichever set of places you are among: a project's, the account's, or the
+ * organization's. One rail, never two — the account area used to stand its own
+ * nav column beside this one.
+ */
+const SidebarSections = ({
+  projectSlug,
+  isAccount,
+  isSuperadmin,
+}: {
+  projectSlug: string | undefined;
+  isAccount: boolean;
+  isSuperadmin: boolean;
+}) => {
+  if (projectSlug) {
+    return <ProjectNavSections projectSlug={projectSlug} />;
+  }
+  if (isAccount) {
+    return <AccountNavSections />;
+  }
+  return <OrgNavSections isSuperadmin={isSuperadmin} />;
+};
+
 const AppSidebar = ({
   projectSlug,
+  isAccount,
   isSuperadmin,
   onSearch,
 }: {
   projectSlug: string | undefined;
+  isAccount: boolean;
   isSuperadmin: boolean;
   onSearch: () => void;
 }) => (
@@ -320,11 +345,11 @@ const AppSidebar = ({
     </Sidebar.Header>
     <Sidebar.Content>
       <SidebarSearchButton onClick={onSearch} />
-      {projectSlug ? (
-        <ProjectNavSections projectSlug={projectSlug} />
-      ) : (
-        <OrgNavSections isSuperadmin={isSuperadmin} />
-      )}
+      <SidebarSections
+        projectSlug={projectSlug}
+        isAccount={isAccount}
+        isSuperadmin={isSuperadmin}
+      />
     </Sidebar.Content>
     <Sidebar.Footer>
       <Sidebar.Trigger />
@@ -346,6 +371,7 @@ const AppLayout = () => {
       <Sidebar.Provider peekable>
         <AppSidebar
           projectSlug={projectSlug}
+          isAccount={pathname === "/account" || pathname.startsWith("/account/")}
           isSuperadmin={isSuperadmin}
           onSearch={() => {
             setCommandOpen(true);

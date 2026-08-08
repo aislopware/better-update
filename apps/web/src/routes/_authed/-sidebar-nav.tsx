@@ -9,7 +9,10 @@ import {
   FolderIcon,
   GearIcon,
   GitBranchIcon,
+  LinkIcon,
+  MonitorIcon,
   PackageIcon,
+  PaletteIcon,
   RobotIcon,
   ScrollIcon,
   ShieldCheckIcon,
@@ -17,6 +20,7 @@ import {
   SquaresFourIcon,
   StackIcon,
   UploadSimpleIcon,
+  UserIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -89,6 +93,17 @@ interface ProjectNavSection {
   items: ProjectNavItem[];
 }
 
+interface AccountNavItem {
+  to:
+    | "/account/profile"
+    | "/account/appearance"
+    | "/account/passkeys"
+    | "/account/connections"
+    | "/account/sessions";
+  label: string;
+  icon: Icon;
+}
+
 const ORG_NAV: OrgNavSection[] = [
   {
     label: "Platform",
@@ -144,6 +159,37 @@ const ORG_NAV: OrgNavSection[] = [
         icon: GearIcon,
         capability: "canManageOrgSettings",
       },
+    ],
+  },
+];
+
+/**
+ * The account area, in the same rail as everything else.
+ *
+ * It used to bring a nav column of its own and stand it beside the org nav, so
+ * two lists of places were on screen at once and the page they framed started
+ * five hundred pixels in. An account is a section of the dashboard like a
+ * project is; it gets the sidebar while you are in it, and the org switcher
+ * above the rail is the way back out.
+ *
+ * The grouping is by what the entries are rather than where they apply: the old
+ * "Workspace" heading covered a colour scheme and a list of signed-in devices,
+ * neither of which is a workspace and both of which are yours alone.
+ */
+const ACCOUNT_NAV: { label: string; items: AccountNavItem[] }[] = [
+  {
+    label: "Account",
+    items: [
+      { to: "/account/profile", label: "Profile", icon: UserIcon },
+      { to: "/account/appearance", label: "Appearance", icon: PaletteIcon },
+    ],
+  },
+  {
+    label: "Sign-in",
+    items: [
+      { to: "/account/passkeys", label: "Passkeys", icon: FingerprintIcon },
+      { to: "/account/connections", label: "Connections", icon: LinkIcon },
+      { to: "/account/sessions", label: "Sessions", icon: MonitorIcon },
     ],
   },
 ];
@@ -293,6 +339,23 @@ export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolea
     </>
   );
 };
+
+export const AccountNavSections = () => (
+  <>
+    {ACCOUNT_NAV.map((section) => (
+      <NavSection
+        key={section.label}
+        label={section.label}
+        items={section.items.map((item) => ({
+          href: item.to,
+          label: item.label,
+          icon: item.icon,
+          exact: true,
+        }))}
+      />
+    ))}
+  </>
+);
 
 export const ProjectNavSections = ({ projectSlug }: { projectSlug: string }) => (
   <>

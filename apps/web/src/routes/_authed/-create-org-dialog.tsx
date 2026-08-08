@@ -104,14 +104,14 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
             const errorMessage = getFieldError(field);
             return (
               <Field
-                label="Workspace URL"
+                label="Organization URL"
                 description="Lowercase letters, numbers and dashes only."
                 error={errorMessage}
               >
                 <SlugInput
                   addonStart={`${SITE.host}/`}
                   id="create-org-slug"
-                  aria-label="Workspace URL"
+                  aria-label="Organization URL"
                   placeholder="acme-inc"
                   aria-invalid={Boolean(errorMessage) || undefined}
                   value={field.state.value}
@@ -169,7 +169,7 @@ export const CreateOrgDialog = ({
         <DialogHeader>
           <DialogTitle>Create organization</DialogTitle>
           <DialogDescription>
-            A workspace where teams collaborate on projects, credentials, and API keys.
+            Where a team shares its projects, credentials, and API keys.
           </DialogDescription>
         </DialogHeader>
         <CreateOrgForm
