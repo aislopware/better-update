@@ -172,6 +172,10 @@ const RuntimeDetailContent = () => {
               <Link
                 to="/projects/$projectSlug/builds"
                 params={{ projectSlug }}
+                // The runtime travels with the link: "all builds" from inside a
+                // runtime means all of *its* builds, and the list says so with a
+                // chip rather than quietly showing the project's whole history.
+                search={{ page: 1, sort: "-createdAt" as const, runtimeVersion: version }}
                 className={VIEW_ALL_CLASS}
               >
                 View all builds →
@@ -217,7 +221,7 @@ const RuntimeDetailContent = () => {
               <Link
                 to="/projects/$projectSlug/updates"
                 params={{ projectSlug }}
-                search={{ page: 1, sort: "-createdAt" as const }}
+                search={{ page: 1, sort: "-createdAt" as const, runtimeVersion: version }}
                 className={VIEW_ALL_CLASS}
               >
                 View all updates →

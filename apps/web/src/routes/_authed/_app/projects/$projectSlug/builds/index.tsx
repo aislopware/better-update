@@ -30,7 +30,9 @@ import {
   computePagination,
   fireAndForget,
   enumArrayParam,
+  optionalStringParam,
   pageParam,
+  PinnedFilterChip,
   queryParam,
   sortParam,
   useDataTableSearch,
@@ -71,6 +73,9 @@ const buildsSearchSchema = z.object({
   platform: enumArrayParam(PLATFORMS),
   distribution: enumArrayParam(DISTRIBUTIONS),
   audience: enumArrayParam(AUDIENCES),
+  // Set by following a runtime into its builds, never picked here — the
+  // toolbar shows it as a chip that can only be dropped.
+  runtimeVersion: optionalStringParam(),
   query: queryParam(),
 });
 
@@ -103,12 +108,14 @@ const useBuildColumns = ({
   platformIsPinned,
   distributionIsPinned,
   audienceIsPinned,
+  runtimeIsPinned,
 }: {
   readonly orgId: string;
   readonly projectId: string;
   readonly platformIsPinned: boolean;
   readonly distributionIsPinned: boolean;
   readonly audienceIsPinned: boolean;
+  readonly runtimeIsPinned: boolean;
 }) =>
   useMemo(
     () =>
@@ -116,8 +123,9 @@ const useBuildColumns = ({
         platform: platformIsPinned,
         distribution: distributionIsPinned,
         audience: audienceIsPinned,
+        runtimeVersion: runtimeIsPinned,
       }),
-    [orgId, projectId, platformIsPinned, distributionIsPinned, audienceIsPinned],
+    [orgId, projectId, platformIsPinned, distributionIsPinned, audienceIsPinned, runtimeIsPinned],
   );
 
 const BuildsContent = () => {
@@ -126,7 +134,15 @@ const BuildsContent = () => {
   const { id: projectId, slug: projectSlug } = project;
   const routeNavigate = Route.useNavigate();
 
-  const { page, sort, platform, distribution, audience, query: urlQuery } = Route.useSearch();
+  const {
+    page,
+    sort,
+    platform,
+    distribution,
+    audience,
+    runtimeVersion,
+    query: urlQuery,
+  } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
@@ -186,6 +202,7 @@ const BuildsContent = () => {
           platform: [],
           distribution: [],
           audience: [],
+          runtimeVersion: undefined,
           query: "",
           page: 1,
         }),
@@ -202,6 +219,7 @@ const BuildsContent = () => {
       ...(platform.length === 1 ? { platform: platform[0] } : {}),
       ...(distribution.length > 0 ? { distribution } : {}),
       ...(audience.length === 1 ? { audience: audience[0] } : {}),
+      ...(runtimeVersion ? { runtimeVersion } : {}),
       ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
@@ -216,6 +234,7 @@ const BuildsContent = () => {
     platformIsPinned: platform.length === 1,
     distributionIsPinned: distribution.length === 1,
     audienceIsPinned: audience.length === 1,
+    runtimeIsPinned: runtimeVersion !== undefined,
   });
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
@@ -253,7 +272,11 @@ const BuildsContent = () => {
   }
 
   const filtersActive =
-    platform.length > 0 || distribution.length > 0 || audience.length > 0 || urlQuery.length > 0;
+    platform.length > 0 ||
+    distribution.length > 0 ||
+    audience.length > 0 ||
+    runtimeVersion !== undefined ||
+    urlQuery.length > 0;
 
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
@@ -298,6 +321,20 @@ const BuildsContent = () => {
           onDistributionFilter={handleDistributionChange}
           onAudienceFilter={handleAudienceChange}
         />
+        {runtimeVersion === undefined ? null : (
+          <PinnedFilterChip
+            label="Runtime"
+            value={`v${runtimeVersion}`}
+            onClear={() => {
+              fireAndForget(
+                routeNavigate({
+                  to: ".",
+                  search: (prev) => ({ ...prev, runtimeVersion: undefined, page: 1 }),
+                }),
+              );
+            }}
+          />
+        )}
       </DataTableToolbar>
       <DataTableView
         table={table}

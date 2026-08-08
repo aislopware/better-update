@@ -9,6 +9,7 @@ export type { FilteredEmptyProps } from "./list-empty-state";
 export { ListPanel, ListPanelFooter, ListPanelHeader } from "./list-panel";
 export { ListSortMenu } from "./list-sort-menu";
 export { withoutPinnedColumns } from "./pinned-columns";
+export { PinnedFilterChip } from "./pinned-filter-chip";
 export { RowActionsMenu } from "./row-actions-menu";
 export {
   enumArrayParam,

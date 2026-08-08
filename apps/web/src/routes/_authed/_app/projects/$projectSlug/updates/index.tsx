@@ -24,7 +24,9 @@ import {
   enumArrayParam,
   fireAndForget,
   freeStringArrayParam,
+  optionalStringParam,
   pageParam,
+  PinnedFilterChip,
   queryParam,
   sortParam,
   useDataTableSearch,
@@ -53,6 +55,9 @@ const updatesSearchSchema = z.object({
   sort: sortParam(DEFAULT_SORT),
   platform: enumArrayParam(PLATFORMS),
   branchId: freeStringArrayParam(),
+  // Set by following a runtime into its updates, never picked here — the
+  // toolbar shows it as a chip that can only be dropped.
+  runtimeVersion: optionalStringParam(),
   query: queryParam(),
 });
 
@@ -85,6 +90,7 @@ interface UseUpdatesDataArgs {
   readonly apiSort: (typeof SORT_COLUMNS)[number] | `-${(typeof SORT_COLUMNS)[number]}`;
   readonly branchId: readonly string[];
   readonly platform: readonly ("ios" | "android")[];
+  readonly runtimeVersion: string | undefined;
   readonly query: string;
 }
 
@@ -96,6 +102,7 @@ const useUpdatesData = ({
   apiSort,
   branchId,
   platform,
+  runtimeVersion,
   query,
 }: UseUpdatesDataArgs) => {
   // Platform is a two-value enum, so "both selected" ≡ no filter and the API
@@ -108,6 +115,7 @@ const useUpdatesData = ({
       limit: PAGE_SIZE,
       ...(branchId.length > 0 ? { branchId } : {}),
       ...(platformParam ? { platform: platformParam } : {}),
+      ...(runtimeVersion ? { runtimeVersion } : {}),
       ...(query ? { query } : {}),
       sort: apiSort,
     }),
@@ -121,8 +129,9 @@ const useUpdatesData = ({
       withoutPinnedColumns(buildUpdateColumns(slug, orgId, projectId), {
         branch: branchIsPinned,
         platform: platformIsPinned,
+        runtimeVersion: runtimeVersion !== undefined,
       }),
-    [slug, orgId, projectId, branchIsPinned, platformIsPinned],
+    [slug, orgId, projectId, branchIsPinned, platformIsPinned, runtimeVersion],
   );
 
   return { updatesQuery, columns };
@@ -134,7 +143,7 @@ const UpdatesContent = () => {
   const { id: projectId, slug } = project;
   const routeNavigate = Route.useNavigate();
 
-  const { page, sort, platform, branchId, query: urlQuery } = Route.useSearch();
+  const { page, sort, platform, branchId, runtimeVersion, query: urlQuery } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
@@ -183,6 +192,7 @@ const UpdatesContent = () => {
           ...prev,
           branchId: [],
           platform: [],
+          runtimeVersion: undefined,
           query: "",
           page: 1,
         }),
@@ -198,6 +208,7 @@ const UpdatesContent = () => {
     apiSort,
     branchId,
     platform,
+    runtimeVersion,
     query: urlQuery,
   });
 
@@ -240,7 +251,11 @@ const UpdatesContent = () => {
     );
   }
 
-  const filtersActive = branchId.length > 0 || platform.length > 0 || urlQuery.length > 0;
+  const filtersActive =
+    branchId.length > 0 ||
+    platform.length > 0 ||
+    runtimeVersion !== undefined ||
+    urlQuery.length > 0;
 
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
@@ -274,6 +289,20 @@ const UpdatesContent = () => {
           onBranchFilter={handleBranchFilter}
           onPlatformFilter={handlePlatformFilter}
         />
+        {runtimeVersion === undefined ? null : (
+          <PinnedFilterChip
+            label="Runtime"
+            value={`v${runtimeVersion}`}
+            onClear={() => {
+              fireAndForget(
+                routeNavigate({
+                  to: ".",
+                  search: (prev) => ({ ...prev, runtimeVersion: undefined, page: 1 }),
+                }),
+              );
+            }}
+          />
+        )}
       </DataTableToolbar>
       <DataTableView
         table={table}
