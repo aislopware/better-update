@@ -2,7 +2,6 @@ import { activityQueryOptions } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { ChartPalette, TimeseriesChart } from "@better-update/ui/components/chart";
 import { Skeleton } from "@better-update/ui/components/skeleton";
-import { cn } from "@better-update/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 
@@ -11,7 +10,7 @@ import type { ReactNode } from "react";
 
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "../lib/data-table";
 import { echarts } from "../lib/echarts";
-import { formatChartDate, formatChartDateNarrow } from "../lib/format-date";
+import { formatChartDate } from "../lib/format-date";
 import { compactNumber, numberFormatter } from "../lib/format-number";
 import { useTheme } from "../lib/use-theme";
 
@@ -132,7 +131,6 @@ const StandingFact = ({ label, value }: ExtraMetric) => (
 const NO_EXTRAS: readonly ExtraMetric[] = [];
 
 const CHART_HEIGHT = 176;
-const RAIL_CHART_HEIGHT = 120;
 
 // Days are points on a real axis, so the bars sit where the calendar puts them
 // and a quiet week is a visible gap rather than a missing label.
@@ -152,23 +150,12 @@ const useSeriesColors = (): { readonly updates: string; readonly builds: string 
 };
 
 /**
- * A month of daily counts, drawn to fit where it stands.
- *
- * Wide, that is stacked bars: a day is a discrete act of publishing, and a bar
- * per day says so. In a rail there is no room for thirty bars — they collapse
- * into slivers and the date axis turns to mush — so the same series is drawn as
- * filled lines, which survive being narrow.
+ * A month of daily counts, as stacked bars: a day is a discrete act of
+ * publishing, and a bar per day says so.
  */
-const ActivityChart = ({
-  series,
-  shape,
-}: {
-  series: readonly ActivityPoint[];
-  shape: "bars" | "lines";
-}) => {
+const ActivityChart = ({ series }: { series: readonly ActivityPoint[] }) => {
   const isDarkMode = useTheme().resolvedTheme === "dark";
   const colors = useSeriesColors();
-  const isBars = shape === "bars";
   const chart = useRef<ECharts | null>(null);
   // A time axis labels the first of a month on top of the ticks it was asked
   // for, so a window crossing one printed "Aug 1" across "Aug 2". Dropping a
@@ -183,18 +170,15 @@ const ActivityChart = ({
     <TimeseriesChart
       ref={chart}
       echarts={echarts}
-      type={isBars ? "bar" : "line"}
-      gradient={!isBars}
-      height={isBars ? CHART_HEIGHT : RAIL_CHART_HEIGHT}
+      type="bar"
+      height={CHART_HEIGHT}
       isDarkMode={isDarkMode}
       data={[
         { name: "Updates", color: colors.updates, data: toSeries(series, "updates") },
         { name: "Builds", color: colors.builds, data: toSeries(series, "builds") },
       ]}
-      xAxisTickCount={isBars ? 6 : 3}
-      xAxisTickFormat={(value) =>
-        (isBars ? formatChartDate : formatChartDateNarrow)(new Date(value))
-      }
+      xAxisTickCount={6}
+      xAxisTickFormat={(value) => formatChartDate(new Date(value))}
       yAxisTickFormat={compactNumber}
       tooltipValueFormat={(value) => numberFormatter.format(value)}
       ariaDescription="Updates and builds published per day over the last 30 days."
@@ -203,7 +187,6 @@ const ActivityChart = ({
 };
 
 const chartSkeleton = <Skeleton className="h-44 w-full rounded-md" />;
-const railChartSkeleton = <Skeleton className="h-30 w-full rounded-md" />;
 
 interface ActivityResult {
   readonly series: readonly ActivityPoint[];
@@ -215,11 +198,9 @@ interface ActivityResult {
 const SeriesMetrics = ({
   data,
   isPending,
-  withTrend,
 }: {
   data: ActivityResult | undefined;
   isPending: boolean;
-  withTrend: boolean;
 }) => {
   const colors = useSeriesColors();
   const series = data?.series ?? [];
@@ -230,13 +211,13 @@ const SeriesMetrics = ({
         label="Updates published"
         color={colors.updates}
         value={isPending ? skeleton : (data?.totalUpdates ?? 0)}
-        trend={withTrend ? trendPercent(series, "updates") : undefined}
+        trend={trendPercent(series, "updates")}
       />
       <Metric
         label="Builds uploaded"
         color={colors.builds}
         value={isPending ? skeleton : (data?.totalBuilds ?? 0)}
-        trend={withTrend ? trendPercent(series, "builds") : undefined}
+        trend={trendPercent(series, "builds")}
       />
     </>
   );
@@ -270,9 +251,9 @@ export const ShippingActivityPanel = ({
       <ListPanelHeader title={title} description={PERIOD_LABEL} actions={actions} />
       <div className="flex flex-col gap-5 p-4">
         <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
-          <SeriesMetrics data={data} isPending={isPending} withTrend />
+          <SeriesMetrics data={data} isPending={isPending} />
         </div>
-        {isPending ? chartSkeleton : <ActivityChart series={series} shape="bars" />}
+        {isPending ? chartSkeleton : <ActivityChart series={series} />}
       </div>
       {extras.length > 0 ? (
         <ListPanelFooter>
@@ -284,33 +265,5 @@ export const ShippingActivityPanel = ({
         </ListPanelFooter>
       ) : null}
     </ListPanel>
-  );
-};
-
-/**
- * Rail form: the same series with the chrome stripped back, for the column
- * beside a list where a full panel would out-shout what it is standing next to.
- */
-export const ShippingActivitySummary = ({
-  orgId,
-  className,
-}: {
-  orgId: string;
-  className?: string;
-}) => {
-  const { data, isPending } = useQuery(activityQueryOptions(orgId, undefined, PERIOD));
-  const series = data?.series ?? [];
-
-  return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      {/* Grouped, not spread: below 2xl the rail stacks full width above the
-          list, and pushing the two figures to opposite ends of the page left
-          each of them standing alone with no idea it had a pair. */}
-      <div className="flex flex-wrap items-start gap-x-10 gap-y-3">
-        <SeriesMetrics data={data} isPending={isPending} withTrend={false} />
-      </div>
-      {isPending ? railChartSkeleton : <ActivityChart series={series} shape="lines" />}
-      <span className="text-kumo-subtle text-xs">{PERIOD_LABEL}</span>
-    </div>
   );
 };

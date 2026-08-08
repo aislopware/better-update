@@ -1,4 +1,5 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
+import { compact } from "@better-update/type-guards";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { LayerCard } from "@better-update/ui/components/layer-card";
@@ -15,7 +16,7 @@ import type { ReactNode } from "react";
 
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { ResourceListPage } from "../../../../components/resource-list-page";
-import { ShippingActivitySummary } from "../../../../components/shipping-activity";
+import { ShippingActivityPanel } from "../../../../components/shipping-activity";
 import { StatusDot } from "../../../../components/status-dot";
 import {
   CardList,
@@ -36,6 +37,8 @@ import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { pluralize } from "../../../../lib/pluralize";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { CreateProjectDialog } from "./-create-dialog";
+
+import type { FacetedFilterOption } from "../../../../lib/data-table";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -64,11 +67,6 @@ type StatusFilter = (typeof STATUS_VALUES)[number];
 
 // An empty (or full) chip selection means "all"; the URL default stays
 // ["active"] so the page opens on active projects.
-const STATUS_OPTIONS = [
-  { label: "Active", value: "active" },
-  { label: "Archived", value: "archived" },
-] as const;
-
 const DEFAULT_STATUS = ["active"] as const satisfies readonly StatusFilter[];
 
 const isStatusFilter = (value: unknown): value is StatusFilter =>
@@ -196,69 +194,34 @@ const projectsSkeleton = (
 );
 
 /**
- * Standing context beside the list. The counts either side of the archive line
- * are filter shortcuts — a count you cannot act on is trivia — and above them
- * sits what the organization has actually been shipping, so the column carries
- * a reading of the month rather than two numbers and a lot of empty card.
+ * How many projects sit either side of the archive line, carried into the
+ * Status filter rather than standing beside the list as figures of their own.
+ *
+ * They used to be two rows in a rail: a count you can act on beats a count you
+ * cannot, so they were buttons that set the filter — which left the page with
+ * two controls for one axis, the chip in the toolbar and the pair beneath the
+ * chart. The filter already draws a count against each option, so the numbers
+ * go where the choice is.
+ *
+ * `limit: 1` — these queries are here for their totals.
  */
-const ProjectsRail = ({
-  orgId,
-  status,
-  onStatusChange,
-}: {
-  orgId: string;
-  status: readonly StatusFilter[];
-  onStatusChange: (next: readonly StatusFilter[]) => void;
-}) => {
-  // `limit: 1` — these two queries are here for their totals.
+const useStatusOptions = (orgId: string): readonly FacetedFilterOption[] => {
   const active = useQuery(projectsQueryOptions(orgId, { limit: 1, status: "active" }));
   const archived = useQuery(projectsQueryOptions(orgId, { limit: 1, status: "archived" }));
-  const rows = [
-    { key: "active", label: "Active", total: active.data?.total },
-    { key: "archived", label: "Archived", total: archived.data?.total },
-  ] as const;
-
-  return (
-    <LayerCard className="flex flex-col gap-4 p-4">
-      <ShippingActivitySummary orgId={orgId} />
-      <div className="border-kumo-line flex flex-col border-t pt-3">
-        {rows.map((row) => (
-          <button
-            key={row.key}
-            type="button"
-            aria-pressed={status.length === 1 && status[0] === row.key}
-            onClick={() => {
-              onStatusChange([row.key]);
-            }}
-            className="hover:bg-kumo-tint aria-pressed:text-kumo-default text-kumo-subtle -mx-2 flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-left"
-          >
-            {row.label}
-            {row.total === undefined ? (
-              <Skeleton className="h-4 w-8 rounded" />
-            ) : (
-              <span className="text-kumo-default tabular-nums">{row.total}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </LayerCard>
-  );
+  // The count is left off until it arrives rather than shown as a zero: an
+  // option reading "Archived 0" while the answer is still in flight is wrong,
+  // not pending.
+  return [
+    { label: "Active", value: "active", ...compact({ count: active.data?.total }) },
+    { label: "Archived", value: "archived", ...compact({ count: archived.data?.total }) },
+  ];
 };
 
-const ProjectsShell = ({
-  orgId,
-  rail,
-  children,
-}: {
-  orgId: string;
-  rail?: ReactNode;
-  children: ReactNode;
-}) => (
+const ProjectsShell = ({ orgId, children }: { orgId: string; children: ReactNode }) => (
   <ResourceListPage
     title="Projects"
     description="Manage your over-the-air update projects."
     actions={<CreateProjectDialog orgId={orgId} />}
-    rail={rail}
   >
     {children}
   </ResourceListPage>
@@ -268,6 +231,8 @@ const Projects = () => {
   const { activeOrg } = Route.useRouteContext();
   const routeNavigate = Route.useNavigate();
   const { page, sort, query: urlQuery, status } = Route.useSearch();
+
+  const statusOptions = useStatusOptions(activeOrg.id);
 
   const { apiSort, onSortChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
@@ -352,46 +317,48 @@ const Projects = () => {
   const isFiltered = urlQuery.length > 0 || !isDefaultStatus(status);
 
   return (
-    <ProjectsShell
-      orgId={activeOrg.id}
-      rail={
-        <ProjectsRail orgId={activeOrg.id} status={status} onStatusChange={handleStatusChange} />
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <DataTableToolbar
-          search={{
-            value: searchDraft,
-            onChange: handleSearchChange,
-            placeholder: "Search projects…",
-          }}
-          isFiltered={isFiltered}
-          onReset={handleReset}
-          actions={<ListSortMenu options={SORT_OPTIONS} value={sort} onChange={onSortChange} />}
-        >
-          <DataTableFacetedFilter
-            title="Status"
-            options={STATUS_OPTIONS}
-            selected={status}
-            onChange={handleStatusChange}
+    <ProjectsShell orgId={activeOrg.id}>
+      {/* The same panel the organization and project overviews open on. It had
+          been the rail form here — a card built for a 340px column, stretched
+          across the page below 2xl, where its lines wanted to be bars and its
+          two counts sat a thousand pixels from their own labels. */}
+      <div className="flex flex-col gap-6">
+        <ShippingActivityPanel orgId={activeOrg.id} />
+        <div className="flex flex-col gap-3">
+          <DataTableToolbar
+            search={{
+              value: searchDraft,
+              onChange: handleSearchChange,
+              placeholder: "Search projects…",
+            }}
+            isFiltered={isFiltered}
+            onReset={handleReset}
+            actions={<ListSortMenu options={SORT_OPTIONS} value={sort} onChange={onSortChange} />}
+          >
+            <DataTableFacetedFilter
+              title="Status"
+              options={statusOptions}
+              selected={status}
+              onChange={handleStatusChange}
+            />
+          </DataTableToolbar>
+          <CardList
+            items={data.items}
+            getKey={(project) => project.id}
+            renderItem={(project) => <ProjectCard project={project} />}
+            isPlaceholderData={isPlaceholderData}
+            filteredEmpty={{ entity: "projects", isFiltered, onClear: handleReset }}
+            emptyMessage="No projects to show."
+            pagination={{
+              page: safePage,
+              perPage: PAGE_SIZE,
+              totalCount: data.total,
+              entity: pluralize(data.total, "project"),
+              isFiltered: urlQuery.length > 0,
+              onChange: onPageChange,
+            }}
           />
-        </DataTableToolbar>
-        <CardList
-          items={data.items}
-          getKey={(project) => project.id}
-          renderItem={(project) => <ProjectCard project={project} />}
-          isPlaceholderData={isPlaceholderData}
-          filteredEmpty={{ entity: "projects", isFiltered, onClear: handleReset }}
-          emptyMessage="No projects to show."
-          pagination={{
-            page: safePage,
-            perPage: PAGE_SIZE,
-            totalCount: data.total,
-            entity: pluralize(data.total, "project"),
-            isFiltered: urlQuery.length > 0,
-            onChange: onPageChange,
-          }}
-        />
+        </div>
       </div>
     </ProjectsShell>
   );

@@ -20,12 +20,5 @@ export const formatDateTime = (value: DateInput): string =>
 /** Axis ticks over a multi-day window, where the day is what separates them. */
 export const formatChartDate = (value: DateInput): string => format(asDate(value), "MMM d");
 
-/**
- * Axis ticks over a multi-day window in a narrow chart. ECharts adds its own
- * month-boundary ticks on top of the requested ones, which collide with the
- * neighbours at rail width — numerals are short enough to survive that.
- */
-export const formatChartDateNarrow = (value: DateInput): string => format(asDate(value), "M/d");
-
 /** Axis ticks within a day — 24-hour, so every tick is the same width. */
 export const formatChartTime = (value: DateInput): string => format(asDate(value), "HH:mm");

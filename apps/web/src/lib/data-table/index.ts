@@ -2,6 +2,7 @@ export { CardList } from "./card-list";
 export { PRIMARY_COLUMN_CLASS } from "./column-meta";
 export { PAGE_SIZE, computePagination } from "./compute-pagination";
 export { DataTableFacetedFilter } from "./data-table-faceted-filter";
+export type { FacetedFilterOption } from "./data-table-faceted-filter";
 export { DataTableToolbar } from "./data-table-toolbar";
 export { DataTableView, ROW_ACTION_DISCLOSURE } from "./data-table-view";
 export { DataTableViewOptions } from "./data-table-view-options";
