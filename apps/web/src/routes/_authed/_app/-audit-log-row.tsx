@@ -13,6 +13,7 @@ import { BracketsCurlyIcon, RobotIcon } from "@phosphor-icons/react";
 
 import { CopyButton } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
+import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
 import {
@@ -37,14 +38,11 @@ export interface AuditLogEntry {
 /**
  * Who did it.
  *
- * A person is just their address. There used to be an avatar in front of it,
- * seeded by hashing that same address, which put fifty saturated discs down a
- * column already carrying the only thing they encoded — the same trade the
- * Members table made and lost.
- *
- * The robot medallion stays, because it is the exception: an unattended actor
- * is worth marking, and the `robot:` prefix on the address then reads as a
- * caption rather than the only clue.
+ * People keep their avatar here, unlike in the Members table: a log is read by
+ * scanning down it for one person's work, and a colour you recognise finds a
+ * name faster than reading fifty addresses. Robots get the RobotIcon medallion
+ * instead — the `robot:` prefix already says so in text, and the medallion is
+ * what makes an unattended action visible at the same glance.
  */
 const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string }) => (
   <span className="flex items-center gap-2">
@@ -55,7 +53,9 @@ const ActorCell = ({ actorEmail, source }: { actorEmail: string; source: string 
       >
         <RobotIcon weight="bold" className="size-3.5" aria-hidden />
       </span>
-    ) : null}
+    ) : (
+      <EntityAvatar name={actorEmail} size="sm" />
+    )}
     <span className="truncate" title={actorEmail}>
       {actorEmail}
     </span>
