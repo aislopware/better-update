@@ -179,7 +179,18 @@ export const DataTableFacetedFilter = ({
           value={query}
           onValueChange={serverSearched ? onSearchChange : setLocalSearch}
           itemToStringValue={(group: FilterGroup) => group.id}
-          className="max-h-96 bg-transparent"
+          className={cn(
+            "max-h-96 bg-transparent",
+            // Kumo's search row is a square, full-bleed strip wearing a 2px
+            // `focus-within` ring, and it is the panel's first child — so in a
+            // popover the ring runs straight down the rounded left and right
+            // edges instead of following them. It is also permanently lit,
+            // since the field takes focus the moment the popover opens, which
+            // makes it decoration rather than feedback. The row takes the
+            // panel's own top radius and drops the ring; the popover already
+            // says where focus is by being open.
+            "[&>div:first-child]:rounded-t-lg [&>div:first-child]:focus-within:ring-0",
+          )}
         >
           <Palette.Input placeholder={title} />
           <Palette.List className="ring-0">
