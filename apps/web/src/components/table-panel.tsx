@@ -1,4 +1,3 @@
-import type { Icon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import {
@@ -15,9 +14,9 @@ import type { ClientPaginationState } from "../lib/data-table";
  * uses to tell two stacked panels apart at a glance, where a list page can rely
  * on its own header instead.
  */
-export const PanelTitle = ({ icon: Glyph, label }: { icon: Icon; label: string }) => (
+export const PanelTitle = ({ icon, label }: { icon: ReactNode; label: ReactNode }) => (
   <span className="flex items-center gap-2">
-    <Glyph weight="bold" className="text-kumo-subtle size-4" />
+    <span className="text-kumo-subtle flex items-center [&>svg]:size-4">{icon}</span>
     {label}
   </span>
 );

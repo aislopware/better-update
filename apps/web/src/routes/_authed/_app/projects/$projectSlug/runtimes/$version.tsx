@@ -180,7 +180,7 @@ const RuntimeDetailContent = () => {
       />
 
       {buildsCount === 0 ? (
-        <TablePanel title={<PanelTitle icon={PackageIcon} label="Builds" />}>
+        <TablePanel title={<PanelTitle icon={<PackageIcon weight="bold" />} label="Builds" />}>
           <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
             Build a binary against this runtime to see it here.
           </p>
@@ -189,7 +189,7 @@ const RuntimeDetailContent = () => {
         <DataTableView
           table={buildsTable}
           columnsCount={buildColumns.length}
-          title={<PanelTitle icon={PackageIcon} label="Builds" />}
+          title={<PanelTitle icon={<PackageIcon weight="bold" />} label="Builds" />}
           isPlaceholderData={false}
           // A preview of the newest builds on this runtime rather than a page
           // of them, so the footer counts and does not paginate — the Builds
@@ -199,7 +199,7 @@ const RuntimeDetailContent = () => {
       )}
 
       <TablePanel
-        title={<PanelTitle icon={CloudArrowUpIcon} label="Updates" />}
+        title={<PanelTitle icon={<CloudArrowUpIcon weight="bold" />} label="Updates" />}
         footer={
           updatesCount > RUNTIME_UPDATES_LIMIT ? (
             <Link

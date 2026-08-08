@@ -63,7 +63,7 @@ const FingerprintBuildsPanel = ({
   const pagination = useClientPagination(builds, "build");
   return (
     <TablePanel
-      title={<PanelTitle icon={PackageIcon} label="Builds" />}
+      title={<PanelTitle icon={<PackageIcon weight="bold" />} label="Builds" />}
       pagination={builds.length > 0 ? pagination : undefined}
     >
       {builds.length === 0 ? (
@@ -107,7 +107,7 @@ const FingerprintUpdatesPanel = ({
   const pagination = useClientPagination(updates, "update");
   return (
     <TablePanel
-      title={<PanelTitle icon={CloudArrowUpIcon} label="Updates" />}
+      title={<PanelTitle icon={<CloudArrowUpIcon weight="bold" />} label="Updates" />}
       pagination={updates.length > 0 ? pagination : undefined}
     >
       {updates.length === 0 ? (

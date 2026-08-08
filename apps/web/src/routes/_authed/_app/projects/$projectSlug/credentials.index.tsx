@@ -17,15 +17,14 @@ import type {
   AppleTeamItem,
 } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ReactNode } from "react";
 
-import { EmptyDash, TeamCell } from "../../-credential-cells";
+import { EmptyDash } from "../../-credential-cells";
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { PageHeader } from "../../../../../components/page-header";
 import { TablePanelSkeleton } from "../../../../../components/skeletons";
-import { TablePanel } from "../../../../../components/table-panel";
+import { PanelTitle, TablePanel } from "../../../../../components/table-panel";
 import {
   clientPaginationFooter,
   DataTableView,
@@ -62,13 +61,6 @@ const IosEmpty = () => (
     description="Register an iOS bundle identifier and bind distribution certificates, provisioning profiles, push keys, and App Store Connect API keys for this project from the CLI."
     contents={<CliCommandBlock commands={["better-update credentials configure --platform ios"]} />}
   />
-);
-
-const PanelTitle = ({ icon, children }: { icon: ReactNode; children: ReactNode }) => (
-  <span className="flex items-center gap-2">
-    {icon}
-    {children}
-  </span>
 );
 
 /**
@@ -115,10 +107,20 @@ const IosTeamCell = ({
   }
   // Two distribution types signing under different teams is rare and worth
   // saying plainly rather than picking one of them to show.
-  return rest.length === 0 ? (
-    <TeamCell team={teams.find((team) => team.id === first)} />
-  ) : (
-    <span className="text-kumo-subtle">{teamIds.length} teams</span>
+  if (rest.length > 0) {
+    return <span className="text-kumo-subtle">{teamIds.length} teams</span>;
+  }
+  const team = teams.find((item) => item.id === first);
+  if (!team) {
+    return <EmptyDash />;
+  }
+  // The team's name only: the stacked cell the detail page uses spends a third
+  // of this table's width on a raw team id, and the column it starves is the
+  // bundle identifier the row is named by.
+  return (
+    <span className="truncate" title={team.appleTeamId}>
+      {team.name ?? team.appleTeamId}
+    </span>
   );
 };
 
@@ -302,12 +304,11 @@ const AndroidSection = ({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const title = <PanelTitle icon={<AndroidIcon className="size-4" />}>Android</PanelTitle>;
-  const description = "Application identifiers registered for this project.";
+  const title = <PanelTitle icon={<AndroidIcon />} label="Android" />;
 
   if (items.length === 0) {
     return (
-      <TablePanel title={title} description={description}>
+      <TablePanel title={title}>
         <AndroidEmpty />
       </TablePanel>
     );
@@ -318,7 +319,6 @@ const AndroidSection = ({
       table={table}
       columnsCount={columns.length}
       title={title}
-      description={description}
       pagination={clientPaginationFooter(pagination)}
       onRowClick={async (item) => {
         await navigate({
@@ -354,12 +354,11 @@ const IosSection = ({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const title = <PanelTitle icon={<AppleIcon className="size-4" />}>iOS</PanelTitle>;
-  const description = "Bundle identifiers registered for this project, including app extensions.";
+  const title = <PanelTitle icon={<AppleIcon />} label="iOS" />;
 
   if (groups.length === 0) {
     return (
-      <TablePanel title={title} description={description}>
+      <TablePanel title={title}>
         <IosEmpty />
       </TablePanel>
     );
@@ -370,7 +369,6 @@ const IosSection = ({
       table={table}
       columnsCount={columns.length}
       title={title}
-      description={description}
       pagination={clientPaginationFooter(pagination)}
       onRowClick={async (group) => {
         await navigate({
