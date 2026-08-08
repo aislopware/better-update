@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithQuery } from "../../../../tests/helpers/render-with-query";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
-import { BoundProjectChips, BoundProjectsCell } from "./-credential-bindings";
+import { BindingRowActions, BoundProjectChips, BoundProjectsCell } from "./-credential-bindings";
 
 const PROJECTS = [
   { id: "project-1", name: "My App" },
@@ -79,16 +79,12 @@ describe(BoundProjectChips, () => {
 });
 
 describe(BoundProjectsCell, () => {
-  it("hides the manage affordance from non-admins", async () => {
+  it("names the bound projects and offers no verb of its own", async () => {
     renderWithQuery(
       <BoundProjectsCell
         orgId="org-1"
-        resourceType="googleServiceAccountKey"
-        resourceId="gsa-1"
-        resourceLabel="ci@example.iam.gserviceaccount.com"
         boundProjectIds={["project-1"]}
         boundToAllProjects={false}
-        canManage={false}
       />,
       { seedCache: seedProjects() },
     );
@@ -96,23 +92,30 @@ describe(BoundProjectsCell, () => {
     await expect(screen.findByText("My App")).resolves.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage projects" })).not.toBeInTheDocument();
   });
+});
 
-  it("opens a dialog for org admins listing every project with its bound state", async () => {
+/** Opens the row menu and picks its one item. */
+const openBindingsDialog = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(await screen.findByRole("button", { name: /^Actions for / }));
+  await user.click(await screen.findByRole("menuitem", { name: "Manage projects" }));
+};
+
+describe(BindingRowActions, () => {
+  it("opens a dialog listing every project with its bound state", async () => {
     const user = userEvent.setup();
     renderWithQuery(
-      <BoundProjectsCell
+      <BindingRowActions
         orgId="org-1"
         resourceType="appleTeam"
         resourceId="team-1"
         resourceLabel="Acme Corp (ABCDE12345)"
         boundProjectIds={["project-1"]}
         boundToAllProjects={false}
-        canManage
       />,
       { seedCache: seedProjects() },
     );
 
-    await user.click(await screen.findByRole("button", { name: "Manage projects" }));
+    await openBindingsDialog(user);
 
     const checkboxes = await screen.findAllByRole("checkbox");
     expect(checkboxes).toHaveLength(5);
@@ -137,14 +140,13 @@ describe(BoundProjectsCell, () => {
     // Typing queries the server, so the narrowed list lives under its own
     // search-scoped cache key — seed default and searched pages separately.
     renderWithQuery(
-      <BoundProjectsCell
+      <BindingRowActions
         orgId="org-1"
         resourceType="ascApiKey"
         resourceId="key-1"
         resourceLabel="the ASC API key"
         boundProjectIds={[]}
         boundToAllProjects={false}
-        canManage
       />,
       {
         seedCache: [
@@ -172,7 +174,7 @@ describe(BoundProjectsCell, () => {
       },
     );
 
-    await user.click(await screen.findByRole("button", { name: "Manage projects" }));
+    await openBindingsDialog(user);
     await expect(screen.findAllByRole("checkbox")).resolves.toHaveLength(9);
 
     await user.type(screen.getByPlaceholderText("Filter projects…"), "needle");
@@ -195,19 +197,18 @@ describe(BoundProjectsCell, () => {
   it("disables the per-project checklist while the org-wide binding is on", async () => {
     const user = userEvent.setup();
     renderWithQuery(
-      <BoundProjectsCell
+      <BindingRowActions
         orgId="org-1"
         resourceType="androidUploadKeystore"
         resourceId="ks-1"
         resourceLabel="the upload keystore"
         boundProjectIds={PROJECTS.map((project) => project.id)}
         boundToAllProjects
-        canManage
       />,
       { seedCache: seedProjects() },
     );
 
-    await user.click(await screen.findByRole("button", { name: "Manage projects" }));
+    await openBindingsDialog(user);
 
     await expect(screen.findByRole("switch")).resolves.toHaveAttribute("aria-checked", "true");
     for (const checkbox of screen.getAllByRole("checkbox")) {

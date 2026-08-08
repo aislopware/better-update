@@ -17,18 +17,19 @@ import type {
 import { CopyableId, CopyableMono } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
-import { BoundProjectsCell, InheritedProjectsCell } from "./-credential-bindings";
-import { CredentialEmptyRow, ExpiryCell, RolesCell, TeamCell } from "./-credential-cells";
+import {
+  BindingRowActions,
+  BoundProjectsCell,
+  InheritedProjectsCell,
+} from "./-credential-bindings";
+import { ExpiryCell, RolesCell, TeamCell } from "./-credential-cells";
 import { AppleChildProtectionSwitch, AppleTeamProtectionSwitch } from "./-credential-protection";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
 import type { ChildCredentialTableProps } from "./-credentials-utils";
 
-export const DistributionCertificatesEmptyState = () => (
-  <CredentialEmptyRow>
-    No distribution certificates yet — upload a .p12 from the CLI to sign iOS builds.
-  </CredentialEmptyRow>
-);
+export const DISTRIBUTION_CERTIFICATES_EMPTY_HINT =
+  "Upload a .p12 from the CLI to sign iOS builds.";
 
 export const DistributionCertificatesTable = ({
   items,
@@ -89,11 +90,8 @@ export const DistributionCertificatesTable = ({
   </Table>
 );
 
-export const PushKeysEmptyState = () => (
-  <CredentialEmptyRow>
-    No push keys yet — upload an APNs .p8 key from the CLI to send push notifications.
-  </CredentialEmptyRow>
-);
+export const PUSH_KEYS_EMPTY_HINT =
+  "Upload an APNs .p8 key from the CLI to send push notifications.";
 
 export const PushKeysTable = ({
   items,
@@ -140,12 +138,8 @@ export const PushKeysTable = ({
   </Table>
 );
 
-export const AscApiKeysEmptyState = () => (
-  <CredentialEmptyRow>
-    No App Store Connect API keys yet — upload an ASC .p8 key from the CLI to automate App Store
-    Connect operations.
-  </CredentialEmptyRow>
-);
+export const ASC_API_KEYS_EMPTY_HINT =
+  "Upload an ASC .p8 key from the CLI to automate App Store Connect operations.";
 
 export const AscApiKeysTable = ({
   items,
@@ -166,6 +160,7 @@ export const AscApiKeysTable = ({
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
         <TableHead className="text-right">Protected</TableHead>
+        <TableHead />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -193,12 +188,8 @@ export const AscApiKeysTable = ({
             {key.appleTeamId === null ? (
               <BoundProjectsCell
                 orgId={orgId}
-                resourceType="ascApiKey"
-                resourceId={key.id}
-                resourceLabel={key.name}
                 boundProjectIds={key.boundProjectIds}
                 boundToAllProjects={key.boundToAllProjects}
-                canManage={canManageBindings}
               />
             ) : (
               <InheritedProjectsCell
@@ -221,18 +212,28 @@ export const AscApiKeysTable = ({
               canManage={canManageProtection}
             />
           </TableCell>
+          <TableCell className="text-right">
+            {/* Team-scoped keys inherit the team's bindings, so there is
+                nothing of their own to bind. */}
+            {canManageBindings && key.appleTeamId === null ? (
+              <BindingRowActions
+                orgId={orgId}
+                resourceType="ascApiKey"
+                resourceId={key.id}
+                resourceLabel={key.name}
+                boundProjectIds={key.boundProjectIds}
+                boundToAllProjects={key.boundToAllProjects}
+              />
+            ) : null}
+          </TableCell>
         </TableRow>
       ))}
     </TableBody>
   </Table>
 );
 
-export const AppleTeamsEmptyState = () => (
-  <CredentialEmptyRow>
-    No Apple Teams yet — teams appear automatically when certificates, push keys, or ASC API keys
-    are uploaded.
-  </CredentialEmptyRow>
-);
+export const APPLE_TEAMS_EMPTY_HINT =
+  "Teams appear automatically when certificates, push keys, or ASC API keys are uploaded.";
 
 export const AppleTeamsTable = ({
   items,
@@ -254,6 +255,7 @@ export const AppleTeamsTable = ({
         <TableHead className="text-right">Profiles</TableHead>
         <TableHead className="text-right">Devices</TableHead>
         <TableHead className="text-right">Protected</TableHead>
+        <TableHead />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -272,12 +274,8 @@ export const AppleTeamsTable = ({
           <TableCell>
             <BoundProjectsCell
               orgId={orgId}
-              resourceType="appleTeam"
-              resourceId={team.id}
-              resourceLabel={formatAppleTeamLabel(team)}
               boundProjectIds={team.boundProjectIds}
               boundToAllProjects={team.boundToAllProjects}
-              canManage={canManageProtection}
             />
           </TableCell>
           <TableCell className="text-right tabular-nums">
@@ -289,6 +287,18 @@ export const AppleTeamsTable = ({
           <TableCell className="text-right tabular-nums">{team.deviceCount}</TableCell>
           <TableCell className="text-right">
             <AppleTeamProtectionSwitch orgId={orgId} team={team} canManage={canManageProtection} />
+          </TableCell>
+          <TableCell className="text-right">
+            {canManageProtection ? (
+              <BindingRowActions
+                orgId={orgId}
+                resourceType="appleTeam"
+                resourceId={team.id}
+                resourceLabel={formatAppleTeamLabel(team)}
+                boundProjectIds={team.boundProjectIds}
+                boundToAllProjects={team.boundToAllProjects}
+              />
+            ) : null}
           </TableCell>
         </TableRow>
       ))}

@@ -3,21 +3,12 @@ import { Switch } from "@better-update/ui/components/switch";
 import { LockIcon } from "@phosphor-icons/react";
 
 import type { AppleTeamItem } from "@better-update/api-client/react";
-import type { ReactNode } from "react";
 
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatShortDate } from "../../../lib/format-date";
 import { formatAppleTeamType } from "./-credentials-utils";
 
 export const EmptyDash = () => <span className="text-kumo-subtle">—</span>;
-
-// The credentials page stacks eight panels — an empty one collapses to a single
-// quiet line where its rows would be, instead of a full-height Empty card, so
-// the populated panels stay above the fold. The panel draws the frame, so this
-// draws none of its own.
-export const CredentialEmptyRow = ({ children }: { children: ReactNode }) => (
-  <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">{children}</p>
-);
 
 // Read-only per-row protected indicator (GITLAB-RBAC-SPEC §3b) for
 // project-scoped credential views; the org tables render the toggle instead.

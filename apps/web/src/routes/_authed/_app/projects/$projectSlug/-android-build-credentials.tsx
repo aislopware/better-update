@@ -27,7 +27,7 @@ import type {
   AndroidUploadKeystoreItem,
 } from "@better-update/api-client/react";
 
-import { BoundProjectsCell } from "../../-credential-bindings";
+import { BindingRowActions, BoundProjectsCell } from "../../-credential-bindings";
 import { ProtectionCell } from "../../-credential-cells";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { isOrgAdmin } from "../../../../../lib/access";
@@ -86,9 +86,10 @@ const KeystoreProtectionSwitch = ({
   );
 };
 
-// Per-row binding chips + admin-only manage dialog (GITLAB-RBAC-SPEC §1a):
-// upload keystores bind to projects individually, same gate as protection.
-const KeystoreBindingsCell = ({
+// Admin-only manage dialog (GITLAB-RBAC-SPEC §1a): upload keystores bind to
+// projects individually, same gate as protection. The chips are the Projects
+// column's job; this is the verb, and it lives in the row's menu.
+const KeystoreBindingActions = ({
   orgId,
   keystore,
 }: {
@@ -96,17 +97,16 @@ const KeystoreBindingsCell = ({
   keystore: AndroidUploadKeystoreItem;
 }) => {
   const { data: me } = useSuspenseQuery(meQueryOptions());
-  return (
-    <BoundProjectsCell
+  return isOrgAdmin(me.orgRole) ? (
+    <BindingRowActions
       orgId={orgId}
       resourceType="androidUploadKeystore"
       resourceId={keystore.id}
       resourceLabel={`the ${keystore.keyAlias} keystore`}
       boundProjectIds={keystore.boundProjectIds}
       boundToAllProjects={keystore.boundToAllProjects}
-      canManage={isOrgAdmin(me.orgRole)}
     />
-  );
+  ) : null;
 };
 
 const KeystoreCard = ({
@@ -130,6 +130,7 @@ const KeystoreCard = ({
             <TableHead>Protected</TableHead>
             <TableHead>Projects</TableHead>
             <TableHead>Uploaded</TableHead>
+            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -152,10 +153,17 @@ const KeystoreCard = ({
               <KeystoreProtectionSwitch orgId={orgId} keystore={keystore} />
             </TableCell>
             <TableCell>
-              <KeystoreBindingsCell orgId={orgId} keystore={keystore} />
+              <BoundProjectsCell
+                orgId={orgId}
+                boundProjectIds={keystore.boundProjectIds}
+                boundToAllProjects={keystore.boundToAllProjects}
+              />
             </TableCell>
             <TableCell className="text-kumo-subtle">
               <RelativeTime value={keystore.updatedAt} />
+            </TableCell>
+            <TableCell className="text-right">
+              <KeystoreBindingActions orgId={orgId} keystore={keystore} />
             </TableCell>
           </TableRow>
         </TableBody>

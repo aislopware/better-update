@@ -16,7 +16,7 @@ import type {
 import { CopyableMono } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
-import { CredentialEmptyRow, ExpiryCell, TeamCell } from "./-credential-cells";
+import { ExpiryCell, TeamCell } from "./-credential-cells";
 import { AppleChildProtectionSwitch } from "./-credential-protection";
 
 import type { AppleChildProtectionKind } from "./-credential-protection";
@@ -98,12 +98,8 @@ const AppleCertificateTable = <TCert extends AppleCertificateLike>({
   </Table>
 );
 
-export const PushCertificatesEmptyState = () => (
-  <CredentialEmptyRow>
-    No push certificates yet — upload a legacy APNs Push Services .p12 from the CLI if you still
-    need one.
-  </CredentialEmptyRow>
-);
+export const PUSH_CERTIFICATES_EMPTY_HINT =
+  "Upload a legacy APNs Push Services .p12 from the CLI if you still need one.";
 
 export const PushCertificatesTable = ({
   items,
@@ -122,12 +118,8 @@ export const PushCertificatesTable = ({
   />
 );
 
-export const PayCertificatesEmptyState = () => (
-  <CredentialEmptyRow>
-    No Apple Pay certificates yet — upload a payment processing .p12 bound to a Merchant ID from the
-    CLI.
-  </CredentialEmptyRow>
-);
+export const PAY_CERTIFICATES_EMPTY_HINT =
+  "Upload a payment processing .p12 bound to a Merchant ID from the CLI.";
 
 export const PayCertificatesTable = ({
   items,
@@ -146,11 +138,8 @@ export const PayCertificatesTable = ({
   />
 );
 
-export const PassTypeCertificatesEmptyState = () => (
-  <CredentialEmptyRow>
-    No Pass Type ID certificates yet — upload a Wallet .p12 bound to a Pass Type ID from the CLI.
-  </CredentialEmptyRow>
-);
+export const PASS_TYPE_CERTIFICATES_EMPTY_HINT =
+  "Upload a Wallet .p12 bound to a Pass Type ID from the CLI.";
 
 export const PassTypeCertificatesTable = ({
   items,

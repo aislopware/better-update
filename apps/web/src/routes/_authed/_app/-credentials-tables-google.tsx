@@ -12,16 +12,11 @@ import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/reac
 import { CopyButton, CopyableId } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
-import { BoundProjectsCell } from "./-credential-bindings";
-import { CredentialEmptyRow } from "./-credential-cells";
+import { BindingRowActions, BoundProjectsCell } from "./-credential-bindings";
 import { GsaKeyProtectionSwitch } from "./-credential-protection";
 
-export const GoogleServiceAccountKeysEmptyState = () => (
-  <CredentialEmptyRow>
-    No Google service account keys yet — upload a service account .json from the CLI for FCM v1 push
-    notifications.
-  </CredentialEmptyRow>
-);
+export const GOOGLE_SERVICE_ACCOUNT_KEYS_EMPTY_HINT =
+  "Upload a service account .json from the CLI for FCM v1 push notifications.";
 
 export const GoogleServiceAccountKeysTable = ({
   items,
@@ -39,6 +34,7 @@ export const GoogleServiceAccountKeysTable = ({
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
         <TableHead className="text-right">Protected</TableHead>
+        <TableHead />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -63,12 +59,8 @@ export const GoogleServiceAccountKeysTable = ({
           <TableCell>
             <BoundProjectsCell
               orgId={orgId}
-              resourceType="googleServiceAccountKey"
-              resourceId={key.id}
-              resourceLabel={key.clientEmail}
               boundProjectIds={key.boundProjectIds}
               boundToAllProjects={key.boundToAllProjects}
-              canManage={canManageProtection}
             />
           </TableCell>
           <TableCell className="text-kumo-subtle">
@@ -76,6 +68,18 @@ export const GoogleServiceAccountKeysTable = ({
           </TableCell>
           <TableCell className="text-right">
             <GsaKeyProtectionSwitch orgId={orgId} gsaKey={key} canManage={canManageProtection} />
+          </TableCell>
+          <TableCell className="text-right">
+            {canManageProtection ? (
+              <BindingRowActions
+                orgId={orgId}
+                resourceType="googleServiceAccountKey"
+                resourceId={key.id}
+                resourceLabel={key.clientEmail}
+                boundProjectIds={key.boundProjectIds}
+                boundToAllProjects={key.boundToAllProjects}
+              />
+            ) : null}
           </TableCell>
         </TableRow>
       ))}

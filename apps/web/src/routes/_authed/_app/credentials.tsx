@@ -25,25 +25,25 @@ import { deriveExpiryStatus } from "../../../lib/credential-status";
 import { useClientPagination } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import {
-  AppleTeamsEmptyState,
+  APPLE_TEAMS_EMPTY_HINT,
+  ASC_API_KEYS_EMPTY_HINT,
   AppleTeamsTable,
-  AscApiKeysEmptyState,
   AscApiKeysTable,
-  DistributionCertificatesEmptyState,
+  DISTRIBUTION_CERTIFICATES_EMPTY_HINT,
   DistributionCertificatesTable,
-  PushKeysEmptyState,
+  PUSH_KEYS_EMPTY_HINT,
   PushKeysTable,
 } from "./-credentials-tables";
 import {
-  PassTypeCertificatesEmptyState,
+  PASS_TYPE_CERTIFICATES_EMPTY_HINT,
+  PAY_CERTIFICATES_EMPTY_HINT,
+  PUSH_CERTIFICATES_EMPTY_HINT,
   PassTypeCertificatesTable,
-  PayCertificatesEmptyState,
   PayCertificatesTable,
-  PushCertificatesEmptyState,
   PushCertificatesTable,
 } from "./-credentials-tables-certs";
 import {
-  GoogleServiceAccountKeysEmptyState,
+  GOOGLE_SERVICE_ACCOUNT_KEYS_EMPTY_HINT,
   GoogleServiceAccountKeysTable,
 } from "./-credentials-tables-google";
 import { indexAppleTeamsById } from "./-credentials-utils";
@@ -120,9 +120,17 @@ interface CredentialPanelProps<T> {
   readonly items: readonly T[];
   /** Singular noun for the count line — "certificate", "key", "team". */
   readonly noun: string;
-  readonly empty: ReactNode;
+  /** What to do about the absence — shown in place of the type's description. */
+  readonly emptyHint: string;
   readonly children: (pageItems: readonly T[]) => ReactNode;
 }
+
+// Most organizations use two or three of the eight credential types, so the
+// unused ones are what this page is mostly made of. An empty type states itself
+// in its header and stops: no divider, no body row, and its own description
+// gives way to the one instruction that would fill it. "None" carries the state
+// so a reader scanning the left edge does not have to read the sentence.
+const emptyMarker = <span className="text-kumo-subtle text-xs">None</span>;
 
 /**
  * One credential type, drawn as one panel. Every section on this page differs
@@ -134,17 +142,20 @@ const CredentialPanel = <T,>({
   description,
   items,
   noun,
-  empty,
+  emptyHint,
   children,
 }: CredentialPanelProps<T>) => {
   const pagination = useClientPagination(items, noun);
+  if (items.length === 0) {
+    return (
+      <TablePanel title={title} description={emptyHint} actions={emptyMarker}>
+        {null}
+      </TablePanel>
+    );
+  }
   return (
-    <TablePanel
-      title={title}
-      description={description}
-      pagination={items.length === 0 ? undefined : pagination}
-    >
-      {items.length === 0 ? empty : children(pagination.pageItems)}
+    <TablePanel title={title} description={description} pagination={pagination}>
+      {children(pagination.pageItems)}
     </TablePanel>
   );
 };
@@ -159,7 +170,7 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
       description=".p12 certs for signing iOS builds."
       items={data.items}
       noun="certificate"
-      empty={<DistributionCertificatesEmptyState />}
+      emptyHint={DISTRIBUTION_CERTIFICATES_EMPTY_HINT}
     >
       {(pageItems) => (
         <DistributionCertificatesTable
@@ -183,7 +194,7 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
       description=".p8 keys for Apple Push Notification service."
       items={data.items}
       noun="key"
-      empty={<PushKeysEmptyState />}
+      emptyHint={PUSH_KEYS_EMPTY_HINT}
     >
       {(pageItems) => (
         <PushKeysTable
@@ -207,7 +218,7 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
       description="APNs Push Services SSL certificates (.p12)."
       items={data.items}
       noun="certificate"
-      empty={<PushCertificatesEmptyState />}
+      emptyHint={PUSH_CERTIFICATES_EMPTY_HINT}
     >
       {(pageItems) => (
         <PushCertificatesTable
@@ -231,7 +242,7 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
       description="Apple Pay payment processing certificates (.p12)."
       items={data.items}
       noun="certificate"
-      empty={<PayCertificatesEmptyState />}
+      emptyHint={PAY_CERTIFICATES_EMPTY_HINT}
     >
       {(pageItems) => (
         <PayCertificatesTable
@@ -255,7 +266,7 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
       description="Wallet Pass Type ID certificates (.p12)."
       items={data.items}
       noun="certificate"
-      empty={<PassTypeCertificatesEmptyState />}
+      emptyHint={PASS_TYPE_CERTIFICATES_EMPTY_HINT}
     >
       {(pageItems) => (
         <PassTypeCertificatesTable
@@ -281,7 +292,7 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
       description=".p8 keys for the ASC API."
       items={data.items}
       noun="key"
-      empty={<AscApiKeysEmptyState />}
+      emptyHint={ASC_API_KEYS_EMPTY_HINT}
     >
       {(pageItems) => (
         <AscApiKeysTable
@@ -308,7 +319,7 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
       description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict creating credentials under the team to Maintainers; new credentials start with the team's protected state."
       items={teams.items}
       noun="team"
-      empty={<AppleTeamsEmptyState />}
+      emptyHint={APPLE_TEAMS_EMPTY_HINT}
     >
       {(pageItems) => (
         <AppleTeamsTable
@@ -331,7 +342,7 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
       description=".json keys for FCM v1 push notifications. Protected keys are restricted to Maintainers."
       items={data.items}
       noun="key"
-      empty={<GoogleServiceAccountKeysEmptyState />}
+      emptyHint={GOOGLE_SERVICE_ACCOUNT_KEYS_EMPTY_HINT}
     >
       {(pageItems) => (
         <GoogleServiceAccountKeysTable

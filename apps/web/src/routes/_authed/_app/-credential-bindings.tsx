@@ -21,14 +21,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@better-update/ui/components/dialog";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import { Popover } from "@better-update/ui/components/popover";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
 import { cn } from "@better-update/ui/lib/utils";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { DotsThreeVerticalIcon, FolderIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -286,19 +286,44 @@ const BindingsChecklist = ({
   );
 };
 
-// Chips + (for org admins) a dialog to bind/unbind the credential — org-wide
-// via the All-projects switch, or per project via the checklist (disabled
-// while org-wide is on: every project is already covered). Parent owns the
-// dialog open state; the body is keyed so its mutation state resets after the
-// close animation (onOpenChangeComplete key bump).
+/** Which projects a credential is bound to — the Projects column, data only. */
 export const BoundProjectsCell = ({
+  orgId,
+  boundProjectIds,
+  boundToAllProjects,
+}: {
+  orgId: string;
+  boundProjectIds: readonly string[];
+  boundToAllProjects: boolean;
+}) => {
+  const projects = useOrgProjects(orgId);
+  return (
+    <BoundProjectChips
+      boundProjectIds={boundProjectIds}
+      boundToAllProjects={boundToAllProjects}
+      projects={projects}
+    />
+  );
+};
+
+/**
+ * The row's menu, and the binding dialog it opens — org-wide via the
+ * All-projects switch, or per project via the checklist (disabled while
+ * org-wide is on: every project is already covered).
+ *
+ * The verb used to be a button under the chips in the Projects column, which
+ * doubled the height of every row to repeat a word the reader was not looking
+ * for. It lives where the app's other per-row verbs live. The dialog is the
+ * menu's sibling rather than its child, so dismissing the menu does not tear it
+ * down; its body is keyed so mutation state resets after the close animation.
+ */
+export const BindingRowActions = ({
   orgId,
   resourceType,
   resourceId,
   resourceLabel,
   boundProjectIds,
   boundToAllProjects,
-  canManage,
 }: {
   orgId: string;
   resourceType: CredentialBindingTypeValue;
@@ -306,67 +331,76 @@ export const BoundProjectsCell = ({
   resourceLabel: string;
   boundProjectIds: readonly string[];
   boundToAllProjects: boolean;
-  canManage: boolean;
 }) => {
   const projects = useOrgProjects(orgId);
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
   return (
-    <div className="flex flex-col items-start gap-1">
-      <BoundProjectChips
-        boundProjectIds={boundProjectIds}
-        boundToAllProjects={boundToAllProjects}
-        projects={projects}
-      />
-      {canManage ? (
-        <Dialog
-          open={open}
-          onOpenChange={setOpen}
-          onOpenChangeComplete={(next) => {
-            if (!next) {
-              setResetKey((prev) => prev + 1);
-            }
-          }}
+    <>
+      <DropdownMenu>
+        <DropdownMenu.Trigger
+          render={
+            <Button
+              variant="ghost"
+              shape="square"
+              className="text-kumo-subtle/70 hover:text-kumo-default"
+              aria-label={`Actions for ${resourceLabel}`}
+            />
+          }
         >
-          <DialogTrigger
-            render={
-              <Button variant="ghost" size="sm" className="text-kumo-subtle h-6 px-1.5 text-xs" />
-            }
+          <DotsThreeVerticalIcon weight="bold" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end" className="w-auto">
+          <DropdownMenu.Item
+            icon={FolderIcon}
+            onClick={() => {
+              setOpen(true);
+            }}
           >
             Manage projects
-          </DialogTrigger>
-          <DialogContent size="lg">
-            <DialogHeader>
-              <DialogTitle>Bound projects</DialogTitle>
-              <DialogDescription>
-                Choose which projects can use {resourceLabel}. An unbound credential is usable by
-                org admins only.
-              </DialogDescription>
-            </DialogHeader>
-            <div key={resetKey} className="grid gap-4">
-              <AllProjectsToggle
-                orgId={orgId}
-                resourceType={resourceType}
-                resourceId={resourceId}
-                boundToAllProjects={boundToAllProjects}
-              />
-              <BindingsChecklist
-                orgId={orgId}
-                resourceType={resourceType}
-                resourceId={resourceId}
-                boundProjectIds={boundProjectIds}
-                projects={projects}
-                disabled={boundToAllProjects}
-              />
-            </div>
-            <DialogFooter>
-              <DialogClose render={<Button variant="secondary" />}>Close</DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
-    </div>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu>
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        onOpenChangeComplete={(next) => {
+          if (!next) {
+            setResetKey((prev) => prev + 1);
+          }
+        }}
+      >
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>Bound projects</DialogTitle>
+            <DialogDescription>
+              Choose which projects can use {resourceLabel}. An unbound credential is usable by org
+              admins only.
+            </DialogDescription>
+          </DialogHeader>
+          <div key={resetKey} className="grid gap-4">
+            <AllProjectsToggle
+              orgId={orgId}
+              resourceType={resourceType}
+              resourceId={resourceId}
+              boundToAllProjects={boundToAllProjects}
+            />
+            <BindingsChecklist
+              orgId={orgId}
+              resourceType={resourceType}
+              resourceId={resourceId}
+              boundProjectIds={boundProjectIds}
+              projects={projects}
+              disabled={boundToAllProjects}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="secondary" />}>Close</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
