@@ -3,7 +3,7 @@ import { Badge } from "@better-update/ui/components/badge";
 import type { SubmissionItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { PlatformIndicator } from "../../../../../components/attribute-badges";
+import { PlatformGlyph } from "../../../../../components/attribute-badges";
 import { RelativeTime } from "../../../../../lib/relative-time";
 
 const PERCENT = 100;
@@ -58,8 +58,9 @@ export const readSubmissionDestination = (
 // than in a column of its own — it is the exception on a handful of rows, and a
 // column whose every other cell reads "Complete" is a column of filler.
 //
-// No width cap of its own — the column is the primary one, so the cell is as
-// wide as the table has to spare and truncates against that.
+// No column claims the table's leftover width: a build number is a short thing
+// to say, and handing it half the page only moved the whitespace into one
+// column instead of spreading it between them.
 const SubmissionCell = ({ submission }: { submission: SubmissionItem }) => (
   <div className="flex min-w-0 flex-col gap-0.5">
     <div className="flex min-w-0 items-center gap-1.5">
@@ -86,6 +87,7 @@ const DestinationCell = ({ submission }: { submission: SubmissionItem }) => {
   }
   return (
     <span className="flex min-w-0 items-center gap-1.5">
+      <PlatformGlyph platform={submission.platform} />
       <span className="truncate">{destination.target}</span>
       {destination.detail ? (
         <span className="text-kumo-subtle truncate">· {destination.detail}</span>
@@ -101,14 +103,10 @@ export const submissionColumns: readonly ColumnDef<SubmissionItem>[] = [
     header: "Submission",
     cell: ({ row }) => <SubmissionCell submission={row.original} />,
     enableSorting: false,
-    meta: { primary: true },
   },
-  {
-    id: "platform",
-    header: "Platform",
-    cell: ({ row }) => <PlatformIndicator platform={row.original.platform} />,
-    enableSorting: false,
-  },
+  // No platform column: TestFlight and App Store Connect are iOS and the Play
+  // Console is Android, so it said in words what the next column said in names.
+  // The glyph moved into that column and the width it held went with it.
   {
     id: "destination",
     header: "Destination",

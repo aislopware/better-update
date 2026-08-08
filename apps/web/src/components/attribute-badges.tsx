@@ -95,6 +95,23 @@ export const PlatformBadge = ({
   renderBadge(PLATFORM_DEFS[platform], size, className);
 
 /**
+ * The platform's mark on its own, for a cell whose words already name the
+ * platform — "TestFlight" is not more itself for having "iOS" spelt beside it,
+ * but the glyph still lets a reader sort the rows by eye. Decorative by the
+ * same token: the text beside it is what a screen reader should read.
+ */
+export const PlatformGlyph = ({
+  platform,
+  className,
+}: {
+  platform: PlatformValue;
+  className?: string;
+}): ReactElement => {
+  const { icon: Icon } = PLATFORM_DEFS[platform];
+  return <Icon className={cn("text-kumo-subtle size-3.5 shrink-0", className)} />;
+};
+
+/**
  * Quiet icon + plain-text platform cell for table rows — a pill badge in every
  * row reads as noise, so lists use this form and PlatformBadge stays for
  * detail surfaces.
