@@ -46,6 +46,14 @@ const formatMetadataJson = (metadataJson: string) => {
   return parsed === null ? metadataJson : JSON.stringify(parsed, null, 2);
 };
 
+/** `{}` is what a build with nothing extra records — a code block around it is furniture. */
+const hasMetadata = (metadataJson: string): boolean => {
+  const parsed = safeJsonParse(metadataJson);
+  return typeof parsed === "object" && parsed !== null
+    ? Object.keys(parsed).length > 0
+    : metadataJson.trim().length > 0;
+};
+
 const BuildMetadataCard = ({
   build,
   projectSlug,
@@ -83,14 +91,6 @@ const BuildMetadataCard = ({
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-kumo-subtle text-sm">App version</div>
-        <div className="font-medium">{build.appVersion ?? "Missing"}</div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="text-kumo-subtle text-sm">Build number</div>
-        <div className="font-medium">{build.buildNumber ?? "Missing"}</div>
-      </div>
-      <div className="flex flex-col gap-1">
         <div className="text-kumo-subtle text-sm">Git ref</div>
         <div className="font-medium">{build.gitRef ?? "Not provided"}</div>
       </div>
@@ -105,12 +105,6 @@ const BuildMetadataCard = ({
             <CopyButton value={build.gitCommit} label="Git commit" />
           </div>
         )}
-      </div>
-      <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-kumo-subtle text-sm">Created</div>
-        <div className="font-medium">
-          <RelativeTime value={build.createdAt} />
-        </div>
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-kumo-subtle text-sm">Fingerprint</div>
@@ -131,9 +125,13 @@ const BuildMetadataCard = ({
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-kumo-subtle text-sm">Metadata JSON</div>
-        <pre className="bg-kumo-tint overflow-x-auto rounded-md p-3 text-xs">
-          {formatMetadataJson(build.metadataJson)}
-        </pre>
+        {hasMetadata(build.metadataJson) ? (
+          <pre className="bg-kumo-tint overflow-x-auto rounded-md p-3 text-xs">
+            {formatMetadataJson(build.metadataJson)}
+          </pre>
+        ) : (
+          <div className="text-kumo-subtle text-sm italic">None recorded</div>
+        )}
       </div>
     </CardContent>
   </Card>
@@ -338,25 +336,17 @@ const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   />
 );
 
-// Build meta chips: platform + distribution + mono version/git identifiers,
-// closed by the created-at sentence.
+// What names this build: where it runs, how it is handed out, which version it
+// is, and when it landed. Runtime and git ref belong to the metadata card below
+// — a header that lists every field is the card, printed twice.
 const BuildHeaderMeta = ({ build }: { build: BuildWithArtifact }) => (
   <>
     <PlatformIndicator platform={build.platform} />
     <DistributionIndicator distribution={build.distribution} />
-    {build.runtimeVersion ? (
-      <span className="font-mono text-xs">v{build.runtimeVersion}</span>
-    ) : null}
     {build.appVersion ? (
       <span className="font-mono text-xs">
         App {build.appVersion}
         {build.buildNumber ? ` (#${build.buildNumber})` : ""}
-      </span>
-    ) : null}
-    {build.gitRef ? (
-      <span className="font-mono text-xs">
-        {build.gitRef}
-        {build.gitDirty ? <span className="text-kumo-warning"> ·dirty</span> : null}
       </span>
     ) : null}
     <span>
@@ -426,11 +416,17 @@ const BuildDetailContent = () => {
   return (
     <>
       <BuildDetailHeader build={build} orgId={orgId} projectId={projectId} />
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <ArtifactCard build={build} />
+      {/* The binary and its symbols are one column, the channels it can reach
+          the other: a build with no artifact says so in a line, and stacking
+          keeps that line from being padded out to the height of the list beside
+          it. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="flex flex-col gap-4">
+          <ArtifactCard build={build} />
+          <DebugSymbolsCard buildId={build.id} artifacts={debugArtifacts.items} />
+        </div>
         <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
       </div>
-      <DebugSymbolsCard buildId={build.id} artifacts={debugArtifacts.items} />
       <BuildMetadataCard build={build} projectSlug={project.slug} />
     </>
   );
@@ -439,10 +435,12 @@ const BuildDetailContent = () => {
 const BuildDetailSkeleton = () => (
   <>
     <DetailHeader title="Build" />
-    <DetailCardSkeleton rows={2} columns={2} />
-    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-      <DetailCardSkeleton rows={3} columns={2} />
-      <DetailCardSkeleton rows={2} columns={1} />
+    <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <div className="flex flex-col gap-4">
+        <DetailCardSkeleton rows={2} columns={2} />
+        <DetailCardSkeleton rows={1} columns={1} />
+      </div>
+      <DetailCardSkeleton rows={3} columns={1} />
     </div>
     <DetailCardSkeleton rows={4} columns={2} />
   </>

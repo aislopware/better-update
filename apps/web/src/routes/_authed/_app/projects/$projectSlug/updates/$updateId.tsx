@@ -25,7 +25,7 @@ import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailHeader } from "../../../../../../components/detail-header";
-import { DetailCardSkeleton } from "../../../../../../components/skeletons";
+import { DetailCardSkeleton, ListItemsSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
 import { formatBytes } from "../../../../../../lib/format-bytes";
@@ -54,11 +54,11 @@ const OverviewCard = ({
           Shared values across all per-platform variants in this update group.
         </CardDescription>
       </CardHeader>
+      {/* The title is the message, and the meta line under it already carries
+          the runtime and when this was published — a card that repeats all
+          three is three quarters of a card. What is left is what the header
+          cannot say. */}
       <CardContent className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Message</div>
-          <div className="font-medium">{primary.message || "—"}</div>
-        </div>
         <div className="flex flex-col gap-1">
           <div className="text-kumo-subtle text-sm">Branch</div>
           {branchName ? (
@@ -76,16 +76,6 @@ const OverviewCard = ({
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Runtime version</div>
-          <Link
-            to="/projects/$projectSlug/runtimes/$version"
-            params={{ projectSlug, version: primary.runtimeVersion }}
-            className="self-start font-medium underline-offset-4 hover:underline"
-          >
-            v{primary.runtimeVersion}
-          </Link>
-        </div>
-        <div className="flex flex-col gap-1">
           <div className="text-kumo-subtle text-sm">Environment</div>
           {environment ? (
             <EnvironmentBadge environment={environment} className="self-start" />
@@ -93,18 +83,16 @@ const OverviewCard = ({
             <div className="font-medium">—</div>
           )}
         </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Total size</div>
-          <div className="font-medium">
-            {groupTotalSize > 0 ? formatBytes(groupTotalSize) : "—"}
+        {/* With one variant the group total is that variant's size, which the
+            card below already states. */}
+        {variants.length > 1 ? (
+          <div className="flex flex-col gap-1">
+            <div className="text-kumo-subtle text-sm">Total size</div>
+            <div className="font-medium">
+              {groupTotalSize > 0 ? formatBytes(groupTotalSize) : "—"}
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Created</div>
-          <div className="font-medium">
-            <RelativeTime value={primary.createdAt} />
-          </div>
-        </div>
+        ) : null}
         <div className="flex flex-col gap-1">
           <div className="text-kumo-subtle text-sm">Fingerprint</div>
           {primary.fingerprintHash === null ? (
@@ -280,7 +268,7 @@ const PlatformVariantCard = ({
       </div>
       <div className="flex flex-col gap-2">
         <div className="text-kumo-subtle text-sm">Assets</div>
-        <Suspense fallback={<p className="text-kumo-subtle text-xs">Loading assets...</p>}>
+        <Suspense fallback={<ListItemsSkeleton rows={2} hasTrailingButton={false} />}>
           <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
         </Suspense>
       </div>
@@ -311,7 +299,15 @@ const UpdateDetailContent = () => {
         meta={
           <>
             <CopyableId value={primary.groupId} label="Update group ID" />
-            <span className="font-mono text-xs">v{primary.runtimeVersion}</span>
+            {/* The runtime moved up out of the card below; it keeps the link it
+                had there, so nothing became read-only on the way. */}
+            <Link
+              to="/projects/$projectSlug/runtimes/$version"
+              params={{ projectSlug, version: primary.runtimeVersion }}
+              className="hover:text-kumo-default font-mono text-xs underline-offset-4 hover:underline"
+            >
+              v{primary.runtimeVersion}
+            </Link>
             <span>
               Published <RelativeTime value={primary.createdAt} />
             </span>
