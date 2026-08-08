@@ -32,11 +32,11 @@ interface ConfirmDeleteDialogProps {
   /** Post-delete cleanup (query invalidation, navigation, etc.). */
   readonly onSuccess?: () => Promise<void>;
   /** Trigger element wrapped as `DialogTrigger`. Omit when controlling via `open`. */
-  readonly children?: ReactElement;
+  readonly children?: ReactElement | undefined;
   /** Controlled open state (use with `onOpenChange`). */
-  readonly open?: boolean;
+  readonly open?: boolean | undefined;
   /** Controlled open-change handler (use with `open`). */
-  readonly onOpenChange?: (next: boolean) => void;
+  readonly onOpenChange?: ((next: boolean) => void) | undefined;
 }
 
 export const ConfirmDeleteDialog = ({

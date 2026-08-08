@@ -8,14 +8,24 @@ import type { Channel } from "@better-update/api";
 import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 import { invalidateChannels } from "./-update-helpers";
 
+/**
+ * Delete confirmation for one channel. On the detail page it carries its own
+ * trigger button; in a list the row's ⋮ menu opens it, so `open`/`onOpenChange`
+ * let the page own the state — a menu unmounts on select and would take an
+ * uncontrolled dialog down with it.
+ */
 export const DeleteChannelDialog = ({
   channel,
   orgId,
   projectId,
+  open,
+  onOpenChange,
 }: {
   channel: Channel;
   orgId: string;
   projectId: string;
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
 }) => {
   const queryClient = useQueryClient();
 
@@ -29,15 +39,19 @@ export const DeleteChannelDialog = ({
       onSuccess={async () => {
         await invalidateChannels(queryClient, orgId, projectId);
       }}
+      open={open}
+      onOpenChange={onOpenChange}
     >
-      <Button
-        variant="ghost"
-        shape="square"
-        className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
-        aria-label="Delete channel"
-      >
-        <TrashIcon weight="bold" className="size-4" />
-      </Button>
+      {open === undefined ? (
+        <Button
+          variant="ghost"
+          shape="square"
+          className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
+          aria-label="Delete channel"
+        >
+          <TrashIcon weight="bold" className="size-4" />
+        </Button>
+      ) : undefined}
     </ConfirmDeleteDialog>
   );
 };

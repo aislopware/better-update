@@ -1,10 +1,8 @@
-import { channelsQueryOptions, pauseChannel, resumeChannel } from "@better-update/api-client/react";
+import { channelsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Button } from "@better-update/ui/components/button";
 import { Empty } from "@better-update/ui/components/empty";
-import { toast } from "@better-update/ui/components/toast";
-import { BroadcastIcon, GitBranchIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BroadcastIcon, GitBranchIcon } from "@phosphor-icons/react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -15,10 +13,9 @@ import type { Channel } from "@better-update/api";
 import type { ChannelSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { ChannelRowActions } from "../-channel-row-actions";
 import { ChannelStatusBadge } from "../-channel-status-badge";
 import { CreateChannelDialog } from "../-create-channel-dialog";
-import { DeleteChannelDialog } from "../-delete-channel-dialog";
-import { invalidateChannels as invalidateChannelsHelper } from "../-update-helpers";
 import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
@@ -37,7 +34,6 @@ import {
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
-import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 type ChannelItem = Channel;
 
@@ -60,41 +56,6 @@ const ChannelsEmptyState = () => (
     description="Create your first channel to start distributing updates."
   />
 );
-
-const PauseToggleButton = ({
-  channel,
-  orgId,
-  projectId,
-}: {
-  channel: ChannelItem;
-  orgId: string;
-  projectId: string;
-}) => {
-  const queryClient = useQueryClient();
-  const togglePauseMutation = useApiMutation({
-    mutationFn: async () =>
-      channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
-    onSuccess: async () => {
-      toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
-      await invalidateChannelsHelper(queryClient, orgId, projectId);
-    },
-  });
-  return (
-    <Button
-      variant="ghost"
-      shape="square"
-      className="text-kumo-subtle/70 hover:text-kumo-default"
-      onClick={() => {
-        togglePauseMutation.mutate();
-      }}
-      aria-label={channel.isPaused ? "Resume channel" : "Pause channel"}
-      loading={togglePauseMutation.isPending}
-    >
-      {!togglePauseMutation.isPending &&
-        (channel.isPaused ? <PlayIcon weight="bold" /> : <PauseIcon weight="bold" />)}
-    </Button>
-  );
-};
 
 const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<ChannelItem>[] => [
   {
@@ -143,12 +104,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <div className="flex items-center justify-end gap-1">
-        <PauseToggleButton channel={row.original} orgId={orgId} projectId={projectId} />
-        {row.original.isBuiltin ? null : (
-          <DeleteChannelDialog channel={row.original} orgId={orgId} projectId={projectId} />
-        )}
-      </div>
+      <ChannelRowActions channel={row.original} orgId={orgId} projectId={projectId} />
     ),
     enableSorting: false,
     meta: { align: "right", stopRowClick: true },
