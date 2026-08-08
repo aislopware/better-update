@@ -22,16 +22,13 @@ import {
   toCompatibleBuildEntries,
 } from "../-channel-compatibility-helpers";
 import { ChannelRolloutCard } from "../-channel-rollout-card";
-import { parseRolloutState } from "../-channel-rollout-state";
 import { ChannelStatusBadge } from "../-channel-status-badge";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { invalidateChannels } from "../-update-helpers";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
-import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
-import { StatCard } from "../../../../../../components/stat-card";
+import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyableId } from "../../../../../../lib/copy-button";
-import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
@@ -92,60 +89,10 @@ const ChannelHeaderActions = ({
   );
 };
 
-const ChannelSummaryCards = ({
-  channel,
-  compatibleBuildsCount,
-  missingBuildCount,
-}: {
-  channel: Channel;
-  compatibleBuildsCount: number;
-  missingBuildCount: number;
-}) => {
-  const rolloutState = channel.branchMappingJson
-    ? parseRolloutState(channel.branchMappingJson)
-    : null;
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <StatCard label="Linked branch">
-        {channel.branchName ? (
-          <div className="flex items-center gap-2 font-medium">
-            <GitBranchIcon weight="bold" className="text-kumo-subtle size-4" />
-            {channel.branchName}
-          </div>
-        ) : (
-          <CopyableId value={channel.branchId} label="Branch ID" />
-        )}
-      </StatCard>
-      <StatCard label="Channel state">
-        <div className="flex flex-col items-start gap-2">
-          <ChannelStatusBadge channel={channel} />
-          {rolloutState ? (
-            <span className="text-kumo-subtle text-sm tabular-nums">
-              {rolloutState.percentage}% →{" "}
-              {channel.rolloutTargetBranchName ?? rolloutState.targetBranchId.slice(0, 8)}
-            </span>
-          ) : null}
-        </div>
-      </StatCard>
-      <StatCard
-        label="Compatible builds"
-        value={compatibleBuildsCount}
-        footer={
-          missingBuildCount > 0
-            ? `${missingBuildCount} runtime ${pluralize(missingBuildCount, "version")} currently missing builds`
-            : undefined
-        }
-      />
-    </div>
-  );
-};
-
 const ChannelDetailSkeleton = () => (
   <>
     <DetailHeader title="Channel" />
-    <SummaryCardsSkeleton count={4} />
-    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+    <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <DetailCardSkeleton rows={3} columns={2} />
       <DetailCardSkeleton rows={3} columns={1} />
     </div>
@@ -190,15 +137,26 @@ const ChannelDetailBody = ({
       <DetailHeader
         title={channel.name}
         badges={
-          channel.isBuiltin ? (
-            <Badge variant="outline" className="text-kumo-subtle">
-              Built-in
-            </Badge>
-          ) : null
+          <>
+            {channel.isBuiltin ? (
+              <Badge variant="outline" className="text-kumo-subtle">
+                Built-in
+              </Badge>
+            ) : null}
+            {/* Paused / rolling out / live, in the same words the channels list
+                uses — a card of its own only restated the button beside it. */}
+            <span className="text-base font-normal">
+              <ChannelStatusBadge channel={channel} />
+            </span>
+          </>
         }
         meta={
           <>
             <CopyableId value={channel.id} label="Channel ID" />
+            <span className="flex items-center gap-1.5">
+              <GitBranchIcon weight="bold" className="size-3.5" />
+              {channel.branchName ?? channel.branchId.slice(0, 8)}
+            </span>
             <span>
               Created <RelativeTime value={channel.createdAt} />
             </span>
@@ -207,13 +165,7 @@ const ChannelDetailBody = ({
         actions={<ChannelHeaderActions channel={channel} orgId={orgId} projectId={projectId} />}
       />
 
-      <ChannelSummaryCards
-        channel={channel}
-        compatibleBuildsCount={compatibleBuildsPage.total}
-        missingBuildCount={missingRuntimeVersions.length}
-      />
-
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <ChannelRolloutCard channel={channel} orgId={orgId} projectId={projectId} />
         <ChannelBuildsCard
           projectSlug={projectSlug}

@@ -27,20 +27,20 @@ import type { SyntheticBuildChannel } from "./-compatibility-join";
 export const VISIBLE_BUILD_LIMIT = 6;
 
 const UpdateCountStatus = ({ status }: { status: SyntheticBuildChannel }) => {
-  if (status.isPaused) {
-    return <Badge variant="outline">Paused</Badge>;
-  }
-
-  // Only builds that DO receive updates get color — "no updates" is the quiet default.
+  // Whether the channel is paused is a fact about the channel, said once in its
+  // header; repeating it down every row hid the one thing that differs between
+  // them — how many updates each build can be served. Being served is the
+  // ordinary case and reads as a count, not as a green badge on every row; a
+  // build the channel has nothing for is the quiet exception.
   if (status.updateCount > 0) {
     return (
-      <Badge variant="success">
+      <span className="shrink-0 text-xs tabular-nums">
         {status.updateCount} {pluralize(status.updateCount, "update")}
-      </Badge>
+      </span>
     );
   }
 
-  return <span className="text-kumo-subtle text-xs">No updates</span>;
+  return <span className="text-kumo-subtle shrink-0 text-xs">No updates</span>;
 };
 
 const CompatibleBuildRow = ({
@@ -93,8 +93,11 @@ export const ChannelBuildsCard = ({
     <Card>
       <CardHeader>
         <CardTitle>Compatible builds</CardTitle>
+        {/* The count leads the sentence that says what it counts, which is what
+            a card of its own used to do with a bare number. */}
         <CardDescription>
-          Builds whose runtime version can install the updates served by this channel.
+          {totalCount} {pluralize(totalCount, "build")} whose runtime version can install the
+          updates served by this channel.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
