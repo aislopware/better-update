@@ -92,13 +92,14 @@ export const TablePanelSkeleton = ({
   className,
 }: TablePanelSkeletonProps) => (
   <ListPanel className={cn("skeleton-appear", className)}>
-    <CardHeader className="gap-2 py-4">
+    {/* The rule belongs to the title bar, as it does in `ListPanelHeader` — a
+        wrapper around the table would be read as the panel's own body and take
+        the island's fill, leaving the column band inside it a shade out. */}
+    <CardHeader className="border-kumo-line gap-2 border-b py-4">
       <Skeleton className="h-4 w-44 rounded" />
       <Skeleton className="h-3 w-72 rounded" />
     </CardHeader>
-    <div className="border-kumo-line border-t">
-      <TableRowsSkeleton columns={Math.max(columns, 1)} rows={Math.max(rows, 1)} />
-    </div>
+    <TableRowsSkeleton columns={Math.max(columns, 1)} rows={Math.max(rows, 1)} />
     <ListPanelFooter>
       <Skeleton className="h-3 w-32 rounded" />
     </ListPanelFooter>

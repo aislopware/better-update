@@ -201,8 +201,13 @@ export const VaultAccessGrant = ({ orgId }: { orgId: string }) => {
       }
     >
       {vault.unlocked ? (
-        <div className="max-h-[40vh] overflow-y-auto">
-          <PendingGrants orgId={orgId} unlocked={vault.unlocked} />
+        <div>
+          {/* The cap is a child of the panel's body rather than the body
+              itself: the panel clips its own island to the curve, and an
+              `overflow-y` on the same box would be overruled by it. */}
+          <div className="max-h-[40vh] overflow-y-auto">
+            <PendingGrants orgId={orgId} unlocked={vault.unlocked} />
+          </div>
         </div>
       ) : (
         <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">

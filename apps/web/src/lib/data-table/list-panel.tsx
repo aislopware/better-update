@@ -11,6 +11,51 @@ import { cn } from "@better-update/ui/lib/utils";
 import type { ReactNode } from "react";
 
 /**
+ * Draws the island — everything the panel lists, as one page-coloured slab with
+ * curved ends, set into the card's chrome.
+ *
+ * A panel is chrome plus what it holds, and the fill is what says which is
+ * which: the title bar, a table's column band and the closing bar share the
+ * card's own surface, and the rows sit on the page's. Tables already build this
+ * for themselves out of their cells, so a table container is left alone here.
+ *
+ * The body is not one element. A panel's children are a run — a note, a warning
+ * strip, twenty rows — with chrome above and below, so "the island" is that run
+ * taken together: every child in it takes the fill, and the two on the ends take
+ * the curve. Writing it as a selector rather than a wrapper component is what
+ * keeps the shape a property of the panel, so a body of rows and a body of one
+ * paragraph come out the same and a new panel cannot forget.
+ *
+ * Base UI's focus guards are excluded along with the chrome: opening a menu
+ * inside a row inserts weightless spans that would otherwise be counted as part
+ * of the run. Spelled out in full because Tailwind reads class names as
+ * literals, so the "is one of the things listed" test is repeated in each.
+ */
+const ISLAND = [
+  // The fill, on every child of the run, and the colour of the rules its ends
+  // draw. Clipped, so a row's own fill — a hover, a menu left open — ends on the
+  // curve instead of squaring off the corner under it.
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])]:bg-kumo-base",
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])]:border-kumo-fill",
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])]:overflow-hidden",
+  // The ends of the run carry the curve: the first child with no listed thing
+  // before it, the last with none after it.
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns]):not(:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])_+_*)]:rounded-t-lg",
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns]):not(:has(+_:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])))]:rounded-b-lg",
+  // …and the rule where the island meets chrome, drawn by the island so that it
+  // follows the curve rather than cutting across the pocket. Only where there is
+  // chrome to meet: against the card's own ring it would be a second hairline a
+  // pixel below the first.
+  "[&>[data-slot=card-header]_+_:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])]:border-t",
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns]):has(+_[data-slot=card-footer])]:border-b",
+  // Which leaves the chrome to stand its own rules down where the island has
+  // taken them over. A table closes itself the same way, out of its last row.
+  "[&>[data-slot=card-header]:has(+_:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns]))]:border-b-0",
+  "[&>:not([data-slot=card-header]):not([data-slot=card-footer]):not([data-slot=table-container]):not([data-base-ui-focus-guard]):not([aria-owns])_+_[data-slot=card-footer]]:border-t-0",
+  "[&>[data-slot=table-container]_+_[data-slot=card-footer]]:border-t-0",
+].join(" ");
+
+/**
  * The frame every list sits in: a card whose own padding steps out of the way so
  * rows reach the edges, with dividers doing the separating instead.
  *
@@ -27,12 +72,12 @@ export const ListPanel = ({
 }) => (
   <Card
     className={cn(
-      "gap-0 py-0",
-      // A table closes itself: its last row draws the rule under the island and
-      // curves it round the corners. The footer's own straight border would run
-      // across those curves a pixel below, so it stands down when a table is
-      // what it follows. A list of `Item`s has no such edge and keeps it.
-      "[&>[data-slot=table-container]_+_[data-slot=card-footer]]:border-t-0",
+      // The card is the chrome — the surface the title bar, the column band and
+      // the closing bar all sit on. What the panel lists is an island on top of
+      // it, so this colour is only ever seen at the panel's own edges and in the
+      // pockets the island's corners leave behind.
+      "bg-kumo-elevated gap-0 py-0",
+      ISLAND,
       className,
     )}
   >
@@ -56,9 +101,10 @@ export const ListPanelHeader = ({
 }) => (
   // Chrome, like the closing bar and like a table's column band: what a panel
   // is called is not one of the things it lists, and a title set on the same
-  // fill as the rows under it reads as the first of them. The fill is what
-  // makes the rows an island rather than the whole card being one surface.
-  <CardHeader className="border-kumo-line bg-kumo-elevated border-b py-4">
+  // fill as the rows under it reads as the first of them. The fill comes from
+  // the card, which is chrome all the way down; the rule is here because a
+  // column band has none of its own, and stands down when an island follows.
+  <CardHeader className="border-kumo-line border-b py-4">
     <CardTitle>{title}</CardTitle>
     {description ? <CardDescription>{description}</CardDescription> : null}
     {actions ? <CardAction className="flex items-center gap-2">{actions}</CardAction> : null}
@@ -67,10 +113,9 @@ export const ListPanelHeader = ({
 
 /** Closing bar of a `ListPanel` — the count, and page controls when there are pages. */
 export const ListPanelFooter = ({ children }: { children: ReactNode }) => (
-  // A panel's two chrome bands are one surface interrupted by the list, so the
-  // closing bar takes the same fill as the table's header band rather than the
-  // card's generic footer tint. In light they are a shade apart and it reads as
-  // sloppiness; in dark the tint is far lighter than the base and the panel
-  // ended on a bar brighter than anything above it.
+  // A panel's chrome is one surface interrupted by the island, so the closing
+  // bar drops the card's generic footer tint back to it. In light the two are a
+  // shade apart and it reads as sloppiness; in dark the tint is far lighter
+  // than the base and the panel ended on a bar brighter than anything above it.
   <CardFooter className="bg-kumo-elevated">{children}</CardFooter>
 );
