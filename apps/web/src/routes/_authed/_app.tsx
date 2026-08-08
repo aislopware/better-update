@@ -257,12 +257,34 @@ const UserMenu = () => {
   );
 };
 
+/**
+ * ⌘K entry point, sitting directly under the org switcher the way the Cloudflare
+ * dashboard carries it — search is a way of navigating, so it belongs with the
+ * nav rather than in the header opposite the account menu.
+ *
+ * Built from the nav row itself rather than a lookalike button, so it collapses
+ * to its icon with everything else and lights the same way on hover.
+ */
+const SidebarSearchButton = ({ onClick }: { onClick: () => void }) => (
+  <Sidebar.Group>
+    <Sidebar.Menu>
+      <Sidebar.MenuButton icon={MagnifyingGlassIcon} onClick={onClick}>
+        <span className="flex-1 truncate">Search</span>
+        {/* Nothing to hint at while the rail is a strip of icons. */}
+        <Kbd className="group-data-[state=collapsed]/sidebar:hidden">⌘K</Kbd>
+      </Sidebar.MenuButton>
+    </Sidebar.Menu>
+  </Sidebar.Group>
+);
+
 const AppSidebar = ({
   projectSlug,
   isSuperadmin,
+  onSearch,
 }: {
   projectSlug: string | undefined;
   isSuperadmin: boolean;
+  onSearch: () => void;
 }) => (
   // Pinned to the viewport so the nav stays put while a long page scrolls;
   // Kumo's own root is `h-full`, which would let it scroll away with the page.
@@ -279,6 +301,7 @@ const AppSidebar = ({
       <OrgSwitcher />
     </Sidebar.Header>
     <Sidebar.Content>
+      <SidebarSearchButton onClick={onSearch} />
       {projectSlug ? (
         <ProjectNavSections projectSlug={projectSlug} />
       ) : (
@@ -289,21 +312,6 @@ const AppSidebar = ({
       <Sidebar.Trigger />
     </Sidebar.Footer>
   </Sidebar>
-);
-
-// Docs-style ⌘K entry point in the site header: icon-only on mobile, a muted
-// pseudo-input with the shortcut hint from `sm` up.
-const HeaderSearchButton = ({ onClick }: { onClick: () => void }) => (
-  <Button
-    variant="secondary"
-    aria-label="Search"
-    onClick={onClick}
-    className="text-kumo-subtle size-8 justify-center p-0 font-normal shadow-none sm:w-48 sm:justify-start sm:px-2.5"
-  >
-    <MagnifyingGlassIcon weight="bold" />
-    <span className="hidden flex-1 text-left sm:inline">Search…</span>
-    <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
-  </Button>
 );
 
 const AppLayout = () => {
@@ -318,10 +326,19 @@ const AppLayout = () => {
       {/* Peekable: hovering the collapsed rail floats the full nav back over
           the page, so collapsing costs nothing to navigate from. */}
       <Sidebar.Provider peekable>
-        <AppSidebar projectSlug={projectSlug} isSuperadmin={isSuperadmin} />
+        <AppSidebar
+          projectSlug={projectSlug}
+          isSuperadmin={isSuperadmin}
+          onSearch={() => {
+            setCommandOpen(true);
+          }}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
+          {/* Location on the left, account on the right, and nothing else — the
+              Cloudflare header is a place marker, not a toolbar. Search moved
+              into the nav, so the right side is the account menu alone. */}
           <header className="bg-kumo-base/80 border-kumo-line sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center justify-between gap-2 border-b px-4 backdrop-blur lg:px-6">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1">
               {/* Below Kumo's 768px breakpoint the sidebar is an offcanvas
                   sheet, so its own footer trigger is off screen. */}
               <Sidebar.Trigger className="-ml-1 md:hidden" />
@@ -330,14 +347,7 @@ const AppLayout = () => {
               </Suspense>
               <HeaderBreadcrumbs projectSlug={projectSlug} />
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <HeaderSearchButton
-                onClick={() => {
-                  setCommandOpen(true);
-                }}
-              />
-              <UserMenu />
-            </div>
+            <UserMenu />
           </header>
           {/* The measure is Kumo's own: past ~1400px a table stops being
               readable and starts being a stretch, so the page centres rather
