@@ -180,7 +180,7 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
       created_at: daysAgo(120 - index * 14),
     });
   }
-  for (const [index, email] of ["frank.miller@example.com", "grace.hopper@example.com"].entries()) {
+  for (const [index, email] of ["frida.mott@example.com", "gale.hobbs@example.com"].entries()) {
     insert("invitation", {
       id: sid(`invite-${index + 1}`),
       organization_id: org.id,
