@@ -24,6 +24,11 @@ export const buildUpdateColumns = (
     header: "Update",
     cell: ({ row }) => {
       const environment = readUpdateEnvironment(row.original.extraJson);
+      // An environment named after the branch it publishes from is the ordinary
+      // case, and the branch is the next column along — the badge only earns its
+      // place in the message's width when the two differ.
+      const showEnvironment =
+        typeof environment === "string" && environment !== row.original.branchName;
       return (
         // No width cap of its own — the column is the primary one, so the cell
         // is as wide as the table has to spare and truncates against that.
@@ -31,9 +36,7 @@ export const buildUpdateColumns = (
           <div className="flex items-center gap-1.5 font-medium">
             <span className="truncate">{row.original.message || "—"}</span>
             {row.original.isRollback ? <Badge variant="error">Rollback</Badge> : null}
-            {typeof environment === "string" ? (
-              <EnvironmentBadge environment={environment} />
-            ) : null}
+            {showEnvironment ? <EnvironmentBadge environment={environment} /> : null}
           </div>
           <span className="text-kumo-subtle truncate font-mono text-xs">
             {row.original.gitCommit ? (
