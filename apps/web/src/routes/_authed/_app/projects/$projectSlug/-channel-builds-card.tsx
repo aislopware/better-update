@@ -14,8 +14,8 @@ import {
   DistributionIndicator,
   PlatformIndicator,
 } from "../../../../../components/attribute-badges";
-import { formatDateTime } from "../../../../../lib/format-date";
 import { pluralize } from "../../../../../lib/pluralize";
+import { RelativeTime } from "../../../../../lib/relative-time";
 import { MissingMatchingBuilds } from "./-channel-compatibility";
 
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
@@ -68,7 +68,7 @@ const CompatibleBuildRow = ({
           <Badge variant="warning">Missing runtime version</Badge>
         )}
         {build.appVersion && <span className="font-mono">App {build.appVersion}</span>}
-        <span>{formatDateTime(build.createdAt)}</span>
+        <RelativeTime value={build.createdAt} />
       </div>
     </div>
     <UpdateCountStatus status={status} />
