@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import type { ReactNode } from "react";
 
+import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { AndroidBuildCredentialsSection } from "./-android-build-credentials";
 import { AndroidDetailHeader, AndroidNotFoundEmpty } from "./-android-detail-header";
 import { AndroidServiceCredentialsSection } from "./-android-service-credentials";
@@ -17,10 +18,13 @@ const HeaderSkeleton = () => (
   </div>
 );
 
+// The shape of what arrives: a section heading over the credential records,
+// rather than one grey slab standing in for both sections at once.
 const SectionSkeleton = () => (
-  <div className="flex flex-col gap-3">
+  <div className="flex flex-col gap-4">
     <Skeleton className="h-4 w-32 rounded" />
-    <Skeleton className="h-32 w-full rounded-lg" />
+    <DetailCardSkeleton rows={1} columns={4} hasDescription={false} />
+    <DetailCardSkeleton rows={1} columns={4} hasDescription={false} />
   </div>
 );
 

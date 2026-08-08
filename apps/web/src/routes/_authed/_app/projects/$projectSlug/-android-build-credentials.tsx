@@ -9,14 +9,6 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { Select } from "@better-update/ui/components/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/table";
 import { toast } from "@better-update/ui/components/toast";
 import { CheckCircleIcon, KeyIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -30,6 +22,7 @@ import type {
 import { BindingRowActions, BoundProjectsCell } from "../../-credential-bindings";
 import { ProtectionCell } from "../../-credential-cells";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
+import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { isOrgAdmin } from "../../../../../lib/access";
 import { CopyButton } from "../../../../../lib/copy-button";
 import { onPicked } from "../../../../../lib/form-utils";
@@ -116,58 +109,51 @@ const KeystoreCard = ({
   orgId: string;
   keystore: AndroidUploadKeystoreItem | null;
 }) => (
-  <CredentialSection title="Android upload keystore">
+  <CredentialSection
+    title="Android upload keystore"
+    // Eight columns for one row put the keystore's own verb — rebinding it to
+    // projects — behind a menu in a header cell that named nothing. It acts on
+    // the record, so it sits where a panel's controls sit.
+    actions={
+      keystore === null ? undefined : <KeystoreBindingActions orgId={orgId} keystore={keystore} />
+    }
+  >
     {keystore === null ? (
       <EmptyBindingMessage message="No upload keystore bound — bind one with the CLI." />
     ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Key alias</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>SHA-1 Fingerprint</TableHead>
-            <TableHead>SHA-256 Fingerprint</TableHead>
-            <TableHead>Protected</TableHead>
-            <TableHead>Projects</TableHead>
-            <TableHead>Uploaded</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell className="font-medium">{keystore.keyAlias}</TableCell>
-            <TableCell>
-              {keystore.keystoreType === null ? (
-                <span className="text-kumo-subtle">—</span>
-              ) : (
-                <Badge variant="secondary">{keystore.keystoreType}</Badge>
-              )}
-            </TableCell>
-            <TableCell>
-              <FingerprintCell value={keystore.sha1Fingerprint} label="SHA-1" />
-            </TableCell>
-            <TableCell>
-              <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
-            </TableCell>
-            <TableCell>
-              <KeystoreProtectionSwitch orgId={orgId} keystore={keystore} />
-            </TableCell>
-            <TableCell>
-              <BoundProjectsCell
-                orgId={orgId}
-                boundProjectIds={keystore.boundProjectIds}
-                boundToAllProjects={keystore.boundToAllProjects}
-              />
-            </TableCell>
-            <TableCell className="text-kumo-subtle">
-              <RelativeTime value={keystore.updatedAt} />
-            </TableCell>
-            <TableCell className="text-right">
-              <KeystoreBindingActions orgId={orgId} keystore={keystore} />
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <DetailStatStrip columns={4}>
+        <DetailStat label="Key alias">
+          <span className="truncate font-medium">{keystore.keyAlias}</span>
+        </DetailStat>
+        <DetailStat label="Type">
+          {keystore.keystoreType === null ? (
+            <span className="text-kumo-subtle">—</span>
+          ) : (
+            <Badge variant="secondary">{keystore.keystoreType}</Badge>
+          )}
+        </DetailStat>
+        <DetailStat label="SHA-1 fingerprint">
+          <FingerprintCell value={keystore.sha1Fingerprint} label="SHA-1" />
+        </DetailStat>
+        <DetailStat label="SHA-256 fingerprint">
+          <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
+        </DetailStat>
+        <DetailStat label="Protected">
+          <KeystoreProtectionSwitch orgId={orgId} keystore={keystore} />
+        </DetailStat>
+        <DetailStat label="Projects" className="sm:col-span-2">
+          <BoundProjectsCell
+            orgId={orgId}
+            boundProjectIds={keystore.boundProjectIds}
+            boundToAllProjects={keystore.boundToAllProjects}
+          />
+        </DetailStat>
+        <DetailStat label="Uploaded">
+          <span className="text-kumo-subtle">
+            <RelativeTime value={keystore.updatedAt} />
+          </span>
+        </DetailStat>
+      </DetailStatStrip>
     )}
   </CredentialSection>
 );
@@ -266,22 +252,31 @@ export const AndroidBuildCredentialsSection = ({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
-        <p className="text-kumo-subtle text-sm">
-          Saved credential groups for this application identifier. The CLI picks a group by build
-          profile name.
-        </p>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
+          {/* A picker holding one option is a control that decides nothing.
+              With a single group its name is a fact about the keystore below,
+              so it is said here instead of offered as a choice. */}
+          {group !== undefined && groups.length === 1 ? (
+            <span className="text-kumo-subtle text-sm">{group.name}</span>
+          ) : null}
+        </div>
+        {groups.length > 1 ? (
+          <p className="text-kumo-subtle text-sm">The CLI picks a group by build profile name.</p>
+        ) : null}
       </div>
       {group === undefined ? (
         <EmptyGroups />
       ) : (
         <>
-          <GroupSwitcher
-            groups={groups}
-            selectedId={selectedId}
-            onChange={setSelectedId}
-            group={group}
-          />
+          {groups.length > 1 ? (
+            <GroupSwitcher
+              groups={groups}
+              selectedId={selectedId}
+              onChange={setSelectedId}
+              group={group}
+            />
+          ) : null}
           <KeystoreCard orgId={orgId} keystore={keystore} />
         </>
       )}

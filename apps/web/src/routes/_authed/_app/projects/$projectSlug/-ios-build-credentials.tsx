@@ -4,14 +4,6 @@ import {
   appleTeamsQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/table";
 import { Tabs } from "@better-update/ui/components/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -24,6 +16,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { ExpiryCell, ProtectedMark, TeamCell } from "../../-credential-cells";
+import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
@@ -33,119 +26,83 @@ import {
   sortConfigsByDistribution,
 } from "./-ios-detail-shared";
 
-const CertRow = ({
-  cert,
-  team,
-}: {
-  cert: AppleDistributionCertificateItem;
-  team: AppleTeamItem | null;
-}) => (
-  <TableRow>
-    <TableCell>
-      <div className="flex items-center gap-2">
-        <CopyableMono value={cert.serialNumber} label="Serial" />
-        <ProtectedMark isProtected={cert.protected} />
-      </div>
-      {/* Only a Developer ID certificate has one, and then it is the thing that
-          tells it apart from the App Store certificate above it. */}
-      {cert.developerIdIdentifier ? (
-        <span className="text-kumo-subtle text-xs">Developer ID {cert.developerIdIdentifier}</span>
-      ) : null}
-    </TableCell>
-    {team ? (
-      <TableCell>
-        <TeamCell team={team} />
-      </TableCell>
-    ) : null}
-    <TableCell>
-      <ExpiryCell validUntil={cert.validUntil} />
-    </TableCell>
-    <TableCell className="text-kumo-subtle">
-      <RelativeTime value={cert.updatedAt} />
-    </TableCell>
-  </TableRow>
-);
-
-const CertTableCard = ({
+const CertCard = ({
   cert,
   team,
 }: {
   cert: AppleDistributionCertificateItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialSection title="Distribution certificate">
+  <CredentialSection
+    title="Distribution certificate"
+    badges={cert ? <ProtectedMark isProtected={cert.protected} /> : undefined}
+  >
     {cert === null ? (
       <EmptyBindingMessage message="No distribution certificate bound — bind one with the CLI." />
     ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Serial</TableHead>
-            {team ? <TableHead>Apple Team</TableHead> : null}
-            <TableHead>Expires</TableHead>
-            <TableHead>Updated</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <CertRow cert={cert} team={team} />
-        </TableBody>
-      </Table>
+      <DetailStatStrip columns={4}>
+        <DetailStat label="Serial">
+          <CopyableMono value={cert.serialNumber} label="Serial" />
+        </DetailStat>
+        {/* Only a Developer ID certificate has one, and then it is the thing
+            that tells it apart from the App Store certificate beside it. */}
+        {cert.developerIdIdentifier ? (
+          <DetailStat label="Developer ID">
+            <span className="truncate font-mono text-xs">{cert.developerIdIdentifier}</span>
+          </DetailStat>
+        ) : null}
+        {team ? (
+          <DetailStat label="Apple Team">
+            <TeamCell team={team} />
+          </DetailStat>
+        ) : null}
+        <DetailStat label="Expires">
+          <ExpiryCell validUntil={cert.validUntil} />
+        </DetailStat>
+        <DetailStat label="Updated">
+          <span className="text-kumo-subtle">
+            <RelativeTime value={cert.updatedAt} />
+          </span>
+        </DetailStat>
+      </DetailStatStrip>
     )}
   </CredentialSection>
 );
 
-const ProfileRow = ({
-  profile,
-  team,
-}: {
-  profile: AppleProvisioningProfileItem;
-  team: AppleTeamItem | null;
-}) => (
-  <TableRow>
-    <TableCell className="font-medium">
-      <div className="flex items-center gap-2">
-        {profile.profileName ?? profile.developerPortalIdentifier ?? "Unnamed profile"}
-        <ProtectedMark isProtected={profile.protected} />
-      </div>
-    </TableCell>
-    {team ? (
-      <TableCell>
-        <TeamCell team={team} />
-      </TableCell>
-    ) : null}
-    <TableCell>
-      <ExpiryCell validUntil={profile.validUntil} />
-    </TableCell>
-    <TableCell className="text-kumo-subtle">
-      <RelativeTime value={profile.updatedAt} />
-    </TableCell>
-  </TableRow>
-);
-
-const ProfileTableCard = ({
+const ProfileCard = ({
   profile,
   team,
 }: {
   profile: AppleProvisioningProfileItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialSection title="Provisioning profile">
+  <CredentialSection
+    title="Provisioning profile"
+    badges={profile ? <ProtectedMark isProtected={profile.protected} /> : undefined}
+  >
     {profile === null ? (
       <EmptyBindingMessage message="No provisioning profile bound — bind one with the CLI." />
     ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            {team ? <TableHead>Apple Team</TableHead> : null}
-            <TableHead>Expires</TableHead>
-            <TableHead>Updated</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <ProfileRow profile={profile} team={team} />
-        </TableBody>
-      </Table>
+      <DetailStatStrip columns={4}>
+        <DetailStat label="Name">
+          <span className="truncate font-medium">
+            {profile.profileName ?? profile.developerPortalIdentifier ?? "Unnamed profile"}
+          </span>
+        </DetailStat>
+        {team ? (
+          <DetailStat label="Apple Team">
+            <TeamCell team={team} />
+          </DetailStat>
+        ) : null}
+        <DetailStat label="Expires">
+          <ExpiryCell validUntil={profile.validUntil} />
+        </DetailStat>
+        <DetailStat label="Updated">
+          <span className="text-kumo-subtle">
+            <RelativeTime value={profile.updatedAt} />
+          </span>
+        </DetailStat>
+      </DetailStatStrip>
     )}
   </CredentialSection>
 );
@@ -197,8 +154,8 @@ const ConfigTabPanel = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <CertTableCard cert={cert} team={team} />
-      <ProfileTableCard profile={profile} team={team} />
+      <CertCard cert={cert} team={team} />
+      <ProfileCard profile={profile} team={team} />
     </div>
   );
 };
@@ -238,21 +195,30 @@ export const IosBuildCredentialsSection = ({
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
+      {/* No sentence under the heading: it named the two panels below it and
+          the tab strip between them, all three of which say it themselves. */}
+      <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
-        <p className="text-kumo-subtle text-sm">
-          Distribution certificate and provisioning profile per distribution type.
-        </p>
+        {/* A strip of one tab is a control that offers no choice. Most bundles
+            ship a single distribution type, and then it is a fact about the
+            credentials below rather than a switch between them. */}
+        {configs.length > 1 ? null : (
+          <span className="text-kumo-subtle text-sm">
+            {DISTRIBUTION_LABELS[activeConfig.distributionType]}
+          </span>
+        )}
       </div>
-      <Tabs
-        tabs={configs.map((config) => ({
-          value: config.distributionType,
-          label: DISTRIBUTION_LABELS[config.distributionType],
-        }))}
-        value={activeConfig.distributionType}
-        onValueChange={setSelectedType}
-        className="self-start"
-      />
+      {configs.length > 1 ? (
+        <Tabs
+          tabs={configs.map((config) => ({
+            value: config.distributionType,
+            label: DISTRIBUTION_LABELS[config.distributionType],
+          }))}
+          value={activeConfig.distributionType}
+          onValueChange={setSelectedType}
+          className="self-start"
+        />
+      ) : null}
       <ConfigTabPanel
         config={activeConfig}
         certs={certsResult.items}

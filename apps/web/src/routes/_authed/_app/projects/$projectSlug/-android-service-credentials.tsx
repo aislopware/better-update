@@ -3,18 +3,11 @@ import {
   androidBuildCredentialsQueryOptions,
   googleServiceAccountKeysQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/table";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
+import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
@@ -27,7 +20,7 @@ const truncatePrivateKey = (value: string): string => {
   return `${value.slice(0, 16)}…`;
 };
 
-const GsaTableCard = ({
+const GsaCard = ({
   title,
   emptyLabel,
   sa,
@@ -40,40 +33,28 @@ const GsaTableCard = ({
     {sa === null ? (
       <EmptyBindingMessage message={emptyLabel} />
     ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Project ID</TableHead>
-            <TableHead>Private Key ID</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>Uploaded</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell>
-              <CopyableMono value={sa.googleProjectId} label="Project ID" />
-            </TableCell>
-            <TableCell>
-              <span className="flex items-center gap-1">
-                <span className="font-mono text-xs">{truncatePrivateKey(sa.privateKeyId)}</span>
-                <CopyButton value={sa.privateKeyId} label="Private key ID" />
-              </span>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-col gap-0.5">
-                <CopyableMono value={sa.clientEmail} label="Client email" />
-                {sa.clientId === null ? null : (
-                  <span className="text-kumo-subtle text-xs">ID: {sa.clientId}</span>
-                )}
-              </div>
-            </TableCell>
-            <TableCell className="text-kumo-subtle">
-              <RelativeTime value={sa.createdAt} />
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <DetailStatStrip columns={4}>
+        <DetailStat label="Project ID">
+          <CopyableMono value={sa.googleProjectId} label="Project ID" />
+        </DetailStat>
+        <DetailStat label="Private key ID">
+          <span className="truncate font-mono text-xs">{truncatePrivateKey(sa.privateKeyId)}</span>
+          <CopyButton value={sa.privateKeyId} label="Private key ID" />
+        </DetailStat>
+        <DetailStat label="Client email">
+          <CopyableMono value={sa.clientEmail} label="Client email" />
+        </DetailStat>
+        {sa.clientId === null ? null : (
+          <DetailStat label="Client ID">
+            <span className="truncate font-mono text-xs">{sa.clientId}</span>
+          </DetailStat>
+        )}
+        <DetailStat label="Uploaded">
+          <span className="text-kumo-subtle">
+            <RelativeTime value={sa.createdAt} />
+          </span>
+        </DetailStat>
+      </DetailStatStrip>
     )}
   </CredentialSection>
 );
@@ -114,15 +95,20 @@ export const AndroidServiceCredentialsSection = ({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
-        <p className="text-kumo-subtle text-sm">
-          FCM v1 service account for push notifications.
-          {sharedAcrossGroups
-            ? " Applied across all credential groups for this application identifier."
-            : " Bound per credential group for this application identifier."}
-        </p>
+        {/* The sentence used to open by naming the panel below it. What it
+            knows and the panel does not is how far the key reaches — and that
+            is only worth saying where there is more than one group to reach
+            across. */}
+        {sortedGroups.length > 1 ? (
+          <p className="text-kumo-subtle text-sm">
+            {sharedAcrossGroups
+              ? "Applied across every credential group for this application identifier."
+              : "Bound per credential group for this application identifier."}
+          </p>
+        ) : null}
       </div>
       {sharedAcrossGroups ? (
-        <GsaTableCard
+        <GsaCard
           title="FCM V1 service account key"
           emptyLabel="No service account key configured for FCM v1 push notifications — bind one with the CLI."
           sa={
@@ -133,7 +119,7 @@ export const AndroidServiceCredentialsSection = ({
         />
       ) : (
         sortedGroups.map((group) => (
-          <GsaTableCard
+          <GsaCard
             key={group.id}
             title={`FCM V1 service account key — ${group.name}`}
             emptyLabel="No service account key configured for FCM v1 push notifications — bind one with the CLI."

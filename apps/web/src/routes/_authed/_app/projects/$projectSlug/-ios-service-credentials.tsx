@@ -4,14 +4,6 @@ import {
   ascApiKeysQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/table";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import type {
@@ -21,102 +13,82 @@ import type {
 } from "@better-update/api-client/react";
 
 import { ProtectedMark, RolesCell, TeamCell } from "../../-credential-cells";
+import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 
-const PushKeyTableCard = ({
+const PushKeyCard = ({
   pushKey,
   team,
 }: {
   pushKey: ApplePushKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialSection title="Push notifications key">
+  <CredentialSection
+    title="Push notifications key"
+    badges={pushKey ? <ProtectedMark isProtected={pushKey.protected} /> : undefined}
+  >
     {pushKey === null ? (
       <EmptyBindingMessage message="No push key bound — bind one with the CLI." />
     ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Key ID</TableHead>
-            {team ? <TableHead>Apple Team</TableHead> : null}
-            <TableHead>Uploaded</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <CopyableMono value={pushKey.keyId} label="Key ID" />
-                <ProtectedMark isProtected={pushKey.protected} />
-              </div>
-            </TableCell>
-            {team ? (
-              <TableCell>
-                <TeamCell team={team} />
-              </TableCell>
-            ) : null}
-            <TableCell className="text-kumo-subtle">
-              <RelativeTime value={pushKey.createdAt} />
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <DetailStatStrip columns={3}>
+        <DetailStat label="Key ID">
+          <CopyableMono value={pushKey.keyId} label="Key ID" />
+        </DetailStat>
+        {team ? (
+          <DetailStat label="Apple Team">
+            <TeamCell team={team} />
+          </DetailStat>
+        ) : null}
+        <DetailStat label="Uploaded">
+          <span className="text-kumo-subtle">
+            <RelativeTime value={pushKey.createdAt} />
+          </span>
+        </DetailStat>
+      </DetailStatStrip>
     )}
   </CredentialSection>
 );
 
-const AscKeyTableCard = ({
+const AscKeyCard = ({
   ascKey,
   team,
 }: {
   ascKey: AscApiKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CredentialSection title="App Store Connect API key">
+  <CredentialSection
+    title="App Store Connect API key"
+    badges={ascKey ? <ProtectedMark isProtected={ascKey.protected} /> : undefined}
+  >
     {ascKey === null ? (
       <EmptyBindingMessage message="No App Store Connect API key bound — bind one with the CLI." />
     ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Label</TableHead>
-            <TableHead>Key ID</TableHead>
-            <TableHead>Issuer ID</TableHead>
-            {team ? <TableHead>Apple Team</TableHead> : null}
-            <TableHead>Roles</TableHead>
-            <TableHead>Uploaded</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell className="font-medium">
-              <div className="flex items-center gap-2">
-                {ascKey.name}
-                <ProtectedMark isProtected={ascKey.protected} />
-              </div>
-            </TableCell>
-            <TableCell>
-              <CopyableMono value={ascKey.keyId} label="Key ID" />
-            </TableCell>
-            <TableCell>
-              <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
-            </TableCell>
-            {team ? (
-              <TableCell>
-                <TeamCell team={team} />
-              </TableCell>
-            ) : null}
-            <TableCell>
-              <RolesCell roles={ascKey.roles} />
-            </TableCell>
-            <TableCell className="text-kumo-subtle">
-              <RelativeTime value={ascKey.createdAt} />
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <DetailStatStrip columns={3}>
+        <DetailStat label="Label">
+          <span className="truncate font-medium">{ascKey.name}</span>
+        </DetailStat>
+        <DetailStat label="Key ID">
+          <CopyableMono value={ascKey.keyId} label="Key ID" />
+        </DetailStat>
+        <DetailStat label="Issuer ID">
+          <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
+        </DetailStat>
+        {team ? (
+          <DetailStat label="Apple Team">
+            <TeamCell team={team} />
+          </DetailStat>
+        ) : null}
+        <DetailStat label="Roles">
+          <RolesCell roles={ascKey.roles} />
+        </DetailStat>
+        <DetailStat label="Uploaded">
+          <span className="text-kumo-subtle">
+            <RelativeTime value={ascKey.createdAt} />
+          </span>
+        </DetailStat>
+      </DetailStatStrip>
     )}
   </CredentialSection>
 );
@@ -186,14 +158,11 @@ export const IosServiceCredentialsSection = ({
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
-        <p className="text-kumo-subtle text-sm">
-          Push notification key and App Store Connect API key for this bundle identifier.
-        </p>
-      </div>
-      <PushKeyTableCard pushKey={pushKey} team={pushTeam} />
-      <AscKeyTableCard ascKey={ascKey} team={ascTeam} />
+      {/* The sentence here listed the two panels under it by name — the page
+          is already scoped to this bundle identifier by its own header. */}
+      <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
+      <PushKeyCard pushKey={pushKey} team={pushTeam} />
+      <AscKeyCard ascKey={ascKey} team={ascTeam} />
     </section>
   );
 };
