@@ -12,6 +12,8 @@ import { RelativeTime } from "../../../../../../lib/relative-time";
 
 export type UpdateItem = Update;
 
+const FULL_ROLLOUT = 100;
+
 export const buildUpdateColumns = (
   slug: string,
   orgId: string,
@@ -83,7 +85,17 @@ export const buildUpdateColumns = (
     id: "rolloutPercentage",
     accessorKey: "rolloutPercentage",
     header: "Rollout",
-    cell: ({ row }) => `${row.original.rolloutPercentage}%`,
+    // A finished rollout is the ordinary end state and reads as filler down a
+    // column; a partial one is the update someone is still watching, so it is
+    // the only number that gets weight and colour.
+    cell: ({ row }) =>
+      row.original.rolloutPercentage >= FULL_ROLLOUT ? (
+        <span className="text-kumo-subtle tabular-nums">100%</span>
+      ) : (
+        <span className="text-kumo-info font-medium tabular-nums">
+          {row.original.rolloutPercentage}%
+        </span>
+      ),
     enableSorting: true,
     meta: { align: "right" },
   },
