@@ -1,12 +1,5 @@
 import { submissionQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
 import { InlineCode } from "@better-update/ui/components/inline-code";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -19,13 +12,18 @@ import {
   SubmissionMetadataBadge,
 } from "../../../../../components/attribute-badges";
 import { DetailHeader } from "../../../../../components/detail-header";
+import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
+import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { readSubmissionDestination } from "./-submissions-columns";
 
-const DetailRow = ({
+// A submission's fields used to be a stack of label-in-a-40-width-column rows,
+// which put every value in the left third of a full-width card and left the rest
+// of the page blank. They are short facts, so they read across.
+const DetailField = ({
   label,
   value,
   copyLabel,
@@ -34,17 +32,18 @@ const DetailRow = ({
   value: string | null | undefined;
   copyLabel?: string;
 }) => (
-  <div className="flex items-baseline gap-3 text-sm">
-    <span className="text-kumo-subtle w-40 shrink-0">{label}</span>
+  <DetailStat label={label}>
     {value === null || value === undefined || value === "" ? (
-      <span className="font-mono break-all">—</span>
+      <span className="text-kumo-subtle">—</span>
     ) : (
-      <span className="inline-flex min-w-0 items-center gap-1">
-        <span className="min-w-0 font-mono break-all">{value}</span>
+      <>
+        <span className="truncate font-mono text-xs" title={value}>
+          {value}
+        </span>
         {copyLabel ? <CopyButton value={value} label={copyLabel} /> : null}
-      </span>
+      </>
     )}
-  </div>
+  </DetailStat>
 );
 
 /**
@@ -52,24 +51,30 @@ const DetailRow = ({
  * "View build" link in every row; the path belongs here, once, next to the id
  * it stands for.
  */
-const BuildIdRow = ({ buildId, projectSlug }: { buildId: string | null; projectSlug: string }) =>
+const BuildIdField = ({ buildId, projectSlug }: { buildId: string | null; projectSlug: string }) =>
   buildId === null ? (
-    <DetailRow label="Build" value={null} />
+    <DetailField label="Build" value={null} />
   ) : (
-    <div className="flex items-baseline gap-3 text-sm">
-      <span className="text-kumo-subtle w-40 shrink-0">Build</span>
-      <span className="inline-flex min-w-0 items-center gap-1">
-        <Link
-          to="/projects/$projectSlug/builds/$buildId"
-          params={{ projectSlug, buildId }}
-          className="min-w-0 font-mono break-all underline-offset-4 hover:underline"
-        >
-          {buildId}
-        </Link>
-        <CopyButton value={buildId} label="Build ID" />
-      </span>
-    </div>
+    <DetailStat label="Build">
+      <Link
+        to="/projects/$projectSlug/builds/$buildId"
+        params={{ projectSlug, buildId }}
+        className="truncate font-mono text-xs underline-offset-4 hover:underline"
+        title={buildId}
+      >
+        {buildId}
+      </Link>
+      <CopyButton value={buildId} label="Build ID" />
+    </DetailStat>
   );
+
+/** A field whose value is a sentence rather than an identifier. */
+const DetailProse = ({ label, value }: { label: string; value: string }) => (
+  <div className="border-kumo-line flex flex-col gap-1 border-t p-4">
+    <span className="text-kumo-subtle text-xs">{label}</span>
+    <p className="text-sm">{value}</p>
+  </div>
+);
 
 const SubmissionDetail = ({
   submission,
@@ -106,65 +111,72 @@ const SubmissionDetail = ({
           </>
         }
       />
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2.5">
-            {destination?.target ?? "Submission"}
-            {destination?.halted ? <Badge variant="warning">Halted</Badge> : null}
-          </CardTitle>
-          <CardDescription>
-            {destination?.detail ?? `Uploaded ${formatDateTime(submission.createdAt)}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-1.5">
+      <ListPanel>
+        <ListPanelHeader
+          title={
+            <span className="flex items-center gap-2.5">
+              {destination?.target ?? "Submission"}
+              {destination?.halted ? <Badge variant="warning">Halted</Badge> : null}
+            </span>
+          }
+          description={destination?.detail ?? `Uploaded ${formatDateTime(submission.createdAt)}`}
+        />
+        <DetailStatStrip columns={3}>
           {/* Where the archive came from, said only when it is not the ordinary
               case: nearly every submission starts from a build this project
-              already has, and the build row below names it. */}
+              already has, and the build field beside it names that build. */}
           {submission.archiveSource === "build" ? null : (
-            <DetailRow label="Archive source" value={submission.archiveSource} />
+            <DetailField label="Archive source" value={submission.archiveSource} />
           )}
-          <BuildIdRow buildId={submission.buildId} projectSlug={projectSlug} />
+          <BuildIdField buildId={submission.buildId} projectSlug={projectSlug} />
           {submission.archiveUrl ? (
-            <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
+            <DetailField
+              label="Archive URL"
+              value={submission.archiveUrl}
+              copyLabel="Archive URL"
+            />
           ) : null}
           {submission.iosConfig ? (
             <>
-              <DetailRow
+              <DetailField
                 label="Bundle identifier"
                 value={submission.iosConfig.bundleIdentifier}
                 copyLabel="Bundle identifier"
               />
-              <DetailRow
+              <DetailField
                 label="ASC App ID"
                 value={submission.iosConfig.ascAppId}
                 copyLabel="ASC App ID"
               />
-              <DetailRow
+              <DetailField
                 label="Apple team"
                 value={submission.iosConfig.appleTeamId}
                 copyLabel="Apple team"
               />
-              <DetailRow label="Language" value={submission.iosConfig.language} />
-              <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
+              <DetailField label="Language" value={submission.iosConfig.language} />
             </>
           ) : null}
           {submission.androidConfig ? (
             <>
-              <DetailRow
+              <DetailField
                 label="Application ID"
                 value={submission.androidConfig.applicationId}
                 copyLabel="Application ID"
               />
-              {/* Track, rollout and release status are what the card is titled
+              {/* Track, rollout and release status are what the panel is titled
                   and described by — repeating them here is the header again. */}
-              <DetailRow
-                label="Changes not sent for review"
-                value={String(submission.androidConfig.changesNotSentForReview)}
-              />
+              <DetailStat label="Changes sent for review">
+                {submission.androidConfig.changesNotSentForReview ? "No" : "Yes"}
+              </DetailStat>
             </>
           ) : null}
-        </CardContent>
-      </Card>
+        </DetailStatStrip>
+        {/* Release notes are a sentence, not an identifier, so they get the
+            width a sentence needs rather than a third of a strip. */}
+        {submission.iosConfig?.whatToTest ? (
+          <DetailProse label="What to test" value={submission.iosConfig.whatToTest} />
+        ) : null}
+      </ListPanel>
     </>
   );
 };
@@ -185,7 +197,7 @@ const SubmissionDetailContainer = ({
 const SubmissionDetailSkeleton = () => (
   <>
     <DetailHeader title="Submission" />
-    <DetailCardSkeleton rows={6} columns={1} />
+    <DetailCardSkeleton rows={2} columns={3} />
   </>
 );
 
