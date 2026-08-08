@@ -72,14 +72,14 @@ export const makeMember = (
     userId: string;
     role: string;
     createdAt: Date;
-    user: { id: string; name: string; email: string; image: string | null };
+    user: { id: string; name: string; email: string };
   }>,
 ) => ({
   id: "member-1",
   userId: "user-1",
   role: "owner",
   createdAt: new Date("2026-01-01"),
-  user: { id: "user-1", name: "Test User", email: "test@example.com", image: null },
+  user: { id: "user-1", name: "Test User", email: "test@example.com" },
   ...overrides,
 });
 

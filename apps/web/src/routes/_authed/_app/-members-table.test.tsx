@@ -15,7 +15,7 @@ const ownerMember = makeMember({
   id: "member-owner",
   userId: "user-owner",
   role: "owner",
-  user: { id: "user-owner", name: "Alice Owner", email: "alice@example.com", image: null },
+  user: { id: "user-owner", name: "Alice Owner", email: "alice@example.com" },
 });
 
 // Post-collapse, every non-owner member is role "member". `user-capable` is a
@@ -25,14 +25,14 @@ const capableMember = makeMember({
   id: "member-capable",
   userId: "user-capable",
   role: "member",
-  user: { id: "user-capable", name: "Bob Capable", email: "bob@example.com", image: null },
+  user: { id: "user-capable", name: "Bob Capable", email: "bob@example.com" },
 });
 
 const regularMember = makeMember({
   id: "member-regular",
   userId: "user-regular",
   role: "member",
-  user: { id: "user-regular", name: "Carol Member", email: "carol@example.com", image: null },
+  user: { id: "user-regular", name: "Carol Member", email: "carol@example.com" },
 });
 
 const allMembers = [ownerMember, capableMember, regularMember];
@@ -41,7 +41,7 @@ const adminMember = makeMember({
   id: "member-admin",
   userId: "user-admin",
   role: "admin",
-  user: { id: "user-admin", name: "Dave Admin", email: "dave@example.com", image: null },
+  user: { id: "user-admin", name: "Dave Admin", email: "dave@example.com" },
 });
 
 describe(MembersTableView, () => {
@@ -297,12 +297,11 @@ describe(MembersTableView, () => {
       />,
     );
 
-    expect(screen.getAllByText("All projects")).toHaveLength(2);
-    expect(screen.getAllByText("Implicit maintainer")).toHaveLength(2);
+    expect(screen.getAllByText("All projects · Implicit maintainer")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Manage projects" })).not.toBeInTheDocument();
   });
 
-  it("member rows show project chips, an org-wide role badge, or a No-projects hint", () => {
+  it("member rows name their projects, or say the org-wide role that covers them all", () => {
     const membershipsByPrincipal = new Map<string, MemberProjectMembershipsItem>([
       [
         "member-capable",
@@ -337,14 +336,12 @@ describe(MembersTableView, () => {
       />,
     );
 
-    // Org-wide grant collapses to a single role-suffixed badge (like the
-    // credential All-projects chip); explicit memberships render name chips.
+    // An org-wide grant collapses to one line naming the role it grants;
+    // explicit memberships list the project names instead.
     expect(screen.getByText("All projects · Developer")).toBeInTheDocument();
     expect(screen.getByText("App One")).toBeInTheDocument();
-    // The owner row shows the implicit badge; no summary → "No projects" never
-    // applies to it. Members without a summary would show the hint (none here
-    // besides the owner, which renders the implicit badge instead).
-    expect(screen.getByText("All projects")).toBeInTheDocument();
+    // The owner is an implicit maintainer, so that row never consults a summary.
+    expect(screen.getByText("All projects · Implicit maintainer")).toBeInTheDocument();
   });
 
   it("canManageProjects offers Manage projects in a plain member's row menu", async () => {

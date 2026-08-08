@@ -60,6 +60,14 @@ export const Table = ({
         "[&_td]:whitespace-nowrap [&_th]:whitespace-nowrap",
         // Digits line up column-wise, so counts and versions compare by eye.
         "[&_td]:tabular-nums",
+        // Kumo's compact header asks for `text-xs`, then its own root rule sets
+        // `[&_th]:text-base [&_th]:font-semibold` at the same specificity and
+        // wins the tie — so the band came out 14px semibold, a heavier line than
+        // the data under it and the loudest type on a list page. The extra
+        // element in the selector settles it: labels sit a step below the rows
+        // they head, which is what makes them read as a heading and not as row
+        // zero.
+        "[&_thead[data-compact]_th]:text-xs [&_thead[data-compact]_th]:font-medium",
         className,
       )}
     />

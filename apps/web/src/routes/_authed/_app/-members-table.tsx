@@ -12,7 +12,6 @@ import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { StatusDot } from "../../../components/status-dot";
 import { DataTableView, PAGE_SIZE } from "../../../lib/data-table";
-import { EntityAvatar } from "../../../lib/entity-avatar";
 import { onPicked } from "../../../lib/form-utils";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
 import { pluralize } from "../../../lib/pluralize";
@@ -42,27 +41,26 @@ const ORG_ROLE_LABELS: Record<EditableOrgRole, string> = { admin: "Admin", membe
 // The ladder in full, including the rung the select cannot offer.
 const ORG_ROLE_TEXT: Record<string, string> = { owner: "Owner", ...ORG_ROLE_LABELS };
 
-const MemberAvatarCell = ({ row }: { row: Row }) => {
+/**
+ * Who the row is: their name over their address, or just the address on an
+ * invitation, which has no name yet.
+ *
+ * There used to be a generated avatar in front of both — a 36px disc whose hue
+ * came from hashing the name printed right beside it, so it told you nothing you
+ * were not already reading. Eight of them made a column of saturated circles
+ * down the left edge, the loudest ink on a page whose one real exception is an
+ * amber dot in the Status column, and they set the row height on their own.
+ */
+const MemberCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
     return (
-      <div className="flex items-center gap-3">
-        <EntityAvatar name={row.name || "U"} image={row.image} className="size-9" />
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-sm leading-none font-medium">{row.name}</span>
-          <span className="text-kumo-subtle truncate text-xs">{row.email}</span>
-        </div>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm font-medium">{row.name}</span>
+        <span className="text-kumo-subtle truncate text-xs">{row.email}</span>
       </div>
     );
   }
-  // One avatar implementation everywhere: invited rows use EntityAvatar too,
-  // seeded by email. An invitation has no name to put under its address, and
-  // captioning it "Invited" only said what the Status column says in colour.
-  return (
-    <div className="flex items-center gap-3">
-      <EntityAvatar name={row.email} className="size-9" />
-      <span className="truncate text-sm font-medium">{row.email}</span>
-    </div>
-  );
+  return <span className="truncate text-sm font-medium">{row.email}</span>;
 };
 
 // Dot + label for both states, so the column reads as one vocabulary instead of
@@ -182,7 +180,7 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
     id: "name",
     accessorFn: (row) => row.name,
     header: "Member",
-    cell: ({ row }) => <MemberAvatarCell row={row.original} />,
+    cell: ({ row }) => <MemberCell row={row.original} />,
     enableSorting: true,
     meta: { primary: true },
   },
@@ -210,7 +208,7 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
       const { membershipsByPrincipal } = params;
       // Invitations hold no memberships yet (they materialize on accept).
       if (row.original.kind !== "member") {
-        return <span className="text-kumo-subtle text-xs">—</span>;
+        return <span className="text-kumo-subtle text-sm">—</span>;
       }
       return (
         <MemberProjectsCell

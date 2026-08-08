@@ -14,7 +14,6 @@ import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/a
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView, PAGE_SIZE, RowActionsMenu } from "../../../../../lib/data-table";
-import { EntityAvatar } from "../../../../../lib/entity-avatar";
 import { onPicked } from "../../../../../lib/form-utils";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
@@ -37,17 +36,18 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
 export const principalDisplayName = (row: ProjectMemberItem): string =>
   row.displayName ?? row.email ?? row.principalId;
 
+// Name over address, and nothing in front of it: the disc that used to lead the
+// cell was hashed from the very name beside it, so it repeated the one thing the
+// column already said in the page's loudest ink. Same cell as the org Members
+// table, for the same reason.
 const NameCell = ({ row }: { row: ProjectMemberItem }) => {
   const name = principalDisplayName(row);
   return (
-    <div className="flex items-center gap-3">
-      <EntityAvatar name={name || "U"} className="size-9" />
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm leading-none font-medium">{name}</span>
-        {row.email === null ? null : (
-          <span className="text-kumo-subtle truncate text-xs">{row.email}</span>
-        )}
-      </div>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="truncate text-sm font-medium">{name}</span>
+      {row.email === null ? null : (
+        <span className="text-kumo-subtle truncate text-xs">{row.email}</span>
+      )}
     </div>
   );
 };

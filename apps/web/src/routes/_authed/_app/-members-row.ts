@@ -5,7 +5,7 @@ export interface MemberInput {
   userId: string;
   role: string;
   createdAt: Date;
-  user: { id: string; name: string; email: string; image?: string | null | undefined };
+  user: { id: string; name: string; email: string };
 }
 
 export interface InvitationInput {
@@ -22,7 +22,6 @@ export interface MemberRow {
   userId: string;
   name: string;
   email: string;
-  image: string | null | undefined;
   role: string;
   status: "active";
   joinedAt: Date;
@@ -34,7 +33,6 @@ export interface InvitationRow {
   userId: null;
   name: string;
   email: string;
-  image: undefined;
   role: string;
   status: "pending";
   invitedAt: Date;
@@ -53,7 +51,6 @@ export const buildRows = (
     userId: member.userId,
     name: member.user.name,
     email: member.user.email,
-    image: member.user.image,
     role: member.role,
     status: "active",
     joinedAt: new Date(member.createdAt),
@@ -64,7 +61,6 @@ export const buildRows = (
     userId: null,
     name: invitation.email,
     email: invitation.email,
-    image: undefined,
     role: invitation.role,
     status: "pending",
     invitedAt: new Date(invitation.createdAt),

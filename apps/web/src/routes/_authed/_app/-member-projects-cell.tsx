@@ -8,7 +8,6 @@ import {
   setMemberAllProjectsRole,
   updateProjectMemberRole,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { Checkbox } from "@better-update/ui/components/checkbox";
 import {
@@ -54,8 +53,8 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRoleValue, string> = {
 
 const DEFAULT_MEMBERSHIP_ROLE: ProjectMemberRoleValue = "developer";
 
-// Keep the Projects column compact: a handful of chips, the rest in a popover.
-const MAX_VISIBLE_PROJECT_CHIPS = 3;
+// Keep the Projects column compact: a handful of names, the rest in a popover.
+const MAX_VISIBLE_PROJECT_NAMES = 3;
 
 // Below this count the whole checklist is scannable at a glance — no filter box.
 const CHECKLIST_FILTER_THRESHOLD = 8;
@@ -106,38 +105,39 @@ const RoleSelect = ({
   />
 );
 
-export const MemberProjectChips = ({
+/**
+ * Which projects a member is in.
+ *
+ * Project names used to be filled pills, one per project — a shape the rest of
+ * the app keeps for state, spent here on plain data, three to a row. Names read
+ * as names; only the overflow stays a control, because it opens something.
+ */
+export const MemberProjectsSummary = ({
   summary,
 }: {
   summary: MemberProjectMembershipsItem | undefined;
 }) => {
   if (summary !== undefined && summary.allProjectsRole !== null) {
     return (
-      <Badge variant="secondary">
-        All projects · {PROJECT_ROLE_LABELS[summary.allProjectsRole]}
-      </Badge>
+      <span className="text-sm">All projects · {PROJECT_ROLE_LABELS[summary.allProjectsRole]}</span>
     );
   }
   const projects = summary === undefined ? [] : summary.projects;
   if (projects.length === 0) {
-    return <span className="text-kumo-subtle text-xs">No projects</span>;
+    return <span className="text-kumo-subtle text-sm">—</span>;
   }
-  const visible = projects.slice(0, MAX_VISIBLE_PROJECT_CHIPS);
+  const visible = projects.slice(0, MAX_VISIBLE_PROJECT_NAMES);
   const overflowCount = projects.length - visible.length;
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {visible.map((project) => (
-        <Badge key={project.projectId} variant="secondary">
-          {project.projectName}
-        </Badge>
-      ))}
+    <span className="flex min-w-0 items-center gap-1.5 text-sm">
+      <span className="truncate">{visible.map((project) => project.projectName).join(", ")}</span>
       {overflowCount > 0 ? (
         <Popover>
           <Popover.Trigger
-            className="cursor-pointer"
+            className="text-kumo-subtle hover:text-kumo-default shrink-0 cursor-pointer text-xs"
             aria-label={`Show all ${projects.length} projects`}
           >
-            <Badge variant="outline">+{overflowCount}</Badge>
+            +{overflowCount}
           </Popover.Trigger>
           {/* The list bleeds past the popup's own padding so a long roster
               scrolls under the title rather than inside an inset box. */}
@@ -159,7 +159,7 @@ export const MemberProjectChips = ({
           </Popover.Content>
         </Popover>
       ) : null}
-    </div>
+    </span>
   );
 };
 
@@ -351,8 +351,8 @@ const MembershipChecklist = ({
 // Which projects the member is in, and nothing else: editing them is a row
 // action and lives in the row's menu, where every other per-row verb lives. A
 // "Manage projects" button repeated down the column read as data, doubled the
-// height of every row, and shouted over the chips it was standing under.
-// Owner/admin rows are implicit maintainers on every project — a static badge,
+// height of every row, and shouted over the names it was standing under.
+// Owner/admin rows are implicit maintainers on every project — a standing fact,
 // nothing to manage.
 export const MemberProjectsCell = ({
   orgRole,
@@ -362,15 +362,10 @@ export const MemberProjectsCell = ({
   summary: MemberProjectMembershipsItem | undefined;
 }) => {
   if (orgRole === "owner" || orgRole === "admin") {
-    return (
-      <div className="flex flex-col items-start gap-0.5">
-        <Badge variant="secondary">All projects</Badge>
-        <span className="text-kumo-subtle text-xs">Implicit maintainer</span>
-      </div>
-    );
+    return <span className="text-sm">All projects · Implicit maintainer</span>;
   }
 
-  return <MemberProjectChips summary={summary} />;
+  return <MemberProjectsSummary summary={summary} />;
 };
 
 // One dialog instance at page level (like RemoveDialog): a cell-hosted dialog

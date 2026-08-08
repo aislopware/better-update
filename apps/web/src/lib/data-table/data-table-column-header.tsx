@@ -55,7 +55,9 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
           // look disabled.
           // Height comes from the band's own padding, not the button's, so a
           // sortable label does not stand taller than the ones beside it.
-          "-ml-2 h-auto py-0 text-base font-semibold text-inherit",
+          // Size and weight are inherited rather than named: naming them is how
+          // a sortable label ends up a size the band never asked for.
+          "-ml-2 h-auto py-0 [font-size:inherit] [font-weight:inherit] text-inherit",
           alignRight && "-mr-2 ml-0",
         )}
         onClick={cycleSorting}
