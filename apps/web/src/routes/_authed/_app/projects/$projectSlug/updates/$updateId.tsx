@@ -5,33 +5,53 @@ import {
   updateQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
 import { InputGroup } from "@better-update/ui/components/input-group";
-import { Item, ItemActions, ItemContent, ItemGroup } from "@better-update/ui/components/item";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@better-update/ui/components/table";
 import { FingerprintIcon, GitBranchIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 
 import type { Update, UpdateAssetEntry } from "@better-update/api";
+import type { ReactNode } from "react";
 
 import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailHeader } from "../../../../../../components/detail-header";
-import { DetailCardSkeleton, ListItemsSkeleton } from "../../../../../../components/skeletons";
+import {
+  DetailCardSkeleton,
+  TablePanelSkeleton,
+  TableRowsSkeleton,
+} from "../../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
-import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
+import {
+  ClientPaginationBar,
+  ListPanel,
+  ListPanelFooter,
+  ListPanelHeader,
+  PRIMARY_COLUMN_CLASS,
+  useClientPagination,
+} from "../../../../../../lib/data-table";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 type UpdateItem = Update;
+
+/** One labelled fact in a panel's opening strip. */
+const DetailStat = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="flex min-w-0 flex-col gap-1">
+    <span className="text-kumo-subtle text-xs">{label}</span>
+    <span className="flex items-center gap-1 text-sm tabular-nums">{children}</span>
+  </div>
+);
 
 const OverviewCard = ({
   primary,
@@ -47,20 +67,16 @@ const OverviewCard = ({
   const environment = readUpdateEnvironment(primary.extraJson);
   const groupTotalSize = variants.reduce((acc, variant) => acc + variant.totalAssetSize, 0);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Group metadata</CardTitle>
-        <CardDescription>
-          Shared values across all per-platform variants in this update group.
-        </CardDescription>
-      </CardHeader>
-      {/* The title is the message, and the meta line under it already carries
-          the runtime and when this was published — a card that repeats all
-          three is three quarters of a card. What is left is what the header
-          cannot say. */}
-      <CardContent className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Branch</div>
+    <ListPanel>
+      {/* No description under the title: "shared values across all per-platform
+          variants in this update group" is the title again in a longer voice.
+          The title is the message, and the meta line above it already carries
+          the runtime and when this was published — what is left is what the
+          header cannot say, and four facts read as a strip rather than as a
+          card's worth of air spent two-across. */}
+      <ListPanelHeader title="Group metadata" />
+      <div className="grid gap-4 p-4 sm:grid-cols-4">
+        <DetailStat label="Branch">
           {branchName ? (
             <Link
               to="/projects/$projectSlug/updates"
@@ -74,45 +90,36 @@ const OverviewCard = ({
           ) : (
             <CopyableId value={primary.branchId} label="Branch ID" />
           )}
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Environment</div>
-          {environment ? (
-            <EnvironmentBadge environment={environment} className="self-start" />
-          ) : (
-            <div className="font-medium">—</div>
-          )}
-        </div>
+        </DetailStat>
+        <DetailStat label="Environment">
+          {environment ? <EnvironmentBadge environment={environment} /> : "—"}
+        </DetailStat>
         {/* With one variant the group total is that variant's size, which the
-            card below already states. */}
+            panel below already states. */}
         {variants.length > 1 ? (
-          <div className="flex flex-col gap-1">
-            <div className="text-kumo-subtle text-sm">Total size</div>
-            <div className="font-medium">
-              {groupTotalSize > 0 ? formatBytes(groupTotalSize) : "—"}
-            </div>
-          </div>
+          <DetailStat label="Total size">
+            {groupTotalSize > 0 ? formatBytes(groupTotalSize) : "—"}
+          </DetailStat>
         ) : null}
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-sm">Fingerprint</div>
+        <DetailStat label="Fingerprint">
           {primary.fingerprintHash === null ? (
-            <span className="text-kumo-subtle text-sm italic">Not recorded</span>
+            <span className="text-kumo-subtle italic">Not recorded</span>
           ) : (
-            <div className="flex items-center gap-1">
+            <>
               <Link
                 to="/projects/$projectSlug/fingerprints/$hash"
                 params={{ projectSlug, hash: primary.fingerprintHash }}
                 className="hover:text-kumo-default text-kumo-subtle inline-flex items-center gap-1 font-mono text-xs"
               >
                 <FingerprintIcon weight="bold" className="size-3" />
-                {primary.fingerprintHash.slice(0, 16)}
+                {primary.fingerprintHash.slice(0, 12)}
               </Link>
               <CopyButton value={primary.fingerprintHash} label="Fingerprint" />
-            </div>
+            </>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </DetailStat>
+      </div>
+    </ListPanel>
   );
 };
 
@@ -121,35 +128,63 @@ const ASSET_FILTER_THRESHOLD = 8;
 
 type UpdateAsset = typeof UpdateAssetEntry.Type;
 
-const AssetList = ({ assets }: { assets: readonly UpdateAsset[] }) => {
+/**
+ * A bundle's asset manifest, as rows.
+ *
+ * Each asset used to be its own bordered box, stacked inside a card, inside the
+ * page — a card in a card in a card, drawn twice over on any update that ships
+ * both platforms. A manifest is a two-column table of paths and the hashes they
+ * resolve to, and the Cloudflare dashboard draws that as hairline rows in one
+ * frame, which is also what lets the paths line up column-wise to be scanned.
+ */
+const AssetRows = ({ assets }: { assets: readonly UpdateAsset[] }) => (
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Asset</TableHead>
+        <TableHead>Hash</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {assets.map((asset) => (
+        <TableRow key={`${asset.hash}:${asset.key}`}>
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <span className="flex min-w-0 items-center gap-2">
+              <code className="min-w-0 truncate font-mono text-xs" title={asset.key}>
+                {asset.key}
+              </code>
+              <CopyButton value={asset.key} label="Asset key" size="xs" />
+              {/* One asset in a manifest launches the bundle, so the mark rides
+                  in the row it belongs to rather than in a column of blanks. */}
+              {asset.isLaunch ? <Badge variant="secondary">Launch</Badge> : null}
+            </span>
+          </TableCell>
+          <TableCell>
+            <CopyableId value={asset.hash} label="Asset hash" length={12} />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+);
+
+/** One page of the manifest, closed by the count the panel is read off. */
+const AssetPage = ({ assets, query }: { assets: readonly UpdateAsset[]; query: string }) => {
   const pagination = useClientPagination(assets, "asset");
+  if (assets.length === 0) {
+    return (
+      <ListPanelFooter>
+        <span className="text-kumo-subtle text-sm">No assets match “{query}”.</span>
+      </ListPanelFooter>
+    );
+  }
   return (
-    <div className="flex flex-col gap-3">
-      <ItemGroup>
-        {pagination.pageItems.map((asset) => (
-          <Item key={`${asset.hash}:${asset.key}`} variant="outline" size="sm">
-            <ItemContent className="min-w-0 gap-0.5">
-              <div className="flex items-center gap-1">
-                <code className="min-w-0 truncate font-mono text-xs">{asset.key}</code>
-                <CopyButton value={asset.key} label="Asset key" size="xs" />
-              </div>
-              <div className="flex items-center gap-1">
-                <code className="text-kumo-subtle min-w-0 truncate font-mono text-xs">
-                  {asset.hash.slice(0, 16)}
-                </code>
-                <CopyButton value={asset.hash} label="Asset hash" size="xs" />
-              </div>
-            </ItemContent>
-            {asset.isLaunch ? (
-              <ItemActions>
-                <Badge variant="secondary">Launch</Badge>
-              </ItemActions>
-            ) : null}
-          </Item>
-        ))}
-      </ItemGroup>
-      <ClientPaginationFooter state={pagination} />
-    </div>
+    <>
+      <AssetRows assets={pagination.pageItems} />
+      <ListPanelFooter>
+        <ClientPaginationBar state={pagination} />
+      </ListPanelFooter>
+    </>
   );
 };
 
@@ -165,7 +200,11 @@ const PlatformVariantAssets = ({
   const { data: assets } = useSuspenseQuery(updateAssetsQueryOptions(orgId, projectId, updateId));
   const [query, setQuery] = useState("");
   if (assets.length === 0) {
-    return <p className="text-kumo-subtle text-sm">No asset references recorded.</p>;
+    return (
+      <ListPanelFooter>
+        <span className="text-kumo-subtle text-sm">No asset references recorded.</span>
+      </ListPanelFooter>
+    );
   }
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAssets = normalizedQuery
@@ -176,28 +215,27 @@ const PlatformVariantAssets = ({
       )
     : assets;
   return (
-    <div className="flex flex-col gap-3">
+    <>
       {assets.length > ASSET_FILTER_THRESHOLD ? (
-        <InputGroup className="w-full sm:w-56">
-          <InputGroup.Input
-            type="search"
-            value={query}
-            placeholder="Filter assets…"
-            onChange={(event) => {
-              setQuery(event.target.value);
-            }}
-          />
-          <InputGroup.Addon>
-            <MagnifyingGlassIcon />
-          </InputGroup.Addon>
-        </InputGroup>
+        <div className="border-kumo-line border-b p-4">
+          <InputGroup className="w-full sm:w-64">
+            <InputGroup.Input
+              type="search"
+              value={query}
+              placeholder="Filter assets…"
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+            />
+            <InputGroup.Addon>
+              <MagnifyingGlassIcon />
+            </InputGroup.Addon>
+          </InputGroup>
+        </div>
       ) : null}
-      {visibleAssets.length === 0 ? (
-        <p className="text-kumo-subtle text-sm">No assets match “{query.trim()}”.</p>
-      ) : (
-        <AssetList key={normalizedQuery} assets={visibleAssets} />
-      )}
-    </div>
+      {/* Keyed by the filter so a narrowed list opens on its own first page. */}
+      <AssetPage key={normalizedQuery} assets={visibleAssets} query={query.trim()} />
+    </>
   );
 };
 
@@ -211,7 +249,7 @@ const PlatformVariantDownloads = ({
   updateId: string;
 }) => {
   const { data } = useSuspenseQuery(updateAnalyticsQueryOptions(orgId, projectId, updateId, "30d"));
-  return <div className="text-xs">{data.totalRequests.toLocaleString()}</div>;
+  return <>{data.totalRequests.toLocaleString()}</>;
 };
 
 const PlatformVariantCard = ({
@@ -223,57 +261,43 @@ const PlatformVariantCard = ({
   orgId: string;
   projectId: string;
 }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2 text-base">
-        <PlatformBadge platform={update.platform} />
-        <CopyableId value={update.id} label="Update ID" />
-        {update.isRollback ? <Badge variant="error">Rollback</Badge> : null}
-      </CardTitle>
-      <CardDescription>
-        {update.rolloutPercentage < 100
+  <ListPanel>
+    <ListPanelHeader
+      title={
+        <span className="flex items-center gap-2">
+          <PlatformBadge platform={update.platform} />
+          <CopyableId value={update.id} label="Update ID" />
+          {update.isRollback ? <Badge variant="error">Rollback</Badge> : null}
+        </span>
+      }
+      description={
+        update.rolloutPercentage < 100
           ? `Rolling out to ${update.rolloutPercentage}% of devices`
-          : "Fully rolled out"}
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-4">
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-xs">Signature</div>
-          <Badge variant={update.signature === null ? "outline" : "success"} className="self-start">
-            {update.signature === null ? "Unsigned" : "Signed"}
-          </Badge>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-xs">Manifest body</div>
-          <Badge
-            variant={update.manifestBody === null ? "outline" : "secondary"}
-            className="self-start"
-          >
-            {update.manifestBody === null ? "Not stored" : "Stored"}
-          </Badge>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-xs">Size</div>
-          <div className="text-xs">
-            {update.totalAssetSize > 0 ? formatBytes(update.totalAssetSize) : "—"}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-kumo-subtle text-xs">Downloads (30d)</div>
-          <Suspense fallback={<div className="text-kumo-subtle text-xs">…</div>}>
-            <PlatformVariantDownloads orgId={orgId} projectId={projectId} updateId={update.id} />
-          </Suspense>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <div className="text-kumo-subtle text-sm">Assets</div>
-        <Suspense fallback={<ListItemsSkeleton rows={2} hasTrailingButton={false} />}>
-          <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
+          : "Fully rolled out"
+      }
+    />
+    <div className="border-kumo-line grid gap-4 border-b p-4 sm:grid-cols-4">
+      {/* Signed is what publishing does by default, so it is stated and left
+          alone — only a variant nothing vouches for takes a colour. */}
+      <DetailStat label="Signature">
+        {update.signature === null ? <Badge variant="warning">Unsigned</Badge> : "Signed"}
+      </DetailStat>
+      <DetailStat label="Manifest body">
+        {update.manifestBody === null ? "Not stored" : "Stored"}
+      </DetailStat>
+      <DetailStat label="Size">
+        {update.totalAssetSize > 0 ? formatBytes(update.totalAssetSize) : "—"}
+      </DetailStat>
+      <DetailStat label="Downloads (30d)">
+        <Suspense fallback={<span className="text-kumo-subtle">…</span>}>
+          <PlatformVariantDownloads orgId={orgId} projectId={projectId} updateId={update.id} />
         </Suspense>
-      </div>
-    </CardContent>
-  </Card>
+      </DetailStat>
+    </div>
+    <Suspense fallback={<TableRowsSkeleton columns={2} rows={3} />}>
+      <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
+    </Suspense>
+  </ListPanel>
 );
 
 const UpdateDetailContent = () => {
@@ -347,11 +371,13 @@ const UpdateDetailContent = () => {
   );
 };
 
+// Shaped like what arrives: the shared-values strip, then a variant panel that
+// closes on its manifest.
 const UpdateDetailSkeleton = () => (
   <>
     <DetailHeader title="Update" />
-    <DetailCardSkeleton rows={4} columns={2} />
-    <DetailCardSkeleton rows={2} columns={2} />
+    <DetailCardSkeleton rows={1} columns={4} hasDescription={false} />
+    <TablePanelSkeleton columns={2} rows={3} />
   </>
 );
 

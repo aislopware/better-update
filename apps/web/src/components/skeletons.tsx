@@ -29,7 +29,7 @@ interface TableSkeletonProps {
 }
 
 /** The grid alone, for callers that already own the frame around it. */
-const TableRowsSkeleton = ({ columns, rows }: { columns: number; rows: number }) => (
+export const TableRowsSkeleton = ({ columns, rows }: { columns: number; rows: number }) => (
   <Table>
     <TableHeader>
       <TableRow>
@@ -194,21 +194,30 @@ export const ListItemsSkeleton = ({
 
 interface DetailCardSkeletonProps {
   readonly rows?: number;
-  readonly columns?: 1 | 2;
+  readonly columns?: 1 | 2 | 4;
+  /** Omit where the panel it stands in for carries a bare title. */
+  readonly hasDescription?: boolean;
   readonly className?: string;
 }
+
+const DETAIL_GRID_CLASS = {
+  1: "grid-cols-1",
+  2: "sm:grid-cols-2",
+  4: "sm:grid-cols-4",
+} as const;
 
 export const DetailCardSkeleton = ({
   rows = 4,
   columns = 2,
+  hasDescription = true,
   className,
 }: DetailCardSkeletonProps) => (
   <Card className={cn("skeleton-appear gap-4 px-4", className)}>
     <div className="flex flex-col gap-2">
       <Skeleton className="h-4 w-40 rounded" />
-      <Skeleton className="h-3 w-64 rounded" />
+      {hasDescription ? <Skeleton className="h-3 w-64 rounded" /> : null}
     </div>
-    <div className={cn("grid gap-4", columns === 2 ? "sm:grid-cols-2" : "grid-cols-1")}>
+    <div className={cn("grid gap-4", DETAIL_GRID_CLASS[columns])}>
       {repeat(rows * columns).map((index) => (
         <div key={index} className="flex flex-col gap-1.5">
           <Skeleton className="h-3 w-24 rounded" />
