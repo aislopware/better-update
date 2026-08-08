@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { RuntimeAggregate } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
@@ -36,15 +37,32 @@ const RuntimesEmptyState = () => (
   />
 );
 
+const SINGLE_PLATFORM = 1;
+
+const RuntimeVersionCell = ({ runtime }: { runtime: RuntimeAggregate }) => {
+  const [only] = runtime.platforms;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex items-center gap-2 font-medium">
+        <StackIcon weight="bold" className="text-kumo-subtle size-4" />v{runtime.version}
+      </span>
+      {runtime.platforms.length === SINGLE_PLATFORM && only ? (
+        <span className="text-kumo-subtle flex items-center gap-1.5 text-xs">
+          <PlatformIndicator platform={only} className="gap-1" /> only
+        </span>
+      ) : null}
+    </div>
+  );
+};
+
 const columns: readonly ColumnDef<RuntimeAggregate>[] = [
   {
     id: "version",
     header: "Runtime",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 font-medium">
-        <StackIcon weight="bold" className="text-kumo-subtle size-4" />v{row.original.version}
-      </div>
-    ),
+    // Both platforms reporting a runtime is the ordinary case and goes unsaid;
+    // a version only one of them ever shipped is the row worth a second look,
+    // so that is the only one that names a platform.
+    cell: ({ row }) => <RuntimeVersionCell runtime={row.original} />,
     enableSorting: false,
     meta: { primary: true },
   },

@@ -30,11 +30,17 @@ const insertBranch = (id: string, projectId: string) =>
     .bind(id, projectId, `branch-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertUpdate = (id: string, branchId: string, runtimeVersion: string, createdAt: string) =>
+const insertUpdate = (
+  id: string,
+  branchId: string,
+  runtimeVersion: string,
+  createdAt: string,
+  platform = "ios",
+) =>
   env.DB.prepare(
     `INSERT INTO "updates" ("id", "branch_id", "group_id", "message", "platform", "runtime_version", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, branchId, `group-${id}`, "msg", "ios", runtimeVersion, createdAt)
+    .bind(id, branchId, `group-${id}`, "msg", platform, runtimeVersion, createdAt)
     .run();
 
 const insertBuild = (
@@ -42,11 +48,12 @@ const insertBuild = (
   projectId: string,
   runtimeVersion: string | null,
   createdAt: string,
+  platform = "ios",
 ) =>
   env.DB.prepare(
     `INSERT INTO "builds" ("id", "project_id", "platform", "distribution", "runtime_version", "created_at") VALUES (?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, projectId, "ios", "ad-hoc", runtimeVersion, createdAt)
+    .bind(id, projectId, platform, "ad-hoc", runtimeVersion, createdAt)
     .run();
 
 const seedProject = async (suffix: string) => {
@@ -68,9 +75,10 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
 
     await insertBuild(`b1-${suffix}`, projectId, "1.0.0", "2024-01-02T00:00:00Z");
     await insertBuild(`b2-${suffix}`, projectId, "1.0.0", "2024-01-03T00:00:00Z");
-    await insertBuild(`b3-${suffix}`, projectId, "2.0.0", "2024-01-04T00:00:00Z");
+    await insertBuild(`b3-${suffix}`, projectId, "1.0.0", "2024-01-03T00:00:00Z", "android");
+    await insertBuild(`b4-${suffix}`, projectId, "2.0.0", "2024-01-04T00:00:00Z", "android");
     await insertUpdate(`u1-${suffix}`, branchId, "1.0.0", "2024-01-06T00:00:00Z");
-    await insertUpdate(`u2-${suffix}`, branchId, "3.0.0", "2024-01-05T00:00:00Z");
+    await insertUpdate(`u2-${suffix}`, branchId, "3.0.0", "2024-01-05T00:00:00Z", "android");
 
     const result = await run(
       Effect.gen(function* () {
@@ -83,18 +91,23 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
     expect(result.items).toEqual([
       {
         version: "1.0.0",
-        buildsCount: 2,
+        // Both platforms report it, and the fixed order holds whichever row
+        // the fold saw first.
+        platforms: ["ios", "android"],
+        buildsCount: 3,
         updatesCount: 1,
         latestActivity: "2024-01-06T00:00:00Z",
       },
       {
         version: "3.0.0",
+        platforms: ["android"],
         buildsCount: 0,
         updatesCount: 1,
         latestActivity: "2024-01-05T00:00:00Z",
       },
       {
         version: "2.0.0",
+        platforms: ["android"],
         buildsCount: 1,
         updatesCount: 0,
         latestActivity: "2024-01-04T00:00:00Z",
@@ -123,6 +136,7 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
     expect(result.items).toEqual([
       {
         version: "1.0.0",
+        platforms: ["ios"],
         buildsCount: 0,
         updatesCount: 1,
         latestActivity: "2024-01-03T00:00:00Z",
