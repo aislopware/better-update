@@ -3,7 +3,7 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { GitBranchIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
@@ -132,6 +132,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
 
 const BranchesPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
+  const { projectSlug } = Route.useParams();
   const orgId = activeOrg.id;
   const projectId = project.id;
 
@@ -257,6 +258,20 @@ const BranchesPage = () => {
           isFiltered: urlQuery.length > 0,
           onChange: onPageChange,
         }}
+        // A branch has no page of its own — what it *is* is the updates that
+        // landed on it, so the row goes to that list already filtered. Without
+        // this the row was a dead end and the count beside it a number the
+        // reader had to go re-create by hand in the Updates filter.
+        renderRowLink={(branch, { className, children }) => (
+          <Link
+            to="/projects/$projectSlug/updates"
+            params={{ projectSlug }}
+            search={{ page: 1, sort: "-createdAt" as const, branchId: [branch.id] }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
         emptyMessage="No branches match your search."
       />
     </div>

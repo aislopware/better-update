@@ -35,6 +35,7 @@ import {
   sortParam,
   useDataTableSearch,
   useDebouncedSearch,
+  withoutPinnedColumns,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { buildBuildsColumns } from "./-builds-columns";
@@ -95,6 +96,29 @@ const BuildsSkeleton = () => (
 
 const isBuildDistribution = (value: string | undefined): value is BuildDistribution =>
   value !== undefined && (DISTRIBUTIONS as readonly string[]).includes(value);
+
+const useBuildColumns = ({
+  orgId,
+  projectId,
+  platformIsPinned,
+  distributionIsPinned,
+  audienceIsPinned,
+}: {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly platformIsPinned: boolean;
+  readonly distributionIsPinned: boolean;
+  readonly audienceIsPinned: boolean;
+}) =>
+  useMemo(
+    () =>
+      withoutPinnedColumns(buildBuildsColumns(orgId, projectId), {
+        platform: platformIsPinned,
+        distribution: distributionIsPinned,
+        audience: audienceIsPinned,
+      }),
+    [orgId, projectId, platformIsPinned, distributionIsPinned, audienceIsPinned],
+  );
 
 const BuildsContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
@@ -186,7 +210,13 @@ const BuildsContent = () => {
 
   const { data: matrix } = useSuspenseQuery(buildCompatibilityMatrixQueryOptions(orgId, projectId));
 
-  const columns = useMemo(() => buildBuildsColumns(orgId, projectId), [orgId, projectId]);
+  const columns = useBuildColumns({
+    orgId,
+    projectId,
+    platformIsPinned: platform.length === 1,
+    distributionIsPinned: distribution.length === 1,
+    audienceIsPinned: audience.length === 1,
+  });
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
   const table = useReactTable({

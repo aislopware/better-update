@@ -29,6 +29,7 @@ import {
   sortParam,
   useDataTableSearch,
   useDebouncedSearch,
+  withoutPinnedColumns,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { buildUpdateColumns } from "./-updates-columns";
@@ -113,9 +114,15 @@ const useUpdatesData = ({
     placeholderData: keepPreviousData,
   });
 
+  const branchIsPinned = branchId.length === 1;
+  const platformIsPinned = platform.length === 1;
   const columns = useMemo(
-    () => buildUpdateColumns(slug, orgId, projectId),
-    [slug, orgId, projectId],
+    () =>
+      withoutPinnedColumns(buildUpdateColumns(slug, orgId, projectId), {
+        branch: branchIsPinned,
+        platform: platformIsPinned,
+      }),
+    [slug, orgId, projectId, branchIsPinned, platformIsPinned],
   );
 
   return { updatesQuery, columns };
