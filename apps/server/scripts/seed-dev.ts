@@ -521,6 +521,12 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
         name: `${pick(ownerNames)}'s ${model ?? "Device"}`,
         model,
         device_class: spec.class,
+        // Most of a roster has been through `devices sync` — the portal id is
+        // what that writes back. Seeding none of them left every row on the page
+        // wearing the warning colour, which is how a column stops marking
+        // anything, and made the "not synced with Apple" banner a count of the
+        // whole table.
+        apple_device_portal_id: rand() < 0.8 ? hex(10).toUpperCase() : null,
         enabled: rand() < 0.85 ? 1 : 0,
         created_at: spread(300),
         updated_at: spread(30),
