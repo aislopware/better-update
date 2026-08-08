@@ -30,11 +30,7 @@ const NAV: readonly SettingsNavSection[] = [
 ];
 
 const AccountLayout = () => (
-  <SettingsLayout
-    nav={NAV}
-    title="Account"
-    description="Manage your profile, security, and workspace preferences."
-  >
+  <SettingsLayout nav={NAV}>
     <Outlet />
   </SettingsLayout>
 );

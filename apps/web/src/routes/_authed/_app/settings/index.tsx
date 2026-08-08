@@ -160,9 +160,10 @@ const OrgGeneralForm = () => {
         await form.handleSubmit();
       }}
     >
+      {/* The two labelled fields below are the organization's details; a line
+          saying so above them is the card's own title in a sentence. */}
       <SettingCard
         title="General"
-        description="Update your organization details."
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
@@ -362,10 +363,9 @@ const DeleteOrgSection = () => {
 // of a 1500px window is a paragraph nobody's eye can track back from.
 const Settings = () => (
   <div className="flex w-full max-w-3xl flex-col gap-6">
-    <PageHeader
-      title="Organization settings"
-      description="Update organization details or permanently delete the organization."
-    />
+    {/* No description: it listed the three cards under it — "update details or
+        permanently delete" — which each of them says on its own header. */}
+    <PageHeader title="Organization settings" />
     <OrgLogoSection />
     <OrgGeneralForm />
     <DeleteOrgSection />

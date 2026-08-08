@@ -5,8 +5,6 @@ import type { Icon } from "@phosphor-icons/react";
 import type { LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { PageHeader } from "./page-header";
-
 type LinkTo = Exclude<LinkProps["to"], undefined>;
 
 interface SettingsNavItem {
@@ -23,18 +21,17 @@ interface SettingsNavSection {
 interface SettingsLayoutProps {
   readonly nav: readonly SettingsNavSection[];
   readonly children: ReactNode;
-  readonly title: ReactNode;
-  readonly description?: ReactNode;
-  readonly actions?: ReactNode;
 }
 
-export const SettingsLayout = ({
-  nav,
-  children,
-  title,
-  description,
-  actions,
-}: SettingsLayoutProps) => (
+/**
+ * A settings section: its nav down the side, the page it points at beside it.
+ *
+ * The header used to live here, so every page under the nav was titled after
+ * the section — five pages all called "Account", each of them describing the
+ * other four. The nav says which one you picked; the header has to say which
+ * one you are on, so each page writes its own.
+ */
+export const SettingsLayout = ({ nav, children }: SettingsLayoutProps) => (
   <div className="flex w-full flex-col gap-6 lg:flex-row lg:gap-10">
     <aside className="lg:w-56 lg:shrink-0">
       <nav className="flex flex-col gap-6 lg:sticky lg:top-20">
@@ -70,10 +67,7 @@ export const SettingsLayout = ({
         ))}
       </nav>
     </aside>
-    <div className="min-w-0 flex-1">
-      <PageHeader title={title} description={description} actions={actions} className="mb-6 pb-0" />
-      <div className="flex flex-col gap-4">{children}</div>
-    </div>
+    <div className="flex min-w-0 flex-1 flex-col gap-4">{children}</div>
   </div>
 );
 

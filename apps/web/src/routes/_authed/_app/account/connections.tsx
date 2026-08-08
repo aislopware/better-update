@@ -1,13 +1,4 @@
 import { Button } from "@better-update/ui/components/button";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@better-update/ui/components/item";
 import { toast } from "@better-update/ui/components/toast";
 import { GitBranchIcon, KeyIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -15,9 +6,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import type { Icon } from "@phosphor-icons/react";
 
-import { SettingCard } from "../../../../components/setting-card";
-import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
+import { PageHeader } from "../../../../components/page-header";
+import { TableSkeleton } from "../../../../components/skeletons";
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
+import { ListPanel } from "../../../../lib/data-table";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { accountsQueryOptions } from "../../../../queries/auth";
 
@@ -70,65 +62,69 @@ const ConnectionsList = () => {
   const unlinkingProvider = unlinkMutation.isPending ? unlinkMutation.variables : undefined;
 
   return (
-    <SettingCard
-      title="Connections"
-      description="Linked sign-in methods. You must keep at least one active."
-    >
-      <ItemGroup>
+    <>
+      <PageHeader
+        title="Connections"
+        description="Linked sign-in methods. You must keep at least one active."
+      />
+      <ListPanel>
         {PROVIDERS.map((provider) => {
           const linked = accounts.find((account) => account.providerId === provider.id);
           const isLinked = Boolean(linked);
           const isUnlinking = unlinkingProvider === provider.id;
           const canUnlink = isLinked && provider.id !== "credential" && accounts.length > 1;
           return (
-            <Item key={provider.id} variant="outline" size="sm">
-              <ItemMedia variant="icon" className="bg-kumo-tint/72 size-8 rounded-md border">
-                <provider.icon weight="bold" />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle>{provider.label}</ItemTitle>
-                <ItemDescription>{provider.description}</ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                {provider.id === "github" && !isLinked ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      linkGithubMutation.mutate();
-                    }}
-                    loading={linkGithubMutation.isPending}
-                  >
-                    Connect
-                  </Button>
-                ) : null}
-                {canUnlink ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      unlinkMutation.mutate(provider.id);
-                    }}
-                    disabled={isUnlinking || unlinkMutation.isPending}
-                    loading={isUnlinking}
-                  >
-                    Disconnect
-                  </Button>
-                ) : null}
-                {isLinked && !canUnlink ? (
-                  <span className="text-kumo-subtle text-xs">Connected</span>
-                ) : null}
-              </ItemActions>
-            </Item>
+            <div
+              key={provider.id}
+              className="border-kumo-line flex items-center gap-3 border-b px-4 py-3 last:border-0"
+            >
+              <provider.icon weight="bold" className="text-kumo-subtle size-4 shrink-0" />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-sm font-medium">{provider.label}</span>
+                <span className="text-kumo-subtle text-xs">{provider.description}</span>
+              </div>
+              {provider.id === "github" && !isLinked ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    linkGithubMutation.mutate();
+                  }}
+                  loading={linkGithubMutation.isPending}
+                >
+                  Connect
+                </Button>
+              ) : null}
+              {canUnlink ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    unlinkMutation.mutate(provider.id);
+                  }}
+                  disabled={isUnlinking || unlinkMutation.isPending}
+                  loading={isUnlinking}
+                >
+                  Disconnect
+                </Button>
+              ) : null}
+              {isLinked && !canUnlink ? (
+                <span className="text-kumo-subtle text-xs">Connected</span>
+              ) : null}
+            </div>
           );
         })}
-      </ItemGroup>
-    </SettingCard>
+      </ListPanel>
+    </>
   );
 };
 
 const ConnectionsPagePending = () => (
-  <SettingCardSkeleton hasFooter={false}>
-    <ListItemsSkeleton rows={2} />
-  </SettingCardSkeleton>
+  <>
+    <PageHeader
+      title="Connections"
+      description="Linked sign-in methods. You must keep at least one active."
+    />
+    <TableSkeleton columns={2} rows={2} hasFooter={false} />
+  </>
 );
 
 export const Route = createFileRoute("/_authed/_app/account/connections")({

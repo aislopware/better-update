@@ -13,6 +13,7 @@ import { useRef } from "react";
 
 import type { ChangeEvent } from "react";
 
+import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
 import { SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
@@ -164,8 +165,10 @@ const ProfileForm = () => {
         await form.handleSubmit();
       }}
     >
+      {/* Not "Profile" — that is the page, and a card repeating its page's own
+          name reads as the header having been written twice. */}
       <SettingCard
-        title="Profile"
+        title="Name and email"
         description="This is how others will see you across the workspace."
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
@@ -220,17 +223,19 @@ const ProfileForm = () => {
 };
 
 const ProfilePage = () => (
-  <div className="flex w-full flex-col gap-6">
+  <>
+    <PageHeader title="Profile" />
     <AvatarSection />
     <ProfileForm />
-  </div>
+  </>
 );
 
 const ProfilePagePending = () => (
-  <div className="flex w-full flex-col gap-6">
+  <>
+    <PageHeader title="Profile" />
     <SettingCardSkeleton fields={1} />
     <SettingCardSkeleton fields={2} />
-  </div>
+  </>
 );
 
 export const Route = createFileRoute("/_authed/_app/account/profile")({

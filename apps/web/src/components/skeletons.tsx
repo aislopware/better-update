@@ -164,34 +164,6 @@ export const SettingCardSkeleton = ({
   </Card>
 );
 
-interface ListItemsSkeletonProps {
-  readonly rows?: number;
-  readonly hasTrailingButton?: boolean;
-  readonly className?: string;
-}
-
-export const ListItemsSkeleton = ({
-  rows = 3,
-  hasTrailingButton = true,
-  className,
-}: ListItemsSkeletonProps) => (
-  <div className={cn("skeleton-appear flex w-full flex-col gap-2.5", className)}>
-    {repeat(rows).map((index) => (
-      <div
-        key={index}
-        className="border-kumo-line flex items-center gap-2.5 rounded-lg border px-3 py-2.5"
-      >
-        <Skeleton className="size-8 shrink-0 rounded-md" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Skeleton className="h-3.5 w-44 rounded" />
-          <Skeleton className="h-3 w-64 rounded" />
-        </div>
-        {hasTrailingButton ? <Skeleton className="h-8 w-24 rounded-md" /> : null}
-      </div>
-    ))}
-  </div>
-);
-
 interface DetailCardSkeletonProps {
   readonly rows?: number;
   readonly columns?: 1 | 2 | 3 | 4;

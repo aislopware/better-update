@@ -1,21 +1,13 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@better-update/ui/components/item";
 import { FingerprintIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { SettingCard } from "../../../../components/setting-card";
-import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
+import { PageHeader } from "../../../../components/page-header";
+import { TableSkeleton } from "../../../../components/skeletons";
+import { ListPanel, ListPanelFooter } from "../../../../lib/data-table";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { passkeysQueryOptions } from "../../../../queries/auth";
 import { AddPasskeyDialog, DeletePasskeyDialog, RenamePasskeyDialog } from "./-passkey-dialogs";
@@ -36,53 +28,57 @@ const PasskeysList = () => {
   };
 
   return (
-    <SettingCard
-      title="Passkeys"
-      description="Verify with biometrics or a security key to unlock the environment-variable vault."
-      action={<AddPasskeyDialog invalidate={invalidate} />}
-    >
-      {passkeys.length === 0 ? (
-        <p className="text-kumo-subtle py-2 text-sm">
-          No passkeys added yet. Add one to unlock the env-vault from your browser.
-        </p>
-      ) : (
-        <ItemGroup>
-          {passkeys.map((passkey) => (
-            <Item key={passkey.id} variant="outline" size="sm">
-              <ItemMedia variant="icon" className="bg-kumo-tint/72 size-8 rounded-md border">
-                <FingerprintIcon weight="bold" />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle>
-                  {passkey.name ?? "Unnamed passkey"}
+    <>
+      <PageHeader
+        title="Passkeys"
+        description="Verify with biometrics or a security key to unlock the environment-variable vault."
+        actions={<AddPasskeyDialog invalidate={invalidate} />}
+      />
+      {/* The page names the list, so the panel around it does not say it again;
+          the rows share one frame the way every other list here does. */}
+      <ListPanel>
+        {passkeys.length === 0 ? (
+          <ListPanelFooter>
+            <span className="text-kumo-subtle text-sm">
+              No passkeys added yet. Add one to unlock the env-vault from your browser.
+            </span>
+          </ListPanelFooter>
+        ) : (
+          passkeys.map((passkey) => (
+            <div
+              key={passkey.id}
+              className="border-kumo-line flex items-center gap-3 border-b px-4 py-3 last:border-0"
+            >
+              <FingerprintIcon weight="bold" className="text-kumo-subtle size-4 shrink-0" />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <span className="truncate">{passkey.name ?? "Unnamed passkey"}</span>
                   {passkey.backedUp ? <Badge variant="success">Synced</Badge> : null}
-                </ItemTitle>
-                <ItemDescription>
+                </span>
+                <span className="text-kumo-subtle text-xs">
                   Added <RelativeTime value={passkey.createdAt} />
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setActive({ mode: "rename", passkey });
-                  }}
-                >
-                  Rename
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setActive({ mode: "delete", passkey });
-                  }}
-                >
-                  Remove
-                </Button>
-              </ItemActions>
-            </Item>
-          ))}
-        </ItemGroup>
-      )}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setActive({ mode: "rename", passkey });
+                }}
+              >
+                Rename
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setActive({ mode: "delete", passkey });
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          ))
+        )}
+      </ListPanel>
       {active?.mode === "rename" ? (
         <RenamePasskeyDialog
           passkey={active.passkey}
@@ -107,14 +103,18 @@ const PasskeysList = () => {
           }}
         />
       ) : null}
-    </SettingCard>
+    </>
   );
 };
 
 const PasskeysPagePending = () => (
-  <SettingCardSkeleton hasFooter={false}>
-    <ListItemsSkeleton rows={2} />
-  </SettingCardSkeleton>
+  <>
+    <PageHeader
+      title="Passkeys"
+      description="Verify with biometrics or a security key to unlock the environment-variable vault."
+    />
+    <TableSkeleton columns={2} rows={2} hasFooter={false} />
+  </>
 );
 
 export const Route = createFileRoute("/_authed/_app/account/passkeys")({

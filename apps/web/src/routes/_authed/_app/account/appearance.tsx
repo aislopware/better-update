@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppearanceRadioGroup } from "../../../../components/appearance-radio";
+import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
 import { useTheme } from "../../../../lib/use-theme";
 
@@ -70,14 +71,17 @@ const THEME_OPTIONS = [
 const AppearancePage = () => {
   const { theme, updateTheme } = useTheme();
   return (
-    <SettingCard title="Theme" description="Choose how the dashboard should appear to you.">
-      <AppearanceRadioGroup
-        name="appearance-theme"
-        value={theme}
-        onValueChange={updateTheme}
-        options={THEME_OPTIONS}
-      />
-    </SettingCard>
+    <>
+      <PageHeader title="Appearance" description="Choose how the dashboard should appear to you." />
+      <SettingCard title="Theme">
+        <AppearanceRadioGroup
+          name="appearance-theme"
+          value={theme}
+          onValueChange={updateTheme}
+          options={THEME_OPTIONS}
+        />
+      </SettingCard>
+    </>
   );
 };
 
