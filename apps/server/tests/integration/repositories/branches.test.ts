@@ -34,11 +34,11 @@ const insertBranch = (id: string, projectId: string, name: string, createdAt: st
     .bind(id, projectId, name, createdAt)
     .run();
 
-const insertUpdate = (id: string, branchId: string) =>
+const insertUpdate = (id: string, branchId: string, createdAt = "2024-01-05T00:00:00Z") =>
   env.DB.prepare(
     `INSERT INTO "updates" ("id", "branch_id", "group_id", "message", "platform", "runtime_version", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, branchId, `group-${id}`, "msg", "ios", "1.0.0", "2024-01-05T00:00:00Z")
+    .bind(id, branchId, `group-${id}`, "msg", "ios", "1.0.0", createdAt)
     .run();
 
 const insertUpdateAsset = async (updateId: string, assetKey: string) => {
@@ -104,8 +104,8 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
     await insertProject(projectId, orgId);
     await insertBranch(prodId, projectId, "production", "2024-01-02T00:00:00Z");
     await insertBranch(stagingId, projectId, "staging", "2024-01-04T00:00:00Z");
-    await insertUpdate(`upd-1-${suffix}`, prodId);
-    await insertUpdate(`upd-2-${suffix}`, prodId);
+    await insertUpdate(`upd-1-${suffix}`, prodId, "2024-01-05T00:00:00Z");
+    await insertUpdate(`upd-2-${suffix}`, prodId, "2024-01-06T00:00:00Z");
 
     const result = await run(
       Effect.gen(function* () {
@@ -129,9 +129,63 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       isBuiltin: false,
       createdAt: "2024-01-02T00:00:00Z",
       updateCount: 2,
+      channelNames: [],
+      latestUpdateAt: "2024-01-06T00:00:00Z",
     });
     expect(result.items[1]?.name).toBe("staging");
     expect(result.items[1]?.updateCount).toBe(0);
+    expect(result.items[1]?.latestUpdateAt).toBeNull();
+  });
+
+  test("findByProject names every channel that reaches the branch, sorted", async () => {
+    const suffix = crypto.randomUUID();
+    const orgId = `org-${suffix}`;
+    const projectId = `proj-${suffix}`;
+    const mainBranchId = `branch-main-${suffix}`;
+    const rolloutBranchId = `branch-rollout-${suffix}`;
+
+    await insertOrg(orgId);
+    await insertProject(projectId, orgId);
+    await insertBranch(mainBranchId, projectId, "main", "2024-01-02T00:00:00Z");
+    await insertBranch(rolloutBranchId, projectId, "rollout", "2024-01-03T00:00:00Z");
+    // "staging" points at main directly; "production" points at main and carries
+    // a rollout mapping onto the second branch — both count as a reference.
+    await insertChannel({
+      id: `channel-staging-${suffix}`,
+      projectId,
+      name: "staging",
+      branchId: mainBranchId,
+    });
+    await insertChannel({
+      id: `channel-production-${suffix}`,
+      projectId,
+      name: "production",
+      branchId: mainBranchId,
+      branchMappingJson: buildBranchMapping({
+        newBranchId: rolloutBranchId,
+        oldBranchId: mainBranchId,
+        percentage: 25,
+        salt: `salt-${suffix}`,
+      }),
+    });
+
+    const result = await run(
+      Effect.gen(function* () {
+        const repo = yield* BranchRepo;
+        return yield* repo.findByProject({
+          projectId,
+          sort: "name",
+          order: "asc",
+          limit: 20,
+          offset: 0,
+        });
+      }),
+    );
+
+    expect(result.items.map((branch) => branch.channelNames)).toEqual([
+      ["production", "staging"],
+      ["production"],
+    ]);
   });
 
   describe("findByProject query search (LIKE)", () => {

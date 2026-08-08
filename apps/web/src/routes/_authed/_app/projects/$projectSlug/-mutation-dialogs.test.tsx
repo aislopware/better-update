@@ -75,6 +75,8 @@ const branch = {
   createdAt: "2026-01-01T00:00:00Z",
   isBuiltin: false,
   updateCount: 0,
+  channelNames: [],
+  latestUpdateAt: null,
 } satisfies BranchItem;
 
 const build = {

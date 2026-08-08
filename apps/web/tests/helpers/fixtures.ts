@@ -109,5 +109,7 @@ export const makeBranch = (overrides?: Partial<BranchItem>): BranchItem => ({
   isBuiltin: false,
   createdAt: "2026-01-01T00:00:00Z",
   updateCount: 0,
+  channelNames: [],
+  latestUpdateAt: null,
   ...overrides,
 });

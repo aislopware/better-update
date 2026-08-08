@@ -56,22 +56,36 @@ const BranchesEmptyState = () => (
   />
 );
 
+/**
+ * A branch is only reachable through a channel, so the channels that serve it
+ * belong under its name — the row used to leave that half of the table blank
+ * and left the reader to open every branch to find out which ones were live.
+ */
+const BranchNameCell = ({ branch }: { branch: BranchItem }) => (
+  <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex min-w-0 items-center gap-2 font-medium">
+      <GitBranchIcon weight="bold" className="text-kumo-subtle size-4 shrink-0" />
+      <span className="truncate">{branch.name}</span>
+      {branch.isBuiltin ? (
+        <Badge variant="outline" className="text-kumo-subtle">
+          Built-in
+        </Badge>
+      ) : null}
+    </div>
+    <span className="text-kumo-subtle truncate pl-6 text-xs">
+      {branch.channelNames.length > 0
+        ? `Served by ${branch.channelNames.join(", ")}`
+        : "No channel points here"}
+    </span>
+  </div>
+);
+
 const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<BranchItem>[] => [
   {
     id: "name",
     accessorKey: "name",
     header: "Branch",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 font-medium">
-        <GitBranchIcon weight="bold" className="text-kumo-subtle size-4" />
-        {row.original.name}
-        {row.original.isBuiltin ? (
-          <Badge variant="outline" className="text-kumo-subtle">
-            Built-in
-          </Badge>
-        ) : null}
-      </div>
-    ),
+    cell: ({ row }) => <BranchNameCell branch={row.original} />,
     enableSorting: true,
     meta: { primary: true },
   },
@@ -79,9 +93,23 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
     id: "updateCount",
     accessorKey: "updateCount",
     header: "Updates",
-    cell: ({ row }) => row.original.updateCount,
+    cell: ({ row }) => <span className="tabular-nums">{row.original.updateCount}</span>,
     enableSorting: true,
     meta: { align: "right" },
+  },
+  {
+    id: "latestUpdateAt",
+    header: "Last publish",
+    // What a branch is doing now, which its creation date never said: a branch
+    // with updates but none in months is the one worth looking at.
+    cell: ({ row }) =>
+      row.original.latestUpdateAt === null ? (
+        <span className="text-kumo-subtle">Never</span>
+      ) : (
+        <RelativeTime value={row.original.latestUpdateAt} />
+      ),
+    enableSorting: false,
+    meta: { align: "right", muted: true },
   },
   {
     id: "createdAt",
@@ -178,7 +206,7 @@ const BranchesPage = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={4} rows={5} />
+          <TableSkeleton columns={5} rows={5} />
         )}
       </div>
     );

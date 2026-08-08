@@ -48,6 +48,8 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
 
+          // A branch is born empty: nothing published to it, no channel yet
+          // pointed at it.
           const branch = {
             id,
             projectId: payload.projectId,
@@ -55,6 +57,8 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             isBuiltin: false,
             createdAt: now,
             updateCount: 0,
+            channelNames: [],
+            latestUpdateAt: null,
           };
 
           yield* repo.insert(branch);

@@ -66,6 +66,8 @@ export const toApiBranch = (branch: BranchModel) =>
     isBuiltin: branch.isBuiltin,
     createdAt: branch.createdAt,
     updateCount: branch.updateCount,
+    channelNames: branch.channelNames,
+    latestUpdateAt: branch.latestUpdateAt,
   });
 
 export const toApiChannel = (channel: ChannelModel) =>

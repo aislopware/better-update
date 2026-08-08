@@ -73,6 +73,8 @@ export interface BranchModel {
   readonly isBuiltin: boolean;
   readonly createdAt: string;
   readonly updateCount: number;
+  readonly channelNames: readonly string[];
+  readonly latestUpdateAt: string | null;
 }
 
 export interface ChannelModel {

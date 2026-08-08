@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 import { sql } from "kysely";
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { Conflict, NotFound } from "../errors";
@@ -54,9 +54,27 @@ export class BranchRepo extends Context.Tag("api/BranchRepo")<BranchRepo, Branch
 // -- D1 Adapter ------------------------------------------------------------
 
 /**
- * Base branch projection: the stored columns plus a correlated `update_count`
- * subquery (number of updates on the branch). Shared by every read so the
- * `toBranch` mapper always sees an identical row shape.
+ * A channel references a branch either as its current `branch_id` or as a
+ * rollout target inside `branch_mapping_json`. The json_each/json_extract half
+ * has no query-builder form, so the predicate lives here once and both the
+ * delete guard and the channel-name projection take it, parameterised on the
+ * channel table's alias and on how the branch id is supplied (a bound value
+ * when deleting one branch, a column reference when correlating per row).
+ */
+const channelReferencesBranch = (channel: string, branchId: RawBuilder<string>) =>
+  sql<boolean>`${sql.ref(`${channel}.branch_id`)} = ${branchId} OR (${sql.ref(`${channel}.branch_mapping_json`)} IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(${sql.ref(`${channel}.branch_mapping_json`)}, '$.data') AS "branch_mapping_entry" WHERE json_extract("branch_mapping_entry"."value", '$.branchId') = ${branchId}))`;
+
+// group_concat has no portable ORDER BY, so the names come back in whatever
+// order the scan produced and `toBranch` sorts them. They are joined on the
+// ASCII unit separator rather than a comma, so the split stays honest whatever
+// a channel is named.
+const CHANNEL_NAME_SEPARATOR = "\u001F";
+
+/**
+ * Base branch projection: the stored columns plus correlated subqueries for the
+ * facts a branch is read for — how many updates it holds, when the last one
+ * landed, and which channels serve it. Shared by every read so the `toBranch`
+ * mapper always sees an identical row shape.
  */
 const selectBranches = (db: Kysely<DB>) =>
   db.selectFrom("branches as b").select((eb) => [
@@ -71,6 +89,18 @@ const selectBranches = (db: Kysely<DB>) =>
       .select((count) => count.fn.countAll<number>().as("count"))
       .$asScalar()
       .as("update_count"),
+    eb
+      .selectFrom("updates")
+      .whereRef("updates.branch_id", "=", "b.id")
+      .select((max) => max.fn.max("updates.created_at").as("last"))
+      .$asScalar()
+      .as("latest_update_at"),
+    eb
+      .selectFrom("channels as c")
+      .where(channelReferencesBranch("c", sql.ref("b.id")))
+      .select(sql<string | null>`group_concat("c"."name", ${CHANNEL_NAME_SEPARATOR})`.as("names"))
+      .$asScalar()
+      .as("channel_names"),
   ]);
 
 type BranchListQuery = ReturnType<typeof selectBranches>;
@@ -85,6 +115,12 @@ const toBranch = (row: BranchRow) =>
     isBuiltin: row.is_builtin === 1,
     createdAt: row.created_at,
     updateCount: row.update_count,
+    channelNames: row.channel_names
+      ? row.channel_names
+          .split(CHANNEL_NAME_SEPARATOR)
+          .toSorted((left, right) => left.localeCompare(right))
+      : [],
+    latestUpdateAt: row.latest_update_at,
   }) satisfies BranchModel;
 
 /**
@@ -216,15 +252,11 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
 
       // Conflict guard: cannot delete a branch while channels reference it,
       // either as the current branch_id OR as a rollout target inside
-      // branch_mapping_json. Mirrors CHANNEL_BRANCH_REFERENCE_PREDICATE in
-      // channel-cache-version.ts (kept in sync); the json_each/json_extract
-      // predicate has no query-builder form, so it uses the `sql` escape hatch.
+      // branch_mapping_json — the same reference the list projection counts on.
       const channelCount = yield* Effect.promise(async () =>
         db
           .selectFrom("channels")
-          .where(
-            sql<boolean>`"branch_id" = ${params.id} OR ("branch_mapping_json" IS NOT NULL AND EXISTS (SELECT 1 FROM json_each("branch_mapping_json", '$.data') AS "branch_mapping_entry" WHERE json_extract("branch_mapping_entry"."value", '$.branchId') = ${params.id}))`,
-          )
+          .where(channelReferencesBranch("channels", sql.val(params.id)))
           .select((eb) => eb.fn.countAll<number>().as("count"))
           .executeTakeFirstOrThrow(),
       );

@@ -9,6 +9,11 @@ export class Branch extends Schema.Class<Branch>("Branch")({
   isBuiltin: Schema.Boolean,
   createdAt: DateTimeString,
   updateCount: Schema.Number,
+  // What a branch is for: the channels that serve it, and when something last
+  // landed on it. A branch nobody serves and nobody publishes to is the row a
+  // reader is looking for, and neither fact can be derived from the count.
+  channelNames: Schema.Array(Schema.String),
+  latestUpdateAt: Schema.NullOr(DateTimeString),
 }) {}
 
 export const BranchSortColumn = Schema.Literal("name", "createdAt", "updateCount");
