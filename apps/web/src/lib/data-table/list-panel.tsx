@@ -24,7 +24,21 @@ export const ListPanel = ({
 }: {
   className?: string | undefined;
   children: ReactNode;
-}) => <Card className={cn("gap-0 py-0", className)}>{children}</Card>;
+}) => (
+  <Card
+    className={cn(
+      "gap-0 py-0",
+      // A table closes itself: its last row draws the rule under the island and
+      // curves it round the corners. The footer's own straight border would run
+      // across those curves a pixel below, so it stands down when a table is
+      // what it follows. A list of `Item`s has no such edge and keeps it.
+      "[&>[data-slot=table-container]_+_[data-slot=card-footer]]:border-t-0",
+      className,
+    )}
+  >
+    {children}
+  </Card>
+);
 
 /**
  * Opening bar of a `ListPanel` — what the rows below it are, and any control
@@ -49,5 +63,10 @@ export const ListPanelHeader = ({
 
 /** Closing bar of a `ListPanel` — the count, and page controls when there are pages. */
 export const ListPanelFooter = ({ children }: { children: ReactNode }) => (
-  <CardFooter>{children}</CardFooter>
+  // A panel's two chrome bands are one surface interrupted by the list, so the
+  // closing bar takes the same fill as the table's header band rather than the
+  // card's generic footer tint. In light they are a shade apart and it reads as
+  // sloppiness; in dark the tint is far lighter than the base and the panel
+  // ended on a bar brighter than anything above it.
+  <CardFooter className="bg-kumo-elevated">{children}</CardFooter>
 );

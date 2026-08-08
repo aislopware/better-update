@@ -210,7 +210,10 @@ const FilteredEmptyRow = ({
   entity: string;
   onClear: () => void;
 }) => (
-  <TableRow className="hover:bg-transparent">
+  // Nothing here is a row to act on, so the pointer gets no answer — but the
+  // colour has to be the island's own, not transparent: a cell takes its
+  // background from its row, and behind the rows is the panel's chrome.
+  <TableRow className="hover:bg-kumo-base">
     <TableCell colSpan={columnsCount} className="whitespace-normal">
       <FilteredEmptyState entity={entity} onClear={onClear} />
     </TableCell>
