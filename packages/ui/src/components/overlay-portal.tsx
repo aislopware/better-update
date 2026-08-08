@@ -25,7 +25,15 @@ export const OverlayPortal = ({ children }: { children: ReactNode }) => {
   return (
     <>
       <KumoPortalProvider container={layer}>{children}</KumoPortalProvider>
-      <div ref={setLayer} className="relative z-50" />
+      {/* Out of flow, at the document's origin. It used to be `relative`, which
+          left a zero-height box in normal flow at the very end of the page —
+          and that is where an overlay first mounts, before Base UI's positioner
+          has moved it onto its anchor. A popover that autofocuses its search
+          field then had the browser scroll that field into view, throwing the
+          page to the bottom before the popover jumped back up to the trigger.
+          Absolute takes the box out of flow entirely, so the mount point is the
+          top of the document and there is nothing to scroll to. */}
+      <div ref={setLayer} className="absolute top-0 left-0 z-50" />
     </>
   );
 };
