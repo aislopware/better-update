@@ -194,7 +194,7 @@ export const ListItemsSkeleton = ({
 
 interface DetailCardSkeletonProps {
   readonly rows?: number;
-  readonly columns?: 1 | 2 | 4;
+  readonly columns?: 1 | 2 | 3 | 4;
   /** Omit where the panel it stands in for carries a bare title. */
   readonly hasDescription?: boolean;
   readonly className?: string;
@@ -203,6 +203,7 @@ interface DetailCardSkeletonProps {
 const DETAIL_GRID_CLASS = {
   1: "grid-cols-1",
   2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
   4: "sm:grid-cols-4",
 } as const;
 

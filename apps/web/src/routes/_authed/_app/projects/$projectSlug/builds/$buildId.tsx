@@ -7,14 +7,7 @@ import {
 import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button, buttonVariants } from "@better-update/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
-import { PackageIcon } from "@phosphor-icons/react";
+import { CaretRightIcon, PackageIcon } from "@phosphor-icons/react";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
@@ -31,15 +24,22 @@ import {
   PlatformIndicator,
 } from "../../../../../../components/attribute-badges";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
+import { DetailStat, DetailStatStrip } from "../../../../../../components/detail-stats";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
-import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
-import { ClientPaginationFooter, useClientPagination } from "../../../../../../lib/data-table";
+import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
+import {
+  ClientPaginationBar,
+  ListPanel,
+  ListPanelFooter,
+  ListPanelHeader,
+  useClientPagination,
+} from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
-import type { BuildWithSyntheticChannels } from "../-compatibility-join";
+import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "../-compatibility-join";
 
 const formatMetadataJson = (metadataJson: string) => {
   const parsed = safeJsonParse(metadataJson);
@@ -54,6 +54,12 @@ const hasMetadata = (metadataJson: string): boolean => {
     : metadataJson.trim().length > 0;
 };
 
+// A build's own identity, laid across the panel.
+//
+// This used to be six fields two-across, with the ID, the fingerprint and the
+// metadata each taking a full row to themselves — 64 hex characters wrapped over
+// two lines beside half a screen of nothing. Long values are shown by their head
+// and copied whole, which is what lets the whole set stand in one band.
 const BuildMetadataCard = ({
   build,
   projectSlug,
@@ -61,134 +67,109 @@ const BuildMetadataCard = ({
   build: BuildWithArtifact;
   projectSlug: string;
 }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Build metadata</CardTitle>
-      <CardDescription>
-        Core fields used for install, compatibility, and traceability.
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="grid gap-4 sm:grid-cols-2">
-      <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-kumo-subtle text-sm">Build ID</div>
-        <CopyableMono value={build.id} label="Build ID" />
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="text-kumo-subtle text-sm">Runtime version</div>
-        <div className="font-medium">
-          {build.runtimeVersion ? `v${build.runtimeVersion}` : "Missing"}
-        </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="text-kumo-subtle text-sm">Bundle ID</div>
-        {build.bundleId === null ? (
-          <div className="font-medium">Missing</div>
+  <ListPanel>
+    <ListPanelHeader title="Build metadata" />
+    <DetailStatStrip columns={3}>
+      <DetailStat label="Build ID">
+        <CopyableId value={build.id} label="Build ID" length={20} />
+      </DetailStat>
+      <DetailStat label="Runtime version">
+        {build.runtimeVersion ? (
+          `v${build.runtimeVersion}`
         ) : (
-          <div className="flex items-center gap-1">
-            <span className="min-w-0 font-mono text-sm break-all">{build.bundleId}</span>
-            <CopyButton value={build.bundleId} label="Bundle ID" />
-          </div>
+          <Badge variant="warning">Missing</Badge>
         )}
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="text-kumo-subtle text-sm">Git ref</div>
-        <div className="font-medium">{build.gitRef ?? "Not provided"}</div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="text-kumo-subtle text-sm">Git commit</div>
-        {build.gitCommit === null ? (
-          <div className="font-medium">Not provided</div>
+      </DetailStat>
+      <DetailStat label="Bundle ID">
+        {build.bundleId === null ? (
+          <Badge variant="warning">Missing</Badge>
         ) : (
-          <div className="flex items-center gap-1">
-            <code className="min-w-0 font-mono text-sm break-all">{build.gitCommit}</code>
+          <>
+            <span className="truncate font-mono text-xs" title={build.bundleId}>
+              {build.bundleId}
+            </span>
+            <CopyButton value={build.bundleId} label="Bundle ID" />
+          </>
+        )}
+      </DetailStat>
+      <DetailStat label="Git ref">
+        {build.gitRef ?? <span className="text-kumo-subtle italic">Not provided</span>}
+      </DetailStat>
+      <DetailStat label="Git commit">
+        {build.gitCommit === null ? (
+          <span className="text-kumo-subtle italic">Not provided</span>
+        ) : (
+          <>
+            <code className="font-mono text-xs">{build.gitCommit.slice(0, 12)}</code>
             {build.gitDirty ? <span className="text-kumo-warning text-xs">·dirty</span> : null}
             <CopyButton value={build.gitCommit} label="Git commit" />
-          </div>
+          </>
         )}
-      </div>
-      <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-kumo-subtle text-sm">Fingerprint</div>
+      </DetailStat>
+      <DetailStat label="Fingerprint">
         {build.fingerprintHash === null ? (
-          <div className="text-kumo-subtle text-sm italic">Not recorded</div>
+          <span className="text-kumo-subtle italic">Not recorded</span>
         ) : (
-          <div className="flex items-start gap-1">
+          <>
             <Link
               to="/projects/$projectSlug/fingerprints/$hash"
               params={{ projectSlug, hash: build.fingerprintHash }}
-              className="hover:text-kumo-default text-kumo-subtle min-w-0 font-mono text-sm break-all"
+              className="hover:text-kumo-default text-kumo-subtle font-mono text-xs"
             >
-              {build.fingerprintHash}
+              {build.fingerprintHash.slice(0, 16)}
             </Link>
             <CopyButton value={build.fingerprintHash} label="Fingerprint" />
-          </div>
+          </>
         )}
+      </DetailStat>
+    </DetailStatStrip>
+    {/* Only when there is something in it: a labelled "None recorded" is a
+        field announcing its own absence, and most builds record nothing extra. */}
+    {hasMetadata(build.metadataJson) ? (
+      <div className="border-kumo-line flex flex-col gap-1 border-t p-4">
+        <span className="text-kumo-subtle text-xs">Metadata JSON</span>
+        <pre className="bg-kumo-tint overflow-x-auto rounded-md p-3 text-xs">
+          {formatMetadataJson(build.metadataJson)}
+        </pre>
       </div>
-      <div className="flex flex-col gap-1 sm:col-span-2">
-        <div className="text-kumo-subtle text-sm">Metadata JSON</div>
-        {hasMetadata(build.metadataJson) ? (
-          <pre className="bg-kumo-tint overflow-x-auto rounded-md p-3 text-xs">
-            {formatMetadataJson(build.metadataJson)}
-          </pre>
-        ) : (
-          <div className="text-kumo-subtle text-sm italic">None recorded</div>
-        )}
-      </div>
-    </CardContent>
-  </Card>
+    ) : null}
+  </ListPanel>
 );
 
+// The binary itself. Its two verbs used to be repeated here as body buttons
+// under the same two in the page header — one page offering to download the
+// artifact twice — so the panel now says only what the header cannot: the shape
+// of the file and where it landed.
 const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Artifact</CardTitle>
-      <CardDescription>Download, install, and inspect the uploaded binary.</CardDescription>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-4">
-      {build.artifact ? (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{FORMAT_LABELS[build.artifact.format]}</Badge>
-            <Badge variant="secondary">{formatBytes(build.artifact.byteSize)}</Badge>
-            <Badge variant="outline">{build.artifact.contentType}</Badge>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <div className="text-kumo-subtle text-sm">SHA-256</div>
-              <div className="flex items-start gap-1">
-                <code className="min-w-0 flex-1 text-xs break-all">{build.artifact.sha256}</code>
-                <CopyButton value={build.artifact.sha256} label="SHA-256" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-kumo-subtle text-sm">Storage key</div>
-              <div className="flex items-start gap-1">
-                <code className="min-w-0 flex-1 text-xs break-all">{build.artifact.r2Key}</code>
-                <CopyButton value={build.artifact.r2Key} label="Storage key" />
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              aria-label="Download artifact"
-              className={buttonVariants({ variant: "secondary" })}
-              href={`/api/builds/${build.id}/artifact`}
-            >
-              Download artifact
-            </a>
-            <InstallLinkDialog
-              build={build}
-              buttonVariant="outline"
-              buttonLabel="Install / copy link"
-            />
-          </div>
-        </>
-      ) : (
-        <p className="text-kumo-subtle text-sm">
+  <ListPanel>
+    <ListPanelHeader title="Artifact" />
+    {build.artifact ? (
+      <DetailStatStrip columns={2}>
+        <DetailStat label="File">
+          {FORMAT_LABELS[build.artifact.format]} · {formatBytes(build.artifact.byteSize)}
+        </DetailStat>
+        <DetailStat label="Content type">
+          <span className="truncate font-mono text-xs">{build.artifact.contentType}</span>
+        </DetailStat>
+        <DetailStat label="SHA-256">
+          <code className="font-mono text-xs">{build.artifact.sha256.slice(0, 16)}</code>
+          <CopyButton value={build.artifact.sha256} label="SHA-256" />
+        </DetailStat>
+        <DetailStat label="Storage key">
+          <span className="truncate font-mono text-xs" title={build.artifact.r2Key}>
+            {build.artifact.r2Key}
+          </span>
+          <CopyButton value={build.artifact.r2Key} label="Storage key" />
+        </DetailStat>
+      </DetailStatStrip>
+    ) : (
+      <ListPanelFooter>
+        <span className="text-kumo-subtle text-sm">
           No artifact has been finalized for this build yet.
-        </p>
-      )}
-    </CardContent>
-  </Card>
+        </span>
+      </ListPanelFooter>
+    )}
+  </ListPanel>
 );
 
 const DEBUG_ARTIFACT_LABELS: Record<BuildDebugArtifact["type"], string> = {
@@ -216,10 +197,12 @@ const DebugArtifactRow = ({
     },
   });
   return (
-    <div className="border-kumo-line/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">{DEBUG_ARTIFACT_LABELS[artifact.type]}</span>
-        <Badge variant="secondary">{formatBytes(artifact.byteSize)}</Badge>
+    <div className="border-kumo-line flex items-center justify-between gap-3 border-b px-4 py-3 last:border-0">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+        <span className="truncate text-sm font-medium">{DEBUG_ARTIFACT_LABELS[artifact.type]}</span>
+        <span className="text-kumo-subtle text-xs tabular-nums">
+          {formatBytes(artifact.byteSize)}
+        </span>
       </div>
       <Button
         variant="secondary"
@@ -235,6 +218,9 @@ const DebugArtifactRow = ({
   );
 };
 
+// No description under the title: the only thing worth saying about debug
+// symbols is said by the empty state, and on a build that has them the rows
+// name themselves.
 const DebugSymbolsCard = ({
   buildId,
   artifacts,
@@ -242,30 +228,63 @@ const DebugSymbolsCard = ({
   buildId: string;
   artifacts: readonly BuildDebugArtifact[];
 }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Debug symbols</CardTitle>
-      <CardDescription>Files captured during the build to help diagnose crashes.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      {artifacts.length > 0 ? (
-        <div className="flex flex-col">
-          {artifacts.map((artifact) => (
-            <DebugArtifactRow
-              key={`${buildId}:${artifact.type}`}
-              buildId={buildId}
-              artifact={artifact}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-kumo-subtle text-sm">
-          No debug symbols were stored for this build. Builds made with a current CLI capture dSYMs,
-          JS sourcemaps, and R8 mappings automatically.
-        </p>
-      )}
-    </CardContent>
-  </Card>
+  <ListPanel>
+    <ListPanelHeader title="Debug symbols" />
+    {artifacts.length > 0 ? (
+      artifacts.map((artifact) => (
+        <DebugArtifactRow
+          key={`${buildId}:${artifact.type}`}
+          buildId={buildId}
+          artifact={artifact}
+        />
+      ))
+    ) : (
+      <ListPanelFooter>
+        <span className="text-kumo-subtle text-sm">
+          None stored for this build. Builds made with a current CLI capture dSYMs, JS sourcemaps
+          and R8 mappings automatically.
+        </span>
+      </ListPanelFooter>
+    )}
+  </ListPanel>
+);
+
+/**
+ * A channel this build can receive updates from — the whole row is the link.
+ *
+ * Every row used to end in an "Open →" that said the same thing as the row
+ * beside it, which is a verb column standing in for a link the row could have
+ * been. Now the row navigates, and the caret only shows itself under the
+ * pointer, the way the tables elsewhere in the dashboard disclose theirs.
+ */
+const CompatibleChannelRow = ({
+  projectSlug,
+  channel,
+}: {
+  projectSlug: string;
+  channel: SyntheticBuildChannel;
+}) => (
+  <Link
+    to="/projects/$projectSlug/channels/$channelId"
+    params={{ projectSlug, channelId: channel.channelId }}
+    className="border-kumo-line hover:bg-kumo-tint focus-visible:ring-kumo-focus group/row flex items-center justify-between gap-3 border-b px-4 py-3 no-underline outline-none last:border-0 focus-visible:ring-2 focus-visible:ring-inset"
+  >
+    <span className="flex min-w-0 flex-wrap items-center gap-2">
+      <ChannelBadge name={channel.channelName} />
+      {channel.isPaused ? <Badge variant="warning">Paused</Badge> : null}
+      {channel.rolloutActive ? <Badge variant="secondary">Rollout active</Badge> : null}
+      <span className="text-kumo-subtle text-sm">
+        {channel.updateCount > 0
+          ? `${channel.updateCount} matching ${pluralize(channel.updateCount, "update")}`
+          : "No matching updates"}
+      </span>
+    </span>
+    <CaretRightIcon
+      aria-hidden
+      weight="bold"
+      className="text-kumo-subtle size-4 shrink-0 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
+    />
+  </Link>
 );
 
 const RelatedChannelsCard = ({
@@ -277,49 +296,29 @@ const RelatedChannelsCard = ({
 }) => {
   const pagination = useClientPagination(build.channels, "channel");
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Compatible channels</CardTitle>
-        <CardDescription>
-          Open a channel detail page to inspect rollout and update state.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {build.channels.length > 0 ? (
-          <div className="flex flex-col">
-            {pagination.pageItems.map((channel) => (
-              <div
-                key={`${build.id}:${channel.channelId}`}
-                className="border-kumo-line/60 flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-0 last:pb-0"
-              >
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <ChannelBadge name={channel.channelName} />
-                  {channel.isPaused && <Badge variant="warning">Paused</Badge>}
-                  {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
-                  <span className="text-kumo-subtle text-sm">
-                    {channel.updateCount > 0
-                      ? `${channel.updateCount} matching ${pluralize(channel.updateCount, "update")}`
-                      : "No matching updates"}
-                  </span>
-                </div>
-                <Link
-                  to="/projects/$projectSlug/channels/$channelId"
-                  params={{ projectSlug, channelId: channel.channelId }}
-                  className="text-kumo-subtle hover:text-kumo-default shrink-0 text-sm"
-                >
-                  Open →
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-kumo-subtle text-sm">
+    <ListPanel>
+      <ListPanelHeader title="Compatible channels" />
+      {build.channels.length > 0 ? (
+        <>
+          {pagination.pageItems.map((channel) => (
+            <CompatibleChannelRow
+              key={`${build.id}:${channel.channelId}`}
+              projectSlug={projectSlug}
+              channel={channel}
+            />
+          ))}
+          <ListPanelFooter>
+            <ClientPaginationBar state={pagination} />
+          </ListPanelFooter>
+        </>
+      ) : (
+        <ListPanelFooter>
+          <span className="text-kumo-subtle text-sm">
             No channels currently match this build&apos;s runtime version.
-          </p>
-        )}
-        <ClientPaginationFooter state={pagination} />
-      </CardContent>
-    </Card>
+          </span>
+        </ListPanelFooter>
+      )}
+    </ListPanel>
   );
 };
 
@@ -416,10 +415,12 @@ const BuildDetailContent = () => {
   return (
     <>
       <BuildDetailHeader build={build} orgId={orgId} projectId={projectId} />
-      {/* The binary and its symbols are one column, the channels it can reach
-          the other: a build with no artifact says so in a line, and stacking
-          keeps that line from being padded out to the height of the list beside
-          it. */}
+      {/* What the build is comes first, across the page — it used to sit at the
+          bottom under everything it identifies. Then the binary and its symbols
+          in one column against the channels it can reach in the other: a build
+          with no artifact says so in a line, and stacking keeps that line from
+          being padded out to the height of the list beside it. */}
+      <BuildMetadataCard build={build} projectSlug={project.slug} />
       <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="flex flex-col gap-4">
           <ArtifactCard build={build} />
@@ -427,7 +428,6 @@ const BuildDetailContent = () => {
         </div>
         <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
       </div>
-      <BuildMetadataCard build={build} projectSlug={project.slug} />
     </>
   );
 };
@@ -435,14 +435,14 @@ const BuildDetailContent = () => {
 const BuildDetailSkeleton = () => (
   <>
     <DetailHeader title="Build" />
+    <DetailCardSkeleton rows={2} columns={3} hasDescription={false} />
     <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <div className="flex flex-col gap-4">
-        <DetailCardSkeleton rows={2} columns={2} />
-        <DetailCardSkeleton rows={1} columns={1} />
+        <DetailCardSkeleton rows={2} columns={2} hasDescription={false} />
+        <DetailCardSkeleton rows={1} columns={1} hasDescription={false} />
       </div>
-      <DetailCardSkeleton rows={3} columns={1} />
+      <DetailCardSkeleton rows={3} columns={1} hasDescription={false} />
     </div>
-    <DetailCardSkeleton rows={4} columns={2} />
   </>
 );
 

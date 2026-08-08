@@ -20,12 +20,12 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 
 import type { Update, UpdateAssetEntry } from "@better-update/api";
-import type { ReactNode } from "react";
 
 import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailHeader } from "../../../../../../components/detail-header";
+import { DetailStat, DetailStatStrip } from "../../../../../../components/detail-stats";
 import {
   DetailCardSkeleton,
   TablePanelSkeleton,
@@ -44,14 +44,6 @@ import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 type UpdateItem = Update;
-
-/** One labelled fact in a panel's opening strip. */
-const DetailStat = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div className="flex min-w-0 flex-col gap-1">
-    <span className="text-kumo-subtle text-xs">{label}</span>
-    <span className="flex items-center gap-1 text-sm tabular-nums">{children}</span>
-  </div>
-);
 
 const OverviewCard = ({
   primary,
@@ -75,7 +67,7 @@ const OverviewCard = ({
           header cannot say, and four facts read as a strip rather than as a
           card's worth of air spent two-across. */}
       <ListPanelHeader title="Group metadata" />
-      <div className="grid gap-4 p-4 sm:grid-cols-4">
+      <DetailStatStrip>
         <DetailStat label="Branch">
           {branchName ? (
             <Link
@@ -118,7 +110,7 @@ const OverviewCard = ({
             </>
           )}
         </DetailStat>
-      </div>
+      </DetailStatStrip>
     </ListPanel>
   );
 };
@@ -276,7 +268,7 @@ const PlatformVariantCard = ({
           : "Fully rolled out"
       }
     />
-    <div className="border-kumo-line grid gap-4 border-b p-4 sm:grid-cols-4">
+    <DetailStatStrip className="border-kumo-line border-b">
       {/* Signed is what publishing does by default, so it is stated and left
           alone — only a variant nothing vouches for takes a colour. */}
       <DetailStat label="Signature">
@@ -293,7 +285,7 @@ const PlatformVariantCard = ({
           <PlatformVariantDownloads orgId={orgId} projectId={projectId} updateId={update.id} />
         </Suspense>
       </DetailStat>
-    </div>
+    </DetailStatStrip>
     <Suspense fallback={<TableRowsSkeleton columns={2} rows={3} />}>
       <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
     </Suspense>
