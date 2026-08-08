@@ -8,7 +8,6 @@ import { Suspense } from "react";
 import { z } from "zod";
 
 import type { MeResult } from "@better-update/api-client/react";
-import type { ReactNode } from "react";
 
 import { ConfirmDialog } from "../../../../../components/confirm-dialog";
 import { PageHeader } from "../../../../../components/page-header";
@@ -17,6 +16,9 @@ import { sortParam, useDataTableSearch } from "../../../../../lib/data-table";
 import { AddProjectMemberDialog } from "./-project-members-add-dialog";
 import { useProjectMembersHandlers } from "./-project-members-mutations";
 import { ProjectMembersTableView } from "./-project-members-table";
+
+const MEMBERS_DESCRIPTION =
+  "Who can access this project, and with which role. Organization owners and admins are implicit Maintainers and are not listed.";
 
 const SORT_COLUMNS = ["name", "role", "addedAt"] as const;
 const DEFAULT_SORT = "role" as const;
@@ -55,12 +57,14 @@ const RemoveProjectMemberDialog = ({
   />
 );
 
-const EmptyMembers = ({ actions }: { actions?: ReactNode }) => (
+// The header already carries the Add member button, as it does on every other
+// list in the dashboard — the empty state says what the page is for and lets
+// that one button stand.
+const EmptyMembers = () => (
   <Empty
     icon={<UsersIcon className="text-kumo-inactive size-10" />}
     title="No project members yet"
     description="Organization owners and admins always have access. Add members to grant a role on this project."
-    contents={actions}
   />
 );
 
@@ -95,13 +99,9 @@ const ProjectMembersContent = () => {
 
   return (
     <>
-      <PageHeader
-        title="Members"
-        description="Who can access this project, and with which role. Organization owners and admins are implicit Maintainers and are not listed."
-        actions={headerActions}
-      />
+      <PageHeader title="Members" description={MEMBERS_DESCRIPTION} actions={headerActions} />
       {items.length === 0 ? (
-        <EmptyMembers actions={headerActions} />
+        <EmptyMembers />
       ) : (
         <ProjectMembersTableView
           items={items}
@@ -132,7 +132,17 @@ const ProjectMembersContent = () => {
 
 const ProjectMembersPage = () => (
   <div className="flex flex-col gap-4">
-    <Suspense fallback={<TableSkeleton columns={4} rows={3} hasFooter={false} />}>
+    <Suspense
+      fallback={
+        <>
+          {/* The title does not depend on the query, so it is there from the
+              first paint like every other page — a bare skeleton with no
+              heading reads as a page that failed rather than one still loading. */}
+          <PageHeader title="Members" description={MEMBERS_DESCRIPTION} />
+          <TableSkeleton columns={4} rows={3} hasFooter={false} />
+        </>
+      }
+    >
       <ProjectMembersContent />
     </Suspense>
   </div>
