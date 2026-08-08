@@ -1,9 +1,12 @@
 import { activityQueryOptions } from "@better-update/api-client/react";
+import { useMountEffect } from "@better-update/react-hooks";
 import { ChartPalette, TimeseriesChart } from "@better-update/ui/components/chart";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { cn } from "@better-update/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 
+import type { ECharts } from "echarts/core";
 import type { ReactNode } from "react";
 
 import { ListPanel, ListPanelHeader } from "../lib/data-table";
@@ -150,8 +153,19 @@ const ActivityChart = ({
   const isDarkMode = useTheme().resolvedTheme === "dark";
   const colors = useSeriesColors();
   const isBars = shape === "bars";
+  const chart = useRef<ECharts | null>(null);
+  // A time axis labels the first of a month on top of the ticks it was asked
+  // for, so a window crossing one printed "Aug 1" across "Aug 2". Dropping a
+  // label that collides is the axis's own answer; Kumo does not expose it, so
+  // it is merged into the instance the chart hands back — once, after Kumo's
+  // own setOption, since a child's effects run before its parent's. Kumo merges
+  // its later updates rather than replacing, so the axis keeps it.
+  useMountEffect(() => {
+    chart.current?.setOption({ xAxis: { axisLabel: { hideOverlap: true } } });
+  });
   return (
     <TimeseriesChart
+      ref={chart}
       echarts={echarts}
       type={isBars ? "bar" : "line"}
       gradient={!isBars}
