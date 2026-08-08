@@ -74,6 +74,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Chan
       </div>
     ),
     enableSorting: true,
+    meta: { primary: true },
   },
   {
     id: "branch",

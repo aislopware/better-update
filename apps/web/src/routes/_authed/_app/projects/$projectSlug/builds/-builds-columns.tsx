@@ -1,64 +1,18 @@
-import { buttonVariants } from "@better-update/ui/components/button";
-import { Tooltip } from "@better-update/ui/components/tooltip";
-import { cn } from "@better-update/ui/lib/utils";
-import { DownloadSimpleIcon } from "@phosphor-icons/react";
-
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DeleteBuildDialog } from "../-delete-build-dialog";
-import { InstallLinkDialog } from "../-install-link-dialog";
 import {
   DistributionIndicator,
   PlatformIndicator,
 } from "../../../../../../components/attribute-badges";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { BuildRowActions } from "./-build-row-actions";
 
 export type BuildItem = BuildWithArtifact;
 
 const buildLabel = (build: BuildItem) =>
   (build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`;
-
-const BuildActions = ({
-  build,
-  orgId,
-  projectId,
-}: {
-  build: BuildItem;
-  orgId: string;
-  projectId: string;
-}) => (
-  <div className="flex items-center justify-end gap-1">
-    {build.artifact ? (
-      <>
-        <InstallLinkDialog
-          build={build}
-          buttonClassName="text-kumo-subtle/70 hover:text-kumo-default"
-        />
-        <Tooltip
-          content="Download artifact"
-          render={
-            <a
-              aria-label="Download artifact"
-              className={cn(
-                buttonVariants({ variant: "ghost", shape: "square" }),
-                "text-kumo-subtle/70 hover:text-kumo-default",
-              )}
-              href={`/api/builds/${build.id}/artifact`}
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-            />
-          }
-        >
-          <DownloadSimpleIcon weight="bold" />
-        </Tooltip>
-      </>
-    ) : null}
-    <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />
-  </div>
-);
 
 export const buildBuildsColumns = (
   orgId: string,
@@ -71,7 +25,9 @@ export const buildBuildsColumns = (
       const git =
         row.original.gitRef ?? (row.original.gitCommit ? row.original.gitCommit.slice(0, 7) : null);
       return (
-        <div className="flex max-w-96 flex-col gap-0.5">
+        // No width cap of its own — the column is the primary one, so the cell
+        // is as wide as the table has to spare and truncates against that.
+        <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate font-medium">{buildLabel(row.original)}</span>
           <span className="text-kumo-subtle truncate font-mono text-xs">
             {git ? (
@@ -87,6 +43,7 @@ export const buildBuildsColumns = (
       );
     },
     enableSorting: false,
+    meta: { primary: true },
   },
   {
     id: "platform",
@@ -159,7 +116,7 @@ export const buildBuildsColumns = (
   {
     id: "actions",
     header: "",
-    cell: ({ row }) => <BuildActions build={row.original} orgId={orgId} projectId={projectId} />,
+    cell: ({ row }) => <BuildRowActions build={row.original} orgId={orgId} projectId={projectId} />,
     enableSorting: false,
     meta: { align: "right", stopRowClick: true },
   },

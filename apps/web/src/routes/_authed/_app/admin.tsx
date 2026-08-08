@@ -83,6 +83,7 @@ const buildColumns = (
     accessorKey: "email",
     header: "User",
     cell: ({ row }) => <UserCell user={row.original} />,
+    meta: { primary: true },
   },
   {
     id: "role",

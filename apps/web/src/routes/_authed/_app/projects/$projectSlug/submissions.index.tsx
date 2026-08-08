@@ -59,7 +59,9 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
     id: "profile",
     header: "Submission",
     cell: ({ row }) => (
-      <div className="flex max-w-80 flex-col gap-0.5">
+      // No width cap of its own — the column is the primary one, so the cell is
+      // as wide as the table has to spare and truncates against that.
+      <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{row.original.profileName}</span>
         {row.original.buildVersion ? (
           <span className="text-kumo-subtle truncate font-mono text-xs">
@@ -69,6 +71,7 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
       </div>
     ),
     enableSorting: false,
+    meta: { primary: true },
   },
   {
     id: "platform",

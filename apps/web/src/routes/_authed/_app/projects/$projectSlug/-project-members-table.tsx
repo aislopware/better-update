@@ -162,6 +162,7 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<ProjectMemberItem>[
     header: "Name",
     cell: ({ row }) => <NameCell row={row.original} />,
     enableSorting: true,
+    meta: { primary: true },
   },
   {
     id: "role",

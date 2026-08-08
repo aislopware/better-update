@@ -23,7 +23,9 @@ export const buildUpdateColumns = (
     cell: ({ row }) => {
       const environment = readUpdateEnvironment(row.original.extraJson);
       return (
-        <div className="flex max-w-80 flex-col gap-0.5">
+        // No width cap of its own — the column is the primary one, so the cell
+        // is as wide as the table has to spare and truncates against that.
+        <div className="flex min-w-0 flex-col gap-0.5">
           <div className="flex items-center gap-1.5 font-medium">
             <span className="truncate">{row.original.message || "—"}</span>
             {row.original.isRollback ? <Badge variant="error">Rollback</Badge> : null}
@@ -45,6 +47,7 @@ export const buildUpdateColumns = (
       );
     },
     enableSorting: false,
+    meta: { primary: true },
   },
   {
     id: "branch",

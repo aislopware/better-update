@@ -13,7 +13,7 @@ import { flexRender } from "@tanstack/react-table";
 import type { Cell, Table as ReactTableT, Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
-import { cellAlignClass } from "./column-meta";
+import { cellAlignClass, columnWidthClass } from "./column-meta";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { FilteredEmptyState } from "./list-empty-state";
 import { ListFooterArea } from "./list-footer";
@@ -99,7 +99,7 @@ const DataTableRow = <TData,>({
       return (
         <TableCell
           key={cell.id}
-          className={cellAlignClass(meta)}
+          className={cn(cellAlignClass(meta), columnWidthClass(meta))}
           onClick={
             meta?.stopRowClick
               ? (event) => {
@@ -189,7 +189,10 @@ export const DataTableView = <TData,>({
       {title === undefined ? null : (
         <ListPanelHeader title={title} description={description} actions={actions} />
       )}
-      <Table>
+      {/* Headers never wrap: a two-line "Build number" over one-line neighbours
+          makes a straight header row look broken, and the primary column has
+          already taken the width the others would have wrapped to fit. */}
+      <Table className="[&_th]:whitespace-nowrap">
         <TableHeader>
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>

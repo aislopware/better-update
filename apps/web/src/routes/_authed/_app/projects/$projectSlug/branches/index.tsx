@@ -90,6 +90,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
       </div>
     ),
     enableSorting: true,
+    meta: { primary: true },
   },
   {
     id: "updateCount",

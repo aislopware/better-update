@@ -13,6 +13,8 @@ export interface DataTableColumnMeta {
   readonly muted?: boolean;
   readonly stopRowClick?: boolean;
   readonly cellType?: DataTableCellType;
+  /** The column that absorbs the table's leftover width. At most one per table. */
+  readonly primary?: boolean;
 }
 
 declare module "@tanstack/react-table" {
@@ -21,6 +23,7 @@ declare module "@tanstack/react-table" {
     muted?: boolean;
     stopRowClick?: boolean;
     cellType?: DataTableCellType;
+    primary?: boolean;
   }
 }
 
@@ -33,6 +36,18 @@ const CELL_TYPE_CLASSES: Partial<Record<DataTableCellType, string>> = {
 /** Numeric cells right-align their header along with the cell. */
 export const headerAlignsRight = (meta: DataTableColumnMeta | undefined): boolean =>
   meta?.align === "right" || meta?.cellType === "numeric";
+
+/**
+ * Auto table layout gives every column the width its content asks for, which
+ * means the column that matters most — the name, the release message — is the
+ * one that loses: it truncates at a couple of dozen characters while a date
+ * column two along sits on slack it has no use for. `w-full` claims the leftover
+ * width for the primary column, and `max-w-0` drops its minimum contribution to
+ * nothing so the truncation happens inside the cell rather than by pushing the
+ * whole table wider than its frame.
+ */
+export const columnWidthClass = (meta: DataTableColumnMeta | undefined): string | undefined =>
+  meta?.primary ? "w-full max-w-0" : undefined;
 
 export const cellAlignClass = (meta: DataTableColumnMeta | undefined): string =>
   [

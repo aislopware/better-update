@@ -124,20 +124,31 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
   );
 };
 
+/**
+ * Pass `open`/`onOpenChange` when the dialog is opened from a menu: picking the
+ * item unmounts the menu, and an uncontrolled dialog would go with it. Without
+ * them the dialog carries its own trigger button.
+ */
 export const InstallLinkDialog = ({
   build,
   buttonLabel,
   buttonVariant = "ghost",
   buttonSize,
   buttonClassName,
+  open,
+  onOpenChange,
 }: {
   build: BuildWithArtifact;
   buttonLabel?: string;
   buttonVariant?: ComponentProps<typeof Button>["variant"];
   buttonSize?: ComponentProps<typeof Button>["size"];
   buttonClassName?: string;
+  open?: boolean | undefined;
+  onOpenChange?: ((next: boolean) => void) | undefined;
 }) => {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const isOpen = open ?? ownOpen;
+  const setIsOpen = onOpenChange ?? setOwnOpen;
   const [resetKey, setResetKey] = useState(0);
 
   // Kumo discriminates its Button props on `shape`, so the icon-only form has
@@ -148,24 +159,26 @@ export const InstallLinkDialog = ({
     className: cn(buttonClassName),
     icon: <DeviceMobileIcon weight="bold" className="size-4" />,
     onClick: () => {
-      setOpen(true);
+      setIsOpen(true);
     },
   } as const;
 
+  const trigger = buttonLabel ? (
+    // eslint-disable-next-line react/jsx-props-no-spreading -- shared trigger props, spelled out above
+    <Button {...triggerProps} title={buttonLabel}>
+      {buttonLabel}
+    </Button>
+  ) : (
+    // eslint-disable-next-line react/jsx-props-no-spreading -- shared trigger props, spelled out above
+    <Button {...triggerProps} shape="square" title="Install link" />
+  );
+
   return (
     <>
-      {buttonLabel ? (
-        // eslint-disable-next-line react/jsx-props-no-spreading -- shared trigger props, spelled out above
-        <Button {...triggerProps} title={buttonLabel}>
-          {buttonLabel}
-        </Button>
-      ) : (
-        // eslint-disable-next-line react/jsx-props-no-spreading -- shared trigger props, spelled out above
-        <Button {...triggerProps} shape="square" title="Install link" />
-      )}
+      {open === undefined ? trigger : null}
       <Dialog
-        open={open}
-        onOpenChange={setOpen}
+        open={isOpen}
+        onOpenChange={setIsOpen}
         onOpenChangeComplete={(next) => {
           if (!next) {
             setResetKey((prev) => prev + 1);

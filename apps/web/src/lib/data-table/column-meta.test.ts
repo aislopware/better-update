@@ -1,4 +1,4 @@
-import { cellAlignClass, headerAlignsRight } from "./column-meta";
+import { cellAlignClass, columnWidthClass, headerAlignsRight } from "./column-meta";
 
 describe(cellAlignClass, () => {
   it("keeps legacy align/muted output unchanged", () => {
@@ -20,6 +20,14 @@ describe(cellAlignClass, () => {
     expect(cellAlignClass({ cellType: "text" })).toBe("");
     expect(cellAlignClass({ cellType: "status" })).toBe("");
     expect(cellAlignClass({ cellType: "link" })).toBe("");
+  });
+});
+
+describe(columnWidthClass, () => {
+  it("claims the leftover width for the primary column only", () => {
+    expect(columnWidthClass({ primary: true })).toBe("w-full max-w-0");
+    expect(columnWidthClass({})).toBeUndefined();
+    expect(columnWidthClass(undefined)).toBeUndefined();
   });
 });
 

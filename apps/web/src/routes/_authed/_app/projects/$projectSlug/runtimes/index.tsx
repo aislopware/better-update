@@ -46,6 +46,7 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
       </div>
     ),
     enableSorting: false,
+    meta: { primary: true },
   },
   {
     id: "buildsCount",

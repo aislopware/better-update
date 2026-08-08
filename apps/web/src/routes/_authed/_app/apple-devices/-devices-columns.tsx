@@ -138,6 +138,7 @@ export const buildDeviceColumns = (
       </div>
     ),
     enableSorting: true,
+    meta: { primary: true },
   },
   {
     id: "identifier",

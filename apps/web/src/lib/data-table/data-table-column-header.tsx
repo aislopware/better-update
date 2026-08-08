@@ -6,7 +6,7 @@ import { flexRender } from "@tanstack/react-table";
 
 import type { Header } from "@tanstack/react-table";
 
-import { headerAlignsRight } from "./column-meta";
+import { columnWidthClass, headerAlignsRight } from "./column-meta";
 import { SortIcon, toAriaSort } from "./sort-icon";
 
 /**
@@ -19,12 +19,15 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
   const { column } = header;
   const { meta } = column.columnDef;
   const alignRight = headerAlignsRight(meta);
+  // The width claim has to be on the header too — auto layout sizes a column
+  // from the widest declaration in it, header included.
+  const headClassName = cn(alignRight && "text-right", columnWidthClass(meta));
   const content = header.isPlaceholder
     ? null
     : flexRender(column.columnDef.header, header.getContext());
 
   if (!column.getCanSort()) {
-    return <TableHead className={cn(alignRight && "text-right")}>{content}</TableHead>;
+    return <TableHead className={headClassName}>{content}</TableHead>;
   }
 
   const sortDir = column.getIsSorted();
@@ -39,7 +42,7 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
   };
 
   return (
-    <TableHead aria-sort={toAriaSort(sortDir)} className={cn(alignRight && "text-right")}>
+    <TableHead aria-sort={toAriaSort(sortDir)} className={headClassName}>
       <Button
         variant="ghost"
         size="sm"

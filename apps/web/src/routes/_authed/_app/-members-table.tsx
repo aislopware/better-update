@@ -176,6 +176,7 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
     header: "Member",
     cell: ({ row }) => <MemberAvatarCell row={row.original} />,
     enableSorting: true,
+    meta: { primary: true },
   },
   {
     id: "role",
