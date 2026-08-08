@@ -125,6 +125,29 @@ const DateRangePanel = ({
         onChange={setPendingRange}
         selected={pendingRange}
         defaultMonth={defaultMonth}
+        // The calendar sits in a `p-0` popover so the footer's rule can run
+        // edge to edge; the breathing room the grid needs is therefore its own.
+        className="p-3"
+        // react-day-picker's own class stays on every part — these strings
+        // replace the default rather than extend it.
+        classNames={{
+          // `flex-wrap: wrap` is the day-picker default, and Chrome sizes a
+          // wrapping flex container's max-content to its widest *item*, not to
+          // the row. In a shrink-to-fit popover that resolved to one month
+          // wide, so the second month wrapped underneath. Nothing may wrap: the
+          // popover is then measured at the full row. Important, because
+          // day-picker ships its stylesheet unlayered and an unlayered rule
+          // beats every Tailwind utility whatever its specificity.
+          months: "rdp-months flex-nowrap!",
+          // The arrows belong at the two ends of the caption row, not stacked
+          // together in its top-right corner — with two months that put both of
+          // them over the second month, reading as a pager for that month
+          // alone. Spanning the row puts "back" beside the month it goes back
+          // from and "forward" beside the one it goes forward from.
+          nav: "rdp-nav inset-x-0 justify-between",
+          // …which leaves the month name free to centre over its own grid.
+          month_caption: "rdp-month_caption justify-center",
+        }}
       />
       <div className="border-kumo-hairline flex flex-col gap-3 border-t p-3">
         <div className="grid grid-cols-2 gap-3">
@@ -151,7 +174,12 @@ const DateRangePanel = ({
           <Button variant="secondary" onClick={onReset}>
             Reset
           </Button>
-          <Button onClick={handleApply}>Apply</Button>
+          {/* Kumo's default button is the secondary one, so the pair read
+              identically and the committing action had no more weight than the
+              one that throws the edit away. */}
+          <Button variant="primary" onClick={handleApply}>
+            Apply
+          </Button>
         </div>
       </div>
     </>
