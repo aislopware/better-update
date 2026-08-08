@@ -147,6 +147,14 @@
   ::selection {
     background: oklch(from var(--brand) l c h / 25%);
   }
+
+  /* Kumo's menu item is a flex row with no gap, so an icon or avatar sits flush
+     against its label — including when the icon comes from Kumo's own `icon`
+     prop. Set once against Kumo's public part attribute rather than at each of
+     the call sites, so items added later are right by default. */
+  [data-kumo-component="DropdownMenu"][data-kumo-part="item"] {
+    @apply gap-2;
+  }
 }
 
 /* Skeletons reveal after a short delay so fast responses never flash a
