@@ -31,10 +31,18 @@ describe(buildInvitationPayload, () => {
       { key: 1, projectId: null, role: "developer" },
       { key: 2, projectId: "proj-1", role: "maintainer" },
     ];
-    expect(buildInvitationPayload("a@b.co", "admin", grants)).toStrictEqual({
+    expect(buildInvitationPayload("a@b.co", "member", grants)).toStrictEqual({
+      email: "a@b.co",
+      role: "member",
+      projects: [{ projectId: "proj-1", role: "maintainer" }],
+    });
+  });
+
+  it("sends an admin no grants — the role already maintains every project", () => {
+    const grants: ProjectGrantDraft[] = [{ key: 1, projectId: "proj-1", role: "maintainer" }];
+    expect(buildInvitationPayload("a@b.co", "admin", grants, "developer")).toStrictEqual({
       email: "a@b.co",
       role: "admin",
-      projects: [{ projectId: "proj-1", role: "maintainer" }],
     });
   });
 

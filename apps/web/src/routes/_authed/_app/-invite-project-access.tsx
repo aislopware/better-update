@@ -184,7 +184,7 @@ export const ProjectGrantsSection = ({
     <div className="grid gap-0.5">
       <span className="text-sm font-medium">Project access</span>
       <span className="text-kumo-subtle text-xs">
-        Optional — grants apply when the invitation is accepted.
+        Optional — grants apply when the invitation is accepted, and more can be added afterwards.
       </span>
     </div>
     {canGrantAllProjects ? (

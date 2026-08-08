@@ -40,15 +40,31 @@ export type InviteOrgRole = "member" | "admin";
 
 const ORG_ROLE_LABELS: Record<InviteOrgRole, string> = { member: "Member", admin: "Admin" };
 
+// What the chosen role actually gets you, said under the control that chooses
+// it. This used to be one sentence at the foot of the form, two controls below
+// the select it describes and directly under the project list it contradicted.
+const ORG_ROLE_HINTS: Record<InviteOrgRole, string> = {
+  member: "Sees only the projects granted below.",
+  admin: "Manages the organization and holds Maintainer access on every project.",
+};
+
 // Pure payload builder (unit-tested): drops rows where no project was picked
 // and omits `projects` / `allProjectsRole` entirely when nothing was granted,
 // so the API sees the same body the CLI would send.
+//
+// An admin is a Maintainer on every project by virtue of being an admin, so
+// grants alongside that role describe nothing — the form stops offering them
+// once admin is picked, and any rows filled in beforehand are dropped here
+// rather than written as memberships that change no one's access.
 export const buildInvitationPayload = (
   email: string,
   role: InviteOrgRole,
   grants: readonly ProjectGrantDraft[],
   allProjectsRole: ProjectMemberRoleValue | null = null,
 ): Parameters<typeof createInvitation>[0] => {
+  if (role === "admin") {
+    return { email, role };
+  }
   const projects = grants.flatMap((grant) =>
     grant.projectId ? [{ projectId: grant.projectId, role: grant.role }] : [],
   );
@@ -158,28 +174,27 @@ const InviteFormContent = ({
 
         <Select
           label="Organization role"
+          description={ORG_ROLE_HINTS[orgRole]}
           className="w-full"
           value={orgRole}
           items={orgRoleItems}
           onValueChange={onPicked(setOrgRole)}
         />
 
-        <ProjectGrantsSection
-          orgId={orgId}
-          grants={grants}
-          allProjectsRole={allProjectsRole}
-          canGrantAllProjects={canGrantAllProjects}
-          onAllProjectsChange={setAllProjectsRole}
-          onAdd={addGrant}
-          onChange={changeGrant}
-          onRemove={removeGrant}
-        />
-
-        <p className="text-kumo-subtle text-xs">
-          {orgRole === "admin"
-            ? "Admins manage the organization and hold Maintainer access on every project."
-            : "Members see only the projects granted here; you can grant more after they join."}
-        </p>
+        {/* Nothing to grant an admin: the role already carries Maintainer on
+            every project, so the picker only ever offered access they had. */}
+        {orgRole === "admin" ? null : (
+          <ProjectGrantsSection
+            orgId={orgId}
+            grants={grants}
+            allProjectsRole={allProjectsRole}
+            canGrantAllProjects={canGrantAllProjects}
+            onAllProjectsChange={setAllProjectsRole}
+            onAdd={addGrant}
+            onChange={changeGrant}
+            onRemove={removeGrant}
+          />
+        )}
       </FieldGroup>
 
       <DialogFooter>
