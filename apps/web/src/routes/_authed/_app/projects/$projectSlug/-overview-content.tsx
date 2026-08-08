@@ -4,14 +4,6 @@ import {
   runtimesQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
 import { Empty } from "@better-update/ui/components/empty";
 import { GitBranchIcon, RocketIcon } from "@phosphor-icons/react";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
@@ -23,6 +15,7 @@ import type { ReactElement, ReactNode } from "react";
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { StatCard, StatCardGrid } from "../../../../../components/stat-card";
+import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { ChannelStatusBadge } from "./-channel-status-badge";
@@ -98,11 +91,11 @@ const LiveNowCard = ({
   scope: OverviewScope;
   channels: readonly Channel[];
 }) => (
-  <Card className="gap-4">
-    <CardHeader>
-      <CardTitle>Live now</CardTitle>
-      <CardDescription>What each channel serves right now.</CardDescription>
-      <CardAction>
+  <ListPanel>
+    <ListPanelHeader
+      title="Live now"
+      description="What each channel serves right now."
+      actions={
         <Link
           to="/projects/$projectSlug/channels"
           params={{ projectSlug: scope.projectSlug }}
@@ -110,16 +103,14 @@ const LiveNowCard = ({
         >
           View channels →
         </Link>
-      </CardAction>
-    </CardHeader>
-    <CardContent className="px-2">
-      <div className="divide-kumo-line/60 flex flex-col divide-y">
-        {channels.map((channel) => (
-          <LiveNowRow key={channel.id} scope={scope} channel={channel} />
-        ))}
-      </div>
-    </CardContent>
-  </Card>
+      }
+    />
+    <div className="divide-kumo-line/60 flex flex-col divide-y">
+      {channels.map((channel) => (
+        <LiveNowRow key={channel.id} scope={scope} channel={channel} />
+      ))}
+    </div>
+  </ListPanel>
 );
 
 interface RecentEntry {
@@ -144,37 +135,32 @@ const RecentListCard = ({
   emptyMessage: string;
   renderLink: (entry: RecentEntry, children: ReactNode) => ReactElement;
 }) => (
-  <Card className="gap-4">
-    <CardHeader>
-      <CardTitle>{title}</CardTitle>
-      <CardAction>{viewAllLabel}</CardAction>
-    </CardHeader>
-    <CardContent className="px-2">
-      {entries.length === 0 ? (
-        <p className="text-kumo-subtle px-2 py-4 text-sm">{emptyMessage}</p>
-      ) : (
-        <div className="divide-kumo-line/60 flex flex-col divide-y">
-          {entries.map((entry) =>
-            renderLink(
-              entry,
-              <>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-sm font-medium">{entry.title}</span>
-                  <span className="text-kumo-subtle flex items-center gap-2 text-xs">
-                    <PlatformIndicator platform={entry.platform} className="gap-1" />
-                    <span className="truncate font-mono">{entry.meta}</span>
-                  </span>
+  <ListPanel>
+    <ListPanelHeader title={title} actions={viewAllLabel} />
+    {entries.length === 0 ? (
+      <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">{emptyMessage}</p>
+    ) : (
+      <div className="divide-kumo-line/60 flex flex-col divide-y">
+        {entries.map((entry) =>
+          renderLink(
+            entry,
+            <>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-sm font-medium">{entry.title}</span>
+                <span className="text-kumo-subtle flex items-center gap-2 text-xs">
+                  <PlatformIndicator platform={entry.platform} className="gap-1" />
+                  <span className="truncate font-mono">{entry.meta}</span>
                 </span>
-                <span className="text-kumo-subtle shrink-0 text-xs">
-                  <RelativeTime value={entry.createdAt} />
-                </span>
-              </>,
-            ),
-          )}
-        </div>
-      )}
-    </CardContent>
-  </Card>
+              </span>
+              <span className="text-kumo-subtle shrink-0 text-xs">
+                <RelativeTime value={entry.createdAt} />
+              </span>
+            </>,
+          ),
+        )}
+      </div>
+    )}
+  </ListPanel>
 );
 
 const viewAllLink = (scope: OverviewScope, to: "updates" | "builds") => (
@@ -187,8 +173,9 @@ const viewAllLink = (scope: OverviewScope, to: "updates" | "builds") => (
   </Link>
 );
 
-const ROW_LINK_CLASS =
-  "hover:bg-kumo-tint/50 flex items-center justify-between gap-3 rounded-sm px-2 py-2.5";
+// Full-bleed inside the panel, like every other list row: the frame draws the
+// edge, so a row that insets itself from it reads as a card within a card.
+const ROW_LINK_CLASS = "hover:bg-kumo-tint/50 flex items-center justify-between gap-3 px-4 py-3";
 
 export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
   const { orgId, projectId } = scope;

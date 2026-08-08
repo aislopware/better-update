@@ -5,13 +5,16 @@ import { Suspense } from "react";
 import { PageHeader, SectionHeader } from "../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { fireAndForget } from "../../../../../lib/data-table";
-import { AnalyticsTab, analyticsSearchSchema } from "./-analytics-tab";
+import { AnalyticsPeriodSelect, AnalyticsTab, analyticsSearchSchema } from "./-analytics-tab";
 import { OverviewContent } from "./-overview-content";
 
 const ProjectOverview = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const handleSearchChange = (next: Partial<typeof search>): void => {
+    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, ...next }) }));
+  };
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -28,14 +31,20 @@ const ProjectOverview = () => {
         <SectionHeader
           title="Analytics"
           description="Adoption and request traffic reported by devices."
+          actions={
+            <AnalyticsPeriodSelect
+              period={search.period}
+              onPeriodChange={(period) => {
+                handleSearchChange({ period });
+              }}
+            />
+          }
         />
         <AnalyticsTab
           orgId={activeOrg.id}
           projectId={project.id}
           search={search}
-          onSearchChange={(next) => {
-            fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, ...next }) }));
-          }}
+          onSearchChange={handleSearchChange}
         />
       </section>
     </div>

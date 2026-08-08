@@ -36,88 +36,96 @@ export interface AnalyticsTabProps {
   readonly onSearchChange: (next: Partial<AnalyticsSearch>) => void;
 }
 
+/**
+ * Reporting-period control for the analytics section. Rendered by the page into
+ * the section header's actions slot rather than on a line of its own: a control
+ * that scopes a whole section belongs beside that section's name, not floating
+ * in the gap above the first card.
+ */
+export const AnalyticsPeriodSelect = ({
+  period,
+  onPeriodChange,
+}: {
+  period: AnalyticsSearch["period"];
+  onPeriodChange: (next: AnalyticsSearch["period"]) => void;
+}) => (
+  <Select
+    aria-label="Reporting period"
+    className="w-40"
+    items={PERIOD_LABELS}
+    value={period}
+    onValueChange={onPicked(onPeriodChange)}
+  />
+);
+
 export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: AnalyticsTabProps) => {
   const { period, channel, update } = search;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Select
-          aria-label="Reporting period"
-          className="w-40"
-          items={PERIOD_LABELS}
-          value={period}
-          onValueChange={onPicked((next: AnalyticsSearch["period"]) => {
-            onSearchChange({ period: next });
-          })}
-        />
-      </div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Update adoption</CardTitle>
+          <CardDescription>Devices per update</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={chartSkeleton}>
+            <AdoptionChart orgId={orgId} projectId={projectId} period={period} />
+          </Suspense>
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Update adoption</CardTitle>
-            <CardDescription>Devices per update</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={chartSkeleton}>
-              <AdoptionChart orgId={orgId} projectId={projectId} period={period} />
-            </Suspense>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform split</CardTitle>
+          <CardDescription>Device distribution by platform</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={chartSkeleton}>
+            <PlatformChart orgId={orgId} projectId={projectId} period={period} />
+          </Suspense>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform split</CardTitle>
-            <CardDescription>Device distribution by platform</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={chartSkeleton}>
-              <PlatformChart orgId={orgId} projectId={projectId} period={period} />
-            </Suspense>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Channel health</CardTitle>
+          <CardDescription>Request metrics per channel</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={chartSkeleton}>
+            <ChannelHealthChart
+              orgId={orgId}
+              projectId={projectId}
+              period={period}
+              channel={channel}
+              onChannelChange={(next) => {
+                onSearchChange({ channel: next });
+              }}
+            />
+          </Suspense>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Channel health</CardTitle>
-            <CardDescription>Request metrics per channel</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={chartSkeleton}>
-              <ChannelHealthChart
-                orgId={orgId}
-                projectId={projectId}
-                period={period}
-                channel={channel}
-                onChannelChange={(next) => {
-                  onSearchChange({ channel: next });
-                }}
-              />
-            </Suspense>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Update traffic</CardTitle>
-            <CardDescription>Hourly request volume per update</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={chartSkeleton}>
-              <UpdateTrafficChart
-                orgId={orgId}
-                projectId={projectId}
-                period={period}
-                update={update}
-                onUpdateChange={(next) => {
-                  onSearchChange({ update: next });
-                }}
-              />
-            </Suspense>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Update traffic</CardTitle>
+          <CardDescription>Hourly request volume per update</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={chartSkeleton}>
+            <UpdateTrafficChart
+              orgId={orgId}
+              projectId={projectId}
+              period={period}
+              update={update}
+              onUpdateChange={(next) => {
+                onSearchChange({ update: next });
+              }}
+            />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   );
 };
