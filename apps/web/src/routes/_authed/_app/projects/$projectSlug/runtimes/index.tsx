@@ -2,7 +2,7 @@ import { runtimesQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
 import { StackIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
@@ -173,12 +173,15 @@ const RuntimesContent = () => {
           entity: pluralize(data.total, "runtime"),
           onChange: onPageChange,
         }}
-        onRowClick={async (runtime) => {
-          await routeNavigate({
-            to: "/projects/$projectSlug/runtimes/$version",
-            params: { projectSlug, version: runtime.version },
-          });
-        }}
+        renderRowLink={(runtime, { className, children }) => (
+          <Link
+            to="/projects/$projectSlug/runtimes/$version"
+            params={{ projectSlug, version: runtime.version }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import { submissionsQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
@@ -157,14 +157,15 @@ const SubmissionsPage = () => {
           onChange: onPageChange,
         }}
         emptyMessage="No submissions match the selected filters."
-        onRowClick={(submission) => {
-          fireAndForget(
-            navigate({
-              to: "/projects/$projectSlug/submissions/$submissionId",
-              params: { projectSlug, submissionId: submission.id },
-            }),
-          );
-        }}
+        renderRowLink={(submission, { className, children }) => (
+          <Link
+            to="/projects/$projectSlug/submissions/$submissionId"
+            params={{ projectSlug, submissionId: submission.id }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

@@ -5,7 +5,7 @@ import {
 import { Empty } from "@better-update/ui/components/empty";
 import { PackageIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useMemo } from "react";
@@ -282,12 +282,15 @@ const BuildsContent = () => {
           onChange: onPageChange,
         }}
         emptyMessage="No builds match your filters."
-        onRowClick={async (build) => {
-          await routeNavigate({
-            to: "/projects/$projectSlug/builds/$buildId",
-            params: { projectSlug, buildId: build.id },
-          });
-        }}
+        renderRowLink={(build, { className, children }) => (
+          <Link
+            to="/projects/$projectSlug/builds/$buildId"
+            params={{ projectSlug, buildId: build.id }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

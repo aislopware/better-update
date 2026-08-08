@@ -1,7 +1,7 @@
 import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { CloudArrowUpIcon, PackageIcon, StackIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Suspense, useMemo } from "react";
 
@@ -80,7 +80,6 @@ const RuntimeDetailContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { id: projectId, slug: projectSlug } = project;
-  const navigate = useNavigate();
 
   const { data: buildsData } = useSuspenseQuery(
     buildsQueryOptions(orgId, projectId, {
@@ -184,12 +183,15 @@ const RuntimeDetailContent = () => {
           // of them, so the footer counts and does not paginate — the Builds
           // page is where they are paged through.
           countLabel={`${buildsTableData.length} of ${buildsCount}`}
-          onRowClick={async (build) => {
-            await navigate({
-              to: "/projects/$projectSlug/builds/$buildId",
-              params: { projectSlug, buildId: build.id },
-            });
-          }}
+          renderRowLink={(build, { className, children }) => (
+            <Link
+              to="/projects/$projectSlug/builds/$buildId"
+              params={{ projectSlug, buildId: build.id }}
+              className={className}
+            >
+              {children}
+            </Link>
+          )}
         />
       )}
 
@@ -224,12 +226,15 @@ const RuntimeDetailContent = () => {
           }
           isPlaceholderData={false}
           countLabel={`${updatesTableData.length} of ${updatesCount}`}
-          onRowClick={async (update) => {
-            await navigate({
-              to: "/projects/$projectSlug/updates/$updateId",
-              params: { projectSlug, updateId: update.id },
-            });
-          }}
+          renderRowLink={(update, { className, children }) => (
+            <Link
+              to="/projects/$projectSlug/updates/$updateId"
+              params={{ projectSlug, updateId: update.id }}
+              className={className}
+            >
+              {children}
+            </Link>
+          )}
         />
       )}
     </>

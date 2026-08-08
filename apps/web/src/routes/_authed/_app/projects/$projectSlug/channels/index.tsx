@@ -3,7 +3,7 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { BroadcastIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useMemo } from "react";
@@ -250,12 +250,15 @@ const ChannelsContent = () => {
           onChange: onPageChange,
         }}
         emptyMessage="No channels match your search."
-        onRowClick={async (channel) => {
-          await routeNavigate({
-            to: "/projects/$projectSlug/channels/$channelId",
-            params: { projectSlug, channelId: channel.id },
-          });
-        }}
+        renderRowLink={(channel, { className, children }) => (
+          <Link
+            to="/projects/$projectSlug/channels/$channelId"
+            params={{ projectSlug, channelId: channel.id }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

@@ -40,14 +40,17 @@ const sampleRows: TestRow[] = [
   { id: "upd_456", name: "Second", count: null, note: "hello" },
 ];
 
+// A plain anchor stands in for the route-typed `Link` a real page passes:
+// TanStack's Link needs a router, and what this view owns is where the link
+// goes in the row, not what the caller renders.
 const TestTable = ({
   data = sampleRows,
-  onRowClick,
+  linked = false,
   emptyMessage,
   filteredEmpty,
 }: {
   data?: TestRow[];
-  onRowClick?: (row: TestRow) => void;
+  linked?: boolean;
   emptyMessage?: string;
   filteredEmpty?: FilteredEmptyProps;
 }) => {
@@ -56,7 +59,15 @@ const TestTable = ({
     <DataTableView
       table={table}
       columnsCount={columns.length}
-      onRowClick={onRowClick}
+      renderRowLink={
+        linked
+          ? (row, { className, children }) => (
+              <a href={`/rows/${row.id}`} className={className}>
+                {children}
+              </a>
+            )
+          : undefined
+      }
       emptyMessage={emptyMessage}
       filteredEmpty={filteredEmpty}
     />
@@ -86,21 +97,56 @@ describe(DataTableView, () => {
     expect(screen.getAllByText("—")).toHaveLength(1);
   });
 
-  it("adds a chevron-affordance column only for clickable rows", async () => {
-    const user = userEvent.setup();
-    const onRowClick = vi.fn<(row: TestRow) => void>();
-    render(<TestTable onRowClick={onRowClick} />);
+  it("makes the row's name the link and adds a chevron-affordance column", () => {
+    render(<TestTable linked />);
 
     const headerRow = screen.getByText("Name").closest("tr")!;
     expect(headerRow.cells).toHaveLength(columns.length + 1);
     const bodyRow = screen.getByText("First").closest("tr")!;
     expect(bodyRow.cells).toHaveLength(columns.length + 1);
 
-    await user.click(screen.getByText("First"));
-    expect(onRowClick).toHaveBeenCalledWith(sampleRows[0]);
+    // No column is marked primary here, so the link lands in the first cell.
+    const link = screen.getByRole("link", { name: "First" });
+    expect(link).toHaveAttribute("href", "/rows/upd_123");
+    expect(bodyRow.cells[0]).toContainElement(link);
   });
 
-  it("keeps the plain column count without onRowClick", () => {
+  it("follows the row's link when the row itself is clicked", async () => {
+    const user = userEvent.setup();
+    render(<TestTable linked />);
+    const link = screen.getByRole("link", { name: "First" });
+    const followed = vi.fn<(event: Event) => void>();
+    link.addEventListener("click", (event) => {
+      // jsdom cannot navigate; stop before it tries.
+      event.preventDefault();
+      followed(event);
+    });
+
+    // A cell that is not the name: the whole row still opens the row.
+    await user.click(screen.getByText("42"));
+
+    expect(followed).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves modified clicks to the browser", async () => {
+    const user = userEvent.setup();
+    render(<TestTable linked />);
+    const link = screen.getByRole("link", { name: "First" });
+    const followed = vi.fn<(event: Event) => void>();
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      followed(event);
+    });
+
+    // Cmd-click opens a new tab. Forwarding it would navigate this one as well.
+    await user.keyboard("{Meta>}");
+    await user.click(screen.getByText("42"));
+    await user.keyboard("{/Meta}");
+
+    expect(followed).not.toHaveBeenCalled();
+  });
+
+  it("keeps the plain column count for rows that go nowhere", () => {
     render(<TestTable />);
 
     const headerRow = screen.getByText("Name").closest("tr")!;

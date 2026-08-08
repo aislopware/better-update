@@ -2,7 +2,7 @@ import { updatesQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
 import { CloudArrowUpIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useMemo } from "react";
@@ -281,12 +281,15 @@ const UpdatesContent = () => {
           onChange: onPageChange,
         }}
         emptyMessage="No updates match your filters."
-        onRowClick={async (update) => {
-          await routeNavigate({
-            to: "/projects/$projectSlug/updates/$updateId",
-            params: { projectSlug: slug, updateId: update.id },
-          });
-        }}
+        renderRowLink={(update, { className, children }) => (
+          <Link
+            to="/projects/$projectSlug/updates/$updateId"
+            params={{ projectSlug: slug, updateId: update.id }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

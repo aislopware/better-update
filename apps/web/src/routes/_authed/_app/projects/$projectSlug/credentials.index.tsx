@@ -8,7 +8,7 @@ import {
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Suspense, useMemo } from "react";
 
@@ -273,7 +273,6 @@ const AndroidSection = ({
   projectId: string;
   projectSlug: string;
 }) => {
-  const navigate = useNavigate();
   const { data } = useSuspenseQuery(androidApplicationIdentifiersQueryOptions(orgId, projectId));
   const { items } = data;
 
@@ -309,12 +308,15 @@ const AndroidSection = ({
       columnsCount={columns.length}
       title={title}
       pagination={clientPaginationFooter(pagination)}
-      onRowClick={async (item) => {
-        await navigate({
-          to: "/projects/$projectSlug/credentials/android/$packageName",
-          params: { projectSlug, packageName: item.packageName },
-        });
-      }}
+      renderRowLink={(item, { className, children }) => (
+        <Link
+          to="/projects/$projectSlug/credentials/android/$packageName"
+          params={{ projectSlug, packageName: item.packageName }}
+          className={className}
+        >
+          {children}
+        </Link>
+      )}
     />
   );
 };
@@ -328,7 +330,6 @@ const IosSection = ({
   projectId: string;
   projectSlug: string;
 }) => {
-  const navigate = useNavigate();
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
   const { data: teamsResult } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
 
@@ -359,12 +360,15 @@ const IosSection = ({
       columnsCount={columns.length}
       title={title}
       pagination={clientPaginationFooter(pagination)}
-      onRowClick={async (group) => {
-        await navigate({
-          to: "/projects/$projectSlug/credentials/ios/$bundleIdentifier",
-          params: { projectSlug, bundleIdentifier: group.bundleIdentifier },
-        });
-      }}
+      renderRowLink={(group, { className, children }) => (
+        <Link
+          to="/projects/$projectSlug/credentials/ios/$bundleIdentifier"
+          params={{ projectSlug, bundleIdentifier: group.bundleIdentifier }}
+          className={className}
+        >
+          {children}
+        </Link>
+      )}
     />
   );
 };
