@@ -23,7 +23,7 @@ import { ShippingActivityPanel } from "../../../components/shipping-activity";
 import { DetailCardSkeleton } from "../../../components/skeletons";
 import { RelativeTime } from "../../../lib/relative-time";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
-import { actionLabel } from "./-audit-log-view";
+import { actionLabel } from "./-audit-log-labels";
 
 const ACTIVITY_LIMIT = 8;
 

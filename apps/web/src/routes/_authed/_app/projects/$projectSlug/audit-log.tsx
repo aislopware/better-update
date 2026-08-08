@@ -18,6 +18,7 @@ const ProjectAuditLogPage = () => {
         <AuditLogView
           orgId={activeOrg.id}
           projectId={project.id}
+          projectSlug={project.slug}
           scopeLabel="this project"
           search={search}
           onChangeSearch={(next) => {

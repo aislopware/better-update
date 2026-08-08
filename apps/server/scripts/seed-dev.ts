@@ -895,6 +895,70 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
     });
   }
 
+  const actorEmails = [ownerRow.email, ...teammates.map((teammate) => teammate.email)];
+
+  // Audit rows point at things that exist. A log of random ids is a log nobody
+  // follows: the dashboard links a row to the page for its resource, and the
+  // names come from the same well-known metadata keys the server stamps, so the
+  // Resource column reads "production" rather than sixteen characters of hex.
+  const auditResources = new Map<string, { id: string; metadata: Record<string, string> }[]>([
+    [
+      "update",
+      db
+        .query<{ id: string; message: string | null }, [string]>(
+          `SELECT updates.id AS id, updates.message AS message
+             FROM updates JOIN branches ON branches.id = updates.branch_id
+            WHERE branches.project_id = ?`,
+        )
+        .all(ANCHOR)
+        .map((row) => ({
+          id: row.id,
+          metadata: row.message === null ? {} : { message: row.message },
+        })),
+    ],
+    [
+      "build",
+      db
+        .query<{ id: string; message: string | null }, [string]>(
+          "SELECT id, message FROM builds WHERE project_id = ?",
+        )
+        .all(ANCHOR)
+        .map((row) => ({
+          id: row.id,
+          metadata: row.message === null ? {} : { message: row.message },
+        })),
+    ],
+    [
+      "branch",
+      db
+        .query<{ id: string; name: string }, [string]>(
+          "SELECT id, name FROM branches WHERE project_id = ?",
+        )
+        .all(ANCHOR)
+        .map((row) => ({ id: row.id, metadata: { name: row.name } })),
+    ],
+    [
+      "channel",
+      db
+        .query<{ id: string; name: string }, [string]>(
+          "SELECT id, name FROM channels WHERE project_id = ?",
+        )
+        .all(ANCHOR)
+        .map((row) => ({ id: row.id, metadata: { name: row.name } })),
+    ],
+    [
+      "project",
+      db
+        .query<{ id: string; slug: string }, [string]>("SELECT id, slug FROM projects WHERE id = ?")
+        .all(ANCHOR)
+        .map((row) => ({ id: row.id, metadata: { slug: row.slug } })),
+    ],
+    [
+      "member",
+      actorEmails.map((email) => ({ id: sid(`member-of-${email}`), metadata: { email } })),
+    ],
+  ]);
+
   // Audit logs: ~90 rows across resource types, actors and sources.
   const auditSpecs = [
     {
@@ -960,13 +1024,16 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
     },
     { type: "environment", actions: ["environment.create"], scoped: false, weight: 2 },
   ];
-  const actorEmails = [ownerRow.email, ...teammates.map((teammate) => teammate.email)];
-
   let auditIndex = 0;
   for (const spec of auditSpecs) {
+    const pool = auditResources.get(spec.type);
     for (let index = 0; index < spec.weight; index += 1) {
       auditIndex += 1;
       const fromRobot = rand() < 0.15;
+      // Types with no seeded resource of their own (devices, webhooks, vault
+      // access) keep an opaque id — which is what the dashboard shows for them
+      // in production too, since none of them has a page to link to.
+      const resource = pool && pool.length > 0 ? pick(pool) : undefined;
       insert("audit_logs", {
         id: sid(`audit-${auditIndex}`),
         organization_id: org.id,
@@ -975,8 +1042,11 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
         actor_email: fromRobot ? "robot:ci-deploy" : pick(actorEmails),
         action: pick(spec.actions),
         resource_type: spec.type,
-        resource_id: hex(16),
-        metadata: rand() < 0.3 ? JSON.stringify({ via: fromRobot ? "ci" : "web" }) : null,
+        resource_id: resource ? resource.id : hex(16),
+        metadata: JSON.stringify({
+          ...(resource ? resource.metadata : {}),
+          via: fromRobot ? "ci" : "web",
+        }),
         source: fromRobot ? "robot" : "session",
         created_at: spread(45),
       });
