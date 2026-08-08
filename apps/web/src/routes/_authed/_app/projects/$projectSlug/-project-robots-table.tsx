@@ -1,4 +1,3 @@
-import { Badge } from "@better-update/ui/components/badge";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
@@ -57,13 +56,20 @@ const robotColumns = (
   {
     id: "role",
     header: "Role",
-    cell: ({ row }) => <Badge variant="outline">{PROJECT_ROLE_LABELS[row.original.role]}</Badge>,
+    // Plain text, as on the members table: a role is what this account is, not
+    // a state to be flagged, and a badge on every row of a two-row table is an
+    // outline drawn around an ordinary word.
+    cell: ({ row }) => <span className="text-sm">{PROJECT_ROLE_LABELS[row.original.role]}</span>,
     enableSorting: false,
   },
   {
     id: "id",
     header: "Id",
-    cell: ({ row }) => <CopyableId value={row.original.id} label="Robot ID" />,
+    // Whole, not abbreviated: this column exists because the CLI commands take
+    // the id, and the first eight characters of one are no use to anybody typing
+    // it. Robot ids are shorter than the cap, so the ellipsis never appears —
+    // and the Name column absorbs whatever width this leaves.
+    cell: ({ row }) => <CopyableId value={row.original.id} label="Robot ID" length={48} />,
     enableSorting: false,
     meta: { muted: true },
   },

@@ -23,12 +23,12 @@ const makeRobot = (overrides?: Partial<RobotAccountItem>): RobotAccountItem => (
 describe(ProjectRobotsTableView, () => {
   const onEdit = vi.fn<(target: EditTarget) => void>();
 
-  it("renders the robot with a capitalized role badge and its copyable id", () => {
+  it("renders the robot with its role in words and its copyable id", () => {
     renderWithQuery(<ProjectRobotsTableView items={[makeRobot()]} onEdit={onEdit} />);
 
     expect(screen.getByText("ci-bot")).toBeInTheDocument();
     expect(screen.getByText("Developer")).toBeInTheDocument();
-    // CopyableId shows the (truncated) id and copies the full value.
+    // The id is shown whole — it is what the CLI robot commands take.
     expect(screen.getByText("robot-1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy robot id/i })).toBeInTheDocument();
   });
