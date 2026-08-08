@@ -218,21 +218,3 @@ export const DetailCardSkeleton = ({
     </div>
   </Card>
 );
-
-interface SummaryCardsSkeletonProps {
-  readonly count?: number;
-  readonly className?: string;
-}
-
-export const SummaryCardsSkeleton = ({ count = 3, className }: SummaryCardsSkeletonProps) => (
-  <div className={cn("skeleton-appear @container/stat-grid", className)}>
-    <div className="grid grid-cols-1 gap-4 @xl/stat-grid:grid-cols-2 @5xl/stat-grid:grid-cols-4">
-      {repeat(count).map((index) => (
-        <Card key={index} className="gap-1 px-4">
-          <Skeleton className="h-3.5 w-24 rounded" />
-          <Skeleton className="h-8 w-20 rounded" />
-        </Card>
-      ))}
-    </div>
-  </div>
-);

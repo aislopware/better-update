@@ -10,8 +10,7 @@ import type { PlatformValue } from "@better-update/api-client/react";
 
 import { PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
-import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
-import { StatCard } from "../../../../../../components/stat-card";
+import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { TablePanel } from "../../../../../../components/table-panel";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
@@ -37,7 +36,12 @@ const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   />
 );
 
-const RuntimeSummaryCards = ({
+/**
+ * What this runtime amounts to, in the line under its name: three numbers in
+ * three boxes said the same thing across half a screen, and two of them were
+ * printed again as the descriptions of the panels they counted.
+ */
+const RuntimeHeaderMeta = ({
   buildsCount,
   updatesCount,
   latestActivity,
@@ -46,11 +50,19 @@ const RuntimeSummaryCards = ({
   updatesCount: number;
   latestActivity: string | null;
 }) => (
-  <div className="grid gap-4 sm:grid-cols-3">
-    <StatCard label="Builds" value={buildsCount} />
-    <StatCard label="Updates" value={updatesCount} />
-    <StatCard label="Latest activity" value={<RelativeTime value={latestActivity} />} />
-  </div>
+  <>
+    <span>
+      {buildsCount} {pluralize(buildsCount, "build")}
+    </span>
+    <span>
+      {updatesCount} {pluralize(updatesCount, "update")}
+    </span>
+    {latestActivity ? (
+      <span>
+        Last activity <RelativeTime value={latestActivity} />
+      </span>
+    ) : null}
+  </>
 );
 
 /** Section title with its glyph, shared by the two panels on this page. */
@@ -151,8 +163,11 @@ const RuntimeDetailContent = () => {
     columns: [...buildColumns],
     enableMultiSort: false,
     // Match the Builds page defaults — secondary numeric columns stay hidden
-    // so the table fits without horizontal scroll.
-    initialState: { columnVisibility: { buildNumber: false, size: false } },
+    // so the table fits without horizontal scroll. The runtime column goes too:
+    // every row on this page carries the version the page is named after.
+    initialState: {
+      columnVisibility: { buildNumber: false, size: false, runtimeVersion: false },
+    },
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -167,18 +182,19 @@ const RuntimeDetailContent = () => {
 
   return (
     <>
-      <DetailHeader title={`Runtime v${version}`} />
-
-      <RuntimeSummaryCards
-        buildsCount={buildsCount}
-        updatesCount={updatesCount}
-        latestActivity={latestActivity}
+      <DetailHeader
+        title={`Runtime v${version}`}
+        meta={
+          <RuntimeHeaderMeta
+            buildsCount={buildsCount}
+            updatesCount={updatesCount}
+            latestActivity={latestActivity}
+          />
+        }
       />
 
       {buildsCount === 0 ? (
-        <TablePanel
-          title={<RuntimeSectionTitle icon={PackageIcon} label="Builds on this runtime" />}
-        >
+        <TablePanel title={<RuntimeSectionTitle icon={PackageIcon} label="Builds" />}>
           <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
             Build a binary against this runtime to see it here.
           </p>
@@ -187,8 +203,7 @@ const RuntimeDetailContent = () => {
         <DataTableView
           table={buildsTable}
           columnsCount={buildColumns.length}
-          title={<RuntimeSectionTitle icon={PackageIcon} label="Builds on this runtime" />}
-          description={`${buildsCount} ${pluralize(buildsCount, "build")} on runtime v${version}`}
+          title={<RuntimeSectionTitle icon={PackageIcon} label="Builds" />}
           isPlaceholderData={false}
           // A preview of the newest builds on this runtime rather than a page
           // of them, so the footer counts and does not paginate — the Builds
@@ -198,12 +213,7 @@ const RuntimeDetailContent = () => {
       )}
 
       <TablePanel
-        title={<RuntimeSectionTitle icon={CloudArrowUpIcon} label="Updates on this runtime" />}
-        description={
-          updatesCount === 0
-            ? "No updates yet"
-            : `${updatesCount} ${pluralize(updatesCount, "update")} published on runtime v${version}`
-        }
+        title={<RuntimeSectionTitle icon={CloudArrowUpIcon} label="Updates" />}
         footer={
           updatesCount > RUNTIME_UPDATES_LIMIT ? (
             <Link
@@ -239,7 +249,6 @@ const RuntimeDetailContent = () => {
 const RuntimeDetailSkeleton = () => (
   <>
     <DetailHeader title="Runtime" />
-    <SummaryCardsSkeleton count={3} />
     <DetailCardSkeleton rows={3} columns={2} />
     <DetailCardSkeleton rows={3} columns={1} />
   </>
