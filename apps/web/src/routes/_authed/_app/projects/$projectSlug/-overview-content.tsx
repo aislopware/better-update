@@ -214,9 +214,10 @@ export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Lifetime counts ride along as extras rather than tiles of their own:
-          how many channels a project has is shape, not activity, and it does not
-          deserve the same weight as what shipped this month. */}
+      {/* Lifetime counts close the panel rather than standing in the strip: how
+          many channels a project has is shape, not activity, and "Updates, all
+          time" printed in the same figures beside "Updates published" read as
+          two answers to one question. */}
       <ShippingActivityPanel
         orgId={orgId}
         projectId={projectId}

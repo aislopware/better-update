@@ -9,7 +9,7 @@ import { useRef } from "react";
 import type { ECharts } from "echarts/core";
 import type { ReactNode } from "react";
 
-import { ListPanel, ListPanelHeader } from "../lib/data-table";
+import { ListPanel, ListPanelFooter, ListPanelHeader } from "../lib/data-table";
 import { echarts } from "../lib/echarts";
 import { formatChartDate, formatChartDateNarrow } from "../lib/format-date";
 import { compactNumber, numberFormatter } from "../lib/format-number";
@@ -107,11 +107,27 @@ const Metric = ({
   </div>
 );
 
-/** A metric the caller carries in beside updates and builds — a plain count. */
+/** A standing count the caller carries in — how many, right now, of something. */
 export interface ExtraMetric {
   readonly label: string;
   readonly value: ReactNode;
 }
+
+/**
+ * One of those counts, in the closing band.
+ *
+ * These used to stand in the strip at the top in the same 2xl figures as the two
+ * the chart is drawn from, so a panel headed "Last 30 days" opened on six equal
+ * numbers of which only two belonged to the window — "Updates published 23" and
+ * "Updates, all time 118" side by side, told apart only by their labels. A
+ * standing count is not the headline, so it reads as an aside beneath the bars.
+ */
+const StandingFact = ({ label, value }: ExtraMetric) => (
+  <span className="text-kumo-subtle flex items-center gap-1.5 text-xs">
+    {label}
+    <span className="text-kumo-default font-medium tabular-nums">{value}</span>
+  </span>
+);
 
 const NO_EXTRAS: readonly ExtraMetric[] = [];
 
@@ -227,8 +243,9 @@ const SeriesMetrics = ({
 };
 
 /**
- * Panel form: the header names the window, the strip carries the totals, the
- * bars carry the shape. Used at the top of the org and project overviews, where
+ * Panel form: the header names the window, the strip carries its totals, the
+ * bars carry their shape, and whatever standing counts the caller passes close
+ * the panel underneath. Used at the top of the org and project overviews, where
  * the row of single-number tiles used to sit.
  */
 export const ShippingActivityPanel = ({
@@ -254,12 +271,18 @@ export const ShippingActivityPanel = ({
       <div className="flex flex-col gap-5 p-4">
         <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
           <SeriesMetrics data={data} isPending={isPending} withTrend />
-          {extras.map((extra) => (
-            <Metric key={extra.label} label={extra.label} value={extra.value} />
-          ))}
         </div>
         {isPending ? chartSkeleton : <ActivityChart series={series} shape="bars" />}
       </div>
+      {extras.length > 0 ? (
+        <ListPanelFooter>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {extras.map((extra) => (
+              <StandingFact key={extra.label} label={extra.label} value={extra.value} />
+            ))}
+          </div>
+        </ListPanelFooter>
+      ) : null}
     </ListPanel>
   );
 };

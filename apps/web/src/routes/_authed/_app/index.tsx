@@ -157,9 +157,10 @@ const OverviewContent = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* The org's own shipping, with the standing counts alongside it. Where
-          the latest activity happened is a fact about a project, so it hangs off
-          the panel header as a link rather than occupying a metric slot. */}
+      {/* The org's own shipping, with the standing counts closing the panel
+          beneath the bars. Where the latest activity happened is a fact about a
+          project, so it hangs off the panel header as a link rather than
+          occupying a metric slot. */}
       <ShippingActivityPanel
         orgId={orgId}
         title="Shipping across the organization"
@@ -170,7 +171,7 @@ const OverviewContent = ({ orgId }: { orgId: string }) => {
             ? [
                 {
                   label: "Pending invites",
-                  value: pendingInvites ?? <Skeleton className="h-6 w-8 rounded" />,
+                  value: pendingInvites ?? <Skeleton className="h-3 w-4 rounded" />,
                 },
               ]
             : []),
