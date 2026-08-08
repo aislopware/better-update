@@ -280,7 +280,10 @@ export const ShippingActivitySummary = ({
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-start justify-between gap-4">
+      {/* Grouped, not spread: below 2xl the rail stacks full width above the
+          list, and pushing the two figures to opposite ends of the page left
+          each of them standing alone with no idea it had a pair. */}
+      <div className="flex flex-wrap items-start gap-x-10 gap-y-3">
         <SeriesMetrics data={data} isPending={isPending} withTrend={false} />
       </div>
       {isPending ? railChartSkeleton : <ActivityChart series={series} shape="lines" />}
