@@ -25,7 +25,7 @@ import type {
 
 import { runApi } from "../index";
 
-import type { AnalyticsPeriod, PlatformValue } from "./types";
+import type { PlatformValue } from "./types";
 
 export const projectsQueryKey = (orgId: string) => ["org", orgId, "projects"] as const;
 
@@ -64,18 +64,6 @@ export const updateGroupQueryKey = (orgId: string, projectId: string, groupId: s
 
 export const fingerprintDetailQueryKey = (orgId: string, projectId: string, hash: string) =>
   ["org", orgId, "projects", projectId, "fingerprints", hash] as const;
-
-export const adoptionQueryKey = (orgId: string, projectId: string) =>
-  ["org", orgId, "project", projectId, "analytics", "adoption"] as const;
-
-export const updateAnalyticsQueryKey = (orgId: string, projectId: string, updateId: string) =>
-  ["org", orgId, "project", projectId, "analytics", "updates", updateId] as const;
-
-export const channelAnalyticsQueryKey = (orgId: string, projectId: string, channel: string) =>
-  ["org", orgId, "project", projectId, "analytics", "channels", channel] as const;
-
-export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
-  ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
 export type ProjectSortColumn = typeof ProjectSortColumnSchema.Type;
 export type ProjectSort = typeof ProjectSortSchema.Type;
@@ -320,58 +308,6 @@ export const fingerprintDetailQueryOptions = (orgId: string, projectId: string, 
     queryKey: fingerprintDetailQueryKey(orgId, projectId, hash),
     queryFn: async ({ signal }) =>
       runApi((api) => api.fingerprints.get({ path: { projectId, hash } }), signal),
-    staleTime: 60_000,
-  });
-
-export const adoptionQueryOptions = (orgId: string, projectId: string, period?: AnalyticsPeriod) =>
-  queryOptions({
-    queryKey: [...adoptionQueryKey(orgId, projectId), ...(period ? [period] : [])],
-    queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.adoption({ urlParams: { projectId, period } }), signal),
-    staleTime: 60_000,
-  });
-
-export const updateAnalyticsQueryOptions = (
-  orgId: string,
-  projectId: string,
-  updateId: string,
-  period?: AnalyticsPeriod,
-) =>
-  queryOptions({
-    queryKey: [...updateAnalyticsQueryKey(orgId, projectId, updateId), ...(period ? [period] : [])],
-    queryFn: async ({ signal }) =>
-      runApi(
-        (api) => api.analytics.updates({ urlParams: { projectId, updateId, period } }),
-        signal,
-      ),
-    staleTime: 60_000,
-  });
-
-export const channelAnalyticsQueryOptions = (
-  orgId: string,
-  projectId: string,
-  channel: string,
-  period?: AnalyticsPeriod,
-) =>
-  queryOptions({
-    queryKey: [...channelAnalyticsQueryKey(orgId, projectId, channel), ...(period ? [period] : [])],
-    queryFn: async ({ signal }) =>
-      runApi(
-        (api) => api.analytics.channels({ urlParams: { projectId, channel, period } }),
-        signal,
-      ),
-    staleTime: 60_000,
-  });
-
-export const platformAnalyticsQueryOptions = (
-  orgId: string,
-  projectId: string,
-  period?: AnalyticsPeriod,
-) =>
-  queryOptions({
-    queryKey: [...platformAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
-    queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 

@@ -193,6 +193,18 @@ export type {
 } from "./react/project-members";
 export type { MeResult } from "./react/members";
 export {
+  activityQueryKey,
+  activityQueryOptions,
+  adoptionQueryKey,
+  adoptionQueryOptions,
+  channelAnalyticsQueryKey,
+  channelAnalyticsQueryOptions,
+  platformAnalyticsQueryKey,
+  platformAnalyticsQueryOptions,
+  updateAnalyticsQueryKey,
+  updateAnalyticsQueryOptions,
+} from "./react/analytics";
+export {
   isOrganizationLogoContentType,
   removeOrganizationLogo,
   updateOrganization,
@@ -200,13 +212,9 @@ export {
 } from "./react/organization";
 export type { OrganizationLogoContentTypeValue } from "./react/organization";
 export {
-  adoptionQueryKey,
-  adoptionQueryOptions,
   archiveProject,
   branchesQueryKey,
   branchesQueryOptions,
-  channelAnalyticsQueryKey,
-  channelAnalyticsQueryOptions,
   channelCompatibleBuildsQueryOptions,
   channelQueryKey,
   channelQueryOptions,
@@ -228,8 +236,6 @@ export {
   fingerprintDetailQueryOptions,
   isProjectLogoContentType,
   pauseChannel,
-  platformAnalyticsQueryKey,
-  platformAnalyticsQueryOptions,
   projectBySlugQueryKey,
   projectBySlugQueryOptions,
   projectQueryKey,
@@ -248,8 +254,6 @@ export {
   unarchiveProject,
   updateBranchRollout,
   updateChannel,
-  updateAnalyticsQueryKey,
-  updateAnalyticsQueryOptions,
   updateAssetsQueryKey,
   updateAssetsQueryOptions,
   updateGroupQueryKey,

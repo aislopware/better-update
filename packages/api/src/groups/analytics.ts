@@ -3,6 +3,8 @@ import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import {
+  ActivityParams,
+  ActivityResult,
   AdoptionParams,
   AdoptionResult,
   ChannelAnalyticsParams,
@@ -55,6 +57,17 @@ export class AnalyticsGroup extends HttpApiGroup.make("analytics")
         OpenApi.annotations({
           title: "Platform analytics",
           description: "Device count breakdown by platform",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("activity", "/api/analytics/activity")
+      .setUrlParams(ActivityParams)
+      .addSuccess(ActivityResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Shipping activity",
+          description: "Updates and builds published per day, for an org or one project",
         }),
       ),
   )

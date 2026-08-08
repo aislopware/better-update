@@ -21,15 +21,14 @@ import {
   useServerSearchList,
 } from "../../../../../components/server-search-combobox";
 import { echarts } from "../../../../../lib/echarts";
+import { compactNumber, numberFormatter } from "../../../../../lib/format-number";
 import { truncateId } from "../../../../../lib/truncate-id";
 import { useTheme } from "../../../../../lib/use-theme";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import {
   axisTimestampFormat,
   CHART_HEIGHT,
-  compactNumber,
   donutOptions,
-  numberFormatter,
   PLATFORM_LABELS,
   platformColor,
   rankedBarOptions,
@@ -54,8 +53,11 @@ export const chartSkeleton = <Skeleton className="h-45 w-full rounded-md" />;
 const updateLabel = (updateItem: { readonly id: string; readonly message: string }) =>
   updateItem.message || truncateId(updateItem.id);
 
+// Only as tall as the sentence needs. Holding the chart's full height open for a
+// card with nothing in it turns an empty section into a page of empty boxes —
+// the cards in a row shrink together, so the grid stays level either way.
 const ChartEmptyState = ({ message }: { message: string }) => (
-  <p className="text-kumo-subtle flex h-45 items-center justify-center text-center text-sm">
+  <p className="text-kumo-subtle flex items-center justify-center py-6 text-center text-sm">
     {message}
   </p>
 );

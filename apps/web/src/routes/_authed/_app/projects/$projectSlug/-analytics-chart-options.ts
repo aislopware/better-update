@@ -4,11 +4,10 @@ import type { KumoChartOption } from "@better-update/ui/components/chart";
 import type { BarSeriesOption, PieSeriesOption } from "echarts/charts";
 
 import { formatChartDate, formatChartTime } from "../../../../../lib/format-date";
+import { compactNumber, numberFormatter } from "../../../../../lib/format-number";
 
 // Overview-row cards share one fixed chart height so the grid stays level.
 export const CHART_HEIGHT = 180;
-
-export const numberFormatter = new Intl.NumberFormat();
 
 // iOS ↔ the first categorical hue (blue) and Android ↔ the second (amber) — the
 // same mapping every chart in the app uses; unexpected platforms take the next
@@ -19,16 +18,6 @@ export const PLATFORM_LABELS: Record<string, string> = { ios: "iOS", android: "A
 
 export const platformColor = (platform: string, index: number, isDarkMode: boolean): string =>
   ChartPalette.categorical(PLATFORM_SERIES_INDEX[platform] ?? index + 2, isDarkMode);
-
-/** Axis ticks stay legible at four digits; the tooltip carries the exact count. */
-export const compactNumber = (value: number): string => {
-  if (value < 1000) {
-    return `${value}`;
-  }
-  const thousands = value / 1000;
-  // A whole number of thousands reads better without the ".0" — "5k", not "5.0k".
-  return `${Number.isInteger(thousands) ? thousands : thousands.toFixed(1)}k`;
-};
 
 /**
  * Traffic is bucketed hourly whatever the window, so an axis over several days

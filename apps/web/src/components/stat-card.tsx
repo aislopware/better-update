@@ -7,27 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
-import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";
-
-/**
- * Responsive stat-card grid (dashboard-01 section-cards pattern): container
- * queries drive 1 → 2 → 4 columns from the grid's own width.
- */
-export const StatCardGrid = ({
-  children,
-  className,
-}: {
-  readonly children: ReactNode;
-  readonly className?: string;
-}) => (
-  <div className={cn("@container/stat-grid", className)}>
-    <div className="grid grid-cols-1 gap-4 @xl/stat-grid:grid-cols-2 @5xl/stat-grid:grid-cols-4">
-      {children}
-    </div>
-  </div>
-);
 
 interface StatCardProps {
   /** Small muted label above the value (CardDescription slot). */

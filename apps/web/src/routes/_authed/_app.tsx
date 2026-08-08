@@ -1,10 +1,12 @@
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
+import { inputVariants } from "@better-update/ui/components/input";
 import { Kbd } from "@better-update/ui/components/kbd";
 import { Loader } from "@better-update/ui/components/loader";
 import { Sidebar } from "@better-update/ui/components/sidebar";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
+import { cn } from "@better-update/ui/lib/utils";
 import {
   CaretUpDownIcon,
   MagnifyingGlassIcon,
@@ -262,18 +264,34 @@ const UserMenu = () => {
  * dashboard carries it — search is a way of navigating, so it belongs with the
  * nav rather than in the header opposite the account menu.
  *
- * Built from the nav row itself rather than a lookalike button, so it collapses
- * to its icon with everything else and lights the same way on hover.
+ * Dressed as a search field, not as a nav row: a row that looks like every other
+ * row reads as a destination, while a field announces that typing is the point.
+ * The dressing is Kumo's own `inputVariants()`, so the box is the same height,
+ * radius, fill and hairline as a real input rather than a hand-tuned lookalike.
+ * It stays a button underneath — the palette owns the actual text field.
+ *
+ * Collapsed, there is no room for a field, so it becomes the square icon button
+ * the rest of the rail is made of.
  */
 const SidebarSearchButton = ({ onClick }: { onClick: () => void }) => (
   <Sidebar.Group>
-    <Sidebar.Menu>
-      <Sidebar.MenuButton icon={MagnifyingGlassIcon} onClick={onClick}>
-        <span className="flex-1 truncate">Search</span>
-        {/* Nothing to hint at while the rail is a strip of icons. */}
-        <Kbd className="group-data-[state=collapsed]/sidebar:hidden">⌘K</Kbd>
-      </Sidebar.MenuButton>
-    </Sidebar.Menu>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        inputVariants(),
+        "hover:bg-kumo-control-hover flex w-full cursor-pointer items-center",
+        "group-data-[state=collapsed]/sidebar:size-8 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:self-center group-data-[state=collapsed]/sidebar:px-0",
+      )}
+    >
+      <MagnifyingGlassIcon className="text-kumo-subtle size-4 shrink-0" />
+      {/* The label carries placeholder weight, not body weight — it is a prompt,
+          not content. Both it and the hint go with the rail when it collapses. */}
+      <span className="text-kumo-subtle flex-1 truncate text-left group-data-[state=collapsed]/sidebar:hidden">
+        Quick search…
+      </span>
+      <Kbd className="group-data-[state=collapsed]/sidebar:hidden">⌘K</Kbd>
+    </button>
   </Sidebar.Group>
 );
 

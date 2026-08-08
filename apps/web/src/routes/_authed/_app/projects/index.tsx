@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { ResourceListPage } from "../../../../components/resource-list-page";
+import { ShippingActivitySummary } from "../../../../components/shipping-activity";
 import { StatusDot } from "../../../../components/status-dot";
 import {
   CardList,
@@ -195,9 +196,10 @@ const projectsSkeleton = (
 );
 
 /**
- * Standing context beside the list: how many projects there are either side of
- * the archive line. Both rows are filter shortcuts — a count you cannot act on
- * is trivia.
+ * Standing context beside the list. The counts either side of the archive line
+ * are filter shortcuts — a count you cannot act on is trivia — and above them
+ * sits what the organization has actually been shipping, so the column carries
+ * a reading of the month rather than two numbers and a lot of empty card.
  */
 const ProjectsRail = ({
   orgId,
@@ -217,9 +219,9 @@ const ProjectsRail = ({
   ] as const;
 
   return (
-    <LayerCard className="flex flex-col p-4">
-      <h2 className="font-heading mb-3 text-base font-semibold">At a glance</h2>
-      <div className="flex flex-col">
+    <LayerCard className="flex flex-col gap-4 p-4">
+      <ShippingActivitySummary orgId={orgId} />
+      <div className="border-kumo-line flex flex-col border-t pt-3">
         {rows.map((row) => (
           <button
             key={row.key}

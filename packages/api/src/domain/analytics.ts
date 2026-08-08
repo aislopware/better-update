@@ -83,3 +83,33 @@ const PlatformEntry = Schema.Struct({
 export const PlatformResult = Schema.Struct({
   platforms: Schema.Array(PlatformEntry),
 });
+
+// -- Shipping activity --
+
+/**
+ * What was shipped, per day. Sourced from the updates and builds tables rather
+ * than from device telemetry, so it reads the same on a project nobody has run
+ * yet: publishing is an act the dashboard can always account for, while request
+ * metrics only exist once installs start checking in.
+ *
+ * `projectId` narrows to one project; without it the series covers every
+ * project the caller can see in their organization.
+ */
+export const ActivityParams = Schema.Struct({
+  projectId: Schema.optional(Id),
+  period: Period,
+});
+
+const ActivityEntry = Schema.Struct({
+  /** Calendar day, `YYYY-MM-DD`, UTC. */
+  date: Schema.String,
+  updates: Schema.Number,
+  builds: Schema.Number,
+});
+
+export const ActivityResult = Schema.Struct({
+  /** Dense: every day in the period is present, zeros included. */
+  series: Schema.Array(ActivityEntry),
+  totalUpdates: Schema.Number,
+  totalBuilds: Schema.Number,
+});

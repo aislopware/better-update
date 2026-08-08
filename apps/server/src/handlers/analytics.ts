@@ -2,9 +2,11 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
-import { AnalyticsRepo } from "../repositories";
+import { densifyActivity, periodStart, toDayKey } from "../domain/activity-series";
+import { ActivityRepo, AnalyticsRepo } from "../repositories";
 
 export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics", (handlers) =>
   handlers
@@ -81,6 +83,39 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
             requests: platform.requests,
             devices: platform.devices,
           })),
+        };
+      }),
+    )
+    .handle("activity", ({ urlParams: { projectId, period } }) =>
+      Effect.gen(function* () {
+        const ctx = yield* CurrentActor;
+        if (projectId !== undefined) {
+          yield* assertProjectOwnership(projectId);
+          yield* assertAccess("project", "read", { kind: "project", projectId });
+        }
+        // GitLab-style visibility (GITLAB-RBAC-SPEC §1), same rule the project
+        // list runs: owner/admin count the whole organization, a plain member
+        // counts only the projects they hold a membership row on. Asking for one
+        // project has already been authorized above, so the list is moot there.
+        const seesAll = ctx.isOwner || ctx.isSuperadmin || ctx.orgRole === "admin";
+        const visibleProjectIds =
+          seesAll || projectId !== undefined ? undefined : Object.keys(ctx.projectRoles);
+
+        const repo = yield* ActivityRepo;
+        const now = new Date();
+        const rows = yield* repo.getDailyCounts({
+          organizationId: ctx.organizationId,
+          ...(projectId === undefined ? {} : { projectId }),
+          ...(visibleProjectIds === undefined ? {} : { visibleProjectIds }),
+          since: toDayKey(periodStart(now, period)),
+        });
+
+        const series = densifyActivity(rows, now, period);
+
+        return {
+          series,
+          totalUpdates: series.reduce((sum, point) => sum + point.updates, 0),
+          totalBuilds: series.reduce((sum, point) => sum + point.builds, 0),
         };
       }),
     ),

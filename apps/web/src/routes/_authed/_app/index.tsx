@@ -19,8 +19,8 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
-import { SummaryCardsSkeleton } from "../../../components/skeletons";
-import { StatCard, StatCardGrid } from "../../../components/stat-card";
+import { ShippingActivityPanel } from "../../../components/shipping-activity";
+import { DetailCardSkeleton } from "../../../components/skeletons";
 import { RelativeTime } from "../../../lib/relative-time";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
 import { actionLabel } from "./-audit-log-view";
@@ -114,6 +114,17 @@ const RecentActivityCard = ({ orgId }: { orgId: string }) => {
   );
 };
 
+/** Where something last happened, as somewhere to go rather than a stat. */
+const LatestProjectLink = ({ project }: { project: { name: string; slug: string } }) => (
+  <Link
+    to="/projects/$projectSlug"
+    params={{ projectSlug: project.slug }}
+    className="text-kumo-subtle hover:text-kumo-default text-sm"
+  >
+    Last activity in {project.name} →
+  </Link>
+);
+
 const FirstProjectCard = () => (
   <Empty
     icon={<FolderIcon className="text-kumo-inactive size-10" />}
@@ -146,21 +157,26 @@ const OverviewContent = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <StatCardGrid>
-        <StatCard label="Active projects" value={projectsQ.data.total} />
-        <StatCard label="Members" value={membersQ.data.length} />
-        {me.canInviteMembers ? (
-          <StatCard
-            label="Pending invites"
-            value={pendingInvites ?? <Skeleton className="h-8 w-12 rounded" />}
-          />
-        ) : null}
-        <StatCard
-          label="Last activity"
-          value={<RelativeTime value={latest?.lastActivityAt} />}
-          footer={latest ? <span className="truncate">in {latest.name}</span> : undefined}
-        />
-      </StatCardGrid>
+      {/* The org's own shipping, with the standing counts alongside it. Where
+          the latest activity happened is a fact about a project, so it hangs off
+          the panel header as a link rather than occupying a metric slot. */}
+      <ShippingActivityPanel
+        orgId={orgId}
+        title="Shipping across the organization"
+        extras={[
+          { label: "Active projects", value: projectsQ.data.total },
+          { label: "Members", value: membersQ.data.length },
+          ...(me.canInviteMembers
+            ? [
+                {
+                  label: "Pending invites",
+                  value: pendingInvites ?? <Skeleton className="h-6 w-8 rounded" />,
+                },
+              ]
+            : []),
+        ]}
+        actions={latest ? <LatestProjectLink project={latest} /> : undefined}
+      />
       {projectsQ.data.total === 0 ? <FirstProjectCard /> : null}
       {me.canViewAuditLog ? <RecentActivityCard orgId={orgId} /> : null}
     </div>
@@ -172,7 +188,9 @@ const OrgOverview = () => {
   return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader title="Overview" description={`What's happening across ${activeOrg.name}.`} />
-      <Suspense fallback={<SummaryCardsSkeleton count={4} />}>
+      {/* Shaped like the activity panel it stands in for, not like the row of
+          tiles that used to be here. */}
+      <Suspense fallback={<DetailCardSkeleton rows={1} columns={2} />}>
         <OverviewContent orgId={activeOrg.id} />
       </Suspense>
     </div>

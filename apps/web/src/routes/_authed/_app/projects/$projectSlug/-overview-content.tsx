@@ -14,7 +14,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
-import { StatCard, StatCardGrid } from "../../../../../components/stat-card";
+import { ShippingActivityPanel } from "../../../../../components/shipping-activity";
 import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
@@ -214,12 +214,19 @@ export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <StatCardGrid>
-        <StatCard label="Updates" value={updates.total} />
-        <StatCard label="Builds" value={builds.total} />
-        <StatCard label="Channels" value={channelsQ.data.total} />
-        <StatCard label="Runtimes" value={runtimesQ.data.total} />
-      </StatCardGrid>
+      {/* Lifetime counts ride along as extras rather than tiles of their own:
+          how many channels a project has is shape, not activity, and it does not
+          deserve the same weight as what shipped this month. */}
+      <ShippingActivityPanel
+        orgId={orgId}
+        projectId={projectId}
+        extras={[
+          { label: "Updates, all time", value: updates.total },
+          { label: "Builds, all time", value: builds.total },
+          { label: "Channels", value: channelsQ.data.total },
+          { label: "Runtimes", value: runtimesQ.data.total },
+        ]}
+      />
 
       {isFirstRun ? (
         <FirstPublishCard />

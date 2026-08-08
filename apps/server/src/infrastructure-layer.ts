@@ -12,6 +12,7 @@ import { WorkersCacheLive } from "./cloudflare/workers-cache";
 import {
   AccountKeyRepoLive,
   AdminUsersRepoLive,
+  ActivityRepoLive,
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
   AndroidBuildCredentialsRepoLive,
@@ -180,6 +181,7 @@ export type ServerInfrastructure =
 export const RepositoryLayer = Layer.mergeAll(
   AccountKeyRepoLive,
   AdminUsersRepoLive,
+  ActivityRepoLive,
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
   AndroidBuildCredentialsRepoLive,

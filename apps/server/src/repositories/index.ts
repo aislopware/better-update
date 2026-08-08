@@ -1,5 +1,6 @@
 export { AccountKeyRepo, AccountKeyRepoLive } from "./account-keys";
 export { AdminUsersRepo, AdminUsersRepoLive } from "./admin-users";
+export { ActivityRepo, ActivityRepoLive } from "./activity";
 export { AnalyticsRepo, AnalyticsRepoLive } from "./analytics";
 export { AuthMetaRepo, AuthMetaRepoLive } from "./auth-meta";
 export {
