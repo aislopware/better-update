@@ -2,7 +2,6 @@ import {
   auditLogsInfiniteQueryOptions,
   projectsQueryOptions,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/badge";
 import { LinkButton } from "@better-update/ui/components/button";
 import {
   Card,
@@ -23,7 +22,7 @@ import { ShippingActivityPanel } from "../../../components/shipping-activity";
 import { DetailCardSkeleton } from "../../../components/skeletons";
 import { RelativeTime } from "../../../lib/relative-time";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
-import { actionLabel } from "./-audit-log-labels";
+import { actionLabel, parseAuditMetadata, readAuditResourceName } from "./-audit-log-labels";
 
 const ACTIVITY_LIMIT = 8;
 
@@ -31,28 +30,42 @@ interface ActivityEntry {
   readonly id: string;
   readonly action: string;
   readonly actorEmail: string;
-  readonly source: string;
   readonly createdAt: string;
+  readonly metadata: string | null;
 }
 
-// Compact sibling of the audit-log table row: action + actor on the left,
-// relative time on the right.
-const ActivityRow = ({ entry }: { entry: ActivityEntry }) => (
-  <div className="flex items-center justify-between gap-3 px-2 py-2.5">
-    <span className="flex min-w-0 flex-col gap-0.5">
-      <span className="truncate text-sm font-medium" title={entry.action}>
-        {actionLabel(entry.action)}
+/**
+ * Compact sibling of the audit-log table row: what happened and to which thing
+ * on the first line, who did it on the second, when on the right.
+ *
+ * The thing used to be missing, which left three consecutive rows all reading
+ * "Build upload" over three different addresses — the same event three times, as
+ * far as the page was saying. It also used to hang a "Robot" badge off robot
+ * actors, next to an address that already begins `robot:`.
+ */
+const ActivityRow = ({ entry }: { entry: ActivityEntry }) => {
+  const resourceName = readAuditResourceName(parseAuditMetadata(entry.metadata));
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-2 py-2.5">
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex min-w-0 items-baseline gap-1.5 text-sm">
+          <span className="shrink-0 font-medium whitespace-nowrap" title={entry.action}>
+            {actionLabel(entry.action)}
+          </span>
+          {resourceName ? (
+            <span className="text-kumo-subtle truncate" title={resourceName}>
+              {resourceName}
+            </span>
+          ) : null}
+        </span>
+        <span className="text-kumo-subtle truncate text-xs">{entry.actorEmail}</span>
       </span>
-      <span className="text-kumo-subtle flex min-w-0 items-center gap-1.5 text-xs">
-        <span className="truncate">{entry.actorEmail}</span>
-        {entry.source === "robot" ? <Badge variant="secondary">Robot</Badge> : null}
+      <span className="text-kumo-subtle shrink-0 text-xs">
+        <RelativeTime value={entry.createdAt} />
       </span>
-    </span>
-    <span className="text-kumo-subtle shrink-0 text-xs">
-      <RelativeTime value={entry.createdAt} />
-    </span>
-  </div>
-);
+    </div>
+  );
+};
 
 const activitySkeleton = (
   <div className="skeleton-appear flex flex-col gap-1">

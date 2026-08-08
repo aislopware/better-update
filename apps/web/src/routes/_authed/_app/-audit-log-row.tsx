@@ -1,4 +1,3 @@
-import { safeJsonParse } from "@better-update/safe-json";
 import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
@@ -17,7 +16,12 @@ import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
-import { actionLabel, resourceTypeLabel } from "./-audit-log-labels";
+import {
+  actionLabel,
+  parseAuditMetadata,
+  readAuditResourceName,
+  resourceTypeLabel,
+} from "./-audit-log-labels";
 import { AuditResourceLink } from "./-audit-resource-link";
 
 export interface AuditLogEntry {
@@ -30,32 +34,6 @@ export interface AuditLogEntry {
   readonly createdAt: string;
   readonly metadata: string | null;
 }
-
-const parseMetadata = (metadata: string | null): unknown => {
-  if (!metadata) {
-    return null;
-  }
-  return safeJsonParse(metadata);
-};
-
-// Audit metadata is free-form JSON, but most events stamp a human identifier
-// under one of a few well-known keys — surface it so the Resource column shows
-// "production" instead of only a UUID.
-const readMetadataName = (parsed: unknown): string | undefined => {
-  if (typeof parsed !== "object" || parsed === null) {
-    return undefined;
-  }
-  const { name, message, key, email, slug } = parsed as {
-    name?: unknown;
-    message?: unknown;
-    key?: unknown;
-    email?: unknown;
-    slug?: unknown;
-  };
-  return [name, message, key, email, slug].find(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
-};
 
 // Actor identity media (spec §5.9): humans get the shared EntityAvatar seeded
 // by email; robot actors get a RobotIcon medallion — the `robot:` name prefix
@@ -206,8 +184,8 @@ export const AuditLogRow = ({
   readonly entry: AuditLogEntry;
   readonly projectSlug: string | undefined;
 }) => {
-  const parsed = parseMetadata(entry.metadata);
-  const resourceName = readMetadataName(parsed);
+  const parsed = parseAuditMetadata(entry.metadata);
+  const resourceName = readAuditResourceName(parsed);
 
   return (
     <TableRow>

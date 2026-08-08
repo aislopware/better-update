@@ -1,4 +1,5 @@
 import { AuditLogResourceType } from "@better-update/api";
+import { safeJsonParse } from "@better-update/safe-json";
 
 // Taken from the contract rather than retyped beside it: the audit-log repository
 // filters with `WHERE resource_type = ?`, so every option has to equal a stored
@@ -86,3 +87,25 @@ const ACTION_LABELS: Record<string, string> = {
 
 export const actionLabel = (action: string): string =>
   ACTION_LABELS[action] ?? humanizeActionToken(action);
+
+export const parseAuditMetadata = (metadata: string | null): unknown =>
+  metadata ? safeJsonParse(metadata) : null;
+
+// Audit metadata is free-form JSON, but most events stamp a human identifier
+// under one of a few well-known keys — surface it so a row can say "production"
+// rather than only a UUID.
+export const readAuditResourceName = (parsed: unknown): string | undefined => {
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+  const { name, message, key, email, slug } = parsed as {
+    name?: unknown;
+    message?: unknown;
+    key?: unknown;
+    email?: unknown;
+    slug?: unknown;
+  };
+  return [name, message, key, email, slug].find(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+};
