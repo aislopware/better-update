@@ -5,6 +5,7 @@ import {
   channelQueryOptions,
   pauseChannel,
   resumeChannel,
+  updatesQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
@@ -23,6 +24,7 @@ import {
 } from "../-channel-compatibility-helpers";
 import { ChannelRolloutCard } from "../-channel-rollout-card";
 import { ChannelStatusBadge } from "../-channel-status-badge";
+import { ChannelUpdatesCard, VISIBLE_UPDATE_LIMIT } from "../-channel-updates-card";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { invalidateChannels } from "../-update-helpers";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
@@ -113,14 +115,23 @@ const ChannelDetailBody = ({
   // Compatible builds are filtered + counted server-side (exact total, not a
   // newest-N scan); the matrix only decorates the rows with update-count badges
   // and supplies the missing-runtime warnings.
-  const [{ data: compatibilityData }, { data: compatibleBuildsPage }] = useSuspenseQueries({
-    queries: [
-      buildCompatibilityMatrixQueryOptions(orgId, projectId),
-      channelCompatibleBuildsQueryOptions(orgId, projectId, channel.id, {
-        limit: VISIBLE_BUILD_LIMIT,
-      }),
-    ],
-  });
+  const [{ data: compatibilityData }, { data: compatibleBuildsPage }, { data: updatesPage }] =
+    useSuspenseQueries({
+      queries: [
+        buildCompatibilityMatrixQueryOptions(orgId, projectId),
+        channelCompatibleBuildsQueryOptions(orgId, projectId, channel.id, {
+          limit: VISIBLE_BUILD_LIMIT,
+        }),
+        // The channel serves whatever lands on its branch, so the branch's
+        // newest updates are the channel's payload.
+        updatesQueryOptions(orgId, projectId, {
+          page: 1,
+          limit: VISIBLE_UPDATE_LIMIT,
+          branchId: [channel.branchId],
+          sort: "-createdAt",
+        }),
+      ],
+    });
 
   const compatibleBuilds = toCompatibleBuildEntries(
     compatibleBuildsPage.items,
@@ -166,7 +177,15 @@ const ChannelDetailBody = ({
       />
 
       <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <ChannelRolloutCard channel={channel} orgId={orgId} projectId={projectId} />
+        <div className="flex flex-col gap-4">
+          <ChannelRolloutCard channel={channel} orgId={orgId} projectId={projectId} />
+          <ChannelUpdatesCard
+            projectSlug={projectSlug}
+            branchId={channel.branchId}
+            updates={updatesPage.items}
+            totalCount={updatesPage.total}
+          />
+        </div>
         <ChannelBuildsCard
           projectSlug={projectSlug}
           compatibleBuilds={compatibleBuilds}
