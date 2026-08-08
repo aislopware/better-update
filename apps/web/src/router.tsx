@@ -6,6 +6,7 @@ import { QueryClient, defaultShouldDehydrateQuery } from "@tanstack/react-query"
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
+import { NotFoundState } from "./components/not-found-state";
 import { QueryErrorState } from "./components/query-error-state";
 import { routeTree } from "./routeTree.gen";
 
@@ -120,7 +121,7 @@ export const getRouter = () => {
     context: { queryClient },
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
-    defaultNotFoundComponent: () => <div className="p-8 text-sm">Not found</div>,
+    defaultNotFoundComponent: NotFoundState,
     defaultErrorComponent: RouterErrorFallback,
     routeTree,
     scrollRestoration: true,
