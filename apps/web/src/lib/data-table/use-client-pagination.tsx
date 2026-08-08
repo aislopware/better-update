@@ -4,6 +4,8 @@ import { pluralize } from "../pluralize";
 import { PAGE_SIZE } from "./compute-pagination";
 import { DataTablePagination } from "./data-table-pagination";
 
+import type { ListPaginationFooter } from "./list-footer";
+
 export interface ClientPaginationState<T> {
   readonly pageItems: readonly T[];
   readonly totalCount: number;
@@ -36,6 +38,20 @@ export const useClientPagination = <T,>(
     setPage,
   };
 };
+
+/**
+ * The same state in the shape `DataTableView` takes, for a client-paginated
+ * list that hands the whole panel — header, rows and closing bar — to the view.
+ */
+export const clientPaginationFooter = (
+  state: ClientPaginationState<unknown>,
+): ListPaginationFooter => ({
+  page: state.safePage,
+  perPage: PAGE_SIZE,
+  totalCount: state.totalCount,
+  entity: state.entity,
+  onChange: state.setPage,
+});
 
 /**
  * Pagination bar for a client-paginated list that sits inside a panel: the

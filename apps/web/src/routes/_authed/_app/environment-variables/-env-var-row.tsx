@@ -5,7 +5,7 @@ import type { EnvVar } from "@better-update/api";
 import type { ReactNode } from "react";
 
 import { CopyButton } from "../../../../lib/copy-button";
-import { pluralize } from "../../../../lib/pluralize";
+import { PRIMARY_COLUMN_CLASS, ROW_ACTION_DISCLOSURE } from "../../../../lib/data-table";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
@@ -28,9 +28,13 @@ export const EnvVarRow = ({
   hasActions?: boolean;
   actions?: ReactNode;
 }) => (
-  <TableRow>
-    <TableCell>
-      <div className="flex max-w-96 flex-col gap-0.5">
+  // Same disclosure every other list gives its ⋮: at rest on a fine pointer the
+  // trigger is invisible, and the row reveals it on hover or keyboard focus.
+  <TableRow className={ROW_ACTION_DISCLOSURE}>
+    {/* The key is what the row is: it takes the width the other columns leave
+        and truncates inside the cell rather than pushing the table wider. */}
+    <TableCell className={PRIMARY_COLUMN_CLASS}>
+      <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-1">
           <span className="font-mono text-sm font-medium">{envVar.key}</span>
           <CopyButton value={envVar.key} label="Key" />
@@ -61,8 +65,10 @@ export const EnvVarRow = ({
         <span className="text-kumo-subtle text-sm">Plaintext</span>
       )}
     </TableCell>
-    <TableCell className="text-kumo-subtle text-sm">
-      {envVar.revisionCount} {pluralize(envVar.revisionCount, "revision")}
+    {/* The header already says what the number counts, so the cell is a number:
+        repeating "revisions" down the column adds width without adding meaning. */}
+    <TableCell className="text-kumo-subtle text-right text-sm tabular-nums">
+      {envVar.revisionCount}
     </TableCell>
     <TableCell className="text-kumo-subtle text-sm">
       <RelativeTime value={envVar.updatedAt} />

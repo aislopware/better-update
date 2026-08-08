@@ -2,30 +2,25 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Loader } from "@better-update/ui/components/loader";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/table";
 import { DotsThreeVerticalIcon, PencilSimpleIcon } from "@phosphor-icons/react";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { useMemo } from "react";
 
 import type { RobotAccountItem } from "@better-update/api-client/react";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { PROJECT_ROLE_LABELS } from "../../-invite-dialog";
 import { CopyableId } from "../../../../../lib/copy-button";
 import {
-  ClientPaginationBar,
-  ListPanel,
-  ListPanelFooter,
+  clientPaginationFooter,
+  DataTableView,
   useClientPagination,
 } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { EditRobotDialog } from "./-project-robot-edit-dialog";
 import { useProjectRobotsHandlers } from "./-project-robots-mutations";
 
+import type { ListPaginationFooter } from "../../../../../lib/data-table";
 import type { EditTarget } from "./-project-robots-mutations";
 
 const RowActions = ({
@@ -51,7 +46,7 @@ const RowActions = ({
     >
       {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
     </DropdownMenu.Trigger>
-    <DropdownMenu.Content align="end">
+    <DropdownMenu.Content align="end" className="w-auto">
       <DropdownMenu.Item
         onClick={() => {
           onEdit({ id: robot.id, name: robot.name, role: robot.role });
@@ -64,6 +59,52 @@ const RowActions = ({
   </DropdownMenu>
 );
 
+const robotColumns = (
+  pendingRobotId: string | undefined,
+  onEdit: (target: EditTarget) => void,
+): readonly ColumnDef<RobotAccountItem>[] => [
+  {
+    id: "name",
+    header: "Name",
+    cell: ({ row }) => <span className="block truncate font-medium">{row.original.name}</span>,
+    enableSorting: false,
+    meta: { primary: true },
+  },
+  {
+    id: "role",
+    header: "Role",
+    cell: ({ row }) => <Badge variant="outline">{PROJECT_ROLE_LABELS[row.original.role]}</Badge>,
+    enableSorting: false,
+  },
+  {
+    id: "id",
+    header: "Id",
+    cell: ({ row }) => <CopyableId value={row.original.id} label="Robot ID" />,
+    enableSorting: false,
+    meta: { muted: true },
+  },
+  {
+    id: "createdAt",
+    header: "Created",
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
+    enableSorting: false,
+    meta: { align: "right", muted: true },
+  },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) => (
+      <RowActions
+        robot={row.original}
+        isPending={pendingRobotId === row.original.id}
+        onEdit={onEdit}
+      />
+    ),
+    enableSorting: false,
+    meta: { align: "right", stopRowClick: true },
+  },
+];
+
 // Robots are project-scoped (GITLAB-RBAC-SPEC §1b, v2): one robot = one
 // project, fixed at creation, so no project column. Name and role are edited
 // together through the row menu's Edit dialog — the page is maintainer-gated,
@@ -74,42 +115,24 @@ export const ProjectRobotsTableView = ({
   items,
   pendingRobotId,
   onEdit,
+  pagination,
 }: {
   items: readonly RobotAccountItem[];
   pendingRobotId?: string | undefined;
   onEdit: (target: EditTarget) => void;
-}) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Name</TableHead>
-        <TableHead>Role</TableHead>
-        <TableHead>Id</TableHead>
-        <TableHead>Created</TableHead>
-        <TableHead />
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((robot) => (
-        <TableRow key={robot.id}>
-          <TableCell className="font-medium">{robot.name}</TableCell>
-          <TableCell>
-            <Badge variant="outline">{PROJECT_ROLE_LABELS[robot.role]}</Badge>
-          </TableCell>
-          <TableCell className="text-kumo-subtle">
-            <CopyableId value={robot.id} label="Robot ID" />
-          </TableCell>
-          <TableCell className="text-kumo-subtle">
-            <RelativeTime value={robot.createdAt} />
-          </TableCell>
-          <TableCell className="text-right">
-            <RowActions robot={robot} isPending={pendingRobotId === robot.id} onEdit={onEdit} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
+  pagination?: ListPaginationFooter | undefined;
+}) => {
+  const columns = useMemo(() => robotColumns(pendingRobotId, onEdit), [pendingRobotId, onEdit]);
+  const data = useMemo(() => [...items], [items]);
+  const table = useReactTable({
+    data,
+    columns: [...columns],
+    enableSorting: false,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  return <DataTableView table={table} columnsCount={columns.length} pagination={pagination} />;
+};
 
 /** The robots table wired to its mutations (the row menu's Edit dialog). */
 export const ProjectRobotsTable = ({
@@ -124,16 +147,12 @@ export const ProjectRobotsTable = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <ListPanel>
-        <ProjectRobotsTableView
-          items={pagination.pageItems}
-          pendingRobotId={handlers.isEditing ? handlers.editTarget?.id : undefined}
-          onEdit={handlers.handleEditRequest}
-        />
-        <ListPanelFooter>
-          <ClientPaginationBar state={pagination} />
-        </ListPanelFooter>
-      </ListPanel>
+      <ProjectRobotsTableView
+        items={pagination.pageItems}
+        pendingRobotId={handlers.isEditing ? handlers.editTarget?.id : undefined}
+        onEdit={handlers.handleEditRequest}
+        pagination={clientPaginationFooter(pagination)}
+      />
       <EditRobotDialog
         target={handlers.editTarget}
         open={handlers.editOpen}

@@ -56,7 +56,7 @@ export interface DataTableViewProps<TData> {
 // The trigger is matched by `aria-haspopup=menu` rather than a marker
 // attribute: Kumo tags its own parts and knows nothing about the row, and the
 // only other popup a row opens is a role select, which announces `listbox`.
-const ROW_ACTION_DISCLOSURE = cn(
+export const ROW_ACTION_DISCLOSURE = cn(
   "pointer-fine:[&_[aria-haspopup=menu]]:opacity-0",
   "[&_[aria-haspopup=menu]]:transition-opacity",
   "[&_[aria-haspopup=menu]]:duration-(--duration-quick)",

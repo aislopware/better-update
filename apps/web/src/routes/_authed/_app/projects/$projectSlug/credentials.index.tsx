@@ -26,7 +26,11 @@ import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { PageHeader } from "../../../../../components/page-header";
 import { TablePanelSkeleton } from "../../../../../components/skeletons";
 import { TablePanel } from "../../../../../components/table-panel";
-import { DataTableView, PAGE_SIZE, useClientPagination } from "../../../../../lib/data-table";
+import {
+  clientPaginationFooter,
+  DataTableView,
+  useClientPagination,
+} from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { groupIosConfigs, summarizeAndroidCredentials } from "./-credentials-index-helpers";
 import { DISTRIBUTION_LABELS } from "./-ios-detail-shared";
@@ -315,13 +319,7 @@ const AndroidSection = ({
       columnsCount={columns.length}
       title={title}
       description={description}
-      pagination={{
-        page: pagination.safePage,
-        perPage: PAGE_SIZE,
-        totalCount: pagination.totalCount,
-        entity: pagination.entity,
-        onChange: pagination.setPage,
-      }}
+      pagination={clientPaginationFooter(pagination)}
       onRowClick={async (item) => {
         await navigate({
           to: "/projects/$projectSlug/credentials/android/$packageName",
@@ -373,13 +371,7 @@ const IosSection = ({
       columnsCount={columns.length}
       title={title}
       description={description}
-      pagination={{
-        page: pagination.safePage,
-        perPage: PAGE_SIZE,
-        totalCount: pagination.totalCount,
-        entity: pagination.entity,
-        onChange: pagination.setPage,
-      }}
+      pagination={clientPaginationFooter(pagination)}
       onRowClick={async (group) => {
         await navigate({
           to: "/projects/$projectSlug/credentials/ios/$bundleIdentifier",

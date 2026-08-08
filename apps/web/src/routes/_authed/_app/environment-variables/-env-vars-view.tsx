@@ -30,6 +30,7 @@ import {
   freeStringArrayParam,
   ListPanel,
   ListPanelFooter,
+  PRIMARY_COLUMN_CLASS,
   queryParam,
   useClientPagination,
   useDebouncedSearch,
@@ -244,11 +245,11 @@ const EnvVarsTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Key</TableHead>
+            <TableHead className={PRIMARY_COLUMN_CLASS}>Key</TableHead>
             <TableHead>Environment</TableHead>
             <TableHead>Scope</TableHead>
             <TableHead>Visibility</TableHead>
-            <TableHead>Revisions</TableHead>
+            <TableHead className="text-right">Revisions</TableHead>
             <TableHead>Updated</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
@@ -368,6 +369,14 @@ export const EnvVarsView = ({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Above the toolbar, where a note about the whole list belongs — under it
+          the same sentence read as a caption for the filters. */}
+      <p className="text-kumo-subtle text-sm">
+        Values are end-to-end encrypted and managed from the CLI —{" "}
+        <InlineCode>better-update env set</InlineCode> / <InlineCode>env pull</InlineCode>. You can
+        still edit each variable&rsquo;s label and description here (non-secret documentation) from
+        the row menu.
+      </p>
       <Toolbar
         mode={mode}
         searchDraft={searchDraft}
@@ -388,12 +397,6 @@ export const EnvVarsView = ({
         vault={vault}
         invalidate={invalidateEnvVars}
       />
-      <p className="text-kumo-subtle text-sm">
-        Values are end-to-end encrypted and managed from the CLI —{" "}
-        <InlineCode>better-update env set</InlineCode> / <InlineCode>env pull</InlineCode>. You can
-        still edit each variable&rsquo;s label and description here (non-secret documentation) from
-        the row menu.
-      </p>
       {renderContent()}
     </div>
   );

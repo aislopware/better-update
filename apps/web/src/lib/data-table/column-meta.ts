@@ -46,8 +46,10 @@ export const headerAlignsRight = (meta: DataTableColumnMeta | undefined): boolea
  * nothing so the truncation happens inside the cell rather than by pushing the
  * whole table wider than its frame.
  */
+export const PRIMARY_COLUMN_CLASS = "w-full max-w-0";
+
 export const columnWidthClass = (meta: DataTableColumnMeta | undefined): string | undefined =>
-  meta?.primary ? "w-full max-w-0" : undefined;
+  meta?.primary ? PRIMARY_COLUMN_CLASS : undefined;
 
 export const cellAlignClass = (meta: DataTableColumnMeta | undefined): string =>
   [
