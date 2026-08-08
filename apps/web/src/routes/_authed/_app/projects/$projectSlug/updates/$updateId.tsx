@@ -16,7 +16,7 @@ import {
 } from "@better-update/ui/components/table";
 import { FingerprintIcon, GitBranchIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 
 import type { Update, UpdateAssetEntry } from "@better-update/api";
@@ -42,6 +42,7 @@ import {
 } from "../../../../../../lib/data-table";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { RouterLink } from "../../../../../../lib/resource-link";
 
 type UpdateItem = Update;
 
@@ -70,15 +71,15 @@ const OverviewCard = ({
       <DetailStatStrip>
         <DetailStat label="Branch">
           {branchName ? (
-            <Link
+            <RouterLink
               to="/projects/$projectSlug/updates"
               params={{ projectSlug }}
               search={{ page: 1, sort: "-createdAt" as const, branchId: [primary.branchId] }}
-              className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-1.5 font-medium"
             >
               <GitBranchIcon weight="bold" className="text-kumo-subtle size-3.5" />
               {branchName}
-            </Link>
+            </RouterLink>
           ) : (
             <CopyableId value={primary.branchId} label="Branch ID" />
           )}
@@ -98,14 +99,14 @@ const OverviewCard = ({
             <span className="text-kumo-subtle italic">Not recorded</span>
           ) : (
             <>
-              <Link
+              <RouterLink
                 to="/projects/$projectSlug/fingerprints/$hash"
                 params={{ projectSlug, hash: primary.fingerprintHash }}
-                className="hover:text-kumo-default text-kumo-subtle inline-flex items-center gap-1 font-mono text-xs"
+                className="inline-flex items-center gap-1 font-mono text-xs"
               >
                 <FingerprintIcon weight="bold" className="size-3" />
                 {primary.fingerprintHash.slice(0, 12)}
-              </Link>
+              </RouterLink>
               <CopyButton value={primary.fingerprintHash} label="Fingerprint" />
             </>
           )}
@@ -317,13 +318,13 @@ const UpdateDetailContent = () => {
             <CopyableId value={primary.groupId} label="Update group ID" />
             {/* The runtime moved up out of the card below; it keeps the link it
                 had there, so nothing became read-only on the way. */}
-            <Link
+            <RouterLink
               to="/projects/$projectSlug/runtimes/$version"
               params={{ projectSlug, version: primary.runtimeVersion }}
-              className="hover:text-kumo-default font-mono text-xs underline-offset-4 hover:underline"
+              className="font-mono text-xs"
             >
               v{primary.runtimeVersion}
-            </Link>
+            </RouterLink>
             <span>
               Published <RelativeTime value={primary.createdAt} />
             </span>

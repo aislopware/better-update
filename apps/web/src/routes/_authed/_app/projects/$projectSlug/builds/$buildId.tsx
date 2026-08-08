@@ -36,6 +36,7 @@ import {
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { RouterLink } from "../../../../../../lib/resource-link";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
@@ -111,13 +112,13 @@ const BuildMetadataCard = ({
           <span className="text-kumo-subtle italic">Not recorded</span>
         ) : (
           <>
-            <Link
+            <RouterLink
               to="/projects/$projectSlug/fingerprints/$hash"
               params={{ projectSlug, hash: build.fingerprintHash }}
-              className="hover:text-kumo-default text-kumo-subtle font-mono text-xs"
+              className="font-mono text-xs"
             >
               {build.fingerprintHash.slice(0, 16)}
-            </Link>
+            </RouterLink>
             <CopyButton value={build.fingerprintHash} label="Fingerprint" />
           </>
         )}

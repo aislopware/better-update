@@ -2,7 +2,7 @@ import { submissionQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { InlineCode } from "@better-update/ui/components/inline-code";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
 import type { SubmissionItem } from "@better-update/api-client/react";
@@ -18,6 +18,7 @@ import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
 import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { RelativeTime } from "../../../../../lib/relative-time";
+import { RouterLink } from "../../../../../lib/resource-link";
 import { readSubmissionDestination } from "./-submissions-columns";
 
 // A submission's fields used to be a stack of label-in-a-40-width-column rows,
@@ -56,14 +57,14 @@ const BuildIdField = ({ buildId, projectSlug }: { buildId: string | null; projec
     <DetailField label="Build" value={null} />
   ) : (
     <DetailStat label="Build">
-      <Link
+      <RouterLink
         to="/projects/$projectSlug/builds/$buildId"
         params={{ projectSlug, buildId }}
-        className="truncate font-mono text-xs underline-offset-4 hover:underline"
+        className="truncate font-mono text-xs"
         title={buildId}
       >
         {buildId}
-      </Link>
+      </RouterLink>
       <CopyButton value={buildId} label="Build ID" />
     </DetailStat>
   );
