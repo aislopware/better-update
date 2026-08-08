@@ -34,7 +34,9 @@ import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { authKeyPrefix, orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 
-const deleteOrgTrigger = <Button variant="destructive">Delete organization</Button>;
+// The card is titled "Delete organization" and the dialog behind this button
+// asks the question in full — the button between them stays short.
+const deleteOrgTrigger = <Button variant="destructive">Delete</Button>;
 
 // Mirrors the server-side cap (handlers/logo-helpers.ts MAX_LOGO_BYTES = 2 MiB);
 // checked here for instant feedback before the upload round-trip.
@@ -319,8 +321,11 @@ const DeleteOrgSection = () => {
   return (
     <SettingCard
       destructive
-      title="Danger zone"
-      description="Permanently delete this organization and all of its data."
+      // Titled after what it does, like every other card on this page: the red
+      // border and the red button were already carrying "danger", and the
+      // heading was the only place that could say which thing was at stake.
+      title="Delete organization"
+      description="Projects, members, and credentials go with it. This cannot be undone."
       footer={
         // `alertdialog`, as every other confirmation here: a click landing
         // outside must not throw away a half-typed slug and the intent behind it.

@@ -254,7 +254,9 @@ const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
             await invalidateProjects(queryClient, project.organizationId, project.id);
           }}
         >
-          <Button variant="secondary">Archive project</Button>
+          {/* The card is titled "Archive project" and the dialog behind this
+              button says it again in full — the button itself does not have to. */}
+          <Button variant="secondary">Archive</Button>
         </ConfirmActionDialog>
       }
     />
@@ -268,8 +270,12 @@ const DeleteSection = ({ project }: { project: ProjectDetail }) => {
   return (
     <SettingCard
       destructive
-      title="Danger zone"
-      description="Permanently delete this project and all of its branches, channels, and updates."
+      // Every other card on this page is titled after what it does. "Danger
+      // zone" named a mood instead, and the mood was already being carried by
+      // the red border and the red button — leaving the one card whose heading
+      // did not say which of them was the irreversible one.
+      title="Delete project"
+      description="Branches, channels, and updates go with it. This cannot be undone."
       footer={
         <ConfirmDeleteDialog
           name={project.name}
@@ -287,7 +293,7 @@ const DeleteSection = ({ project }: { project: ProjectDetail }) => {
             await router.navigate({ to: "/projects" });
           }}
         >
-          <Button variant="destructive">Delete project</Button>
+          <Button variant="destructive">Delete</Button>
         </ConfirmDeleteDialog>
       }
     />

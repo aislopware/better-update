@@ -167,7 +167,7 @@ describe("dialog backdrop fade-out (browser)", () => {
 
   it("does not flash a regular dialog backdrop back on when closing", async () => {
     await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/settings`);
-    await page.getByRole("button", { name: "Delete project" }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
 
     const backdrop = page.locator(backdropSelector("dialog"));
     await backdrop.waitFor({ state: "visible" });
@@ -182,7 +182,7 @@ describe("dialog backdrop fade-out (browser)", () => {
 
   it("does not flash an alert dialog backdrop back on when closing", async () => {
     await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/settings`);
-    await page.getByRole("button", { name: "Archive project" }).click();
+    await page.getByRole("button", { name: "Archive", exact: true }).click();
 
     const backdrop = page.locator(backdropSelector("alertdialog"));
     await backdrop.waitFor({ state: "visible" });
