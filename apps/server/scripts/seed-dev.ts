@@ -124,7 +124,7 @@ const teammates = [
   { id: "seed-user-2", name: "Bella Tran", email: "bella.tran@example.com", role: "member" },
   { id: "seed-user-3", name: "Chris Park", email: "chris.park@example.com", role: "member" },
   { id: "seed-user-4", name: "Diego Lopez", email: "diego.lopez@example.com", role: "member" },
-  { id: "seed-user-5", name: "Emma Watson", email: "emma.w@example.com", role: "member" },
+  { id: "seed-user-5", name: "Emma Wender", email: "emma.wender@example.com", role: "member" },
 ];
 
 const runtimeVersions = ["1.0.0", "1.1.0", "1.2.0", "2.0.0"];
