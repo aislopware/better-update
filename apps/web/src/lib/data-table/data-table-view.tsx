@@ -1,4 +1,3 @@
-import { Button } from "@better-update/ui/components/button";
 import {
   Table,
   TableBody,
@@ -8,7 +7,7 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { cn } from "@better-update/ui/lib/utils";
-import { CaretRightIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { flexRender } from "@tanstack/react-table";
 
 import type { Cell, Table as ReactTableT, Row } from "@tanstack/react-table";
@@ -16,21 +15,13 @@ import type { ReactNode } from "react";
 
 import { cellAlignClass } from "./column-meta";
 import { DataTableColumnHeader } from "./data-table-column-header";
-import { DataTablePagination } from "./data-table-pagination";
+import { FilteredEmptyState } from "./list-empty-state";
+import { ListFooterArea } from "./list-footer";
 
-import type { DataTablePaginationProps } from "./data-table-pagination";
+import type { FilteredEmptyProps } from "./list-empty-state";
+import type { ListPaginationFooter } from "./list-footer";
 
-/** What a caller supplies; `isPlaceholderData` comes from the view itself. */
-export type DataTablePaginationFooter = Omit<DataTablePaginationProps, "isPlaceholderData">;
-
-export interface DataTableFilteredEmptyProps {
-  /** Plural entity noun — copy renders as "No <entity> match your filters." */
-  readonly entity: string;
-  /** True while any filter/search is active (mirror the toolbar's isFiltered). */
-  readonly isFiltered: boolean;
-  /** Wire to the same reset handler as the toolbar's onReset. */
-  readonly onClear: () => void;
-}
+export type DataTableFilteredEmptyProps = FilteredEmptyProps;
 
 export interface DataTableViewProps<TData> {
   readonly table: ReactTableT<TData>;
@@ -39,7 +30,7 @@ export interface DataTableViewProps<TData> {
   /** Plain footer text for lists that fetch everything at once. */
   readonly countLabel?: string | undefined;
   /** Paginated footer — supersedes `countLabel`, which it derives itself. */
-  readonly pagination?: DataTablePaginationFooter | undefined;
+  readonly pagination?: ListPaginationFooter | undefined;
   readonly onRowClick?: ((row: TData) => void | Promise<void>) | undefined;
   /** Shown as a full-width row when the table has no rows (filtered-empty state). */
   readonly emptyMessage?: string | undefined;
@@ -68,34 +59,6 @@ const ROW_ACTION_DISCLOSURE = cn(
   "[&_[aria-haspopup=menu][aria-expanded=true]]:opacity-100",
   "[&_[aria-haspopup=menu][data-popup-open]]:opacity-100",
 );
-
-const DataTableFooterArea = ({
-  countLabel,
-  pagination,
-  isPlaceholderData,
-}: {
-  countLabel: string | undefined;
-  pagination: DataTablePaginationFooter | undefined;
-  isPlaceholderData: boolean;
-}) => {
-  if (pagination) {
-    const { onChange: handlePageChange, ...rest } = pagination;
-    return (
-      <DataTablePagination
-        page={rest.page}
-        perPage={rest.perPage}
-        totalCount={rest.totalCount}
-        entity={rest.entity}
-        isFiltered={rest.isFiltered}
-        isPlaceholderData={isPlaceholderData}
-        onChange={handlePageChange}
-      />
-    );
-  }
-  return countLabel === undefined ? null : (
-    <span className="text-kumo-subtle text-xs tabular-nums">{countLabel}</span>
-  );
-};
 
 const isMissingValue = (value: unknown): boolean => value === undefined || value === null;
 
@@ -176,13 +139,7 @@ const FilteredEmptyRow = ({
 }) => (
   <TableRow className="hover:bg-transparent">
     <TableCell colSpan={columnsCount} className="whitespace-normal">
-      <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <MagnifyingGlassIcon className="text-kumo-subtle/72 size-5" aria-hidden />
-        <p className="text-kumo-subtle text-sm">No {entity} match your filters.</p>
-        <Button variant="secondary" size="sm" onClick={onClear}>
-          Clear filters
-        </Button>
-      </div>
+      <FilteredEmptyState entity={entity} onClear={onClear} />
     </TableCell>
   </TableRow>
 );
@@ -241,7 +198,7 @@ export const DataTableView = <TData,>({
           </TableBody>
         </Table>
       </div>
-      <DataTableFooterArea
+      <ListFooterArea
         countLabel={countLabel}
         pagination={pagination}
         isPlaceholderData={isPlaceholderData}

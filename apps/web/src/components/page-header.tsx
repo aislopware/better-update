@@ -42,7 +42,14 @@ export const PageHeader = ({
       >
         {title}
       </h1>
-      {description ? <p className="text-kumo-subtle text-base">{description}</p> : null}
+      {description ? (
+        // 16px under a 30px title, which is the step Kumo's own page block
+        // draws: a page's one line of description is not body copy, it is the
+        // second half of the heading.
+        <p className={cn("text-kumo-subtle", size === "page" ? "text-lg" : "text-base")}>
+          {description}
+        </p>
+      ) : null}
     </div>
     {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
   </header>

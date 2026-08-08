@@ -21,6 +21,8 @@ interface UseDataTableSearchResult<TColumn extends string> {
   readonly onSortingChange: (
     updater: SortingState | ((prev: SortingState) => SortingState),
   ) => void;
+  /** Set the sort token directly — for lists whose order is picked by name. */
+  readonly onSortChange: (next: string) => void;
   readonly onPageChange: (next: number) => void;
 }
 
@@ -33,17 +35,21 @@ export const useDataTableSearch = <TColumn extends string>({
   const sorting = useMemo(() => sortParamToSortingState(sort), [sort]);
   const apiSort = normalizeSortParam(sort, sortColumns, defaultSort);
 
-  const onSortingChange = (
-    updater: SortingState | ((prev: SortingState) => SortingState),
-  ): void => {
-    const next = typeof updater === "function" ? updater(sorting) : updater;
-    const nextSort =
-      next.length === 0 ? defaultSort : sortingStateToSortParam(next.slice(0, 1), defaultSort);
+  const onSortChange = (nextSort: string): void => {
     fireAndForget(
       navigate({
         to: ".",
         search: (prev: Record<string, unknown>) => ({ ...prev, sort: nextSort, page: 1 }),
       }),
+    );
+  };
+
+  const onSortingChange = (
+    updater: SortingState | ((prev: SortingState) => SortingState),
+  ): void => {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    onSortChange(
+      next.length === 0 ? defaultSort : sortingStateToSortParam(next.slice(0, 1), defaultSort),
     );
   };
 
@@ -56,5 +62,5 @@ export const useDataTableSearch = <TColumn extends string>({
     );
   };
 
-  return { sorting, apiSort, onSortingChange, onPageChange };
+  return { sorting, apiSort, onSortingChange, onSortChange, onPageChange };
 };
