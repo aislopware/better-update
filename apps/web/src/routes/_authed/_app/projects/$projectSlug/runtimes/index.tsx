@@ -48,25 +48,30 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     enableSorting: false,
     meta: { primary: true },
   },
+  // The header already says what the number counts, so the cells are numbers:
+  // repeating "builds" down the column adds width without adding meaning, and
+  // a right-aligned tabular column is scannable in a way a ragged one is not.
   {
     id: "buildsCount",
     header: "Builds",
     cell: ({ row }) => (
       <span className={row.original.buildsCount > 0 ? undefined : "text-kumo-subtle"}>
-        {row.original.buildsCount} {pluralize(row.original.buildsCount, "build")}
+        {row.original.buildsCount}
       </span>
     ),
     enableSorting: false,
+    meta: { cellType: "numeric" },
   },
   {
     id: "updatesCount",
     header: "Updates",
     cell: ({ row }) => (
       <span className={row.original.updatesCount > 0 ? undefined : "text-kumo-subtle"}>
-        {row.original.updatesCount} {pluralize(row.original.updatesCount, "update")}
+        {row.original.updatesCount}
       </span>
     ),
     enableSorting: false,
+    meta: { cellType: "numeric" },
   },
   {
     id: "latestActivity",

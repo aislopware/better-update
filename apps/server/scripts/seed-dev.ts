@@ -278,6 +278,10 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
       },
       { branchId: branchByName.get("production"), branchMappingLogic: true },
     ],
+    // Required by the server's parser (`isBranchMapping`) — a saltless mapping
+    // reads as unparseable, which silently strips the rollout: the channel
+    // shows a raw branch id instead of a name and serves no update at all.
+    salt: sid("rollout-salt"),
   });
   insert("channels", {
     id: sid("channel-beta"),

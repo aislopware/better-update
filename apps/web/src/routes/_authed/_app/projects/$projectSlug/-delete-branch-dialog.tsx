@@ -8,14 +8,23 @@ import type { BranchItem } from "@better-update/api-client/react";
 import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 import { invalidateBranches } from "./-update-helpers";
 
+/**
+ * Pass `open`/`onOpenChange` when the dialog is opened from a menu: picking the
+ * item unmounts the menu, and an uncontrolled dialog would go with it. Without
+ * them the dialog carries its own trash-button trigger.
+ */
 export const DeleteBranchDialog = ({
   branch,
   orgId,
   projectId,
+  open,
+  onOpenChange,
 }: {
   branch: BranchItem;
   orgId: string;
   projectId: string;
+  open?: boolean | undefined;
+  onOpenChange?: ((next: boolean) => void) | undefined;
 }) => {
   const queryClient = useQueryClient();
 
@@ -29,15 +38,19 @@ export const DeleteBranchDialog = ({
       onSuccess={async () => {
         await invalidateBranches(queryClient, orgId, projectId);
       }}
+      open={open}
+      onOpenChange={onOpenChange}
     >
-      <Button
-        variant="ghost"
-        shape="square"
-        className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
-        aria-label="Delete branch"
-      >
-        <TrashIcon weight="bold" className="size-4" />
-      </Button>
+      {open === undefined ? (
+        <Button
+          variant="ghost"
+          shape="square"
+          className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
+          aria-label="Delete branch"
+        >
+          <TrashIcon weight="bold" className="size-4" />
+        </Button>
+      ) : undefined}
     </ConfirmDeleteDialog>
   );
 };

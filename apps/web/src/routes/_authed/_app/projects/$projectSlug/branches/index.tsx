@@ -13,8 +13,6 @@ import type { BranchItem, BranchSortColumn } from "@better-update/api-client/rea
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { CreateBranchDialog } from "../-create-branch-dialog";
-import { DeleteBranchDialog } from "../-delete-branch-dialog";
-import { RenameBranchDialog } from "../-rename-branch-dialog";
 import { PageHeader } from "../../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
@@ -32,6 +30,7 @@ import {
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { BranchRowActions } from "./-branch-row-actions";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -56,22 +55,6 @@ const BranchesEmptyState = () => (
     description="Create your first branch to start managing deployments."
   />
 );
-
-const BranchActions = ({
-  branch,
-  orgId,
-  projectId,
-}: {
-  branch: BranchItem;
-  orgId: string;
-  projectId: string;
-}) =>
-  branch.isBuiltin ? null : (
-    <div className="flex items-center justify-end gap-1">
-      <RenameBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
-      <DeleteBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
-    </div>
-  );
 
 const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<BranchItem>[] => [
   {
@@ -111,9 +94,11 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
   {
     id: "actions",
     header: "",
-    cell: ({ row }) => <BranchActions branch={row.original} orgId={orgId} projectId={projectId} />,
+    cell: ({ row }) => (
+      <BranchRowActions branch={row.original} orgId={orgId} projectId={projectId} />
+    ),
     enableSorting: false,
-    meta: { align: "right" },
+    meta: { align: "right", stopRowClick: true },
   },
 ];
 

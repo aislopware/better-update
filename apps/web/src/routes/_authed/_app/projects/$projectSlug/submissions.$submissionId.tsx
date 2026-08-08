@@ -8,7 +8,7 @@ import {
 } from "@better-update/ui/components/card";
 import { InlineCode } from "@better-update/ui/components/inline-code";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
 import type { SubmissionItem } from "@better-update/api-client/react";
@@ -42,7 +42,37 @@ const DetailRow = ({
   </div>
 );
 
-const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
+/**
+ * The build the archive came from, as somewhere to go. The list used to carry a
+ * "View build" link in every row; the path belongs here, once, next to the id
+ * it stands for.
+ */
+const BuildIdRow = ({ buildId, projectSlug }: { buildId: string | null; projectSlug: string }) =>
+  buildId === null ? (
+    <DetailRow label="Build" value={null} />
+  ) : (
+    <div className="flex items-baseline gap-3 text-sm">
+      <span className="text-kumo-subtle w-40 shrink-0">Build</span>
+      <span className="inline-flex min-w-0 items-center gap-1">
+        <Link
+          to="/projects/$projectSlug/builds/$buildId"
+          params={{ projectSlug, buildId }}
+          className="min-w-0 font-mono break-all underline-offset-4 hover:underline"
+        >
+          {buildId}
+        </Link>
+        <CopyButton value={buildId} label="Build ID" />
+      </span>
+    </div>
+  );
+
+const SubmissionDetail = ({
+  submission,
+  projectSlug,
+}: {
+  submission: SubmissionItem;
+  projectSlug: string;
+}) => (
   <>
     <DetailHeader
       title="Submission"
@@ -69,7 +99,7 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
       <CardContent className="flex flex-col gap-1.5">
         <DetailRow label="Archive source" value={submission.archiveSource} />
         <DetailRow label="Build number" value={submission.buildVersion} />
-        <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
+        <BuildIdRow buildId={submission.buildId} projectSlug={projectSlug} />
         <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
         {submission.iosConfig ? (
           <>
@@ -125,12 +155,14 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
 const SubmissionDetailContainer = ({
   orgId,
   submissionId,
+  projectSlug,
 }: {
   readonly orgId: string;
   readonly submissionId: string;
+  readonly projectSlug: string;
 }) => {
   const { data } = useSuspenseQuery(submissionQueryOptions(orgId, submissionId));
-  return <SubmissionDetail submission={data} />;
+  return <SubmissionDetail submission={data} projectSlug={projectSlug} />;
 };
 
 const SubmissionDetailSkeleton = () => (
@@ -142,11 +174,15 @@ const SubmissionDetailSkeleton = () => (
 
 const SubmissionDetailPage = () => {
   const { activeOrg } = Route.useRouteContext();
-  const { submissionId } = Route.useParams();
+  const { submissionId, projectSlug } = Route.useParams();
   return (
     <div className="flex w-full flex-col gap-4">
       <Suspense fallback={<SubmissionDetailSkeleton />}>
-        <SubmissionDetailContainer orgId={activeOrg.id} submissionId={submissionId} />
+        <SubmissionDetailContainer
+          orgId={activeOrg.id}
+          submissionId={submissionId}
+          projectSlug={projectSlug}
+        />
       </Suspense>
     </div>
   );

@@ -17,8 +17,11 @@ export const ChannelStatusBadge = ({ channel }: { channel: Channel }) => {
   if (rolloutState) {
     return (
       <StatusDot tone="info" pulse>
-        Rolling out to {channel.rolloutTargetBranchName ?? rolloutState.targetBranchId}{" "}
-        {rolloutState.percentage}%
+        {/* Name the branch when the server could resolve it; when it could not,
+            say less rather than printing an opaque id at someone. */}
+        {channel.rolloutTargetBranchName === undefined
+          ? `Rolling out ${rolloutState.percentage}%`
+          : `Rolling out to ${channel.rolloutTargetBranchName} ${rolloutState.percentage}%`}
       </StatusDot>
     );
   }

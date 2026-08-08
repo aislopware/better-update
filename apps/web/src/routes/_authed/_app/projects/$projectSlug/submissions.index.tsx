@@ -2,7 +2,7 @@ import { submissionsQueryOptions } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
@@ -54,20 +54,26 @@ const ARCHIVE_SOURCE_LABELS: Record<string, string> = {
   url: "Archive URL",
 };
 
-const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[] => [
+const columns: readonly ColumnDef<SubmissionItem>[] = [
   {
     id: "profile",
     header: "Submission",
+    // The build number leads and the profile follows: a project submits from
+    // one or two profiles, so a column of "production" tells nobody which row
+    // is which, while the number it shipped does.
+    //
+    // No width cap of its own — the column is the primary one, so the cell is
+    // as wide as the table has to spare and truncates against that.
     cell: ({ row }) => (
-      // No width cap of its own — the column is the primary one, so the cell is
-      // as wide as the table has to spare and truncates against that.
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate font-medium">{row.original.profileName}</span>
-        {row.original.buildVersion ? (
-          <span className="text-kumo-subtle truncate font-mono text-xs">
-            {row.original.buildVersion}
-          </span>
-        ) : null}
+        <span className="truncate font-medium">
+          {row.original.buildVersion === null
+            ? row.original.profileName
+            : `Build ${row.original.buildVersion}`}
+        </span>
+        <span className="text-kumo-subtle truncate font-mono text-xs">
+          {row.original.profileName}
+        </span>
       </div>
     ),
     enableSorting: false,
@@ -86,24 +92,6 @@ const buildColumns = (projectSlug: string): readonly ColumnDef<SubmissionItem>[]
       ARCHIVE_SOURCE_LABELS[row.original.archiveSource] ?? row.original.archiveSource,
     enableSorting: false,
     meta: { muted: true },
-  },
-  {
-    id: "build",
-    header: "Build",
-    cell: ({ row }) =>
-      row.original.buildId ? (
-        <Link
-          to="/projects/$projectSlug/builds/$buildId"
-          params={{ projectSlug, buildId: row.original.buildId }}
-          className="text-kumo-subtle hover:text-kumo-default text-sm underline-offset-4 hover:underline"
-        >
-          View build →
-        </Link>
-      ) : (
-        <span className="text-kumo-subtle">—</span>
-      ),
-    enableSorting: false,
-    meta: { stopRowClick: true },
   },
   {
     id: "metadata",
@@ -154,7 +142,6 @@ const SubmissionsPage = () => {
   });
 
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
-  const columns = useMemo(() => buildColumns(projectSlug), [projectSlug]);
 
   const table = useReactTable({
     data: tableData,
