@@ -316,7 +316,10 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
   return (
     <CredentialPanel
       title="Apple Teams"
-      description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict creating credentials under the team to Maintainers; new credentials start with the team's protected state."
+      // Where the rows come from is a mechanism the reader never acts on, and
+      // the counts across each row show it anyway; what is left is the rule the
+      // toggle at the end of the row enforces.
+      description="Protected teams restrict creating credentials under the team to maintainers, and new credentials start with the team's protected state."
       items={teams.items}
       noun="team"
       emptyHint={APPLE_TEAMS_EMPTY_HINT}

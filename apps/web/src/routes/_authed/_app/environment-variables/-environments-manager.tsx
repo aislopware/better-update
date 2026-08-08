@@ -409,7 +409,10 @@ const EnvironmentsPanel = ({
   return (
     <TablePanel
       title="Environments"
-      description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
+      // One sentence, and the one the reader cannot work out from the table: the
+      // three built-ins wear a Built-in badge apiece, and "add your own" was the
+      // button it was running into on the same line.
+      description="Protected environments only accept writes from maintainers and admins."
       actions={actions}
       pagination={emptyMessage === undefined ? pagination : undefined}
     >
