@@ -271,11 +271,18 @@ const EnvVarsTable = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pagination.pageItems.map((envVar) => (
+          {pagination.pageItems.map((envVar, index) => (
             <EnvVarRow
               key={envVar.id}
               envVar={envVar}
               showScope={showScope}
+              // The list is ordered by key, so a variable defined in three
+              // environments arrives as three adjacent rows. Its definition is
+              // written once, at the top of the run.
+              documentedAbove={
+                pagination.pageItems[index - 1]?.key === envVar.key &&
+                pagination.pageItems[index - 1]?.scope === envVar.scope
+              }
               hasActions
               actions={
                 // Editing the label/description needs no vault, so the row menu is

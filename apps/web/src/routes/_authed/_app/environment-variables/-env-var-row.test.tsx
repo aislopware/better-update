@@ -49,4 +49,22 @@ describe("EnvVarRow documentation", () => {
     expect(screen.getByText("API_URL")).toBeInTheDocument();
     expect(screen.queryByText(/Payment API URL/u)).not.toBeInTheDocument();
   });
+
+  it("leaves the documentation to the row above when the key repeats", () => {
+    render(
+      <table>
+        <tbody>
+          <EnvVarRow
+            envVar={baseEnvVar({ label: "Payment API URL", description: "Base URL" })}
+            documentedAbove
+          />
+        </tbody>
+      </table>,
+    );
+
+    // The same variable in another environment: its key still names it, but the
+    // definition belongs to the run and is written once at the top of it.
+    expect(screen.getByText("API_URL")).toBeInTheDocument();
+    expect(screen.queryByText(/Payment API URL/u)).not.toBeInTheDocument();
+  });
 });

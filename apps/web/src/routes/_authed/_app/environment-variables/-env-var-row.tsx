@@ -22,10 +22,18 @@ const SCOPE_LABELS: Record<string, string> = {
 export const EnvVarRow = ({
   envVar,
   showScope = true,
+  documentedAbove = false,
   hasActions = false,
   actions,
 }: {
   envVar: EnvVar;
+  /**
+   * The row directly above is the same variable in another environment, so it
+   * already carries the label and description. Those belong to the (scope, key)
+   * pair rather than to any one row, and printing them again turns one
+   * definition into three identical lines under three identical keys.
+   */
+  documentedAbove?: boolean;
   /**
    * Only a project's list mixes scopes. On the organization list every row is
    * global by definition, and a column that says the same word all the way down
@@ -46,7 +54,7 @@ export const EnvVarRow = ({
           <span className="font-mono text-sm font-medium">{envVar.key}</span>
           <CopyButton value={envVar.key} label="Key" />
         </div>
-        {envVar.label || envVar.description ? (
+        {!documentedAbove && (envVar.label || envVar.description) ? (
           <span
             className="text-kumo-subtle truncate text-xs"
             title={[envVar.label, envVar.description].filter(Boolean).join(" — ")}
