@@ -286,7 +286,10 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
   insert("channels", {
     id: sid("channel-beta"),
     project_id: ANCHOR,
-    branch_id: sid("branch-checkout"),
+    // The branch a rollout starts from, not the one it targets: the server
+    // rejects a rollout onto the channel's own branch, and pointing both at
+    // feature/new-checkout drew the split diagram as one branch to itself.
+    branch_id: branchByName.get("production"),
     name: "beta",
     is_builtin: 0,
     branch_mapping_json: rolloutMapping,
