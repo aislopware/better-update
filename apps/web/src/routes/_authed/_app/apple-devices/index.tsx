@@ -41,11 +41,9 @@ import { RegisterDeviceDialog } from "./-register-dialog";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const SORT_COLUMNS = [
-  "name",
-  "createdAt",
-  "deviceClass",
-] as const satisfies readonly DeviceSortColumn[];
+// Class left the table when the model moved under the name, so it left the
+// sort menu with it — what stays sortable is what has a header to click.
+const SORT_COLUMNS = ["name", "createdAt"] as const satisfies readonly DeviceSortColumn[];
 
 const DEFAULT_SORT = "-createdAt" as const;
 
@@ -88,7 +86,7 @@ const isSyncState = (value: unknown): value is SyncStateValue =>
 
 // Low-value columns opted into hiding via DataTableViewOptions. Applied here
 // (not in -devices-columns) so the shared column defs stay presentation-neutral.
-const HIDEABLE_COLUMN_IDS = new Set(["appleSync", "model", "createdAt"]);
+const HIDEABLE_COLUMN_IDS = new Set(["appleSync", "createdAt"]);
 
 const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode }) => (
   <Empty
@@ -107,7 +105,7 @@ const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode 
 const DevicesSkeleton = () => (
   <div className="flex flex-col gap-3">
     <FilterBarSkeleton hasSearch selectCount={4} />
-    <TableSkeleton columns={8} rows={5} />
+    <TableSkeleton columns={6} rows={5} />
   </div>
 );
 
@@ -238,7 +236,7 @@ const DevicesContent = () => {
     if (error) {
       return <QueryErrorState error={error} onRetry={refetch} />;
     }
-    return <TableSkeleton columns={8} rows={5} />;
+    return <TableSkeleton columns={6} rows={5} />;
   }
 
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {

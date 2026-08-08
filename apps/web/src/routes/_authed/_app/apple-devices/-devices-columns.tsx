@@ -11,6 +11,7 @@ import type { AppleTeamItem, DeviceClassValue, DeviceItem } from "@better-update
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { TeamCell } from "../-credential-cells";
+import { StatusDot } from "../../../../components/status-dot";
 import { CopyButton } from "../../../../lib/copy-button";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
@@ -23,6 +24,26 @@ const CLASS_LABEL: Record<DeviceClassValue, string> = {
   MAC: "Mac",
   UNKNOWN: "Unknown",
 };
+
+// What the device is sits under its name rather than in columns of its own: the
+// hardware model and the class it belongs to said the same thing three times
+// across the row, and only the model is specific enough to be worth the width.
+// Class survives as a filter chip, and as the fallback when the model is unknown.
+const NameCell = ({ device }: { device: DeviceItem }) => (
+  <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex items-center gap-2">
+      {device.enabled ? null : (
+        <Badge variant="outline" className="text-kumo-subtle">
+          Disabled
+        </Badge>
+      )}
+      <span className="truncate font-medium">{device.name}</span>
+    </div>
+    <span className="text-kumo-subtle truncate text-xs">
+      {device.model ?? CLASS_LABEL[device.deviceClass]}
+    </span>
+  </div>
+);
 
 const IdentifierCell = ({ identifier }: { identifier: string }) => (
   <div className="flex items-center gap-1.5">
@@ -37,16 +58,18 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => (
 );
 
 // `appleDevicePortalId` is set once the UDID is registered on the Apple Developer
-// Portal (via ASC), so its presence is the source of truth for "synced".
-// "Not synced" is the default state — plain muted text; the synced
-// confirmation is colored text (not a pill, so the column keeps one left edge).
+// Portal (via ASC), so its presence is the source of truth for "synced". A dot
+// rather than plain text: this is lifecycle state, and a column of grey
+// sentences reads as filler where a column of dots reads as a health check.
+// Colour marks the exception — a device left out of provisioning profiles;
+// the healthy state gets the quiet dot, since nothing needs doing about it.
 const AppleSyncCell = ({ portalId }: { portalId: string | null }) =>
   portalId === null ? (
-    <span className="text-kumo-subtle text-sm">Not synced</span>
+    <StatusDot tone="warning">Not synced</StatusDot>
   ) : (
-    <span className="text-kumo-success text-sm" title={`Apple device ID: ${portalId}`}>
-      Synced
-    </span>
+    <StatusDot tone="muted" className="text-kumo-subtle">
+      <span title={`Apple device ID: ${portalId}`}>Synced</span>
+    </StatusDot>
   );
 
 const actionsTrigger = (
@@ -127,16 +150,7 @@ export const buildDeviceColumns = (
     id: "name",
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 font-medium">
-        {row.original.enabled ? null : (
-          <Badge variant="outline" className="text-kumo-subtle">
-            Disabled
-          </Badge>
-        )}
-        {row.original.name}
-      </div>
-    ),
+    cell: ({ row }) => <NameCell device={row.original} />,
     enableSorting: true,
     meta: { primary: true },
   },
@@ -145,13 +159,6 @@ export const buildDeviceColumns = (
     header: "UDID",
     cell: ({ row }) => <IdentifierCell identifier={row.original.identifier} />,
     enableSorting: false,
-  },
-  {
-    id: "deviceClass",
-    accessorKey: "deviceClass",
-    header: "Class",
-    cell: ({ row }) => <Badge variant="secondary">{CLASS_LABEL[row.original.deviceClass]}</Badge>,
-    enableSorting: true,
   },
   {
     id: "team",
@@ -166,14 +173,6 @@ export const buildDeviceColumns = (
     id: "appleSync",
     header: "Apple sync",
     cell: ({ row }) => <AppleSyncCell portalId={row.original.appleDevicePortalId} />,
-    enableSorting: false,
-  },
-  {
-    id: "model",
-    header: "Model",
-    cell: ({ row }) => (
-      <span className="text-kumo-subtle text-sm">{row.original.model ?? "—"}</span>
-    ),
     enableSorting: false,
   },
   {
