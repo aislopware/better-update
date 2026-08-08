@@ -81,6 +81,26 @@ export const platformAnalyticsQueryOptions = (
     staleTime: 60_000,
   });
 
+/**
+ * The same activity, split by project. The key carries the ids because the
+ * response only covers what was asked for — a page of the projects list.
+ */
+export const projectActivityQueryKey = (orgId: string, projectIds: readonly string[]) =>
+  ["org", orgId, "analytics", "activity", "by-project", projectIds.toSorted()] as const;
+
+export const projectActivityQueryOptions = (
+  orgId: string,
+  projectIds: readonly string[],
+  period?: AnalyticsPeriod,
+) =>
+  queryOptions({
+    queryKey: [...projectActivityQueryKey(orgId, projectIds), ...(period ? [period] : [])],
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.analytics.projectActivity({ urlParams: { projectIds, period } }), signal),
+    enabled: projectIds.length > 0,
+    staleTime: 60_000,
+  });
+
 export const activityQueryOptions = (
   orgId: string,
   projectId: string | undefined,

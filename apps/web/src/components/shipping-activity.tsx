@@ -131,6 +131,12 @@ const StandingFact = ({ label, value }: ExtraMetric) => (
 const NO_EXTRAS: readonly ExtraMetric[] = [];
 
 const CHART_HEIGHT = 176;
+const PANEL_Y_TICKS = 5;
+/** The rail is a 300px column: the bars keep their shape, the axis loses room. */
+const RAIL_CHART_HEIGHT = 120;
+// A 120px plot is not tall enough for the ten gridlines the axis picks by
+// default — they came out as a column of single digits stacked on themselves.
+const RAIL_Y_TICKS = 3;
 
 // Days are points on a real axis, so the bars sit where the calendar puts them
 // and a quiet week is a visible gap rather than a missing label.
@@ -141,7 +147,7 @@ const toSeries = (
   series.map((point) => [new Date(`${point.date}T00:00:00Z`).getTime(), point[key]]);
 
 /** The two series' colours, resolved against the active theme. */
-const useSeriesColors = (): { readonly updates: string; readonly builds: string } => {
+export const useSeriesColors = (): { readonly updates: string; readonly builds: string } => {
   const isDarkMode = useTheme().resolvedTheme === "dark";
   return {
     updates: ChartPalette.categorical(0, isDarkMode),
@@ -153,7 +159,15 @@ const useSeriesColors = (): { readonly updates: string; readonly builds: string 
  * A month of daily counts, as stacked bars: a day is a discrete act of
  * publishing, and a bar per day says so.
  */
-const ActivityChart = ({ series }: { series: readonly ActivityPoint[] }) => {
+const ActivityChart = ({
+  series,
+  height = CHART_HEIGHT,
+  yAxisTickCount = PANEL_Y_TICKS,
+}: {
+  series: readonly ActivityPoint[];
+  height?: number;
+  yAxisTickCount?: number;
+}) => {
   const isDarkMode = useTheme().resolvedTheme === "dark";
   const colors = useSeriesColors();
   const chart = useRef<ECharts | null>(null);
@@ -171,13 +185,14 @@ const ActivityChart = ({ series }: { series: readonly ActivityPoint[] }) => {
       ref={chart}
       echarts={echarts}
       type="bar"
-      height={CHART_HEIGHT}
+      height={height}
       isDarkMode={isDarkMode}
       data={[
         { name: "Updates", color: colors.updates, data: toSeries(series, "updates") },
         { name: "Builds", color: colors.builds, data: toSeries(series, "builds") },
       ]}
       xAxisTickCount={6}
+      yAxisTickCount={yAxisTickCount}
       xAxisTickFormat={(value) => formatChartDate(new Date(value))}
       yAxisTickFormat={compactNumber}
       tooltipValueFormat={(value) => numberFormatter.format(value)}
@@ -187,6 +202,7 @@ const ActivityChart = ({ series }: { series: readonly ActivityPoint[] }) => {
 };
 
 const chartSkeleton = <Skeleton className="h-44 w-full rounded-md" />;
+const railChartSkeleton = <Skeleton className="h-30 w-full rounded-md" />;
 
 interface ActivityResult {
   readonly series: readonly ActivityPoint[];
@@ -264,6 +280,38 @@ export const ShippingActivityPanel = ({
           </div>
         </ListPanelFooter>
       ) : null}
+    </ListPanel>
+  );
+};
+
+/**
+ * Rail form: the same month, read down a 300px column instead of across the
+ * page.
+ *
+ * The panel form is the hero of a page whose subject is the shipping — the
+ * organization's overview, a project's overview. A list page's subject is the
+ * list, so the same card at the top of it was the third appearance of one
+ * drawing, and the widest thing on a page that had rows to show. Here it is
+ * context beside the list: the totals stack, the bars keep the axis they are
+ * read against, and the rows carry their own shape.
+ */
+export const ShippingActivityRail = ({ orgId }: { orgId: string }) => {
+  const { data, isPending } = useQuery(activityQueryOptions(orgId, undefined, PERIOD));
+  const series = data?.series ?? [];
+
+  return (
+    <ListPanel>
+      <ListPanelHeader title="Shipping activity" description={PERIOD_LABEL} />
+      <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-4">
+          <SeriesMetrics data={data} isPending={isPending} />
+        </div>
+        {isPending ? (
+          railChartSkeleton
+        ) : (
+          <ActivityChart series={series} height={RAIL_CHART_HEIGHT} yAxisTickCount={RAIL_Y_TICKS} />
+        )}
+      </div>
     </ListPanel>
   );
 };

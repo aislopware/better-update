@@ -11,6 +11,8 @@ import {
   ChannelAnalyticsResult,
   PlatformParams,
   PlatformResult,
+  ProjectActivityParams,
+  ProjectActivityResult,
   UpdateAnalyticsParams,
   UpdateAnalyticsResult,
 } from "../domain/analytics";
@@ -68,6 +70,17 @@ export class AnalyticsGroup extends HttpApiGroup.make("analytics")
         OpenApi.annotations({
           title: "Shipping activity",
           description: "Updates and builds published per day, for an org or one project",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("projectActivity", "/api/analytics/activity/by-project")
+      .setUrlParams(ProjectActivityParams)
+      .addSuccess(ProjectActivityResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Shipping activity by project",
+          description: "The same daily series, one series per project",
         }),
       ),
   )

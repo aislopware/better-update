@@ -29,8 +29,30 @@ export interface ActivityScope {
   readonly since: string;
 }
 
+/** The same counts, told apart by which project they came from. */
+export interface ProjectActivityDayModel extends ActivityDayModel {
+  readonly projectId: string;
+}
+
+export interface ProjectActivityScope {
+  readonly organizationId: string;
+  /**
+   * Narrow to these projects. A filter, not a grant — `visibleProjectIds` still
+   * applies — so the caller passes the page it is drawing and the response stays
+   * bounded on an organization with hundreds of projects.
+   */
+  readonly projectIds?: readonly string[] | undefined;
+  /** As above: the projects the caller may see, when that is not all of them. */
+  readonly visibleProjectIds?: readonly string[] | undefined;
+  /** Inclusive lower bound, `YYYY-MM-DD`. */
+  readonly since: string;
+}
+
 export interface ActivityRepository {
   readonly getDailyCounts: (scope: ActivityScope) => Effect.Effect<readonly ActivityDayModel[]>;
+  readonly getDailyCountsByProject: (
+    scope: ProjectActivityScope,
+  ) => Effect.Effect<readonly ProjectActivityDayModel[]>;
 }
 
 export class ActivityRepo extends Context.Tag("api/ActivityRepo")<
@@ -106,6 +128,40 @@ const mergeByDay = (points: readonly ActivityDayModel[]): readonly ActivityDayMo
       .values(),
   ].toSorted((left, right) => left.date.localeCompare(right.date));
 
+/**
+ * The one id list the grouped query binds.
+ *
+ * Two lists reach it — what the caller asked for and what the caller may see —
+ * and binding both would put two `IN` clauses in the same statement, whose
+ * parameter counts add up against D1's ceiling. They mean the same thing
+ * anyway: the answer is their intersection, which is a single list to chunk.
+ * `undefined` is "no restriction at all", which only an owner or admin asking
+ * about the whole organization reaches.
+ */
+const narrowIds = (
+  requested: readonly string[] | undefined,
+  visible: readonly string[] | undefined,
+): readonly string[] | undefined => {
+  if (requested === undefined) {
+    return visible;
+  }
+  if (visible === undefined) {
+    return requested;
+  }
+  const allowed = new Set(visible);
+  return requested.filter((id) => allowed.has(id));
+};
+
+interface ProjectCountRow extends CountRow {
+  readonly projectId: string;
+}
+
+const asProjectUpdates = (rows: readonly ProjectCountRow[]): readonly ProjectActivityDayModel[] =>
+  rows.map((row) => ({ projectId: row.projectId, date: row.day, updates: row.count, builds: 0 }));
+
+const asProjectBuilds = (rows: readonly ProjectCountRow[]): readonly ProjectActivityDayModel[] =>
+  rows.map((row) => ({ projectId: row.projectId, date: row.day, updates: 0, builds: row.count }));
+
 export const ActivityRepoLive = Layer.succeed(ActivityRepo, {
   // Two GROUP BY queries per id batch, summed by day. Updates hang off branches
   // rather than projects, so they reach the project set one join further out.
@@ -142,5 +198,54 @@ export const ActivityRepoLive = Layer.succeed(ActivityRepo, {
         ...batches.flatMap(([updateRows]) => asUpdates(updateRows)),
         ...batches.flatMap(([, buildRows]) => asBuilds(buildRows)),
       ]);
+    }),
+
+  // Same two GROUP BY queries, one column wider: the project comes back beside
+  // the day instead of being collapsed into the organization's total. No merge
+  // step — a (project, day) key appears once per table, and the two tables are
+  // folded together upstream where the series is padded out.
+  getDailyCountsByProject: (scope) =>
+    Effect.gen(function* () {
+      const ids = narrowIds(scope.projectIds, scope.visibleProjectIds);
+      if (ids?.length === 0) {
+        return [];
+      }
+      const db = yield* kyselyDb;
+
+      const batches = yield* Effect.forEach(idBatches(ids), (visible) =>
+        Effect.promise(async () => {
+          const projectIds = projectIdsQuery(db, { ...scope, projectId: undefined }, visible);
+          return Promise.all([
+            db
+              .selectFrom("updates")
+              .innerJoin("branches", "branches.id", "updates.branch_id")
+              .select((eb) => [
+                eb.ref("branches.project_id").as("projectId"),
+                eb.fn<string>("substr", ["updates.created_at", eb.val(1), eb.val(10)]).as("day"),
+                eb.fn.countAll<number>().as("count"),
+              ])
+              .where("updates.created_at", ">=", scope.since)
+              .where("branches.project_id", "in", projectIds)
+              .groupBy(["branches.project_id", "day"])
+              .execute(),
+            db
+              .selectFrom("builds")
+              .select((eb) => [
+                eb.ref("builds.project_id").as("projectId"),
+                eb.fn<string>("substr", ["builds.created_at", eb.val(1), eb.val(10)]).as("day"),
+                eb.fn.countAll<number>().as("count"),
+              ])
+              .where("builds.created_at", ">=", scope.since)
+              .where("builds.project_id", "in", projectIds)
+              .groupBy(["builds.project_id", "day"])
+              .execute(),
+          ]);
+        }),
+      );
+
+      return [
+        ...batches.flatMap(([updateRows]) => asProjectUpdates(updateRows)),
+        ...batches.flatMap(([, buildRows]) => asProjectBuilds(buildRows)),
+      ];
     }),
 });

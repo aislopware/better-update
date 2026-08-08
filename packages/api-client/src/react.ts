@@ -201,6 +201,8 @@ export {
   channelAnalyticsQueryOptions,
   platformAnalyticsQueryKey,
   platformAnalyticsQueryOptions,
+  projectActivityQueryKey,
+  projectActivityQueryOptions,
   updateAnalyticsQueryKey,
   updateAnalyticsQueryOptions,
 } from "./react/analytics";

@@ -1,4 +1,4 @@
-import { densifyActivity, periodStart, toDayKey } from "./activity-series";
+import { densifyActivity, groupProjectActivity, periodStart, toDayKey } from "./activity-series";
 
 const NOW = new Date("2026-08-08T11:30:00.000Z");
 
@@ -49,5 +49,40 @@ describe(densifyActivity, () => {
 
   it("spans the full window for a long period", () => {
     expect(densifyActivity([], NOW, "90d")).toHaveLength(90);
+  });
+});
+
+describe(groupProjectActivity, () => {
+  it("pads each project's own window and leaves silent projects out", () => {
+    const grouped = groupProjectActivity(
+      [
+        { projectId: "proj-a", date: "2026-08-03", updates: 2, builds: 0 },
+        { projectId: "proj-b", date: "2026-08-08", updates: 0, builds: 4 },
+      ],
+      NOW,
+      "7d",
+    );
+
+    expect(grouped.map((entry) => entry.projectId)).toStrictEqual(["proj-a", "proj-b"]);
+    expect(grouped[0]?.series).toHaveLength(7);
+    expect(grouped[0]?.totalUpdates).toBe(2);
+    expect(grouped[1]?.totalBuilds).toBe(4);
+  });
+
+  it("sums the two tables' counts for a day that saw both", () => {
+    // Updates and builds are counted by separate queries, so one busy day
+    // arrives as two rows carrying one count each.
+    const [entry] = groupProjectActivity(
+      [
+        { projectId: "proj-a", date: "2026-08-08", updates: 3, builds: 0 },
+        { projectId: "proj-a", date: "2026-08-08", updates: 0, builds: 5 },
+      ],
+      NOW,
+      "7d",
+    );
+
+    expect(entry?.series.at(-1)).toStrictEqual({ date: "2026-08-08", updates: 3, builds: 5 });
+    expect(entry?.totalUpdates).toBe(3);
+    expect(entry?.totalBuilds).toBe(5);
   });
 });

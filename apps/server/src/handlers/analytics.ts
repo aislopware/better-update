@@ -5,7 +5,12 @@ import { ManagementApi } from "../api";
 import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
-import { densifyActivity, periodStart, toDayKey } from "../domain/activity-series";
+import {
+  densifyActivity,
+  groupProjectActivity,
+  periodStart,
+  toDayKey,
+} from "../domain/activity-series";
 import { ActivityRepo, AnalyticsRepo } from "../repositories";
 
 export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics", (handlers) =>
@@ -117,6 +122,28 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
           totalUpdates: series.reduce((sum, point) => sum + point.updates, 0),
           totalBuilds: series.reduce((sum, point) => sum + point.builds, 0),
         };
+      }),
+    )
+    .handle("projectActivity", ({ urlParams: { projectIds, period } }) =>
+      Effect.gen(function* () {
+        const ctx = yield* CurrentActor;
+        // No per-project authorization pass: `projectIds` narrows within what
+        // the visibility rule already allows, and the organization filter in the
+        // repository is what stops an id from another org resolving at all. The
+        // same rule the ungrouped endpoint runs, told apart by project.
+        const seesAll = ctx.isOwner || ctx.isSuperadmin || ctx.orgRole === "admin";
+        const visibleProjectIds = seesAll ? undefined : Object.keys(ctx.projectRoles);
+
+        const repo = yield* ActivityRepo;
+        const now = new Date();
+        const rows = yield* repo.getDailyCountsByProject({
+          organizationId: ctx.organizationId,
+          ...(projectIds === undefined ? {} : { projectIds }),
+          ...(visibleProjectIds === undefined ? {} : { visibleProjectIds }),
+          since: toDayKey(periodStart(now, period)),
+        });
+
+        return { projects: groupProjectActivity(rows, now, period) };
       }),
     ),
 );

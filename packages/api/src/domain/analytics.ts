@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { Id } from "./common";
+import { Id, csvList } from "./common";
 
 // -- Shared --
 
@@ -112,4 +112,33 @@ export const ActivityResult = Schema.Struct({
   series: Schema.Array(ActivityEntry),
   totalUpdates: Schema.Number,
   totalBuilds: Schema.Number,
+});
+
+// -- Shipping activity, split by project --
+
+/**
+ * The same daily series, one per project, so a list of projects can draw each
+ * row's own shape instead of one organization-wide total above them all.
+ *
+ * `projectIds` narrows within what the caller can already see — it is a filter,
+ * not a grant, and the org and visibility scoping the ungrouped endpoint applies
+ * still applies here. Callers pass the page they are rendering, which is what
+ * keeps the response bounded on an organization with hundreds of projects.
+ */
+export const ProjectActivityParams = Schema.Struct({
+  projectIds: Schema.optional(csvList(Id)),
+  period: Period,
+});
+
+const ProjectActivityEntry = Schema.Struct({
+  projectId: Id,
+  /** Dense over the period, exactly like the ungrouped series. */
+  series: Schema.Array(ActivityEntry),
+  totalUpdates: Schema.Number,
+  totalBuilds: Schema.Number,
+});
+
+export const ProjectActivityResult = Schema.Struct({
+  /** Only projects with something in the window; the rest are absent, not zero-filled. */
+  projects: Schema.Array(ProjectActivityEntry),
 });
