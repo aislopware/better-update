@@ -54,7 +54,7 @@ const AndroidCredentialsDetail = () => {
   const projectId = project.id;
 
   return (
-    <div className="flex w-full flex-col gap-8">
+    <div className="flex w-full flex-col gap-4">
       <Suspense fallback={<HeaderSkeleton />}>
         <AndroidDetailHeader projectSlug={projectSlug} packageName={packageName} />
       </Suspense>

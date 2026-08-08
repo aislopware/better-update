@@ -17,6 +17,7 @@ import { cellAlignClass } from "./column-meta";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { FilteredEmptyState } from "./list-empty-state";
 import { ListFooterArea } from "./list-footer";
+import { ListPanel, ListPanelFooter } from "./list-panel";
 
 import type { FilteredEmptyProps } from "./list-empty-state";
 import type { ListPaginationFooter } from "./list-footer";
@@ -172,37 +173,37 @@ export const DataTableView = <TData,>({
   ) : (
     messageEmptyRow
   );
+  const hasFooter = pagination !== undefined || countLabel !== undefined;
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 transition-opacity",
-        isPlaceholderData ? "opacity-60" : "opacity-100",
-      )}
+    <ListPanel
+      className={cn("transition-opacity", isPlaceholderData ? "opacity-60" : "opacity-100")}
     >
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id}>
-                {group.headers.map((header) => (
-                  <DataTableColumnHeader key={header.id} header={header} />
-                ))}
-                {onRowClick ? <TableHead aria-hidden className="w-8" /> : null}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0
-              ? emptyRow
-              : rows.map((row) => <DataTableRow key={row.id} row={row} onRowClick={onRowClick} />)}
-          </TableBody>
-        </Table>
-      </div>
-      <ListFooterArea
-        countLabel={countLabel}
-        pagination={pagination}
-        isPlaceholderData={isPlaceholderData}
-      />
-    </div>
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((group) => (
+            <TableRow key={group.id}>
+              {group.headers.map((header) => (
+                <DataTableColumnHeader key={header.id} header={header} />
+              ))}
+              {onRowClick ? <TableHead aria-hidden className="w-8" /> : null}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0
+            ? emptyRow
+            : rows.map((row) => <DataTableRow key={row.id} row={row} onRowClick={onRowClick} />)}
+        </TableBody>
+      </Table>
+      {hasFooter ? (
+        <ListPanelFooter>
+          <ListFooterArea
+            countLabel={countLabel}
+            pagination={pagination}
+            isPlaceholderData={isPlaceholderData}
+          />
+        </ListPanelFooter>
+      ) : null}
+    </ListPanel>
   );
 };

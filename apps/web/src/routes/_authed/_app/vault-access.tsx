@@ -23,12 +23,15 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
+import type { ReactNode } from "react";
+
 import { CliCommandBlock } from "../../../components/cli-command-block";
-import { PageHeader, SectionHeader } from "../../../components/page-header";
-import { TableSkeleton } from "../../../components/skeletons";
+import { PageHeader } from "../../../components/page-header";
+import { TablePanelSkeleton } from "../../../components/skeletons";
+import { TablePanel } from "../../../components/table-panel";
 import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
-import { ClientPaginationFooter, useClientPagination } from "../../../lib/data-table";
+import { useClientPagination } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { membersQueryOptions } from "../../../queries/org";
@@ -61,56 +64,48 @@ const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>
     <span className="text-kumo-subtle">—</span>
   );
 
-const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => {
-  const pagination = useClientPagination(rows, "recipient");
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Recipient</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Fingerprint</TableHead>
-              <TableHead>Granted</TableHead>
-              <TableHead>Last used</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagination.pageItems.map((row) => {
-              const meta = ENCRYPTION_KEY_KIND_META[row.kind];
-              return (
-                <TableRow key={row.recipientId}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
-                  <TableCell>
-                    <OwnerCell owner={row.owner} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant={meta.variant}>{meta.label}</Badge>
-                      {row.revokedAt ? <Badge variant="error">Revoked</Badge> : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <CopyableMono value={row.fingerprint} label="Fingerprint" />
-                  </TableCell>
-                  <TableCell className="text-kumo-subtle">
-                    <RelativeTime value={row.grantedAt} />
-                  </TableCell>
-                  <TableCell className="text-kumo-subtle">
-                    <RelativeTime value={row.lastUsedAt} />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      <ClientPaginationFooter state={pagination} />
-    </div>
-  );
-};
+const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Recipient</TableHead>
+        <TableHead>Owner</TableHead>
+        <TableHead>Type</TableHead>
+        <TableHead>Fingerprint</TableHead>
+        <TableHead>Granted</TableHead>
+        <TableHead>Last used</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {rows.map((row) => {
+        const meta = ENCRYPTION_KEY_KIND_META[row.kind];
+        return (
+          <TableRow key={row.recipientId}>
+            <TableCell className="font-medium">{row.label}</TableCell>
+            <TableCell>
+              <OwnerCell owner={row.owner} />
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-1.5">
+                <Badge variant={meta.variant}>{meta.label}</Badge>
+                {row.revokedAt ? <Badge variant="error">Revoked</Badge> : null}
+              </div>
+            </TableCell>
+            <TableCell>
+              <CopyableMono value={row.fingerprint} label="Fingerprint" />
+            </TableCell>
+            <TableCell className="text-kumo-subtle">
+              <RelativeTime value={row.grantedAt} />
+            </TableCell>
+            <TableCell className="text-kumo-subtle">
+              <RelativeTime value={row.lastUsedAt} />
+            </TableCell>
+          </TableRow>
+        );
+      })}
+    </TableBody>
+  </Table>
+);
 
 const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
   <Banner
@@ -143,32 +138,54 @@ const EnvRotationPendingBanner = () => (
 );
 
 /**
+ * One vault, drawn as one panel: the vault name carries its key version as a
+ * badge, the recipients fill the body, and the count closes the bottom. Any
+ * rotation warning stands above the panel, where it reads as a state of the
+ * vault rather than a row in it.
+ */
+const VaultPanel = ({
+  title,
+  version,
+  summary,
+  banner,
+  rows,
+}: {
+  title: string;
+  version: number;
+  summary: string;
+  banner?: ReactNode;
+  rows: readonly VaultRecipientRow[];
+}) => {
+  const pagination = useClientPagination(rows, "recipient");
+  return (
+    <section className="flex flex-col gap-3">
+      {banner}
+      <TablePanel
+        title={
+          <span className="flex items-center gap-2">
+            {title}
+            <Badge variant="outline">v{version}</Badge>
+          </span>
+        }
+        description={summary}
+        pagination={rows.length === 0 ? undefined : pagination}
+      >
+        {rows.length === 0 ? (
+          <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">No recipients yet.</p>
+        ) : (
+          <RecipientsTable rows={pagination.pageItems} />
+        )}
+      </TablePanel>
+    </section>
+  );
+};
+
+/**
  * Recipients of the SEPARATE env-vault key (post-cutover): the same key kinds as
  * the credentials vault plus the members' browser account keys. Rendered only
  * once the org has cut over — before that env values are sealed under the
  * credentials vault and the section would be noise.
  */
-/** Section heading: the vault name as a title with its key version alongside as a badge. */
-const VaultSectionHeading = ({
-  title,
-  version,
-  summary,
-}: {
-  title: string;
-  version: number;
-  summary: string;
-}) => (
-  <SectionHeader
-    title={
-      <span className="flex items-center gap-2">
-        {title}
-        <Badge variant="outline">v{version}</Badge>
-      </span>
-    }
-    description={summary}
-  />
-);
-
 const EnvVaultRecipientsSection = ({
   orgId,
   envVaultVersion,
@@ -186,19 +203,13 @@ const EnvVaultRecipientsSection = ({
   const rows = joinEnvVaultRecipients(wraps.recipients, keys.items, accounts.items, owners);
 
   return (
-    <section className="flex flex-col gap-3">
-      {rotationPending ? <EnvRotationPendingBanner /> : null}
-      <VaultSectionHeading
-        title="Env vault"
-        version={envVaultVersion}
-        summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's env values`}
-      />
-      {rows.length > 0 ? (
-        <RecipientsTable rows={rows} />
-      ) : (
-        <p className="text-kumo-subtle text-sm">No env-vault recipients yet.</p>
-      )}
-    </section>
+    <VaultPanel
+      title="Env vault"
+      version={envVaultVersion}
+      summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's env values`}
+      banner={rotationPending ? <EnvRotationPendingBanner /> : null}
+      rows={rows}
+    />
   );
 };
 
@@ -221,17 +232,17 @@ const VaultAccessContent = () => {
 
   return (
     <>
-      <section className="flex flex-col gap-3">
-        {orgVault?.rotationPending ? (
-          <RotationPendingBanner reason={orgVault.rotationPendingReason} />
-        ) : null}
-        <VaultSectionHeading
-          title="Credentials vault"
-          version={vault.vaultVersion}
-          summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's credentials`}
-        />
-        <RecipientsTable rows={rows} />
-      </section>
+      <VaultPanel
+        title="Credentials vault"
+        version={vault.vaultVersion}
+        summary={`${rows.length} ${pluralize(rows.length, "recipient")} can decrypt this organization's credentials`}
+        banner={
+          orgVault?.rotationPending ? (
+            <RotationPendingBanner reason={orgVault.rotationPendingReason} />
+          ) : null
+        }
+        rows={rows}
+      />
       {orgVault !== null && orgVault.envVaultCutoverAt !== null ? (
         <EnvVaultRecipientsSection
           orgId={orgId}
@@ -252,7 +263,7 @@ const VaultAccess = () => {
         title="Vault access"
         description="Recipients that can decrypt this organization's credentials and env vaults (managed from the CLI). Env-vault access can be granted from the browser on the vault origin."
       />
-      <Suspense fallback={<TableSkeleton columns={6} rows={3} hasFooter={false} />}>
+      <Suspense fallback={<TablePanelSkeleton columns={6} rows={3} />}>
         <VaultAccessContent />
       </Suspense>
       <VaultAccessGrant orgId={activeOrg.id} />

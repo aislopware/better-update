@@ -15,11 +15,14 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useMemo } from "react";
 
-import { PageHeader, SectionHeader } from "../../../components/page-header";
-import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
+import type { ReactNode } from "react";
+
+import { PageHeader } from "../../../components/page-header";
+import { TablePanelSkeleton } from "../../../components/skeletons";
+import { TablePanel } from "../../../components/table-panel";
 import { assertCapability, isOrgAdmin } from "../../../lib/access";
 import { deriveExpiryStatus } from "../../../lib/credential-status";
-import { ClientPaginationFooter, useClientPagination } from "../../../lib/data-table";
+import { useClientPagination } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import {
   AppleTeamsEmptyState,
@@ -96,153 +99,158 @@ const ExpiryRollupBanner = ({ orgId }: { orgId: string }) => {
   );
 };
 
+interface CredentialPanelProps<T> {
+  readonly title: string;
+  readonly description: string;
+  readonly items: readonly T[];
+  /** Singular noun for the count line — "certificate", "key", "team". */
+  readonly noun: string;
+  readonly empty: ReactNode;
+  readonly children: (pageItems: readonly T[]) => ReactNode;
+}
+
+/**
+ * One credential type, drawn as one panel. Every section on this page differs
+ * only in its query and its table, so the frame, the paging and the empty line
+ * are settled once here rather than eight times below.
+ */
+const CredentialPanel = <T,>({
+  title,
+  description,
+  items,
+  noun,
+  empty,
+  children,
+}: CredentialPanelProps<T>) => {
+  const pagination = useClientPagination(items, noun);
+  return (
+    <TablePanel
+      title={title}
+      description={description}
+      pagination={items.length === 0 ? undefined : pagination}
+    >
+      {items.length === 0 ? empty : children(pagination.pageItems)}
+    </TablePanel>
+  );
+};
+
 const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
-  const pagination = useClientPagination(data.items, "certificate");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Distribution Certificates"
-        description=".p12 certs for signing iOS builds."
-      />
-      {data.items.length === 0 ? (
-        <DistributionCertificatesEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <DistributionCertificatesTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              teamsById={teamsById}
-              canManageProtection={canManageProtection}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="Distribution Certificates"
+      description=".p12 certs for signing iOS builds."
+      items={data.items}
+      noun="certificate"
+      empty={<DistributionCertificatesEmptyState />}
+    >
+      {(pageItems) => (
+        <DistributionCertificatesTable
+          items={pageItems}
+          orgId={orgId}
+          teamsById={teamsById}
+          canManageProtection={canManageProtection}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
 const PushKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushKeysQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
-  const pagination = useClientPagination(data.items, "key");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="APNs Push Keys"
-        description=".p8 keys for Apple Push Notification service."
-      />
-      {data.items.length === 0 ? (
-        <PushKeysEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <PushKeysTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              teamsById={teamsById}
-              canManageProtection={canManageProtection}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="APNs Push Keys"
+      description=".p8 keys for Apple Push Notification service."
+      items={data.items}
+      noun="key"
+      empty={<PushKeysEmptyState />}
+    >
+      {(pageItems) => (
+        <PushKeysTable
+          items={pageItems}
+          orgId={orgId}
+          teamsById={teamsById}
+          canManageProtection={canManageProtection}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
 const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
-  const pagination = useClientPagination(data.items, "certificate");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Push Certificates"
-        description="APNs Push Services SSL certificates (.p12)."
-      />
-      {data.items.length === 0 ? (
-        <PushCertificatesEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <PushCertificatesTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              teamsById={teamsById}
-              canManageProtection={canManageProtection}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="Push Certificates"
+      description="APNs Push Services SSL certificates (.p12)."
+      items={data.items}
+      noun="certificate"
+      empty={<PushCertificatesEmptyState />}
+    >
+      {(pageItems) => (
+        <PushCertificatesTable
+          items={pageItems}
+          orgId={orgId}
+          teamsById={teamsById}
+          canManageProtection={canManageProtection}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
 const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
-  const pagination = useClientPagination(data.items, "certificate");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Apple Pay Certificates"
-        description="Apple Pay payment processing certificates (.p12)."
-      />
-      {data.items.length === 0 ? (
-        <PayCertificatesEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <PayCertificatesTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              teamsById={teamsById}
-              canManageProtection={canManageProtection}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="Apple Pay Certificates"
+      description="Apple Pay payment processing certificates (.p12)."
+      items={data.items}
+      noun="certificate"
+      empty={<PayCertificatesEmptyState />}
+    >
+      {(pageItems) => (
+        <PayCertificatesTable
+          items={pageItems}
+          orgId={orgId}
+          teamsById={teamsById}
+          canManageProtection={canManageProtection}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
 const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
-  const pagination = useClientPagination(data.items, "certificate");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Pass Type ID Certificates"
-        description="Wallet Pass Type ID certificates (.p12)."
-      />
-      {data.items.length === 0 ? (
-        <PassTypeCertificatesEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <PassTypeCertificatesTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              teamsById={teamsById}
-              canManageProtection={canManageProtection}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="Pass Type ID Certificates"
+      description="Wallet Pass Type ID certificates (.p12)."
+      items={data.items}
+      noun="certificate"
+      empty={<PassTypeCertificatesEmptyState />}
+    >
+      {(pageItems) => (
+        <PassTypeCertificatesTable
+          items={pageItems}
+          orgId={orgId}
+          teamsById={teamsById}
+          canManageProtection={canManageProtection}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
@@ -252,28 +260,24 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
   // as the protection toggles. Team-scoped keys inherit their team's bindings.
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
 
-  const pagination = useClientPagination(data.items, "key");
-
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader title="App Store Connect API Keys" description=".p8 keys for the ASC API." />
-      {data.items.length === 0 ? (
-        <AscApiKeysEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <AscApiKeysTable
-              items={pagination.pageItems}
-              teamsById={teamsById}
-              orgId={orgId}
-              canManageBindings={canManageProtection}
-              canManageProtection={canManageProtection}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="App Store Connect API Keys"
+      description=".p8 keys for the ASC API."
+      items={data.items}
+      noun="key"
+      empty={<AscApiKeysEmptyState />}
+    >
+      {(pageItems) => (
+        <AscApiKeysTable
+          items={pageItems}
+          teamsById={teamsById}
+          orgId={orgId}
+          canManageBindings={canManageProtection}
+          canManageProtection={canManageProtection}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
@@ -282,72 +286,58 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
   // Protection toggles are admin/owner-only (GITLAB-RBAC-SPEC §3b) — everyone
   // else sees the read-only protected state.
   const { data: me } = useSuspenseQuery(meQueryOptions());
-  const pagination = useClientPagination(teams.items, "team");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Apple Teams"
-        description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict creating credentials under the team to Maintainers; new credentials start with the team's protected state."
-      />
-      {teams.items.length === 0 ? (
-        <AppleTeamsEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <AppleTeamsTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              canManageProtection={isOrgAdmin(me.orgRole)}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="Apple Teams"
+      description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys. Protected teams restrict creating credentials under the team to Maintainers; new credentials start with the team's protected state."
+      items={teams.items}
+      noun="team"
+      empty={<AppleTeamsEmptyState />}
+    >
+      {(pageItems) => (
+        <AppleTeamsTable
+          items={pageItems}
+          orgId={orgId}
+          canManageProtection={isOrgAdmin(me.orgRole)}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
 const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(googleServiceAccountKeysQueryOptions(orgId));
   const { data: me } = useSuspenseQuery(meQueryOptions());
-  const pagination = useClientPagination(data.items, "key");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Google Service Account Keys"
-        description=".json keys for FCM v1 push notifications. Protected keys are restricted to Maintainers."
-      />
-      {data.items.length === 0 ? (
-        <GoogleServiceAccountKeysEmptyState />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <GoogleServiceAccountKeysTable
-              items={pagination.pageItems}
-              orgId={orgId}
-              canManageProtection={isOrgAdmin(me.orgRole)}
-            />
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+    <CredentialPanel
+      title="Google Service Account Keys"
+      description=".json keys for FCM v1 push notifications. Protected keys are restricted to Maintainers."
+      items={data.items}
+      noun="key"
+      empty={<GoogleServiceAccountKeysEmptyState />}
+    >
+      {(pageItems) => (
+        <GoogleServiceAccountKeysTable
+          items={pageItems}
+          orgId={orgId}
+          canManageProtection={isOrgAdmin(me.orgRole)}
+        />
       )}
-    </section>
+    </CredentialPanel>
   );
 };
 
-const CredentialSectionSkeleton = () => (
-  <SectionSkeleton hasAction={false}>
-    <TableSkeleton columns={4} rows={2} hasFooter={false} />
-  </SectionSkeleton>
-);
+const CredentialSectionSkeleton = () => <TablePanelSkeleton rows={2} columns={4} />;
 
 const Credentials = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
   return (
-    <div className="flex w-full flex-col gap-8">
+    // Panels carry their own frame, so they stack at card spacing rather than at
+    // the wider step loose sections needed to read as separate.
+    <div className="flex w-full flex-col gap-4">
       <PageHeader
         title="Credentials"
         description="Apple and Google credentials shared across all projects in this organization."

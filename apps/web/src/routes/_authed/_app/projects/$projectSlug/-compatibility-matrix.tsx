@@ -1,12 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
-import {
   Table,
   TableBody,
   TableCell,
@@ -25,6 +18,7 @@ import type {
 import type { ReactNode } from "react";
 
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
+import { TablePanel } from "../../../../../components/table-panel";
 import { pluralize } from "../../../../../lib/pluralize";
 import { MissingMatchingBuilds } from "./-channel-compatibility";
 import { synthesizeBuildChannels } from "./-compatibility-join";
@@ -159,41 +153,35 @@ export const CompatibilityMatrix = ({
       <MissingMatchingBuilds missingRuntimeVersions={missingRuntimeVersions} showChannel />
 
       {synthesized.length > 0 && channels.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Builds × channels</CardTitle>
-            <CardDescription>
-              Check which builds can receive OTA updates from each channel — hover a cell for
-              details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <div className="overflow-hidden rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Build</TableHead>
-                    <TableHead>Runtime</TableHead>
-                    {channels.map((channel) => (
-                      <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {synthesized.map((build) => (
-                    <MatrixBuildRow key={build.id} build={build} />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {hiddenCount > 0 && (
-              <p className="text-kumo-subtle text-xs">
+        <TablePanel
+          title="Builds × channels"
+          description="Check which builds can receive OTA updates from each channel — hover a cell for details."
+          footer={
+            hiddenCount > 0 ? (
+              <span className="text-kumo-subtle text-xs">
                 Showing the first {MATRIX_ROW_LIMIT} builds of the current view — {hiddenCount} more
                 in the table below.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              </span>
+            ) : undefined
+          }
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Build</TableHead>
+                <TableHead>Runtime</TableHead>
+                {channels.map((channel) => (
+                  <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {synthesized.map((build) => (
+                <MatrixBuildRow key={build.id} build={build} />
+              ))}
+            </TableBody>
+          </Table>
+        </TablePanel>
       )}
     </div>
   );

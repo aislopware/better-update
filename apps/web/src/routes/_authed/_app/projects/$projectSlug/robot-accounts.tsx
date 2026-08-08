@@ -8,7 +8,7 @@ import { Suspense } from "react";
 import type { MeResult } from "@better-update/api-client/react";
 
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
-import { SectionHeader } from "../../../../../components/page-header";
+import { PageHeader } from "../../../../../components/page-header";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { ProjectRobotsTable } from "./-project-robots-table";
 
@@ -62,8 +62,8 @@ const ProjectRobotsList = ({ projectId }: { projectId: string }) => {
 };
 
 const ProjectRobotsPage = () => (
-  <div className="flex flex-col gap-3">
-    <SectionHeader
+  <div className="flex flex-col gap-4">
+    <PageHeader
       title="Robot accounts"
       description="This project's CI identities — one robot per project, bearer secret and vault identity in one. Rename or change roles here; creating, rotating, and revoking stay CLI-only."
     />

@@ -11,7 +11,7 @@ import type { MeResult } from "@better-update/api-client/react";
 import type { ReactNode } from "react";
 
 import { ConfirmDialog } from "../../../../../components/confirm-dialog";
-import { SectionHeader } from "../../../../../components/page-header";
+import { PageHeader } from "../../../../../components/page-header";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { sortParam, useDataTableSearch } from "../../../../../lib/data-table";
 import { AddProjectMemberDialog } from "./-project-members-add-dialog";
@@ -95,7 +95,7 @@ const ProjectMembersContent = () => {
 
   return (
     <>
-      <SectionHeader
+      <PageHeader
         title="Members"
         description="Who can access this project, and with which role. Organization owners and admins are implicit Maintainers and are not listed."
         actions={headerActions}
@@ -131,7 +131,7 @@ const ProjectMembersContent = () => {
 };
 
 const ProjectMembersPage = () => (
-  <div className="flex flex-col gap-3">
+  <div className="flex flex-col gap-4">
     <Suspense fallback={<TableSkeleton columns={4} rows={3} hasFooter={false} />}>
       <ProjectMembersContent />
     </Suspense>

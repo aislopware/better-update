@@ -4,7 +4,6 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
-import { Skeleton } from "@better-update/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -26,8 +25,10 @@ import type {
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
-import { PageHeader, SectionHeader } from "../../../../../components/page-header";
-import { ClientPaginationFooter, useClientPagination } from "../../../../../lib/data-table";
+import { PageHeader } from "../../../../../components/page-header";
+import { TablePanelSkeleton } from "../../../../../components/skeletons";
+import { TablePanel } from "../../../../../components/table-panel";
+import { useClientPagination } from "../../../../../lib/data-table";
 
 interface IosBundleGroup {
   readonly bundleIdentifier: string;
@@ -48,24 +49,14 @@ const groupBundleConfigs = (
   })).toSorted((left, right) => left.bundleIdentifier.localeCompare(right.bundleIdentifier));
 };
 
-const SectionListSkeleton = () => (
-  <div className="overflow-hidden rounded-md border">
-    <Table>
-      <TableBody>
-        {[0, 1, 2].map((index) => (
-          <TableRow key={index}>
-            <TableCell>
-              <Skeleton className="h-4 w-64 rounded" />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </div>
-);
+const SectionListSkeleton = () => <TablePanelSkeleton columns={1} rows={3} />;
+
+// The panel around it draws the frame, so the empty state drops its own.
+const PANEL_EMPTY_CLASS = "rounded-none border-0 bg-transparent";
 
 const AndroidEmpty = () => (
   <Empty
+    className={PANEL_EMPTY_CLASS}
     icon={<AndroidIcon className="text-kumo-inactive size-10" />}
     title="No application identifiers"
     description="Register an Android application identifier and bind upload keystores and Google service account keys for this project from the CLI."
@@ -77,6 +68,7 @@ const AndroidEmpty = () => (
 
 const IosEmpty = () => (
   <Empty
+    className={PANEL_EMPTY_CLASS}
     icon={<AppleIcon className="text-kumo-inactive size-10" />}
     title="No bundle identifiers"
     description="Register an iOS bundle identifier and bind distribution certificates, provisioning profiles, push keys, and App Store Connect API keys for this project from the CLI."
@@ -159,37 +151,33 @@ const AndroidSection = ({
   const pagination = useClientPagination(items, "identifier");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={
-          <span className="flex items-center gap-2">
-            <AndroidIcon className="size-4" />
-            Android
-          </span>
-        }
-      />
+    <TablePanel
+      title={
+        <span className="flex items-center gap-2">
+          <AndroidIcon className="size-4" />
+          Android
+        </span>
+      }
+      description="Application identifiers registered for this project."
+      pagination={items.length === 0 ? undefined : pagination}
+    >
       {items.length === 0 ? (
         <AndroidEmpty />
       ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Application identifier</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagination.pageItems.map((item) => (
-                  <AndroidIdentifierRow key={item.id} projectSlug={projectSlug} item={item} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Application identifier</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pagination.pageItems.map((item) => (
+              <AndroidIdentifierRow key={item.id} projectSlug={projectSlug} item={item} />
+            ))}
+          </TableBody>
+        </Table>
       )}
-    </section>
+    </TablePanel>
   );
 };
 
@@ -208,41 +196,37 @@ const IosSection = ({
   const pagination = useClientPagination(groups, "bundle identifier");
 
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={
-          <span className="flex items-center gap-2">
-            <AppleIcon className="size-4" />
-            iOS
-          </span>
-        }
-      />
+    <TablePanel
+      title={
+        <span className="flex items-center gap-2">
+          <AppleIcon className="size-4" />
+          iOS
+        </span>
+      }
+      description="Bundle identifiers registered for this project, including app extensions."
+      pagination={groups.length === 0 ? undefined : pagination}
+    >
       {groups.length === 0 ? (
         <IosEmpty />
       ) : (
-        <>
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Bundle identifier</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagination.pageItems.map((group) => (
-                  <IosIdentifierRow
-                    key={group.bundleIdentifier}
-                    projectSlug={projectSlug}
-                    group={group}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <ClientPaginationFooter state={pagination} />
-        </>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Bundle identifier</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pagination.pageItems.map((group) => (
+              <IosIdentifierRow
+                key={group.bundleIdentifier}
+                projectSlug={projectSlug}
+                group={group}
+              />
+            ))}
+          </TableBody>
+        </Table>
       )}
-    </section>
+    </TablePanel>
   );
 };
 
@@ -250,7 +234,7 @@ const ProjectCredentialsIndex = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const { projectSlug } = Route.useParams();
   return (
-    <div className="flex w-full flex-col gap-8">
+    <div className="flex w-full flex-col gap-4">
       <PageHeader
         title="Credentials"
         description="App identifiers and their signing credentials for this project. Manage bindings from the CLI."

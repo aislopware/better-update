@@ -37,6 +37,26 @@ export const useClientPagination = <T,>(
   };
 };
 
+/**
+ * Pagination bar for a client-paginated list that sits inside a panel: the
+ * count line stands even when one page holds everything, because a panel's
+ * closing bar is where its size is read off.
+ */
+export const ClientPaginationBar = ({ state }: { state: ClientPaginationState<unknown> }) => {
+  const handlePageChange = (next: number) => {
+    state.setPage(next);
+  };
+  return (
+    <DataTablePagination
+      page={state.safePage}
+      perPage={PAGE_SIZE}
+      totalCount={state.totalCount}
+      entity={state.entity}
+      onChange={handlePageChange}
+    />
+  );
+};
+
 /** Pagination footer for client-paginated lists; hidden while everything fits on one page. */
 export const ClientPaginationFooter = ({ state }: { state: ClientPaginationState<unknown> }) =>
   state.totalPages > 1 ? (

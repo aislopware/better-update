@@ -56,7 +56,7 @@ const IosCredentialsDetail = () => {
   const projectId = project.id;
 
   return (
-    <div className="flex w-full flex-col gap-8">
+    <div className="flex w-full flex-col gap-4">
       <Suspense fallback={<HeaderSkeleton />}>
         <IosDetailHeader
           orgId={orgId}

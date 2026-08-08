@@ -12,6 +12,8 @@ import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";
 
+import { ListPanel, ListPanelFooter } from "../lib/data-table";
+
 const repeat = (count: number) => Array.from({ length: count }, (_, index) => index);
 
 const CELL_WIDTH_CLASSES = ["w-32", "w-20", "w-24", "w-16", "w-28", "w-20", "w-16"] as const;
@@ -26,57 +28,82 @@ interface TableSkeletonProps {
   readonly className?: string;
 }
 
+/** The grid alone, for callers that already own the frame around it. */
+const TableRowsSkeleton = ({ columns, rows }: { columns: number; rows: number }) => (
+  <Table>
+    <TableHeader>
+      <TableRow>
+        {repeat(columns).map((index) => (
+          <TableHead key={index}>
+            <Skeleton className="h-3 w-16 rounded" />
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {repeat(rows).map((rowIndex) => (
+        <TableRow key={rowIndex}>
+          {repeat(columns).map((colIndex) => (
+            <TableCell key={colIndex}>
+              <Skeleton className={cn("h-4 rounded", cellWidthClass(colIndex))} />
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+);
+
+/** Placeholder for a `DataTableView`: rows and their count bar inside one frame. */
 export const TableSkeleton = ({
   columns = 5,
   rows = 5,
   hasFooter = true,
   className,
-}: TableSkeletonProps) => {
-  const safeColumns = Math.max(columns, 1);
-  const safeRows = Math.max(rows, 1);
-  return (
-    <div className={cn("skeleton-appear flex flex-col gap-3", className)}>
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {repeat(safeColumns).map((index) => (
-                <TableHead key={index}>
-                  <Skeleton className="h-3 w-16 rounded" />
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {repeat(safeRows).map((rowIndex) => (
-              <TableRow key={rowIndex}>
-                {repeat(safeColumns).map((colIndex) => (
-                  <TableCell key={colIndex}>
-                    <Skeleton className={cn("h-4 rounded", cellWidthClass(colIndex))} />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      {hasFooter ? (
-        <div className="flex items-center justify-between gap-2">
+}: TableSkeletonProps) => (
+  <ListPanel className={cn("skeleton-appear", className)}>
+    <TableRowsSkeleton columns={Math.max(columns, 1)} rows={Math.max(rows, 1)} />
+    {hasFooter ? (
+      <ListPanelFooter>
+        <div className="flex w-full items-center justify-between gap-2">
           <Skeleton className="h-3 w-32 rounded" />
-          <div className="flex items-center gap-4">
-            <Skeleton className="hidden h-3 w-20 rounded sm:block" />
-            <div className="flex items-center gap-1">
-              <Skeleton className="hidden size-6 rounded-md lg:block" />
-              <Skeleton className="size-6 rounded-md" />
-              <Skeleton className="size-6 rounded-md" />
-              <Skeleton className="hidden size-6 rounded-md lg:block" />
-            </div>
+          <div className="flex items-center gap-1">
+            <Skeleton className="hidden size-6 rounded-md lg:block" />
+            <Skeleton className="size-6 rounded-md" />
+            <Skeleton className="size-6 rounded-md" />
+            <Skeleton className="hidden size-6 rounded-md lg:block" />
           </div>
         </div>
-      ) : null}
+      </ListPanelFooter>
+    ) : null}
+  </ListPanel>
+);
+
+interface TablePanelSkeletonProps {
+  readonly columns?: number;
+  readonly rows?: number;
+  readonly className?: string;
+}
+
+/** Placeholder in the shape of `components/table-panel`: header, rows, count bar. */
+export const TablePanelSkeleton = ({
+  columns = 4,
+  rows = 3,
+  className,
+}: TablePanelSkeletonProps) => (
+  <ListPanel className={cn("skeleton-appear", className)}>
+    <CardHeader className="gap-2 py-4">
+      <Skeleton className="h-4 w-44 rounded" />
+      <Skeleton className="h-3 w-72 rounded" />
+    </CardHeader>
+    <div className="border-kumo-line border-t">
+      <TableRowsSkeleton columns={Math.max(columns, 1)} rows={Math.max(rows, 1)} />
     </div>
-  );
-};
+    <ListPanelFooter>
+      <Skeleton className="h-3 w-32 rounded" />
+    </ListPanelFooter>
+  </ListPanel>
+);
 
 interface FilterBarSkeletonProps {
   readonly hasSearch?: boolean;
@@ -163,25 +190,6 @@ export const ListItemsSkeleton = ({
       </div>
     ))}
   </div>
-);
-
-interface SectionSkeletonProps {
-  readonly children: ReactNode;
-  readonly hasAction?: boolean;
-  readonly className?: string;
-}
-
-export const SectionSkeleton = ({ children, hasAction, className }: SectionSkeletonProps) => (
-  <section className={cn("skeleton-appear flex flex-col gap-3", className)}>
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-4 w-44 rounded" />
-        <Skeleton className="h-3 w-72 rounded" />
-      </div>
-      {hasAction ? <Skeleton className="h-9 w-32 rounded-md" /> : null}
-    </div>
-    {children}
-  </section>
 );
 
 interface DetailCardSkeletonProps {

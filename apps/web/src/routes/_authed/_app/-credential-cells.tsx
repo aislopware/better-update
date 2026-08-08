@@ -9,11 +9,12 @@ import { formatAppleTeamType } from "./-credentials-utils";
 
 export const EmptyDash = () => <span className="text-kumo-subtle">—</span>;
 
-// The credentials page stacks eight sections — an empty section collapses to a
-// single quiet row instead of a full-height Empty card so populated sections
-// stay above the fold.
+// The credentials page stacks eight panels — an empty one collapses to a single
+// quiet line where its rows would be, instead of a full-height Empty card, so
+// the populated panels stay above the fold. The panel draws the frame, so this
+// draws none of its own.
 export const CredentialEmptyRow = ({ children }: { children: ReactNode }) => (
-  <p className="text-kumo-subtle rounded-md border border-dashed px-4 py-3 text-sm">{children}</p>
+  <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">{children}</p>
 );
 
 // Read-only per-row protected indicator (GITLAB-RBAC-SPEC §3b) for
