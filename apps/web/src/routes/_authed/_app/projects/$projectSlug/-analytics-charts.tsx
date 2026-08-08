@@ -13,7 +13,7 @@ import {
   TimeseriesChart,
 } from "@better-update/ui/components/chart";
 import { Skeleton } from "@better-update/ui/components/skeleton";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 
 import {
@@ -61,6 +61,26 @@ const ChartEmptyState = ({ message }: { message: string }) => (
     {message}
   </p>
 );
+
+/**
+ * Whether any device has reported to this project in the period. Reads the same
+ * cache keys as the adoption and platform charts below, so asking a beat early
+ * costs no extra request — and it lets the section say "nothing here yet" once
+ * instead of four times, which is what a project with no traffic looks like.
+ */
+export const useHasAnalytics = (
+  orgId: string,
+  projectId: string,
+  period: AnalyticsPeriod,
+): boolean =>
+  useSuspenseQueries({
+    queries: [
+      adoptionQueryOptions(orgId, projectId, period),
+      platformAnalyticsQueryOptions(orgId, projectId, period),
+    ],
+    combine: ([adoption, platform]) =>
+      adoption.data.updates.length > 0 || platform.data.platforms.length > 0,
+  });
 
 const ChartSummary = ({ requests, devices }: { requests: number; devices: number }) => (
   <p className="text-kumo-subtle text-sm">

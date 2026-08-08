@@ -5,7 +5,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/card";
+import { Empty } from "@better-update/ui/components/empty";
 import { Select } from "@better-update/ui/components/select";
+import { Skeleton } from "@better-update/ui/components/skeleton";
+import { ChartLineUpIcon } from "@phosphor-icons/react";
 import { Suspense } from "react";
 import { z } from "zod";
 
@@ -19,6 +22,7 @@ import {
   PlatformChart,
   UpdateTrafficChart,
   chartSkeleton,
+  useHasAnalytics,
 } from "./-analytics-charts";
 
 export const analyticsSearchSchema = z.object({
@@ -58,11 +62,44 @@ export const AnalyticsPeriodSelect = ({
   />
 );
 
-export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: AnalyticsTabProps) => {
+const GRID_CLASS = "grid gap-4 sm:grid-cols-2";
+
+const CHART_CARD_COUNT = 4;
+
+const AnalyticsSkeleton = () => (
+  <div className={GRID_CLASS}>
+    {Array.from({ length: CHART_CARD_COUNT }, (_, index) => (
+      <Skeleton key={index} className="skeleton-appear h-72 w-full rounded-lg" />
+    ))}
+  </div>
+);
+
+/**
+ * One sentence for the whole section rather than four boxes each saying the
+ * same thing: until a device checks in there is nothing to plot, and a project
+ * that has never been published to is the common case for that.
+ */
+const AnalyticsEmpty = () => (
+  <Empty
+    // A section of the page, not the whole of it: the compact size keeps the
+    // sentence from opening a screen of white under the lists above it.
+    size="sm"
+    icon={<ChartLineUpIcon className="text-kumo-inactive size-8" />}
+    title="No analytics in this period"
+    description="Adoption, platform split and request traffic appear here once devices running this project check in for updates."
+  />
+);
+
+const AnalyticsCharts = ({ orgId, projectId, search, onSearchChange }: AnalyticsTabProps) => {
   const { period, channel, update } = search;
+  const hasAnalytics = useHasAnalytics(orgId, projectId, period);
+
+  if (!hasAnalytics) {
+    return <AnalyticsEmpty />;
+  }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className={GRID_CLASS}>
       <Card>
         <CardHeader>
           <CardTitle>Update adoption</CardTitle>
@@ -129,3 +166,16 @@ export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: Analy
     </div>
   );
 };
+
+export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: AnalyticsTabProps) => (
+  // The section decides between four cards and one sentence before it can draw
+  // either, so the wait belongs here rather than inside each card.
+  <Suspense fallback={<AnalyticsSkeleton />}>
+    <AnalyticsCharts
+      orgId={orgId}
+      projectId={projectId}
+      search={search}
+      onSearchChange={onSearchChange}
+    />
+  </Suspense>
+);
