@@ -32,6 +32,8 @@ import {
   DataTableFacetedFilter,
   DataTableToolbar,
   enumArrayParam,
+  ListPanel,
+  ListPanelFooter,
   optionalStringParam,
 } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
@@ -375,39 +377,39 @@ export const AuditLogView = ({
       {items.length === 0 ? (
         <EmptyState scopeLabel={scopeLabel} />
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Resource</TableHead>
-                  <TableHead>Actor</TableHead>
-                  <TableHead className="text-right">When</TableHead>
-                  <TableHead className="w-16 pe-4" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((entry) => (
-                  <AuditLogRow key={entry.id} entry={entry} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        <ListPanel>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Action</TableHead>
+                <TableHead>Resource</TableHead>
+                <TableHead>Actor</TableHead>
+                <TableHead className="text-right">When</TableHead>
+                <TableHead className="w-16 pe-4" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((entry) => (
+                <AuditLogRow key={entry.id} entry={entry} />
+              ))}
+            </TableBody>
+          </Table>
           {hasNextPage ? (
-            <div className="flex justify-center">
-              <Button
-                variant="secondary"
-                onClick={async () => {
-                  await fetchNextPage();
-                }}
-                loading={isFetchingNextPage}
-              >
-                Load more
-              </Button>
-            </div>
+            <ListPanelFooter>
+              <div className="flex w-full justify-center">
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    await fetchNextPage();
+                  }}
+                  loading={isFetchingNextPage}
+                >
+                  Load more
+                </Button>
+              </div>
+            </ListPanelFooter>
           ) : null}
-        </div>
+        </ListPanel>
       )}
     </div>
   );

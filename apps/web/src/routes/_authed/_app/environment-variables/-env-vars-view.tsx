@@ -23,11 +23,13 @@ import { CliCommandBlock } from "../../../../components/cli-command-block";
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
-  ClientPaginationFooter,
+  ClientPaginationBar,
   DataTableFacetedFilter,
   DataTableToolbar,
   enumArrayParam,
   freeStringArrayParam,
+  ListPanel,
+  ListPanelFooter,
   queryParam,
   useClientPagination,
   useDebouncedSearch,
@@ -238,45 +240,45 @@ const EnvVarsTable = ({
     return <EmptyState />;
   }
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Key</TableHead>
-              <TableHead>Environment</TableHead>
-              <TableHead>Scope</TableHead>
-              <TableHead>Visibility</TableHead>
-              <TableHead>Revisions</TableHead>
-              <TableHead>Updated</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagination.pageItems.map((envVar) => (
-              <EnvVarRow
-                key={envVar.id}
-                envVar={envVar}
-                hasActions
-                actions={
-                  // Editing the label/description needs no vault, so the row menu is
-                  // always available; value actions inside it unlock with the vault.
-                  <EnvVarRowActions
-                    envVar={envVar}
-                    orgId={orgId}
-                    vault={vault.unlocked}
-                    invalidate={invalidate}
-                  />
-                }
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <ClientPaginationFooter state={pagination} />
-    </div>
+    <ListPanel>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Key</TableHead>
+            <TableHead>Environment</TableHead>
+            <TableHead>Scope</TableHead>
+            <TableHead>Visibility</TableHead>
+            <TableHead>Revisions</TableHead>
+            <TableHead>Updated</TableHead>
+            <TableHead>
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {pagination.pageItems.map((envVar) => (
+            <EnvVarRow
+              key={envVar.id}
+              envVar={envVar}
+              hasActions
+              actions={
+                // Editing the label/description needs no vault, so the row menu is
+                // always available; value actions inside it unlock with the vault.
+                <EnvVarRowActions
+                  envVar={envVar}
+                  orgId={orgId}
+                  vault={vault.unlocked}
+                  invalidate={invalidate}
+                />
+              }
+            />
+          ))}
+        </TableBody>
+      </Table>
+      <ListPanelFooter>
+        <ClientPaginationBar state={pagination} />
+      </ListPanelFooter>
+    </ListPanel>
   );
 };
 

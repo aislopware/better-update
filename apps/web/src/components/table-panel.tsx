@@ -1,13 +1,11 @@
-import {
-  CardAction,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
-
 import type { ReactNode } from "react";
 
-import { ClientPaginationBar, ListPanel, ListPanelFooter } from "../lib/data-table";
+import {
+  ClientPaginationBar,
+  ListPanel,
+  ListPanelFooter,
+  ListPanelHeader,
+} from "../lib/data-table";
 
 import type { ClientPaginationState } from "../lib/data-table";
 
@@ -48,14 +46,8 @@ export const TablePanel = ({
   className,
 }: TablePanelProps) => (
   <ListPanel className={className}>
-    <CardHeader className="py-4">
-      <CardTitle>{title}</CardTitle>
-      {description ? <CardDescription>{description}</CardDescription> : null}
-      {actions ? <CardAction>{actions}</CardAction> : null}
-    </CardHeader>
-    {/* The divider is the panel's, not the table's — an empty body gets one too,
-        so a panel with nothing in it still reads as a panel. */}
-    <div className="border-kumo-line border-t">{children}</div>
+    <ListPanelHeader title={title} description={description} actions={actions} />
+    {children}
     {pagination ? (
       <ListPanelFooter>
         <ClientPaginationBar state={pagination} />

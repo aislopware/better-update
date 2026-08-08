@@ -1,12 +1,5 @@
 import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/card";
 import { CloudArrowUpIcon, PackageIcon, StackIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -17,9 +10,9 @@ import type { PlatformValue } from "@better-update/api-client/react";
 
 import { PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
-import { SectionHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { StatCard } from "../../../../../../components/stat-card";
+import { TablePanel } from "../../../../../../components/table-panel";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -60,6 +53,20 @@ const RuntimeSummaryCards = ({
   </div>
 );
 
+/** Section title with its glyph, shared by the two panels on this page. */
+const RuntimeSectionTitle = ({
+  icon: Icon,
+  label,
+}: {
+  icon: typeof PackageIcon;
+  label: string;
+}) => (
+  <span className="flex items-center gap-2">
+    <Icon weight="bold" className="text-kumo-subtle size-4" />
+    {label}
+  </span>
+);
+
 const UpdateRow = ({
   update,
   branchName,
@@ -80,7 +87,7 @@ const UpdateRow = ({
   <Link
     to="/projects/$projectSlug/updates/$updateId"
     params={{ projectSlug, updateId: update.id }}
-    className="hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-2 py-2.5 first:pt-0 last:border-0 last:pb-0"
+    className="hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-4 py-3 last:border-0"
   >
     <div className="flex min-w-0 flex-col gap-0.5">
       <span className="flex items-center gap-2">
@@ -168,82 +175,63 @@ const RuntimeDetailContent = () => {
         latestActivity={latestActivity}
       />
 
-      <div className="flex flex-col gap-3">
-        <SectionHeader
-          title={
-            <span className="flex items-center gap-2">
-              <PackageIcon weight="bold" className="text-kumo-subtle size-4" />
-              Builds on this runtime
-            </span>
-          }
-          description={
-            buildsCount === 0
-              ? "No builds yet"
-              : `${buildsCount} ${pluralize(buildsCount, "build")} on runtime v${version}`
-          }
+      {buildsCount === 0 ? (
+        <TablePanel
+          title={<RuntimeSectionTitle icon={PackageIcon} label="Builds on this runtime" />}
+        >
+          <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
+            Build a binary against this runtime to see it here.
+          </p>
+        </TablePanel>
+      ) : (
+        <DataTableView
+          table={buildsTable}
+          columnsCount={buildColumns.length}
+          title={<RuntimeSectionTitle icon={PackageIcon} label="Builds on this runtime" />}
+          description={`${buildsCount} ${pluralize(buildsCount, "build")} on runtime v${version}`}
+          isPlaceholderData={false}
+          // A preview of the newest builds on this runtime rather than a page
+          // of them, so the footer counts and does not paginate — the Builds
+          // page is where they are paged through.
+          countLabel={`${buildsTableData.length} of ${buildsCount}`}
         />
-        {buildsCount === 0 ? (
-          <Card>
-            <CardContent>
-              <p className="text-kumo-subtle text-sm">
-                Build a binary against this runtime to see it here.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <DataTableView
-            table={buildsTable}
-            columnsCount={buildColumns.length}
-            isPlaceholderData={false}
-            // A preview of the newest builds on this runtime rather than a page
-            // of them, so the footer counts and does not paginate — the Builds
-            // page is where they are paged through.
-            countLabel={`${buildsTableData.length} of ${buildsCount}`}
-          />
-        )}
-      </div>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CloudArrowUpIcon weight="bold" className="text-kumo-subtle size-4" />
-            Updates on this runtime
-          </CardTitle>
-          <CardDescription>
-            {updatesCount === 0
-              ? "No updates yet"
-              : `${updatesCount} ${pluralize(updatesCount, "update")} published on runtime v${version}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {updatesCount === 0 ? (
-            <p className="text-kumo-subtle text-sm">
-              Publish an update with this runtime version to see it here.
-            </p>
-          ) : (
-            <div className="flex flex-col">
-              {updatesData.items.map((update) => (
-                <UpdateRow
-                  key={update.id}
-                  update={update}
-                  branchName={update.branchName}
-                  projectSlug={projectSlug}
-                />
-              ))}
-              {updatesCount > RUNTIME_UPDATES_LIMIT ? (
-                <Link
-                  to="/projects/$projectSlug/updates"
-                  params={{ projectSlug }}
-                  search={{ page: 1, sort: "-createdAt" as const }}
-                  className="text-kumo-subtle hover:text-kumo-default pt-3 text-sm"
-                >
-                  View all updates →
-                </Link>
-              ) : null}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <TablePanel
+        title={<RuntimeSectionTitle icon={CloudArrowUpIcon} label="Updates on this runtime" />}
+        description={
+          updatesCount === 0
+            ? "No updates yet"
+            : `${updatesCount} ${pluralize(updatesCount, "update")} published on runtime v${version}`
+        }
+        footer={
+          updatesCount > RUNTIME_UPDATES_LIMIT ? (
+            <Link
+              to="/projects/$projectSlug/updates"
+              params={{ projectSlug }}
+              search={{ page: 1, sort: "-createdAt" as const }}
+              className="text-kumo-subtle hover:text-kumo-default text-sm"
+            >
+              View all updates →
+            </Link>
+          ) : undefined
+        }
+      >
+        {updatesCount === 0 ? (
+          <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
+            Publish an update with this runtime version to see it here.
+          </p>
+        ) : (
+          updatesData.items.map((update) => (
+            <UpdateRow
+              key={update.id}
+              update={update}
+              branchName={update.branchName}
+              projectSlug={projectSlug}
+            />
+          ))
+        )}
+      </TablePanel>
     </>
   );
 };

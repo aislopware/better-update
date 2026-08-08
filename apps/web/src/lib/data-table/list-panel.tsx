@@ -1,4 +1,11 @@
-import { Card, CardFooter } from "@better-update/ui/components/card";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@better-update/ui/components/card";
 import { cn } from "@better-update/ui/lib/utils";
 
 import type { ReactNode } from "react";
@@ -18,6 +25,27 @@ export const ListPanel = ({
   className?: string | undefined;
   children: ReactNode;
 }) => <Card className={cn("gap-0 py-0", className)}>{children}</Card>;
+
+/**
+ * Opening bar of a `ListPanel` — what the rows below it are, and any control
+ * over the list as a whole. Carries the divider itself, so an empty body still
+ * reads as a panel with nothing in it.
+ */
+export const ListPanelHeader = ({
+  title,
+  description,
+  actions,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) => (
+  <CardHeader className="border-kumo-line border-b py-4">
+    <CardTitle>{title}</CardTitle>
+    {description ? <CardDescription>{description}</CardDescription> : null}
+    {actions ? <CardAction className="flex items-center gap-2">{actions}</CardAction> : null}
+  </CardHeader>
+);
 
 /** Closing bar of a `ListPanel` — the count, and page controls when there are pages. */
 export const ListPanelFooter = ({ children }: { children: ReactNode }) => (

@@ -38,10 +38,11 @@ import { useState } from "react";
 import { z } from "zod/v4";
 
 import type { EnvironmentItem } from "@better-update/api-client/react";
+import type { ReactNode } from "react";
 
 import { ConfirmDialog } from "../../../../components/confirm-dialog";
-import { SectionHeader } from "../../../../components/page-header";
-import { ClientPaginationFooter, useClientPagination } from "../../../../lib/data-table";
+import { TablePanel } from "../../../../components/table-panel";
+import { useClientPagination } from "../../../../lib/data-table";
 import { getFieldError } from "../../../../lib/form-utils";
 import { formatShortDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
@@ -152,7 +153,9 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button variant="primary" />}>
+      {/* Secondary inside a panel header: primary belongs to the page's own
+          action, and two competing primaries on one screen read as a choice. */}
+      <DialogTrigger render={<Button variant="secondary" />}>
         <PlusIcon weight="bold" data-icon="inline-start" />
         Add environment
       </DialogTrigger>
@@ -347,17 +350,62 @@ const EnvironmentRowActions = ({
 // Below this count the whole table is scannable at a glance — no filter box.
 const TABLE_FILTER_THRESHOLD = 8;
 
-const EnvironmentsTable = ({
+const EnvironmentRow = ({
+  orgId,
+  environment,
+}: {
+  orgId: string;
+  environment: EnvironmentItem;
+}) => (
+  <TableRow>
+    <TableCell>
+      <div className="flex items-center gap-2 font-medium">
+        {environment.name}
+        {environment.isBuiltin ? (
+          <Badge variant="outline" className="text-kumo-subtle">
+            Built-in
+          </Badge>
+        ) : null}
+      </div>
+    </TableCell>
+    <TableCell className="text-kumo-subtle">
+      {/* Built-ins exist since the org was created; their seeded epoch timestamp is noise. */}
+      {environment.isBuiltin ? "—" : formatShortDateTime(environment.createdAt)}
+    </TableCell>
+    <TableCell>
+      <ProtectionSwitch orgId={orgId} environment={environment} />
+    </TableCell>
+    <TableCell className="text-right">
+      <EnvironmentRowActions orgId={orgId} environment={environment} />
+    </TableCell>
+  </TableRow>
+);
+
+const EnvironmentsPanel = ({
   orgId,
   items,
+  actions,
+  emptyMessage,
 }: {
   orgId: string;
   items: readonly EnvironmentItem[];
+  actions: ReactNode;
+  /** Stands in for the rows when the filter matches nothing. */
+  emptyMessage: string | undefined;
 }) => {
+  // The page survives a filter change rather than being reset by a remount: the
+  // filter box lives in this panel's header, and remounting would pull focus out
+  // of the field mid-word. The page clamps to the last one that exists, so a
+  // narrowed list still lands on rows.
   const pagination = useClientPagination(items, "environment");
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-hidden rounded-md border">
+    <TablePanel
+      title="Environments"
+      description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
+      actions={actions}
+      pagination={emptyMessage === undefined ? pagination : undefined}
+    >
+      {emptyMessage === undefined ? (
         <Table>
           <TableHeader>
             <TableRow>
@@ -369,34 +417,14 @@ const EnvironmentsTable = ({
           </TableHeader>
           <TableBody>
             {pagination.pageItems.map((environment) => (
-              <TableRow key={environment.name}>
-                <TableCell>
-                  <div className="flex items-center gap-2 font-medium">
-                    {environment.name}
-                    {environment.isBuiltin ? (
-                      <Badge variant="outline" className="text-kumo-subtle">
-                        Built-in
-                      </Badge>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell className="text-kumo-subtle">
-                  {/* Built-ins exist since the org was created; their seeded epoch timestamp is noise. */}
-                  {environment.isBuiltin ? "—" : formatShortDateTime(environment.createdAt)}
-                </TableCell>
-                <TableCell>
-                  <ProtectionSwitch orgId={orgId} environment={environment} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <EnvironmentRowActions orgId={orgId} environment={environment} />
-                </TableCell>
-              </TableRow>
+              <EnvironmentRow key={environment.name} orgId={orgId} environment={environment} />
             ))}
           </TableBody>
         </Table>
-      </div>
-      <ClientPaginationFooter state={pagination} />
-    </div>
+      ) : (
+        <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">{emptyMessage}</p>
+      )}
+    </TablePanel>
   );
 };
 
@@ -409,15 +437,12 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
     environment.name.toLowerCase().includes(normalizedQuery),
   );
 
-  return (
-    <div className="flex flex-col gap-3">
-      <SectionHeader
-        title="Environments"
-        description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
-        actions={<CreateEnvironmentDialog orgId={orgId} />}
-      />
+  // The filter rides in the panel header beside the create button, so the whole
+  // section stays one object rather than a control floating above a frame.
+  const actions = (
+    <>
       {items.length > TABLE_FILTER_THRESHOLD ? (
-        <InputGroup className="w-full sm:w-56">
+        <InputGroup className="w-40 sm:w-56">
           <InputGroup.Input
             type="search"
             value={query}
@@ -431,13 +456,20 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
           </InputGroup.Addon>
         </InputGroup>
       ) : null}
-      {visibleItems.length === 0 && normalizedQuery ? (
-        <p className="text-kumo-subtle text-sm">No environments match “{query.trim()}”.</p>
-      ) : (
-        // Filter identity as key: a filter change remounts the table so client
-        // pagination resets to page 1.
-        <EnvironmentsTable key={normalizedQuery} orgId={orgId} items={visibleItems} />
-      )}
-    </div>
+      <CreateEnvironmentDialog orgId={orgId} />
+    </>
+  );
+
+  return (
+    <EnvironmentsPanel
+      orgId={orgId}
+      items={visibleItems}
+      actions={actions}
+      emptyMessage={
+        visibleItems.length === 0 && normalizedQuery
+          ? `No environments match \u201C${query.trim()}\u201D.`
+          : undefined
+      }
+    />
   );
 };

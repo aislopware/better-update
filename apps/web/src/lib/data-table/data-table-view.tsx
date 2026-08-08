@@ -17,7 +17,7 @@ import { cellAlignClass } from "./column-meta";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { FilteredEmptyState } from "./list-empty-state";
 import { ListFooterArea } from "./list-footer";
-import { ListPanel, ListPanelFooter } from "./list-panel";
+import { ListPanel, ListPanelFooter, ListPanelHeader } from "./list-panel";
 
 import type { FilteredEmptyProps } from "./list-empty-state";
 import type { ListPaginationFooter } from "./list-footer";
@@ -27,6 +27,13 @@ export type DataTableFilteredEmptyProps = FilteredEmptyProps;
 export interface DataTableViewProps<TData> {
   readonly table: ReactTableT<TData>;
   readonly columnsCount: number;
+  /**
+   * Names the list from inside its own frame. For a page whose whole subject is
+   * the list, leave it off — the page title already says what these rows are.
+   */
+  readonly title?: ReactNode;
+  readonly description?: ReactNode;
+  readonly actions?: ReactNode;
   readonly isPlaceholderData?: boolean | undefined;
   /** Plain footer text for lists that fetch everything at once. */
   readonly countLabel?: string | undefined;
@@ -148,6 +155,9 @@ const FilteredEmptyRow = ({
 export const DataTableView = <TData,>({
   table,
   columnsCount,
+  title,
+  description,
+  actions,
   isPlaceholderData = false,
   countLabel,
   pagination,
@@ -178,6 +188,9 @@ export const DataTableView = <TData,>({
     <ListPanel
       className={cn("transition-opacity", isPlaceholderData ? "opacity-60" : "opacity-100")}
     >
+      {title === undefined ? null : (
+        <ListPanelHeader title={title} description={description} actions={actions} />
+      )}
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((group) => (

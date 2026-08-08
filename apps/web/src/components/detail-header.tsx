@@ -27,7 +27,10 @@ interface DetailHeaderProps {
 export const DetailHeader = ({ title, badges, meta, actions, className }: DetailHeaderProps) => (
   <header className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
     <div className="flex min-w-0 flex-col gap-1.5">
-      <h1 className="font-heading flex min-w-0 items-center gap-2 text-xl leading-tight font-semibold tracking-tight">
+      {/* Same size as PageHeader's title: a detail page is a page, and a title
+          that shrinks when you open a record reads as a sub-section of the list
+          you came from rather than as the thing you navigated to. */}
+      <h1 className="font-heading flex min-w-0 items-center gap-2 text-3xl leading-tight font-semibold">
         <span className="min-w-0 truncate" title={typeof title === "string" ? title : undefined}>
           {title}
         </span>
