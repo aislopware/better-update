@@ -18,7 +18,6 @@ import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { useClientPagination } from "../../../../../../lib/data-table";
-import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
 interface RouteParams {
@@ -148,26 +147,14 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
   const header = (
     <DetailHeader
       title="Fingerprint"
-      meta={
-        <>
-          {/* The hash used to be printed twice — once here and once as a code
-              block in a card titled with the page's own title. This is the copy
-              of it that was already next to the name it belongs to. */}
-          <CopyableId value={hash} label="Fingerprint" length={16} />
-          {/* Nothing carries this hash yet is what the empty state below says;
-              saying it again as two zeroes is the same sentence in digits. */}
-          {buildCount > 0 || updateCount > 0 ? (
-            <>
-              <span>
-                {buildCount} {pluralize(buildCount, "build")}
-              </span>
-              <span>
-                {updateCount} {pluralize(updateCount, "update")}
-              </span>
-            </>
-          ) : null}
-        </>
-      }
+      // The hash used to be printed twice — once here and once as a code block
+      // in a card titled with the page's own title. This is the copy of it that
+      // was already next to the name it belongs to.
+      //
+      // The two counts that used to follow it are gone as well: each panel below
+      // ends in its own count, or says in words that it has nothing, so "1 build
+      // 0 updates" was the page reading its own contents out in advance.
+      meta={<CopyableId value={hash} label="Fingerprint" length={16} />}
     />
   );
 

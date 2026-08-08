@@ -37,7 +37,14 @@ const projectAncestors = (projectSlug: string, rest: readonly string[]): readonl
   if (section === undefined || detail.length === 0) {
     return [];
   }
-  const label = PROJECT_SECTION_LABELS[section] ?? section;
+  // Only sections this file can name get a crumb. Every real detail page sits
+  // under one of them, so an unnamed section means the address matched nothing —
+  // and the trail above a "Page not found" used to spell out the URL that failed
+  // ("Storefront iOS › settings"), which reads as a place you could go back to.
+  const label = PROJECT_SECTION_LABELS[section];
+  if (label === undefined) {
+    return [];
+  }
   const sectionCrumb: Crumb = PROJECT_LIST_SECTIONS.has(section)
     ? { label, href: `/projects/${projectSlug}/${section}` }
     : { label };
