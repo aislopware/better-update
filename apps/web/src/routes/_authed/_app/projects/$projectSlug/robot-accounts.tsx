@@ -23,7 +23,7 @@ const EmptyRobots = ({ projectId }: { projectId: string }) => (
   <Empty
     icon={<RobotIcon className="text-kumo-inactive size-10" />}
     title="No robot accounts yet"
-    description="Robot accounts are created from the CLI on a maintainer device — one robot per project, minted together with its vault access."
+    description="Robot accounts are created from the CLI on a maintainer device, minted together with their vault access."
     contents={
       <CliCommandBlock
         commands={[
@@ -65,7 +65,10 @@ const ProjectRobotsPage = () => (
   <div className="flex flex-col gap-4">
     <PageHeader
       title="Robot accounts"
-      description="This project's CI identities — one robot per project, bearer secret and vault identity in one. Rename or change roles here; creating, rotating, and revoking stay CLI-only."
+      // Not "one robot per project": nothing enforces that, and this page
+      // routinely lists two. What the reader needs is which half of the
+      // lifecycle happens here.
+      description="CI identities for this project. Rename and re-role them here; creating, rotating and revoking stay CLI-only."
     />
     <Suspense fallback={<TableSkeleton columns={4} rows={3} hasFooter={false} />}>
       <ProjectRobotsContent />

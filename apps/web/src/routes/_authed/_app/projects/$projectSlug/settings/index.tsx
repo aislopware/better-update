@@ -152,9 +152,12 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
         await form.handleSubmit();
       }}
     >
+      {/* A description only when there is something to say: "Rename this
+          project" over a field labelled Project name and a button labelled Save
+          changes is the card narrating itself. */}
       <SettingCard
         title="General"
-        description={isArchived ? "Unarchive this project to rename it." : "Rename this project."}
+        description={isArchived ? "Unarchive this project to rename it." : undefined}
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
@@ -236,7 +239,10 @@ const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
   return (
     <SettingCard
       title="Archive project"
-      description="Hide this project from your project list and make it read-only. Publishing, builds, and other changes are blocked until you unarchive it. Updates already on devices keep serving. Reversible."
+      // Two sentences, not four: "read-only" already covers the list of things
+      // that stop working, and the dialog behind the button is where "this is
+      // reversible" belongs — it is what you want to hear while deciding.
+      description="Hide this project from your list and make it read-only. Updates already on devices keep serving."
       footer={
         <ConfirmActionDialog
           title={`Archive ${project.name}?`}
@@ -305,10 +311,9 @@ const SettingsContent = () => {
 // Capped to a readable measure — see the organization settings page for why.
 const SettingsPage = () => (
   <div className="flex w-full max-w-3xl flex-col gap-6">
-    <PageHeader
-      title="Project settings"
-      description="Rename, archive, or permanently delete this project."
-    />
+    {/* No description: it listed the cards below it, each of which is titled
+        after the thing it does. */}
+    <PageHeader title="Project settings" />
     <Suspense
       fallback={
         <>
