@@ -14,6 +14,23 @@ export const DISTRIBUTION_ORDER: readonly IosBundleConfigurationItem["distributi
   "ENTERPRISE",
 ];
 
+/**
+ * The Apple team every distribution of this bundle signs with, or null when they
+ * disagree. One team is the ordinary case, and then it belongs in the header
+ * rather than repeated down a column of every table on the page.
+ */
+export const sharedAppleTeamId = (
+  configs: readonly IosBundleConfigurationItem[],
+): string | null => {
+  const [first] = configs;
+  if (first === undefined) {
+    return null;
+  }
+  return configs.every((config) => config.appleTeamId === first.appleTeamId)
+    ? first.appleTeamId
+    : null;
+};
+
 export const sortConfigsByDistribution = (
   configs: readonly IosBundleConfigurationItem[],
 ): readonly IosBundleConfigurationItem[] =>

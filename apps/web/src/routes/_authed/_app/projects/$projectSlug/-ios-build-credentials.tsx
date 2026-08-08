@@ -4,7 +4,6 @@ import {
   appleTeamsQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/badge";
 import {
   Table,
   TableBody,
@@ -23,30 +22,16 @@ import type {
   AppleTeamItem,
   IosBundleConfigurationItem,
 } from "@better-update/api-client/react";
-import type { ComponentProps } from "react";
 
-import { ProtectedBadgeCell, TeamCell } from "../../-credential-cells";
+import { ExpiryCell, ProtectedMark, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
-import { deriveExpiryStatus } from "../../../../../lib/credential-status";
-import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../lib/relative-time";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
-import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
-
-import type { CredentialStatus, CredentialStatusTone } from "../../../../../lib/credential-status";
-
-const STATUS_BADGE_VARIANT: Record<
-  CredentialStatusTone,
-  NonNullable<ComponentProps<typeof Badge>["variant"]>
-> = {
-  error: "error",
-  muted: "outline",
-  success: "success",
-  warning: "warning",
-};
-
-const StatusBadge = ({ status }: { status: CredentialStatus }) => (
-  <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
-);
+import {
+  DISTRIBUTION_LABELS,
+  sharedAppleTeamId,
+  sortConfigsByDistribution,
+} from "./-ios-detail-shared";
 
 const CertRow = ({
   cert,
@@ -54,32 +39,32 @@ const CertRow = ({
 }: {
   cert: AppleDistributionCertificateItem;
   team: AppleTeamItem | null;
-}) => {
-  const certStatus = deriveExpiryStatus(cert.validUntil);
-  return (
-    <TableRow>
-      <TableCell>
+}) => (
+  <TableRow>
+    <TableCell>
+      <div className="flex items-center gap-2">
         <CopyableMono value={cert.serialNumber} label="Serial" />
-      </TableCell>
+        <ProtectedMark isProtected={cert.protected} />
+      </div>
+      {/* Only a Developer ID certificate has one, and then it is the thing that
+          tells it apart from the App Store certificate above it. */}
+      {cert.developerIdIdentifier ? (
+        <span className="text-kumo-subtle text-xs">Developer ID {cert.developerIdIdentifier}</span>
+      ) : null}
+    </TableCell>
+    {team ? (
       <TableCell>
         <TeamCell team={team} />
       </TableCell>
-      <TableCell>
-        <ProtectedBadgeCell isProtected={cert.protected} />
-      </TableCell>
-      <TableCell>
-        <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <span>{formatShortDate(cert.validUntil)}</span>
-          <StatusBadge status={certStatus} />
-        </div>
-      </TableCell>
-      <TableCell className="text-kumo-subtle">{formatShortDateTime(cert.updatedAt)}</TableCell>
-    </TableRow>
-  );
-};
+    ) : null}
+    <TableCell>
+      <ExpiryCell validUntil={cert.validUntil} />
+    </TableCell>
+    <TableCell className="text-kumo-subtle">
+      <RelativeTime value={cert.updatedAt} />
+    </TableCell>
+  </TableRow>
+);
 
 const CertTableCard = ({
   cert,
@@ -96,11 +81,9 @@ const CertTableCard = ({
         <TableHeader>
           <TableRow>
             <TableHead>Serial</TableHead>
-            <TableHead>Apple Team</TableHead>
-            <TableHead>Protected</TableHead>
-            <TableHead>Developer ID</TableHead>
+            {team ? <TableHead>Apple Team</TableHead> : null}
             <TableHead>Expires</TableHead>
-            <TableHead>Updated at</TableHead>
+            <TableHead>Updated</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -117,29 +100,27 @@ const ProfileRow = ({
 }: {
   profile: AppleProvisioningProfileItem;
   team: AppleTeamItem | null;
-}) => {
-  const profileStatus = deriveExpiryStatus(profile.validUntil);
-  return (
-    <TableRow>
-      <TableCell className="font-medium">
+}) => (
+  <TableRow>
+    <TableCell className="font-medium">
+      <div className="flex items-center gap-2">
         {profile.profileName ?? profile.developerPortalIdentifier ?? "Unnamed profile"}
-      </TableCell>
+        <ProtectedMark isProtected={profile.protected} />
+      </div>
+    </TableCell>
+    {team ? (
       <TableCell>
         <TeamCell team={team} />
       </TableCell>
-      <TableCell>
-        <ProtectedBadgeCell isProtected={profile.protected} />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <span>{profile.validUntil === null ? "—" : formatShortDate(profile.validUntil)}</span>
-          <StatusBadge status={profileStatus} />
-        </div>
-      </TableCell>
-      <TableCell className="text-kumo-subtle">{formatShortDateTime(profile.updatedAt)}</TableCell>
-    </TableRow>
-  );
-};
+    ) : null}
+    <TableCell>
+      <ExpiryCell validUntil={profile.validUntil} />
+    </TableCell>
+    <TableCell className="text-kumo-subtle">
+      <RelativeTime value={profile.updatedAt} />
+    </TableCell>
+  </TableRow>
+);
 
 const ProfileTableCard = ({
   profile,
@@ -156,10 +137,9 @@ const ProfileTableCard = ({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Apple Team</TableHead>
-            <TableHead>Protected</TableHead>
+            {team ? <TableHead>Apple Team</TableHead> : null}
             <TableHead>Expires</TableHead>
-            <TableHead>Updated at</TableHead>
+            <TableHead>Updated</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -202,15 +182,18 @@ const ConfigTabPanel = ({
   certs,
   profiles,
   teams,
+  showTeam,
 }: {
   config: IosBundleConfigurationItem;
   certs: readonly AppleDistributionCertificateItem[];
   profiles: readonly AppleProvisioningProfileItem[];
   teams: readonly AppleTeamItem[];
+  /** Only when the distributions disagree — otherwise the page header names it. */
+  showTeam: boolean;
 }) => {
   const cert = findCert(certs, config.appleDistributionCertificateId);
   const profile = findProfile(profiles, config.appleProvisioningProfileId);
-  const team = findTeam(teams, config.appleTeamId);
+  const team = showTeam ? findTeam(teams, config.appleTeamId) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -275,6 +258,7 @@ export const IosBuildCredentialsSection = ({
         certs={certsResult.items}
         profiles={profilesResult.items}
         teams={teamsResult.items}
+        showTeam={sharedAppleTeamId(configs) === null}
       />
     </section>
   );

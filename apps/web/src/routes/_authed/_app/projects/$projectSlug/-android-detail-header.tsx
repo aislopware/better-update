@@ -10,15 +10,9 @@ export const AndroidDetailHeader = ({
   projectSlug: string;
   packageName: string;
 }) => (
-  <DetailHeader
-    title={<span className="font-mono">{packageName}</span>}
-    meta={
-      <span className="inline-flex items-center gap-1.5">
-        <AndroidIcon className="size-3.5" />
-        Application Identifier
-      </span>
-    }
-  />
+  // No meta line: the breadcrumb above already reads Credentials › Android, and
+  // "Application Identifier" under a package name only names its own format.
+  <DetailHeader title={<span className="font-mono">{packageName}</span>} />
 );
 
 export const AndroidNotFoundEmpty = ({

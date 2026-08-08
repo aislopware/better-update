@@ -16,7 +16,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
 import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
-import { formatShortDateTime } from "../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../lib/relative-time";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 
@@ -46,7 +46,7 @@ const GsaTableCard = ({
             <TableHead>Project ID</TableHead>
             <TableHead>Private Key ID</TableHead>
             <TableHead>Client</TableHead>
-            <TableHead>Uploaded at</TableHead>
+            <TableHead>Uploaded</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -68,7 +68,9 @@ const GsaTableCard = ({
                 )}
               </div>
             </TableCell>
-            <TableCell className="text-kumo-subtle">{formatShortDateTime(sa.createdAt)}</TableCell>
+            <TableCell className="text-kumo-subtle">
+              <RelativeTime value={sa.createdAt} />
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>

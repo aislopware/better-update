@@ -20,9 +20,9 @@ import type {
   AscApiKeyItem,
 } from "@better-update/api-client/react";
 
-import { ProtectedBadgeCell, RolesCell, TeamCell } from "../../-credential-cells";
+import { ProtectedMark, RolesCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
-import { formatShortDateTime } from "../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../lib/relative-time";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
 
 const PushKeyTableCard = ({
@@ -40,24 +40,25 @@ const PushKeyTableCard = ({
         <TableHeader>
           <TableRow>
             <TableHead>Key ID</TableHead>
-            <TableHead>Apple Team</TableHead>
-            <TableHead>Protected</TableHead>
-            <TableHead>Uploaded at</TableHead>
+            {team ? <TableHead>Apple Team</TableHead> : null}
+            <TableHead>Uploaded</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow>
             <TableCell>
-              <CopyableMono value={pushKey.keyId} label="Key ID" />
+              <div className="flex items-center gap-2">
+                <CopyableMono value={pushKey.keyId} label="Key ID" />
+                <ProtectedMark isProtected={pushKey.protected} />
+              </div>
             </TableCell>
-            <TableCell>
-              <TeamCell team={team} />
-            </TableCell>
-            <TableCell>
-              <ProtectedBadgeCell isProtected={pushKey.protected} />
-            </TableCell>
+            {team ? (
+              <TableCell>
+                <TeamCell team={team} />
+              </TableCell>
+            ) : null}
             <TableCell className="text-kumo-subtle">
-              {formatShortDateTime(pushKey.createdAt)}
+              <RelativeTime value={pushKey.createdAt} />
             </TableCell>
           </TableRow>
         </TableBody>
@@ -83,32 +84,35 @@ const AscKeyTableCard = ({
             <TableHead>Label</TableHead>
             <TableHead>Key ID</TableHead>
             <TableHead>Issuer ID</TableHead>
-            <TableHead>Apple Team</TableHead>
-            <TableHead>Protected</TableHead>
+            {team ? <TableHead>Apple Team</TableHead> : null}
             <TableHead>Roles</TableHead>
-            <TableHead>Uploaded at</TableHead>
+            <TableHead>Uploaded</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell className="font-medium">{ascKey.name}</TableCell>
+            <TableCell className="font-medium">
+              <div className="flex items-center gap-2">
+                {ascKey.name}
+                <ProtectedMark isProtected={ascKey.protected} />
+              </div>
+            </TableCell>
             <TableCell>
               <CopyableMono value={ascKey.keyId} label="Key ID" />
             </TableCell>
             <TableCell>
               <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
             </TableCell>
-            <TableCell>
-              <TeamCell team={team} />
-            </TableCell>
-            <TableCell>
-              <ProtectedBadgeCell isProtected={ascKey.protected} />
-            </TableCell>
+            {team ? (
+              <TableCell>
+                <TeamCell team={team} />
+              </TableCell>
+            ) : null}
             <TableCell>
               <RolesCell roles={ascKey.roles} />
             </TableCell>
             <TableCell className="text-kumo-subtle">
-              {formatShortDateTime(ascKey.createdAt)}
+              <RelativeTime value={ascKey.createdAt} />
             </TableCell>
           </TableRow>
         </TableBody>
@@ -169,8 +173,16 @@ export const IosServiceCredentialsSection = ({
   const ascKey = findAscKey(ascKeysResult.items, firstConfig.ascApiKeyId);
   // Push and ASC keys can belong to a different Apple Team than the bundle's
   // signing team, so each key resolves its own team.
-  const pushTeam = pushKey === null ? null : findTeam(teamsResult.items, pushKey.appleTeamId);
-  const ascTeam = ascKey?.appleTeamId ? findTeam(teamsResult.items, ascKey.appleTeamId) : null;
+  // …so it is named only when it is not the team the page header already gave.
+  const bundleTeamId = firstConfig.appleTeamId;
+  const pushTeam =
+    pushKey === null || pushKey.appleTeamId === bundleTeamId
+      ? null
+      : findTeam(teamsResult.items, pushKey.appleTeamId);
+  const ascTeam =
+    ascKey?.appleTeamId && ascKey.appleTeamId !== bundleTeamId
+      ? findTeam(teamsResult.items, ascKey.appleTeamId)
+      : null;
 
   return (
     <section className="flex flex-col gap-4">

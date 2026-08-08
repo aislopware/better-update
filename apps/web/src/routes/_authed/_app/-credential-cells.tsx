@@ -31,6 +31,16 @@ export const ProtectedBadgeCell = ({ isProtected }: { isProtected: boolean }) =>
     <EmptyDash />
   );
 
+// A lock beside the name it protects, rather than a column of dashes: nearly
+// nothing is protected, and the few that are are what a reader came to find.
+export const ProtectedMark = ({ isProtected }: { isProtected: boolean }) =>
+  isProtected ? (
+    <Badge variant="outline" className="gap-1">
+      <LockIcon weight="bold" className="size-3" />
+      Protected
+    </Badge>
+  ) : null;
+
 // Stacked team label shared across every credential/device table: human-readable
 // name on top, Apple team type + raw identifier below. Accepts null/undefined so
 // both map lookups (`map.get`) and array finds can pass results through directly.

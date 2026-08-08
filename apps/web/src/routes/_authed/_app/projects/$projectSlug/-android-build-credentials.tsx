@@ -33,7 +33,7 @@ import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { isOrgAdmin } from "../../../../../lib/access";
 import { CopyButton } from "../../../../../lib/copy-button";
 import { onPicked } from "../../../../../lib/form-utils";
-import { formatShortDateTime } from "../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
@@ -129,7 +129,7 @@ const KeystoreCard = ({
             <TableHead>SHA-256 Fingerprint</TableHead>
             <TableHead>Protected</TableHead>
             <TableHead>Projects</TableHead>
-            <TableHead>Uploaded at</TableHead>
+            <TableHead>Uploaded</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -155,7 +155,7 @@ const KeystoreCard = ({
               <KeystoreBindingsCell orgId={orgId} keystore={keystore} />
             </TableCell>
             <TableCell className="text-kumo-subtle">
-              {formatShortDateTime(keystore.updatedAt)}
+              <RelativeTime value={keystore.updatedAt} />
             </TableCell>
           </TableRow>
         </TableBody>
