@@ -28,13 +28,14 @@ import { Popover } from "@better-update/ui/components/popover";
 import { Switch } from "@better-update/ui/components/switch";
 import { toast } from "@better-update/ui/components/toast";
 import { cn } from "@better-update/ui/lib/utils";
-import { DotsThreeVerticalIcon, FolderIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { FolderIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { CredentialBindingTypeValue } from "@better-update/api";
 
 import { useServerSearchList } from "../../../components/server-search-combobox";
+import { RowActionsMenu } from "../../../lib/data-table";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../queries/constants";
 
@@ -338,30 +339,16 @@ export const BindingRowActions = ({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger
-          render={
-            <Button
-              variant="ghost"
-              shape="square"
-              className="text-kumo-subtle/70 hover:text-kumo-default"
-              aria-label={`Actions for ${resourceLabel}`}
-            />
-          }
+      <RowActionsMenu label={`Actions for ${resourceLabel}`}>
+        <DropdownMenu.Item
+          icon={FolderIcon}
+          onClick={() => {
+            setOpen(true);
+          }}
         >
-          <DotsThreeVerticalIcon weight="bold" />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="end" className="w-auto">
-          <DropdownMenu.Item
-            icon={FolderIcon}
-            onClick={() => {
-              setOpen(true);
-            }}
-          >
-            Manage projects
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+          Manage projects
+        </DropdownMenu.Item>
+      </RowActionsMenu>
       <Dialog
         open={open}
         onOpenChange={setOpen}

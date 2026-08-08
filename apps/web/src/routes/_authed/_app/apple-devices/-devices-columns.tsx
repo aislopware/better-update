@@ -1,9 +1,8 @@
 import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { toast } from "@better-update/ui/components/toast";
-import { DotsThreeVerticalIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PencilSimpleIcon, ProhibitIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -13,6 +12,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { TeamNameCell } from "../-credential-cells";
 import { StatusDot } from "../../../../components/status-dot";
 import { CopyButton } from "../../../../lib/copy-button";
+import { RowActionsMenu } from "../../../../lib/data-table";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { DeleteDeviceDialog } from "./-delete-device-dialog";
@@ -77,17 +77,6 @@ const AppleSyncCell = ({ portalId }: { portalId: string | null }) =>
     </StatusDot>
   );
 
-const actionsTrigger = (
-  <Button
-    variant="ghost"
-    shape="square"
-    className="text-kumo-subtle/70 hover:text-kumo-default"
-    aria-label="Device actions"
-  >
-    <DotsThreeVerticalIcon weight="bold" />
-  </Button>
-);
-
 const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -102,35 +91,35 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger render={actionsTrigger} />
-        <DropdownMenu.Content align="end" className="w-40">
-          <DropdownMenu.Item
-            onClick={() => {
-              setRenameOpen(true);
-            }}
-          >
-            Rename
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            onClick={() => {
-              toggleEnabled.mutate();
-            }}
-            disabled={toggleEnabled.isPending}
-          >
-            {device.enabled ? "Disable" : "Enable"}
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item
-            variant="danger"
-            onClick={() => {
-              setDeleteOpen(true);
-            }}
-          >
-            Delete
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+      <RowActionsMenu label="Device actions">
+        <DropdownMenu.Item
+          icon={PencilSimpleIcon}
+          onClick={() => {
+            setRenameOpen(true);
+          }}
+        >
+          Rename device
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          icon={device.enabled ? ProhibitIcon : CheckCircleIcon}
+          onClick={() => {
+            toggleEnabled.mutate();
+          }}
+          disabled={toggleEnabled.isPending}
+        >
+          {device.enabled ? "Disable device" : "Enable device"}
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item
+          variant="danger"
+          icon={TrashIcon}
+          onClick={() => {
+            setDeleteOpen(true);
+          }}
+        >
+          Delete device
+        </DropdownMenu.Item>
+      </RowActionsMenu>
       <RenameDeviceDialog
         orgId={orgId}
         device={device}

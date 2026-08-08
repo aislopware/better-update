@@ -1,17 +1,12 @@
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import {
-  DeviceMobileIcon,
-  DotsThreeVerticalIcon,
-  DownloadSimpleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { DeviceMobileIcon, DownloadSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 
 import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
+import { RowActionsMenu } from "../../../../../../lib/data-table";
 
 /**
  * Row actions for the builds list, in the same ⋮ menu every other list uses.
@@ -38,52 +33,37 @@ export const BuildRowActions = ({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger
-          render={
-            <Button
-              variant="ghost"
-              shape="square"
-              className="text-kumo-subtle/70 hover:text-kumo-default"
-              aria-label="Build actions"
-            />
-          }
+      <RowActionsMenu label="Build actions">
+        {build.artifact ? (
+          <>
+            <DropdownMenu.Item
+              icon={DeviceMobileIcon}
+              onClick={() => {
+                setIsInstallOpen(true);
+              }}
+            >
+              Install link
+            </DropdownMenu.Item>
+            {/* A real anchor, so the browser downloads it rather than the app
+                routing to it. */}
+            <DropdownMenu.LinkItem
+              icon={DownloadSimpleIcon}
+              href={`/api/builds/${build.id}/artifact`}
+            >
+              Download artifact
+            </DropdownMenu.LinkItem>
+          </>
+        ) : null}
+        <DropdownMenu.Item
+          variant="danger"
+          icon={TrashIcon}
+          onClick={() => {
+            setIsDeleteOpen(true);
+          }}
         >
-          <DotsThreeVerticalIcon weight="bold" />
-        </DropdownMenu.Trigger>
-        {/* w-auto: size to the labels, not the icon-button anchor width. */}
-        <DropdownMenu.Content align="end" className="w-auto">
-          {build.artifact ? (
-            <>
-              <DropdownMenu.Item
-                icon={DeviceMobileIcon}
-                onClick={() => {
-                  setIsInstallOpen(true);
-                }}
-              >
-                Install link
-              </DropdownMenu.Item>
-              {/* A real anchor, so the browser downloads it rather than the app
-                  routing to it. */}
-              <DropdownMenu.LinkItem
-                icon={DownloadSimpleIcon}
-                href={`/api/builds/${build.id}/artifact`}
-              >
-                Download artifact
-              </DropdownMenu.LinkItem>
-            </>
-          ) : null}
-          <DropdownMenu.Item
-            variant="danger"
-            icon={TrashIcon}
-            onClick={() => {
-              setIsDeleteOpen(true);
-            }}
-          >
-            Delete build
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+          Delete build
+        </DropdownMenu.Item>
+      </RowActionsMenu>
       {build.artifact ? (
         <InstallLinkDialog build={build} open={isInstallOpen} onOpenChange={setIsInstallOpen} />
       ) : null}

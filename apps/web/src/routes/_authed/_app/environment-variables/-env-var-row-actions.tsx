@@ -1,16 +1,10 @@
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import {
-  DotsThreeVerticalIcon,
-  EyeIcon,
-  PencilSimpleIcon,
-  TagIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { EyeIcon, PencilSimpleIcon, TagIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { EnvVar } from "@better-update/api";
 
+import { RowActionsMenu } from "../../../../lib/data-table";
 import { EnvVarDeleteDialog } from "./-env-var-delete-dialog";
 import { EnvVarDetailsDialog } from "./-env-var-details-dialog";
 import { EnvVarEditDialog } from "./-env-var-edit-dialog";
@@ -48,61 +42,47 @@ export const EnvVarRowActions = ({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger
-          render={
-            <Button
-              variant="ghost"
-              shape="square"
-              className="text-kumo-subtle/70 hover:text-kumo-default"
-              aria-label={`Actions for ${envVar.key}`}
-            />
-          }
+      <RowActionsMenu label={`Actions for ${envVar.key}`}>
+        <DropdownMenu.Item
+          onClick={() => {
+            setOpenDialog("details");
+          }}
+          icon={TagIcon}
         >
-          <DotsThreeVerticalIcon weight="bold" />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="end">
-          <DropdownMenu.Item
-            onClick={() => {
-              setOpenDialog("details");
-            }}
-            icon={TagIcon}
-          >
-            Edit details
-          </DropdownMenu.Item>
-          {vault ? (
-            <>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                onClick={() => {
-                  setOpenDialog("reveal");
-                }}
-                icon={EyeIcon}
-              >
-                Reveal value
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                onClick={() => {
-                  setOpenDialog("edit");
-                }}
-                icon={PencilSimpleIcon}
-              >
-                Edit value
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                variant="danger"
-                onClick={() => {
-                  setOpenDialog("delete");
-                }}
-                icon={TrashIcon}
-              >
-                Delete
-              </DropdownMenu.Item>
-            </>
-          ) : null}
-        </DropdownMenu.Content>
-      </DropdownMenu>
+          Edit details
+        </DropdownMenu.Item>
+        {vault ? (
+          <>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              onClick={() => {
+                setOpenDialog("reveal");
+              }}
+              icon={EyeIcon}
+            >
+              Reveal value
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onClick={() => {
+                setOpenDialog("edit");
+              }}
+              icon={PencilSimpleIcon}
+            >
+              Edit value
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              variant="danger"
+              onClick={() => {
+                setOpenDialog("delete");
+              }}
+              icon={TrashIcon}
+            >
+              Delete
+            </DropdownMenu.Item>
+          </>
+        ) : null}
+      </RowActionsMenu>
       <EnvVarDetailsDialog
         envVar={envVar}
         invalidate={invalidate}

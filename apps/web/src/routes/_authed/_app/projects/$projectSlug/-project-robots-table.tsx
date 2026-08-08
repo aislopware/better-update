@@ -1,8 +1,6 @@
 import { Badge } from "@better-update/ui/components/badge";
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { Loader } from "@better-update/ui/components/loader";
-import { DotsThreeVerticalIcon, PencilSimpleIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 
@@ -14,6 +12,7 @@ import { CopyableId } from "../../../../../lib/copy-button";
 import {
   clientPaginationFooter,
   DataTableView,
+  RowActionsMenu,
   useClientPagination,
 } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
@@ -32,31 +31,16 @@ const RowActions = ({
   isPending: boolean;
   onEdit: (target: EditTarget) => void;
 }) => (
-  <DropdownMenu>
-    <DropdownMenu.Trigger
-      render={
-        <Button
-          variant="ghost"
-          shape="square"
-          className="text-kumo-subtle/70 hover:text-kumo-default"
-          disabled={isPending}
-          aria-label="Robot account actions"
-        />
-      }
+  <RowActionsMenu label="Robot account actions" isPending={isPending}>
+    <DropdownMenu.Item
+      onClick={() => {
+        onEdit({ id: robot.id, name: robot.name, role: robot.role });
+      }}
+      icon={PencilSimpleIcon}
     >
-      {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
-    </DropdownMenu.Trigger>
-    <DropdownMenu.Content align="end" className="w-auto">
-      <DropdownMenu.Item
-        onClick={() => {
-          onEdit({ id: robot.id, name: robot.name, role: robot.role });
-        }}
-        icon={PencilSimpleIcon}
-      >
-        Edit
-      </DropdownMenu.Item>
-    </DropdownMenu.Content>
-  </DropdownMenu>
+      Edit
+    </DropdownMenu.Item>
+  </RowActionsMenu>
 );
 
 const robotColumns = (

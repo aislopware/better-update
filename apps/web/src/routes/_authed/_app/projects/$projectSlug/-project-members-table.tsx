@@ -1,9 +1,7 @@
 import { Badge } from "@better-update/ui/components/badge";
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { Loader } from "@better-update/ui/components/loader";
 import { Select } from "@better-update/ui/components/select";
-import { DotsThreeVerticalIcon, UserMinusIcon } from "@phosphor-icons/react";
+import { UserMinusIcon } from "@phosphor-icons/react";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -15,7 +13,7 @@ import { useMemo } from "react";
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
-import { DataTableView, PAGE_SIZE } from "../../../../../lib/data-table";
+import { DataTableView, PAGE_SIZE, RowActionsMenu } from "../../../../../lib/data-table";
 import { EntityAvatar } from "../../../../../lib/entity-avatar";
 import { onPicked } from "../../../../../lib/form-utils";
 import { pluralize } from "../../../../../lib/pluralize";
@@ -116,36 +114,20 @@ const RowActions = ({
   isPending: boolean;
   onRemove: (target: RemoveTarget) => void;
 }) => (
-  <DropdownMenu>
-    <DropdownMenu.Trigger
-      render={
-        <Button
-          variant="ghost"
-          shape="square"
-          className="text-kumo-subtle/70 hover:text-kumo-default"
-          disabled={isPending}
-          aria-label="Project member actions"
-        />
-      }
+  <RowActionsMenu label="Project member actions" isPending={isPending}>
+    <DropdownMenu.Item
+      variant="danger"
+      onClick={() => {
+        onRemove({
+          principalId: row.principalId,
+          name: principalDisplayName(row),
+        });
+      }}
+      icon={UserMinusIcon}
     >
-      {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
-    </DropdownMenu.Trigger>
-    {/* w-auto: size to the labels, not the icon-button anchor width. */}
-    <DropdownMenu.Content align="end" className="w-auto">
-      <DropdownMenu.Item
-        variant="danger"
-        onClick={() => {
-          onRemove({
-            principalId: row.principalId,
-            name: principalDisplayName(row),
-          });
-        }}
-        icon={UserMinusIcon}
-      >
-        Remove from project
-      </DropdownMenu.Item>
-    </DropdownMenu.Content>
-  </DropdownMenu>
+      Remove from project
+    </DropdownMenu.Item>
+  </RowActionsMenu>
 );
 
 interface BuildColumnsParams {

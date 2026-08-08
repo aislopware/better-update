@@ -16,7 +16,7 @@ const EnvironmentVariablesPage = () => {
     <div className="flex w-full flex-col gap-4">
       <PageHeader
         title="Environment variables"
-        description="This project's variables, and the organization globals it inherits or overrides."
+        description="This project's variables and the organization globals it inherits — end-to-end encrypted, and set from the CLI."
       />
       <EnvVarsView
         mode={{ kind: "project", orgId: activeOrg.id, projectId: project.id }}

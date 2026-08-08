@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/dialog";
+import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { InputGroup } from "@better-update/ui/components/input-group";
@@ -43,7 +44,11 @@ import type { ReactNode } from "react";
 import { ConfirmDialog } from "../../../../components/confirm-dialog";
 import { TablePanelSkeleton } from "../../../../components/skeletons";
 import { TablePanel } from "../../../../components/table-panel";
-import { ROW_ACTION_DISCLOSURE, useClientPagination } from "../../../../lib/data-table";
+import {
+  ROW_ACTION_DISCLOSURE,
+  RowActionsMenu,
+  useClientPagination,
+} from "../../../../lib/data-table";
 import { getFieldError } from "../../../../lib/form-utils";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
@@ -309,29 +314,29 @@ const EnvironmentRowActions = ({
   }
 
   return (
-    <div className="flex items-center justify-end gap-1">
-      <Button
-        variant="ghost"
-        shape="square"
-        className="text-kumo-subtle/70 hover:text-kumo-default"
-        aria-label={`Rename ${environment.name}`}
-        onClick={() => {
-          setRenameOpen(true);
-        }}
-      >
-        <PencilSimpleIcon weight="bold" />
-      </Button>
-      <Button
-        variant="ghost"
-        shape="square"
-        className="text-kumo-subtle/70 hover:text-kumo-danger"
-        aria-label={`Delete ${environment.name}`}
-        onClick={() => {
-          setDeleteOpen(true);
-        }}
-      >
-        <TrashIcon weight="bold" />
-      </Button>
+    // One menu, the way every other list in the dashboard carries its row's
+    // verbs. Two bare icon buttons put a delete a stray click away from a
+    // rename, and named neither — the labels only existed for screen readers.
+    <div className="flex items-center justify-end">
+      <RowActionsMenu label={`Actions for ${environment.name}`}>
+        <DropdownMenu.Item
+          icon={PencilSimpleIcon}
+          onClick={() => {
+            setRenameOpen(true);
+          }}
+        >
+          Rename environment
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          variant="danger"
+          icon={TrashIcon}
+          onClick={() => {
+            setDeleteOpen(true);
+          }}
+        >
+          Delete environment
+        </DropdownMenu.Item>
+      </RowActionsMenu>
       <RenameEnvironmentDialog
         orgId={orgId}
         environment={environment}

@@ -1,26 +1,10 @@
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { Loader } from "@better-update/ui/components/loader";
-import { DotsThreeVerticalIcon, FolderIcon, UserMinusIcon } from "@phosphor-icons/react";
+import { FolderIcon, UserMinusIcon } from "@phosphor-icons/react";
+
+import { RowActionsMenu } from "../../../lib/data-table";
 
 import type { ManageProjectsTarget } from "./-member-projects-cell";
 import type { Row } from "./-members-row";
-
-const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label: string }) => (
-  <DropdownMenu.Trigger
-    render={
-      <Button
-        variant="ghost"
-        shape="square"
-        className="text-kumo-subtle/70 hover:text-kumo-default"
-        disabled={isPending}
-        aria-label={label}
-      />
-    }
-  >
-    {isPending ? <Loader size="sm" /> : <DotsThreeVerticalIcon weight="bold" />}
-  </DropdownMenu.Trigger>
-);
 
 const InvitationActions = ({
   invitationId,
@@ -31,21 +15,17 @@ const InvitationActions = ({
   isPending: boolean;
   onCancelInvitation: (invitationId: string) => void;
 }) => (
-  <DropdownMenu>
-    <ActionsTrigger isPending={isPending} label="Invitation actions" />
-    {/* w-auto: size to the labels, not the icon-button anchor width. */}
-    <DropdownMenu.Content align="end" className="w-auto">
-      <DropdownMenu.Item
-        variant="danger"
-        onClick={() => {
-          onCancelInvitation(invitationId);
-        }}
-        icon={UserMinusIcon}
-      >
-        Cancel invitation
-      </DropdownMenu.Item>
-    </DropdownMenu.Content>
-  </DropdownMenu>
+  <RowActionsMenu label="Invitation actions" isPending={isPending}>
+    <DropdownMenu.Item
+      variant="danger"
+      onClick={() => {
+        onCancelInvitation(invitationId);
+      }}
+      icon={UserMinusIcon}
+    >
+      Cancel invitation
+    </DropdownMenu.Item>
+  </RowActionsMenu>
 );
 
 const ActiveMemberActions = ({
@@ -63,34 +43,31 @@ const ActiveMemberActions = ({
   onManageProjects: (target: ManageProjectsTarget) => void;
   onRemove: (memberId: string) => void;
 }) => (
-  <DropdownMenu>
-    <ActionsTrigger isPending={isPending} label="Member actions" />
-    <DropdownMenu.Content align="end" className="w-auto">
-      <DropdownMenu.Group>
-        {showManageProjects ? (
-          <DropdownMenu.Item
-            onClick={() => {
-              onManageProjects({ id: row.id, name: row.name });
-            }}
-            icon={FolderIcon}
-          >
-            Manage projects
-          </DropdownMenu.Item>
-        ) : null}
-        {showRemove ? (
-          <DropdownMenu.Item
-            variant="danger"
-            onClick={() => {
-              onRemove(row.id);
-            }}
-            icon={UserMinusIcon}
-          >
-            Remove member
-          </DropdownMenu.Item>
-        ) : null}
-      </DropdownMenu.Group>
-    </DropdownMenu.Content>
-  </DropdownMenu>
+  <RowActionsMenu label="Member actions" isPending={isPending}>
+    <DropdownMenu.Group>
+      {showManageProjects ? (
+        <DropdownMenu.Item
+          onClick={() => {
+            onManageProjects({ id: row.id, name: row.name });
+          }}
+          icon={FolderIcon}
+        >
+          Manage projects
+        </DropdownMenu.Item>
+      ) : null}
+      {showRemove ? (
+        <DropdownMenu.Item
+          variant="danger"
+          onClick={() => {
+            onRemove(row.id);
+          }}
+          icon={UserMinusIcon}
+        >
+          Remove member
+        </DropdownMenu.Item>
+      ) : null}
+    </DropdownMenu.Group>
+  </RowActionsMenu>
 );
 
 export const MemberRowActions = ({

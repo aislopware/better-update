@@ -1,10 +1,8 @@
 import { channelsQueryOptions, deleteUpdateGroup } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import {
   ArrowCounterClockwiseIcon,
   ArrowsClockwiseIcon,
-  DotsThreeVerticalIcon,
   EyeIcon,
   RocketIcon,
   TrashIcon,
@@ -14,6 +12,7 @@ import { useState } from "react";
 
 import type { Update } from "@better-update/api";
 
+import { RowActionsMenu } from "../../../../../lib/data-table";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 import { PreviewUpdateDialog } from "./-preview-update-dialog";
@@ -92,67 +91,53 @@ export const UpdateActionsMenu = ({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger
-          render={
-            <Button
-              variant="ghost"
-              shape="square"
-              className="text-kumo-subtle/70 hover:text-kumo-default"
-              aria-label="Update actions"
-            />
-          }
+      <RowActionsMenu label="Update actions">
+        <DropdownMenu.Item
+          onClick={() => {
+            setPreviewOpen(true);
+          }}
+          icon={EyeIcon}
         >
-          <DotsThreeVerticalIcon weight="bold" />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="end" className="min-w-48">
-          <DropdownMenu.Item
-            onClick={() => {
-              setPreviewOpen(true);
-            }}
-            icon={EyeIcon}
-          >
-            Preview on device
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            disabled={promoteDisabledReason !== undefined}
-            onClick={() => {
-              setPromoteOpen(true);
-            }}
-            icon={RocketIcon}
-          >
-            Promote to channel
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            disabled={republishDisabledReason !== undefined}
-            onClick={() => {
-              setRepublishOpen(true);
-            }}
-            icon={ArrowsClockwiseIcon}
-          >
-            Republish on branch
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            disabled={rollbackDisabledReason !== undefined}
-            onClick={() => {
-              setRollbackOpen(true);
-            }}
-            icon={ArrowCounterClockwiseIcon}
-          >
-            Rollback to embedded
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item
-            variant="danger"
-            onClick={() => {
-              setDeleteOpen(true);
-            }}
-            icon={TrashIcon}
-          >
-            Delete update group
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+          Preview on device
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          disabled={promoteDisabledReason !== undefined}
+          onClick={() => {
+            setPromoteOpen(true);
+          }}
+          icon={RocketIcon}
+        >
+          Promote to channel
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          disabled={republishDisabledReason !== undefined}
+          onClick={() => {
+            setRepublishOpen(true);
+          }}
+          icon={ArrowsClockwiseIcon}
+        >
+          Republish on branch
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          disabled={rollbackDisabledReason !== undefined}
+          onClick={() => {
+            setRollbackOpen(true);
+          }}
+          icon={ArrowCounterClockwiseIcon}
+        >
+          Rollback to embedded
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item
+          variant="danger"
+          onClick={() => {
+            setDeleteOpen(true);
+          }}
+          icon={TrashIcon}
+        >
+          Delete update group
+        </DropdownMenu.Item>
+      </RowActionsMenu>
       <PreviewUpdateDialog
         update={update}
         branchName={branchName}

@@ -1,12 +1,12 @@
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { DotsThreeVerticalIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { DeleteBranchDialog } from "../-delete-branch-dialog";
 import { RenameBranchDialog } from "../-rename-branch-dialog";
+import { RowActionsMenu } from "../../../../../../lib/data-table";
 
 /**
  * Row actions for the branches list, in the same ⋮ menu every other list uses.
@@ -37,40 +37,25 @@ export const BranchRowActions = ({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger
-          render={
-            <Button
-              variant="ghost"
-              shape="square"
-              className="text-kumo-subtle/70 hover:text-kumo-default"
-              aria-label="Branch actions"
-            />
-          }
+      <RowActionsMenu label="Branch actions">
+        <DropdownMenu.Item
+          icon={PencilSimpleIcon}
+          onClick={() => {
+            setIsRenameOpen(true);
+          }}
         >
-          <DotsThreeVerticalIcon weight="bold" />
-        </DropdownMenu.Trigger>
-        {/* w-auto: size to the labels, not the icon-button anchor width. */}
-        <DropdownMenu.Content align="end" className="w-auto">
-          <DropdownMenu.Item
-            icon={PencilSimpleIcon}
-            onClick={() => {
-              setIsRenameOpen(true);
-            }}
-          >
-            Rename branch
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            variant="danger"
-            icon={TrashIcon}
-            onClick={() => {
-              setIsDeleteOpen(true);
-            }}
-          >
-            Delete branch
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+          Rename branch
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          variant="danger"
+          icon={TrashIcon}
+          onClick={() => {
+            setIsDeleteOpen(true);
+          }}
+        >
+          Delete branch
+        </DropdownMenu.Item>
+      </RowActionsMenu>
       <RenameBranchDialog
         branch={branch}
         orgId={orgId}

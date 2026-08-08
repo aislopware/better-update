@@ -1,14 +1,13 @@
 import { pauseChannel, resumeChannel } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
-import { Loader } from "@better-update/ui/components/loader";
 import { toast } from "@better-update/ui/components/toast";
-import { DotsThreeVerticalIcon, PauseIcon, PlayIcon, TrashIcon } from "@phosphor-icons/react";
+import { PauseIcon, PlayIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { Channel } from "@better-update/api";
 
+import { RowActionsMenu } from "../../../../../lib/data-table";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { invalidateChannels } from "./-update-helpers";
@@ -45,49 +44,29 @@ export const ChannelRowActions = ({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenu.Trigger
-          render={
-            <Button
-              variant="ghost"
-              shape="square"
-              className="text-kumo-subtle/70 hover:text-kumo-default"
-              disabled={togglePauseMutation.isPending}
-              aria-label="Channel actions"
-            />
-          }
+      <RowActionsMenu label="Channel actions" isPending={togglePauseMutation.isPending}>
+        <DropdownMenu.Item
+          icon={channel.isPaused ? PlayIcon : PauseIcon}
+          onClick={() => {
+            togglePauseMutation.mutate();
+          }}
         >
-          {togglePauseMutation.isPending ? (
-            <Loader size="sm" />
-          ) : (
-            <DotsThreeVerticalIcon weight="bold" />
-          )}
-        </DropdownMenu.Trigger>
-        {/* w-auto: size to the labels, not the icon-button anchor width. */}
-        <DropdownMenu.Content align="end" className="w-auto">
+          {channel.isPaused ? "Resume channel" : "Pause channel"}
+        </DropdownMenu.Item>
+        {/* Built-in channels are part of the project's shape, not a release
+            track someone added, so they pause but never delete. */}
+        {channel.isBuiltin ? null : (
           <DropdownMenu.Item
-            icon={channel.isPaused ? PlayIcon : PauseIcon}
+            variant="danger"
+            icon={TrashIcon}
             onClick={() => {
-              togglePauseMutation.mutate();
+              setIsDeleteOpen(true);
             }}
           >
-            {channel.isPaused ? "Resume channel" : "Pause channel"}
+            Delete channel
           </DropdownMenu.Item>
-          {/* Built-in channels are part of the project's shape, not a release
-            track someone added, so they pause but never delete. */}
-          {channel.isBuiltin ? null : (
-            <DropdownMenu.Item
-              variant="danger"
-              icon={TrashIcon}
-              onClick={() => {
-                setIsDeleteOpen(true);
-              }}
-            >
-              Delete channel
-            </DropdownMenu.Item>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu>
+        )}
+      </RowActionsMenu>
       {channel.isBuiltin ? null : (
         <DeleteChannelDialog
           channel={channel}

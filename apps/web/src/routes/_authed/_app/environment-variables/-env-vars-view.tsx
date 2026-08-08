@@ -73,12 +73,14 @@ export type EnvVarsSearch = z.infer<typeof envVarsSearchSchema>;
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+// One line, not three. The old note also spelled out that a row's menu edits
+// its label and description — an instruction for an affordance every other list
+// in the dashboard carries without one, and the sentence cost more width than
+// the ⋮ it was pointing at.
 const ENCRYPTION_NOTE = (
   <>
-    Values are end-to-end encrypted and managed from the CLI —{" "}
-    <InlineCode>better-update env set</InlineCode> / <InlineCode>env pull</InlineCode>. You can
-    still edit each variable&rsquo;s label and description here (non-secret documentation) from the
-    row menu.
+    End-to-end encrypted and set from the CLI — <InlineCode>better-update env set</InlineCode> /{" "}
+    <InlineCode>env pull</InlineCode>.
   </>
 );
 
@@ -386,13 +388,14 @@ export const EnvVarsView = ({
   return (
     <div className="flex flex-col gap-4">
       {/* The organization page puts this list under the environments panel, so
-          the list is named and the note hangs off that name; on a project page
-          the list is the page and the note follows the page's own title. */}
+          the list needs naming and the note hangs off that name. On a project
+          page the list is the page: it already has a title with a line under
+          it, and a second grey paragraph beneath the first only looked like the
+          header had been written twice — that page's own description carries
+          the note instead. */}
       {mode.kind === "global" ? (
         <SectionHeader title="Variables" description={ENCRYPTION_NOTE} />
-      ) : (
-        <p className="text-kumo-subtle text-sm">{ENCRYPTION_NOTE}</p>
-      )}
+      ) : null}
       <Toolbar
         mode={mode}
         searchDraft={searchDraft}
