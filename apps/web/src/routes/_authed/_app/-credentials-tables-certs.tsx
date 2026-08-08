@@ -14,16 +14,89 @@ import type {
 } from "@better-update/api-client/react";
 
 import { CopyableMono } from "../../../lib/copy-button";
-import { formatShortDate } from "../../../lib/format-date";
+import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
-import { CredentialEmptyRow, TeamCell } from "./-credential-cells";
+import { CredentialEmptyRow, ExpiryCell, TeamCell } from "./-credential-cells";
 import { AppleChildProtectionSwitch } from "./-credential-protection";
 
+import type { AppleChildProtectionKind } from "./-credential-protection";
 import type { ChildCredentialTableProps } from "./-credentials-utils";
 
 // Push / Apple Pay / Pass Type ID certificate tables, extracted from
 // ./-credentials-tables for the max-lines budget (mirroring
 // ./-credentials-tables-google).
+
+// All three are the same row wearing three different identifiers, so they share
+// one table: what the certificate is for, whose team it belongs to, its serial,
+// when it expires, when it arrived — and the protection switch last, where every
+// other list keeps its controls.
+interface AppleCertificateLike {
+  readonly id: string;
+  readonly appleTeamId: string;
+  readonly protected: boolean;
+  readonly serialNumber: string;
+  readonly validUntil: string;
+  readonly createdAt: string;
+}
+
+const AppleCertificateTable = <TCert extends AppleCertificateLike>({
+  items,
+  orgId,
+  teamsById,
+  canManageProtection,
+  kind,
+  primaryHeader,
+  primaryOf,
+}: ChildCredentialTableProps & {
+  items: readonly TCert[];
+  kind: AppleChildProtectionKind;
+  primaryHeader: string;
+  primaryOf: (cert: TCert) => string;
+}) => (
+  <Table className="[&_th]:whitespace-nowrap">
+    <TableHeader>
+      <TableRow>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>{primaryHeader}</TableHead>
+        <TableHead>Team</TableHead>
+        <TableHead>Serial</TableHead>
+        <TableHead>Expires</TableHead>
+        <TableHead>Created</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {items.map((cert) => (
+        <TableRow key={cert.id}>
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <CopyableMono value={primaryOf(cert)} label={primaryHeader} />
+          </TableCell>
+          <TableCell>
+            <TeamCell team={teamsById.get(cert.appleTeamId)} />
+          </TableCell>
+          <TableCell>
+            <CopyableMono value={cert.serialNumber} label="Serial" />
+          </TableCell>
+          <TableCell>
+            <ExpiryCell validUntil={cert.validUntil} />
+          </TableCell>
+          <TableCell className="text-kumo-subtle">
+            <RelativeTime value={cert.createdAt} />
+          </TableCell>
+          <TableCell className="text-right">
+            <AppleChildProtectionSwitch
+              orgId={orgId}
+              kind={kind}
+              id={cert.id}
+              label={primaryOf(cert)}
+              isProtected={cert.protected}
+              canManage={canManageProtection}
+            />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+);
 
 export const PushCertificatesEmptyState = () => (
   <CredentialEmptyRow>
@@ -37,50 +110,16 @@ export const PushCertificatesTable = ({
   orgId,
   teamsById,
   canManageProtection,
-}: ChildCredentialTableProps & {
-  items: readonly ApplePushCertificateItem[];
-}) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Bundle identifier</TableHead>
-        <TableHead>Team</TableHead>
-        <TableHead>Protected</TableHead>
-        <TableHead>Serial number</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead>Created</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell>
-            <CopyableMono value={cert.bundleIdentifier} label="Bundle identifier" />
-          </TableCell>
-          <TableCell>
-            <TeamCell team={teamsById.get(cert.appleTeamId)} />
-          </TableCell>
-          <TableCell>
-            <AppleChildProtectionSwitch
-              orgId={orgId}
-              kind="pushCertificate"
-              id={cert.id}
-              label={cert.serialNumber}
-              isProtected={cert.protected}
-              canManage={canManageProtection}
-            />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={cert.serialNumber} label="Serial number" />
-          </TableCell>
-          <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-kumo-subtle">
-            <RelativeTime value={cert.createdAt} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
+}: ChildCredentialTableProps & { items: readonly ApplePushCertificateItem[] }) => (
+  <AppleCertificateTable
+    items={items}
+    orgId={orgId}
+    teamsById={teamsById}
+    canManageProtection={canManageProtection}
+    kind="pushCertificate"
+    primaryHeader="Bundle identifier"
+    primaryOf={(cert) => cert.bundleIdentifier}
+  />
 );
 
 export const PayCertificatesEmptyState = () => (
@@ -95,50 +134,16 @@ export const PayCertificatesTable = ({
   orgId,
   teamsById,
   canManageProtection,
-}: ChildCredentialTableProps & {
-  items: readonly ApplePayCertificateItem[];
-}) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Merchant ID</TableHead>
-        <TableHead>Team</TableHead>
-        <TableHead>Protected</TableHead>
-        <TableHead>Serial</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead>Created</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell>
-            <CopyableMono value={cert.merchantIdentifier} label="Merchant ID" />
-          </TableCell>
-          <TableCell>
-            <TeamCell team={teamsById.get(cert.appleTeamId)} />
-          </TableCell>
-          <TableCell>
-            <AppleChildProtectionSwitch
-              orgId={orgId}
-              kind="payCertificate"
-              id={cert.id}
-              label={cert.merchantIdentifier}
-              isProtected={cert.protected}
-              canManage={canManageProtection}
-            />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={cert.serialNumber} label="Serial" />
-          </TableCell>
-          <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-kumo-subtle">
-            <RelativeTime value={cert.createdAt} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
+}: ChildCredentialTableProps & { items: readonly ApplePayCertificateItem[] }) => (
+  <AppleCertificateTable
+    items={items}
+    orgId={orgId}
+    teamsById={teamsById}
+    canManageProtection={canManageProtection}
+    kind="payCertificate"
+    primaryHeader="Merchant ID"
+    primaryOf={(cert) => cert.merchantIdentifier}
+  />
 );
 
 export const PassTypeCertificatesEmptyState = () => (
@@ -152,48 +157,14 @@ export const PassTypeCertificatesTable = ({
   orgId,
   teamsById,
   canManageProtection,
-}: ChildCredentialTableProps & {
-  items: readonly ApplePassTypeCertificateItem[];
-}) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Pass Type ID</TableHead>
-        <TableHead>Team</TableHead>
-        <TableHead>Protected</TableHead>
-        <TableHead>Serial</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead>Created</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell>
-            <CopyableMono value={cert.passTypeIdentifier} label="Pass Type ID" />
-          </TableCell>
-          <TableCell>
-            <TeamCell team={teamsById.get(cert.appleTeamId)} />
-          </TableCell>
-          <TableCell>
-            <AppleChildProtectionSwitch
-              orgId={orgId}
-              kind="passTypeCertificate"
-              id={cert.id}
-              label={cert.passTypeIdentifier}
-              isProtected={cert.protected}
-              canManage={canManageProtection}
-            />
-          </TableCell>
-          <TableCell>
-            <CopyableMono value={cert.serialNumber} label="Serial" />
-          </TableCell>
-          <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-kumo-subtle">
-            <RelativeTime value={cert.createdAt} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
+}: ChildCredentialTableProps & { items: readonly ApplePassTypeCertificateItem[] }) => (
+  <AppleCertificateTable
+    items={items}
+    orgId={orgId}
+    teamsById={teamsById}
+    canManageProtection={canManageProtection}
+    kind="passTypeCertificate"
+    primaryHeader="Pass Type ID"
+    primaryOf={(cert) => cert.passTypeIdentifier}
+  />
 );

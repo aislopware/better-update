@@ -94,8 +94,23 @@ const ExpiryRollupBanner = ({ orgId }: { orgId: string }) => {
     ...passType.items,
   ]);
 
+  // A warning that names no remedy leaves the reader to go looking for one; the
+  // devices banner names its command, so this one names its own.
   return message === null ? null : (
-    <Banner variant="alert" icon={<WarningIcon weight="fill" />} title={message} />
+    <Banner
+      variant="alert"
+      icon={<WarningIcon weight="fill" />}
+      title={message}
+      description={
+        <>
+          Builds signed with an expired certificate are rejected. Upload a replacement with{" "}
+          <code className="bg-kumo-recessed rounded px-1 py-0.5 font-mono text-xs">
+            better-update credentials upload
+          </code>{" "}
+          from the CLI.
+        </>
+      }
+    />
   );
 };
 

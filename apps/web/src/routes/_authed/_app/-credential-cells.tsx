@@ -5,6 +5,8 @@ import { LockIcon } from "@phosphor-icons/react";
 import type { AppleTeamItem } from "@better-update/api-client/react";
 import type { ReactNode } from "react";
 
+import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
+import { formatShortDate } from "../../../lib/format-date";
 import { formatAppleTeamType } from "./-credentials-utils";
 
 export const EmptyDash = () => <span className="text-kumo-subtle">—</span>;
@@ -44,6 +46,25 @@ export const TeamCell = ({ team }: { team: AppleTeamItem | null | undefined }) =
         {team.name === null ? type : `${type} · ${team.appleTeamId}`}
       </span>
     </div>
+  );
+};
+
+// The date first, and a badge only when the date is a problem: a column of
+// green "Active" pills tells a reader nothing they came for, while a single
+// amber one is the whole reason this table is worth looking at. It also folds
+// what used to be two columns — Status and Valid until — back into one fact.
+export const ExpiryCell = ({ validUntil }: { validUntil: string | null }) => {
+  const status = deriveExpiryStatus(validUntil);
+  if (validUntil === null) {
+    return <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>;
+  }
+  return (
+    <span className="flex items-center gap-2 whitespace-nowrap">
+      {formatShortDate(validUntil)}
+      {status.tone === "success" ? null : (
+        <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
+      )}
+    </span>
   );
 };
 

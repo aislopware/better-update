@@ -10,6 +10,7 @@ import {
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
 import { CopyButton, CopyableId } from "../../../lib/copy-button";
+import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BoundProjectsCell } from "./-credential-bindings";
 import { CredentialEmptyRow } from "./-credential-cells";
@@ -31,20 +32,20 @@ export const GoogleServiceAccountKeysTable = ({
   orgId: string;
   canManageProtection: boolean;
 }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Service account</TableHead>
-        <TableHead>Protected</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Service account</TableHead>
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
-          <TableCell>
-            <div className="flex max-w-96 flex-col gap-0.5">
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <div className="flex min-w-0 flex-col gap-0.5">
               <span
                 className="flex items-center gap-1"
                 title={key.clientId === null ? undefined : `Client ID: ${key.clientId}`}
@@ -60,9 +61,6 @@ export const GoogleServiceAccountKeysTable = ({
             </div>
           </TableCell>
           <TableCell>
-            <GsaKeyProtectionSwitch orgId={orgId} gsaKey={key} canManage={canManageProtection} />
-          </TableCell>
-          <TableCell>
             <BoundProjectsCell
               orgId={orgId}
               resourceType="googleServiceAccountKey"
@@ -75,6 +73,9 @@ export const GoogleServiceAccountKeysTable = ({
           </TableCell>
           <TableCell className="text-kumo-subtle">
             <RelativeTime value={key.createdAt} />
+          </TableCell>
+          <TableCell className="text-right">
+            <GsaKeyProtectionSwitch orgId={orgId} gsaKey={key} canManage={canManageProtection} />
           </TableCell>
         </TableRow>
       ))}

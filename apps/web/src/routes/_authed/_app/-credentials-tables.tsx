@@ -1,4 +1,3 @@
-import { Badge } from "@better-update/ui/components/badge";
 import {
   Table,
   TableBody,
@@ -16,11 +15,10 @@ import type {
 } from "@better-update/api-client/react";
 
 import { CopyableId, CopyableMono } from "../../../lib/copy-button";
-import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
-import { formatShortDate } from "../../../lib/format-date";
+import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BoundProjectsCell, InheritedProjectsCell } from "./-credential-bindings";
-import { CredentialEmptyRow, RolesCell, TeamCell } from "./-credential-cells";
+import { CredentialEmptyRow, ExpiryCell, RolesCell, TeamCell } from "./-credential-cells";
 import { AppleChildProtectionSwitch, AppleTeamProtectionSwitch } from "./-credential-protection";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
@@ -40,52 +38,53 @@ export const DistributionCertificatesTable = ({
 }: ChildCredentialTableProps & {
   items: readonly AppleDistributionCertificateItem[];
 }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Serial</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Serial</TableHead>
         <TableHead>Team</TableHead>
-        <TableHead>Protected</TableHead>
-        <TableHead>Developer ID</TableHead>
-        <TableHead>Status</TableHead>
-        <TableHead>Valid until</TableHead>
+        <TableHead>Expires</TableHead>
         <TableHead>Uploaded</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
-      {items.map((cert) => {
-        const status = deriveExpiryStatus(cert.validUntil);
-        return (
-          <TableRow key={cert.id}>
-            <TableCell>
+      {items.map((cert) => (
+        <TableRow key={cert.id}>
+          {/* Developer ID sits under the serial rather than in a column of its
+              own: only a Developer ID certificate has one, so the column stood
+              empty on every row of an App Store team. */}
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <div className="flex min-w-0 flex-col gap-0.5">
               <CopyableMono value={cert.serialNumber} label="Serial" />
-            </TableCell>
-            <TableCell>
-              <TeamCell team={teamsById.get(cert.appleTeamId)} />
-            </TableCell>
-            <TableCell>
-              <AppleChildProtectionSwitch
-                orgId={orgId}
-                kind="distributionCertificate"
-                id={cert.id}
-                label={cert.serialNumber}
-                isProtected={cert.protected}
-                canManage={canManageProtection}
-              />
-            </TableCell>
-            <TableCell>
-              <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
-            </TableCell>
-            <TableCell>
-              <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
-            </TableCell>
-            <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
-            <TableCell className="text-kumo-subtle">
-              <RelativeTime value={cert.createdAt} />
-            </TableCell>
-          </TableRow>
-        );
-      })}
+              {cert.developerIdIdentifier === null ? null : (
+                <span className="text-kumo-subtle truncate text-xs">
+                  Developer ID · {cert.developerIdIdentifier}
+                </span>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <TeamCell team={teamsById.get(cert.appleTeamId)} />
+          </TableCell>
+          <TableCell>
+            <ExpiryCell validUntil={cert.validUntil} />
+          </TableCell>
+          <TableCell className="text-kumo-subtle">
+            <RelativeTime value={cert.createdAt} />
+          </TableCell>
+          <TableCell className="text-right">
+            <AppleChildProtectionSwitch
+              orgId={orgId}
+              kind="distributionCertificate"
+              id={cert.id}
+              label={cert.serialNumber}
+              isProtected={cert.protected}
+              canManage={canManageProtection}
+            />
+          </TableCell>
+        </TableRow>
+      ))}
     </TableBody>
   </Table>
 );
@@ -104,25 +103,28 @@ export const PushKeysTable = ({
 }: ChildCredentialTableProps & {
   items: readonly ApplePushKeyItem[];
 }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Key ID</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Key ID</TableHead>
         <TableHead>Team</TableHead>
-        <TableHead>Protected</TableHead>
         <TableHead>Uploaded</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
-          <TableCell>
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
             <CopyableMono value={key.keyId} label="Key ID" />
           </TableCell>
           <TableCell>
             <TeamCell team={teamsById.get(key.appleTeamId)} />
           </TableCell>
-          <TableCell>
+          <TableCell className="text-kumo-subtle">
+            <RelativeTime value={key.createdAt} />
+          </TableCell>
+          <TableCell className="text-right">
             <AppleChildProtectionSwitch
               orgId={orgId}
               kind="pushKey"
@@ -131,9 +133,6 @@ export const PushKeysTable = ({
               isProtected={key.protected}
               canManage={canManageProtection}
             />
-          </TableCell>
-          <TableCell className="text-kumo-subtle">
-            <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>
       ))}
@@ -158,22 +157,22 @@ export const AscApiKeysTable = ({
   items: readonly AscApiKeyItem[];
   canManageBindings: boolean;
 }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Key</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Key</TableHead>
         <TableHead>Team</TableHead>
-        <TableHead>Protected</TableHead>
         <TableHead>Roles</TableHead>
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
-          <TableCell>
-            <div className="flex max-w-72 flex-col gap-0.5">
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate font-medium">{key.name}</span>
               <span className="text-kumo-subtle flex items-center gap-1 font-mono text-xs">
                 <CopyableId value={key.keyId} label="Key ID" length={10} />
@@ -185,16 +184,6 @@ export const AscApiKeysTable = ({
           <TableCell>
             <TeamCell
               team={key.appleTeamId === null ? undefined : teamsById.get(key.appleTeamId)}
-            />
-          </TableCell>
-          <TableCell>
-            <AppleChildProtectionSwitch
-              orgId={orgId}
-              kind="ascApiKey"
-              id={key.id}
-              label={key.name}
-              isProtected={key.protected}
-              canManage={canManageProtection}
             />
           </TableCell>
           <TableCell>
@@ -222,6 +211,16 @@ export const AscApiKeysTable = ({
           <TableCell className="text-kumo-subtle">
             <RelativeTime value={key.createdAt} />
           </TableCell>
+          <TableCell className="text-right">
+            <AppleChildProtectionSwitch
+              orgId={orgId}
+              kind="ascApiKey"
+              id={key.id}
+              label={key.name}
+              isProtected={key.protected}
+              canManage={canManageProtection}
+            />
+          </TableCell>
         </TableRow>
       ))}
     </TableBody>
@@ -244,29 +243,31 @@ export const AppleTeamsTable = ({
   orgId: string;
   canManageProtection: boolean;
 }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Team</TableHead>
-        <TableHead>Type</TableHead>
-        <TableHead>Protected</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Team</TableHead>
         <TableHead>Projects</TableHead>
         <TableHead className="text-right">Certs</TableHead>
         <TableHead className="text-right">Push</TableHead>
         <TableHead className="text-right">ASC</TableHead>
         <TableHead className="text-right">Profiles</TableHead>
         <TableHead className="text-right">Devices</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
       {items.map((team) => (
         <TableRow key={team.id}>
-          <TableCell className="font-medium">{formatAppleTeamLabel(team)}</TableCell>
-          <TableCell className="text-kumo-subtle">
-            {formatAppleTeamType(team.appleTeamType)}
-          </TableCell>
-          <TableCell>
-            <AppleTeamProtectionSwitch orgId={orgId} team={team} canManage={canManageProtection} />
+          {/* Type under the name, the way every other team label in the app
+              reads — a column of its own repeated one of two words down it. */}
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate font-medium">{formatAppleTeamLabel(team)}</span>
+              <span className="text-kumo-subtle truncate text-xs">
+                {formatAppleTeamType(team.appleTeamType)}
+              </span>
+            </div>
           </TableCell>
           <TableCell>
             <BoundProjectsCell
@@ -279,11 +280,16 @@ export const AppleTeamsTable = ({
               canManage={canManageProtection}
             />
           </TableCell>
-          <TableCell className="text-right">{team.distributionCertificateCount}</TableCell>
-          <TableCell className="text-right">{team.pushKeyCount}</TableCell>
-          <TableCell className="text-right">{team.ascApiKeyCount}</TableCell>
-          <TableCell className="text-right">{team.provisioningProfileCount}</TableCell>
-          <TableCell className="text-right">{team.deviceCount}</TableCell>
+          <TableCell className="text-right tabular-nums">
+            {team.distributionCertificateCount}
+          </TableCell>
+          <TableCell className="text-right tabular-nums">{team.pushKeyCount}</TableCell>
+          <TableCell className="text-right tabular-nums">{team.ascApiKeyCount}</TableCell>
+          <TableCell className="text-right tabular-nums">{team.provisioningProfileCount}</TableCell>
+          <TableCell className="text-right tabular-nums">{team.deviceCount}</TableCell>
+          <TableCell className="text-right">
+            <AppleTeamProtectionSwitch orgId={orgId} team={team} canManage={canManageProtection} />
+          </TableCell>
         </TableRow>
       ))}
     </TableBody>
