@@ -10,10 +10,11 @@ import { columnWidthClass, headerAlignsRight } from "./column-meta";
 import { SortIcon, toAriaSort } from "./sort-icon";
 
 /**
- * Column header with an inline sort toggle (official shadcn data-table pattern).
- * Non-sortable columns render a plain TableHead; sortable columns get a ghost
- * button that cycles unsorted → asc → desc → unsorted (an empty sorting state
- * falls back to the page's default sort via useDataTableSearch).
+ * Column header with an inline sort toggle. Non-sortable columns render a plain
+ * TableHead; sortable columns get a ghost button that cycles unsorted → asc →
+ * desc → unsorted (an empty sorting state falls back to the page's default sort
+ * via useDataTableSearch). Both read alike — the header band is one row of
+ * labels, and only the arrow says which of them the rows are ordered by.
  */
 export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData, unknown> }) => {
   const { column } = header;
@@ -47,9 +48,14 @@ export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData
         variant="ghost"
         size="sm"
         className={cn(
-          "-ml-2 h-7 font-medium",
-          // Unsorted headers stay quiet so the active sort stands out.
-          sortDir === false ? "text-kumo-subtle hover:text-kumo-default" : "text-kumo-default",
+          // A sortable header is the same label as a fixed one — the button is
+          // only what makes it clickable, so it borrows the header row's own
+          // type and colour instead of the button's. Which column is sorted is
+          // the arrow's job; saying it again in ink made the other five labels
+          // look disabled.
+          // Height comes from the band's own padding, not the button's, so a
+          // sortable label does not stand taller than the ones beside it.
+          "-ml-2 h-auto py-0 text-base font-semibold text-inherit",
           alignRight && "-mr-2 ml-0",
         )}
         onClick={cycleSorting}

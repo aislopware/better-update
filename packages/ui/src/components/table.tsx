@@ -10,7 +10,20 @@ import type { ComponentProps } from "react";
 
 import { cn } from "#/lib/utils";
 
-export const TableHeader = KumoTable.Header;
+/**
+ * Kumo's compact header by default: a tinted band with tighter rows, which is
+ * how the Cloudflare dashboard separates the labels from the data. The roomy
+ * default header reads as a first row of the table rather than its heading, so
+ * every table here wears the band unless a caller asks for `variant="default"`.
+ */
+export const TableHeader = ({
+  variant = "compact",
+  ...props
+}: ComponentProps<typeof KumoTable.Header>) => (
+  // eslint-disable-next-line react/jsx-props-no-spreading -- default-setting wrapper over Kumo's Table.Header
+  <KumoTable.Header variant={variant} {...props} />
+);
+
 export const TableHead = KumoTable.Head;
 export const TableBody = KumoTable.Body;
 export const TableRow = KumoTable.Row;
