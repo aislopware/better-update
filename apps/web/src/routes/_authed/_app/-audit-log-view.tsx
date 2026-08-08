@@ -35,10 +35,12 @@ import {
   ListPanel,
   ListPanelFooter,
   optionalStringParam,
+  PRIMARY_COLUMN_CLASS,
 } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
+import { pluralize } from "../../../lib/pluralize";
 
 export const AuditLogSkeleton = () => (
   <div className="flex w-full flex-col gap-4">
@@ -243,8 +245,10 @@ const AuditLogRow = ({
 
   return (
     <TableRow>
-      <TableCell>
-        <span className="block max-w-96 truncate font-medium" title={entry.action}>
+      {/* The action is what the row is: it takes the width the other columns
+          leave, rather than capping itself and leaving a gap beside it. */}
+      <TableCell className={PRIMARY_COLUMN_CLASS}>
+        <span className="block truncate font-medium" title={entry.action}>
           {actionLabel(entry.action)}
         </span>
       </TableCell>
@@ -282,13 +286,15 @@ const AuditLogRow = ({
   );
 };
 
+// Quiet at rest, like the row menus elsewhere: it appears on some rows and not
+// others, and a filled button in that pattern reads as a ragged extra column.
 const metadataTrigger = (
   <Button
-    variant="secondary"
+    variant="ghost"
     shape="square"
     size="sm"
     aria-label="View metadata"
-    className="text-kumo-subtle"
+    className="text-kumo-subtle/70 hover:text-kumo-default"
   >
     <BracketsCurlyIcon weight="bold" />
   </Button>
@@ -378,10 +384,12 @@ export const AuditLogView = ({
         <EmptyState scopeLabel={scopeLabel} />
       ) : (
         <ListPanel>
-          <Table>
+          {/* Headers never wrap, the same rule the shared list view follows: the
+              primary column has already taken the width the others would use. */}
+          <Table className="[&_th]:whitespace-nowrap">
             <TableHeader>
               <TableRow>
-                <TableHead>Action</TableHead>
+                <TableHead className={PRIMARY_COLUMN_CLASS}>Action</TableHead>
                 <TableHead>Resource</TableHead>
                 <TableHead>Actor</TableHead>
                 <TableHead className="text-right">When</TableHead>
@@ -394,11 +402,18 @@ export const AuditLogView = ({
               ))}
             </TableBody>
           </Table>
-          {hasNextPage ? (
-            <ListPanelFooter>
-              <div className="flex w-full justify-center">
+          {/* The closing bar is always there, like every other list: an infinite
+              log still owes the reader a count of what it has loaded so far. */}
+          <ListPanelFooter>
+            <div className="flex w-full items-center justify-between gap-4">
+              <span className="text-kumo-subtle text-xs tabular-nums">
+                {hasNextPage ? "First " : ""}
+                {items.length} {pluralize(items.length, "event")}
+              </span>
+              {hasNextPage ? (
                 <Button
                   variant="secondary"
+                  size="sm"
                   onClick={async () => {
                     await fetchNextPage();
                   }}
@@ -406,9 +421,9 @@ export const AuditLogView = ({
                 >
                   Load more
                 </Button>
-              </div>
-            </ListPanelFooter>
-          ) : null}
+              ) : null}
+            </div>
+          </ListPanelFooter>
         </ListPanel>
       )}
     </div>
