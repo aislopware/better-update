@@ -25,5 +25,12 @@ export const ChannelStatusBadge = ({ channel }: { channel: Channel }) => {
       </StatusDot>
     );
   }
-  return <StatusDot tone="success">Live</StatusDot>;
+  // Live is what a channel is supposed to be, and a column of green dots reads
+  // as decoration rather than news — colour is kept for the two states that
+  // mean someone left something half-done.
+  return (
+    <StatusDot tone="muted" className="text-kumo-subtle">
+      Live
+    </StatusDot>
+  );
 };
