@@ -54,7 +54,11 @@ export const ListPanelHeader = ({
   description?: ReactNode;
   actions?: ReactNode;
 }) => (
-  <CardHeader className="border-kumo-line border-b py-4">
+  // Chrome, like the closing bar and like a table's column band: what a panel
+  // is called is not one of the things it lists, and a title set on the same
+  // fill as the rows under it reads as the first of them. The fill is what
+  // makes the rows an island rather than the whole card being one surface.
+  <CardHeader className="border-kumo-line bg-kumo-elevated border-b py-4">
     <CardTitle>{title}</CardTitle>
     {description ? <CardDescription>{description}</CardDescription> : null}
     {actions ? <CardAction className="flex items-center gap-2">{actions}</CardAction> : null}
