@@ -49,7 +49,7 @@ describe(MembersTableView, () => {
   const onCancelInvitation = vi.fn<(invitationId: string) => Promise<void>>(async () => {});
   const onRoleChange = vi.fn<(memberId: string, role: "admin" | "member") => void>();
 
-  it("renders member rows with name, email, role badge, and status", () => {
+  it("renders member rows with name, email, role, and status", () => {
     renderWithQuery(
       <MembersTableView
         members={allMembers}
@@ -66,7 +66,7 @@ describe(MembersTableView, () => {
 
     expect(screen.getByText("Alice Owner")).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
-    // The role column collapses to an Owner / Member badge.
+    // The role column reads the role as words where it cannot be changed.
     expect(screen.getByText("Owner")).toBeInTheDocument();
 
     expect(screen.getByText("Bob Capable")).toBeInTheDocument();
@@ -74,9 +74,9 @@ describe(MembersTableView, () => {
 
     expect(screen.getByText("Carol Member")).toBeInTheDocument();
     expect(screen.getByText("carol@example.com")).toBeInTheDocument();
-    // Two non-owner members → two "Member" role badges. The third "Member" match
+    // Two non-owner members → two "Member" role cells. The third "Member" match
     // is the name-column header (a <th>); keep only matches inside a body cell
-    // (<td>) so we count the in-row role badges, not the header.
+    // (<td>) so we count the in-row roles, not the header.
     const memberRoleCells = screen
       .getAllByText("Member")
       .filter((node) => node.closest("td") !== null);
@@ -214,7 +214,7 @@ describe(MembersTableView, () => {
     expect(screen.getByText(/^Expires/)).toBeInTheDocument();
   });
 
-  it("without canEditOrgRoles every row shows a static role badge, no selects", () => {
+  it("without canEditOrgRoles every row shows its role as text, no selects", () => {
     renderWithQuery(
       <MembersTableView
         members={[ownerMember, adminMember, regularMember]}
@@ -235,7 +235,7 @@ describe(MembersTableView, () => {
     expect(screen.queryByLabelText(/change role for/i)).not.toBeInTheDocument();
   });
 
-  it("with canEditOrgRoles non-owner rows render a role select; the owner row stays a badge", () => {
+  it("with canEditOrgRoles non-owner rows render a role select; the owner row stays text", () => {
     renderWithQuery(
       <MembersTableView
         members={[ownerMember, adminMember, regularMember]}

@@ -1,4 +1,3 @@
-import { Badge } from "@better-update/ui/components/badge";
 import { Select } from "@better-update/ui/components/select";
 import {
   getCoreRowModel,
@@ -40,6 +39,9 @@ export type EditableOrgRole = "admin" | "member";
 const EMPTY_MEMBERSHIPS: ReadonlyMap<string, MemberProjectMembershipsItem> = new Map();
 const NOOP_MANAGE_PROJECTS = (_target: ManageProjectsTarget): void => undefined;
 const ORG_ROLE_LABELS: Record<EditableOrgRole, string> = { admin: "Admin", member: "Member" };
+// The ladder in full, including the rung the select cannot offer.
+const ORG_ROLE_TEXT: Record<string, string> = { owner: "Owner", ...ORG_ROLE_LABELS };
+
 const MemberAvatarCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
     return (
@@ -112,15 +114,18 @@ interface BuildColumnsParams {
   onManageProjects: (target: ManageProjectsTarget) => void;
 }
 
-const RoleBadge = ({ role }: { role: string }) => {
-  if (isOwnerRole(role)) {
-    return <Badge variant="primary">Owner</Badge>;
-  }
-  if (role === "admin") {
-    return <Badge variant="secondary">Admin</Badge>;
-  }
-  return <Badge variant="outline">Member</Badge>;
-};
+/**
+ * The role where it cannot be changed.
+ *
+ * All three used to be badges, which gave one column three shapes and put the
+ * loudest of them — a filled black pill — on "Owner", the least surprising fact
+ * on a page you can only reach by belonging to the organization. It reads as
+ * words now, inset and sized like the text inside the select beside it so the
+ * column still has one left edge.
+ */
+const RoleText = ({ role }: { role: string }) => (
+  <span className="px-2 text-xs">{ORG_ROLE_TEXT[role] ?? role}</span>
+);
 
 const RoleSelect = ({
   row,
@@ -150,8 +155,8 @@ const RoleSelect = ({
   );
 };
 
-// Org-role cell: owners always render a static badge (owner transfer is a
-// better-auth flow, not this table); non-owner rows become a select only when
+// Org-role cell: owners always read as text (owner transfer is a better-auth
+// flow, not this table); non-owner rows become a select only when
 // the viewer holds member:update AND is the owner (admin grant/revoke is
 // owner-only server-side). Pending invitations show their invited role.
 const RoleCell = ({
@@ -167,7 +172,7 @@ const RoleCell = ({
 }) => {
   const editable = canEditOrgRoles && row.kind === "member" && !isOwnerRole(row.role);
   if (!editable) {
-    return <RoleBadge role={row.role} />;
+    return <RoleText role={row.role} />;
   }
   return <RoleSelect row={row} isPending={isPending} onRoleChange={onRoleChange} />;
 };
