@@ -31,7 +31,7 @@ import { TablePanelSkeleton } from "../../../components/skeletons";
 import { TablePanel } from "../../../components/table-panel";
 import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
-import { useClientPagination } from "../../../lib/data-table";
+import { PRIMARY_COLUMN_CLASS, useClientPagination } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { membersQueryOptions } from "../../../queries/org";
@@ -50,7 +50,7 @@ const VaultAccessEmptyState = () => (
     icon={<FingerprintIcon className="text-kumo-inactive size-10" />}
     title="No vault recipients yet"
     description="The credential vault is created from the CLI on the first upload. Once it exists, the keys that can decrypt it appear here."
-    contents={<CliCommandBlock commands={["better-update credentials"]} />}
+    contents={<CliCommandBlock commands={["better-update credentials upload"]} />}
   />
 );
 
@@ -65,10 +65,10 @@ const OwnerCell = ({ owner }: { owner: VaultRecipientRow["owner"] }) =>
   );
 
 const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Recipient</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Recipient</TableHead>
         <TableHead>Owner</TableHead>
         <TableHead>Type</TableHead>
         <TableHead>Fingerprint</TableHead>
@@ -81,7 +81,7 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
         const meta = ENCRYPTION_KEY_KIND_META[row.kind];
         return (
           <TableRow key={row.recipientId}>
-            <TableCell className="font-medium">{row.label}</TableCell>
+            <TableCell className={`${PRIMARY_COLUMN_CLASS} font-medium`}>{row.label}</TableCell>
             <TableCell>
               <OwnerCell owner={row.owner} />
             </TableCell>

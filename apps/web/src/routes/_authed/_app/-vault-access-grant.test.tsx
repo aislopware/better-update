@@ -100,7 +100,7 @@ describe(VaultAccessGrant, () => {
     state.unlocked = null;
     renderGrant();
     expect(screen.getByText("unlock-dialog")).toBeInTheDocument();
-    expect(screen.getByText(/Unlock the env vault to grant/)).toBeInTheDocument();
+    expect(screen.getByText(/The env vault is locked/)).toBeInTheDocument();
   });
 
   it("grants by wrapping the env key to the target's public recipient", async () => {

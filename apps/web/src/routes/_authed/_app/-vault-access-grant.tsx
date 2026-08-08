@@ -20,8 +20,9 @@ import {
 import { toast } from "@better-update/ui/components/toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { SectionHeader } from "../../../components/page-header";
+import { TablePanel } from "../../../components/table-panel";
 import { CopyableMono } from "../../../lib/copy-button";
+import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { useEnvVault } from "../../../lib/env-vault/use-env-vault";
 import { RelativeTime } from "../../../lib/relative-time";
 import { useApiMutation } from "../../../lib/use-api-mutation";
@@ -96,10 +97,10 @@ const PendingGrantsTable = ({
   unlocked: UnlockedEnvVault;
   pending: readonly PendingAccountKey[];
 }) => (
-  <Table>
+  <Table className="[&_th]:whitespace-nowrap">
     <TableHeader>
       <TableRow>
-        <TableHead>Account key</TableHead>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Account key</TableHead>
         <TableHead>Enrolled</TableHead>
         <TableHead className="text-right">Action</TableHead>
       </TableRow>
@@ -107,7 +108,7 @@ const PendingGrantsTable = ({
     <TableBody>
       {pending.map((key) => (
         <TableRow key={key.id}>
-          <TableCell>
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
             <CopyableMono value={key.fingerprint} label="Fingerprint" />
           </TableCell>
           <TableCell className="text-kumo-subtle">
@@ -171,42 +172,44 @@ export const VaultAccessGrant = ({ orgId }: { orgId: string }) => {
     return null;
   }
 
+  // One panel, like the two vaults above it: this used to be a loose heading and
+  // a paragraph floating under two framed lists, which read as leftovers rather
+  // than as the third section of the page.
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Env-vault access"
-        actions={
-          vault.unlocked ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                vault.lock();
-              }}
-            >
-              Lock
-            </Button>
-          ) : undefined
-        }
-      />
-      {vault.unlocked ? (
-        <div className="max-h-[40vh] overflow-y-auto rounded-md border">
-          <PendingGrants orgId={orgId} unlocked={vault.unlocked} />
-        </div>
-      ) : (
-        <div className="flex flex-col items-start gap-2">
-          <p className="text-kumo-subtle text-sm">
-            Unlock the env vault to grant a member access (you must hold the env-vault key to wrap
-            it to them).
-          </p>
+    <TablePanel
+      title="Env-vault access"
+      description="Grant a member access by wrapping the env-vault key to their account key — you must hold the key yourself to do it."
+      actions={
+        vault.unlocked ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              vault.lock();
+            }}
+          >
+            Lock
+          </Button>
+        ) : (
           <EnvVaultUnlockDialog
             orgId={orgId}
             onUnlocked={(unlockedVault) => {
               vault.onUnlocked(unlockedVault);
             }}
           />
+        )
+      }
+    >
+      {vault.unlocked ? (
+        <div className="max-h-[40vh] overflow-y-auto">
+          <PendingGrants orgId={orgId} unlocked={vault.unlocked} />
         </div>
+      ) : (
+        <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">
+          The env vault is locked. Unlock it to see which enrolled members are still waiting for
+          access.
+        </p>
       )}
-    </section>
+    </TablePanel>
   );
 };
