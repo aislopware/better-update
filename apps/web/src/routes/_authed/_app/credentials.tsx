@@ -122,6 +122,12 @@ interface CredentialPanelProps<T> {
   readonly noun: string;
   /** What to do about the absence — shown in place of the type's description. */
   readonly emptyHint: string;
+  /**
+   * Say nothing at all when there is nothing. Set on the optional Apple
+   * certificate types, which are gathered into one panel below rather than
+   * taking a card each to report their own absence.
+   */
+  readonly hideWhenEmpty?: boolean;
   readonly children: (pageItems: readonly T[]) => ReactNode;
 }
 
@@ -143,10 +149,14 @@ const CredentialPanel = <T,>({
   items,
   noun,
   emptyHint,
+  hideWhenEmpty = false,
   children,
 }: CredentialPanelProps<T>) => {
   const pagination = useClientPagination(items, noun);
   if (items.length === 0) {
+    if (hideWhenEmpty) {
+      return null;
+    }
     return (
       <TablePanel title={title} description={emptyHint} actions={emptyMarker}>
         {null}
@@ -219,6 +229,7 @@ const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
       items={data.items}
       noun="certificate"
       emptyHint={PUSH_CERTIFICATES_EMPTY_HINT}
+      hideWhenEmpty
     >
       {(pageItems) => (
         <PushCertificatesTable
@@ -243,6 +254,7 @@ const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
       items={data.items}
       noun="certificate"
       emptyHint={PAY_CERTIFICATES_EMPTY_HINT}
+      hideWhenEmpty
     >
       {(pageItems) => (
         <PayCertificatesTable
@@ -267,6 +279,7 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
       items={data.items}
       noun="certificate"
       emptyHint={PASS_TYPE_CERTIFICATES_EMPTY_HINT}
+      hideWhenEmpty
     >
       {(pageItems) => (
         <PassTypeCertificatesTable
@@ -277,6 +290,54 @@ const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
         />
       )}
     </CredentialPanel>
+  );
+};
+
+/**
+ * The optional Apple certificate types, when an organization has none of them.
+ *
+ * Push Services, Apple Pay and Wallet passes are extras: most projects need
+ * none of the three, and each was taking a full card to report its own absence
+ * — a third of the page spent saying nothing three times. They report it once,
+ * together, and each keeps the one sentence that would fill it. Any type with a
+ * certificate in it is drawn as its own panel above and drops out of here.
+ *
+ * The queries are the ones those sections already suspend on, so listing them
+ * again costs no request.
+ */
+const UnusedCertificateTypesPanel = ({ orgId }: { orgId: string }) => {
+  const { data: push } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
+  const { data: pay } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
+  const { data: passType } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
+
+  const unused = [
+    { title: "Push Certificates", hint: PUSH_CERTIFICATES_EMPTY_HINT, count: push.items.length },
+    { title: "Apple Pay Certificates", hint: PAY_CERTIFICATES_EMPTY_HINT, count: pay.items.length },
+    {
+      title: "Pass Type ID Certificates",
+      hint: PASS_TYPE_CERTIFICATES_EMPTY_HINT,
+      count: passType.items.length,
+    },
+  ].filter((entry) => entry.count === 0);
+
+  if (unused.length === 0) {
+    return null;
+  }
+
+  return (
+    <TablePanel
+      title="Not in use"
+      description="Nothing uploaded for these certificate types. Each is created from the CLI."
+    >
+      <dl className="divide-kumo-line m-0 divide-y border-t">
+        {unused.map((entry) => (
+          <div key={entry.title} className="flex flex-col gap-0.5 px-4 py-3 sm:flex-row sm:gap-4">
+            <dt className="text-sm font-medium sm:w-56 sm:shrink-0">{entry.title}</dt>
+            <dd className="text-kumo-subtle m-0 text-sm">{entry.hint}</dd>
+          </div>
+        ))}
+      </dl>
+    </TablePanel>
   );
 };
 
@@ -388,6 +449,9 @@ const Credentials = () => {
       </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <PassTypeCertificatesSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <UnusedCertificateTypesPanel orgId={orgId} />
       </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <AscApiKeysSection orgId={orgId} />

@@ -60,11 +60,15 @@ const RemoveProjectMemberDialog = ({
 // The header already carries the Add member button, as it does on every other
 // list in the dashboard — the empty state says what the page is for and lets
 // that one button stand.
+//
+// It also stops repeating the owners-and-admins rule. The page description says
+// it three lines above, and saying it twice on one screen reads as two separate
+// facts the reader has to check against each other.
 const EmptyMembers = () => (
   <Empty
     icon={<UsersIcon className="text-kumo-inactive size-10" />}
     title="No project members yet"
-    description="Organization owners and admins always have access. Add members to grant a role on this project."
+    description="Add a teammate to give them a role here."
   />
 );
 
