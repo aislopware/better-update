@@ -19,6 +19,7 @@ export const CopyButton = ({
   size = "sm",
   iconClassName,
   className,
+  title,
 }: {
   value: string;
   label: string;
@@ -26,6 +27,8 @@ export const CopyButton = ({
   size?: ButtonSize;
   iconClassName?: string;
   className?: string;
+  /** Hover text — for the caller that shows the button instead of the value. */
+  title?: string;
 }) => {
   const { copied, copy } = useCopyToClipboard(1500);
 
@@ -48,6 +51,7 @@ export const CopyButton = ({
       shape="square"
       size={size}
       aria-label={`Copy ${label}`}
+      title={title}
       onClick={handleCopy}
       className={cn(className)}
       // No size class: a phosphor icon is 1em, so it tracks the button's own

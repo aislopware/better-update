@@ -111,29 +111,29 @@ const ResourceCell = ({
 
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <AuditResourceLink
-        projectSlug={projectSlug}
-        resourceType={resourceType}
-        resourceId={resourceId}
-        action={action}
-        className="min-w-0 truncate"
-      >
-        <span className="truncate" title={resourceName}>
-          {resourceName}
-        </span>
-      </AuditResourceLink>
-      <span className="text-kumo-subtle flex items-center gap-1 text-xs">
-        {context ? <span>{context}</span> : null}
+      {/* Shaped like the unnamed row above: what identifies the resource on the
+          first line with the copy beside it, what kind of thing it is under.
+          The id used to be printed there as its first eight characters — enough
+          to fill the line, never enough to match anything against, and on a run
+          of rows sharing a prefix the same eight characters over and over. It
+          is on the button's hover title and in the clipboard instead. */}
+      <span className="flex min-w-0 items-center gap-1">
+        <AuditResourceLink
+          projectSlug={projectSlug}
+          resourceType={resourceType}
+          resourceId={resourceId}
+          action={action}
+          className="min-w-0 truncate"
+        >
+          <span className="truncate" title={resourceName}>
+            {resourceName}
+          </span>
+        </AuditResourceLink>
         {resourceId ? (
-          <>
-            {context ? <span aria-hidden>·</span> : null}
-            <code className="max-w-24 truncate font-mono" title={resourceId}>
-              {resourceId.slice(0, 8)}
-            </code>
-            <CopyButton value={resourceId} label="Resource ID" size="xs" />
-          </>
+          <CopyButton value={resourceId} label="Resource ID" size="xs" title={resourceId} />
         ) : null}
       </span>
+      {context ? <span className="text-kumo-subtle text-xs">{context}</span> : null}
     </div>
   );
 };
