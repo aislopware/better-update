@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { Tooltip } from "@better-update/ui/components/tooltip";
+import { cn } from "@better-update/ui/lib/utils";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 
 import type {
@@ -19,6 +20,7 @@ import type { ReactNode } from "react";
 
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { TablePanel } from "../../../../../components/table-panel";
+import { PRIMARY_COLUMN_CLASS } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
 import { MissingMatchingBuilds } from "./-channel-compatibility";
 import { synthesizeBuildChannels } from "./-compatibility-join";
@@ -50,15 +52,41 @@ const MatrixCellGlyph = ({
 const ServableTooltipBody = ({ channel }: { channel: SyntheticBuildChannel }) => (
   <span className="flex max-w-52 flex-col gap-0.5">
     <span>
-      {channel.updateCount} {pluralize(channel.updateCount, "update")} servable
+      {channel.updateCount} {pluralize(channel.updateCount, "update")}{" "}
+      {channel.isPaused ? "ready" : "servable"}
     </span>
     {channel.latestUpdateMessage ? (
       <span className="text-kumo-inverse/70 truncate">Latest: {channel.latestUpdateMessage}</span>
     ) : null}
     {channel.rolloutActive ? <span className="text-kumo-inverse/70">Rollout active</span> : null}
+    {channel.isPaused ? (
+      <span className="text-kumo-inverse/70">Paused — nothing is served</span>
+    ) : null}
   </span>
 );
 
+// The channel's own state, said once at the top of its column.
+const MatrixChannelHeader = ({ name, isPaused }: { name: string; isPaused: boolean }) =>
+  isPaused ? (
+    <Tooltip
+      content="Paused — this channel serves no updates until it is resumed"
+      render={<span className="flex items-center gap-1.5" />}
+    >
+      {name}
+      <span
+        aria-label="Paused"
+        className="bg-kumo-warning inline-block size-2 shrink-0 rounded-full"
+      />
+    </Tooltip>
+  ) : (
+    name
+  );
+
+// A paused channel is a fact about the column, not about each build in it — it
+// used to overwrite every cell with an unlabelled amber dot, so a paused column
+// read as a column of dots with no reading. The header carries it once now, and
+// the cells keep saying what they know: how many updates are ready, drawn quiet
+// because a paused channel serves none of them.
 const MatrixStatusCell = ({
   build,
   channel,
@@ -66,14 +94,6 @@ const MatrixStatusCell = ({
   build: BuildWithSyntheticChannels;
   channel: SyntheticBuildChannel;
 }) => {
-  if (channel.isPaused) {
-    return (
-      <MatrixCellGlyph label="Channel paused — updates are not served">
-        <span className="bg-kumo-warning size-2 rounded-full" aria-hidden="true" />
-      </MatrixCellGlyph>
-    );
-  }
-
   if (!build.runtimeVersion) {
     return (
       <MatrixCellGlyph label="No runtime version on this build">
@@ -85,11 +105,26 @@ const MatrixStatusCell = ({
   // Only builds that DO receive updates get color — "no updates" is the quiet default.
   return channel.updateCount > 0 ? (
     <MatrixCellGlyph
-      label={`${channel.updateCount} ${pluralize(channel.updateCount, "update")} servable`}
+      label={
+        channel.isPaused
+          ? `${channel.updateCount} ${pluralize(channel.updateCount, "update")} ready, held by a paused channel`
+          : `${channel.updateCount} ${pluralize(channel.updateCount, "update")} servable`
+      }
       tooltip={<ServableTooltipBody channel={channel} />}
     >
-      <CheckCircleIcon weight="bold" className="text-kumo-success size-3.5" aria-hidden="true" />
-      <span className="font-medium tabular-nums">{channel.updateCount}</span>
+      <CheckCircleIcon
+        weight="bold"
+        className={cn("size-3.5", channel.isPaused ? "text-kumo-inactive" : "text-kumo-success")}
+        aria-hidden="true"
+      />
+      <span
+        className={cn(
+          "font-medium tabular-nums",
+          channel.isPaused ? "text-kumo-subtle" : undefined,
+        )}
+      >
+        {channel.updateCount}
+      </span>
     </MatrixCellGlyph>
   ) : (
     <MatrixCellGlyph label="No updates on this channel yet">
@@ -100,8 +135,8 @@ const MatrixStatusCell = ({
 
 const MatrixBuildRow = ({ build }: { build: BuildWithSyntheticChannels }) => (
   <TableRow key={build.id}>
-    <TableCell>
-      <div className="flex max-w-80 flex-col gap-0.5">
+    <TableCell className={PRIMARY_COLUMN_CLASS}>
+      <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{buildLabel(build)}</span>
         <span className="text-kumo-subtle flex items-center gap-2 font-mono text-xs">
           <PlatformIndicator platform={build.platform} className="gap-1" />
@@ -168,10 +203,12 @@ export const CompatibilityMatrix = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Build</TableHead>
+                <TableHead className={PRIMARY_COLUMN_CLASS}>Build</TableHead>
                 <TableHead>Runtime</TableHead>
                 {channels.map((channel) => (
-                  <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
+                  <TableHead key={channel.channelId}>
+                    <MatrixChannelHeader name={channel.channelName} isPaused={channel.isPaused} />
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>

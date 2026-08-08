@@ -86,7 +86,8 @@ describe("compatibility UI", () => {
     expect(screen.getByText("iOS build")).toBeInTheDocument();
     // Cells are glyphs — the words live in the accessible label + tooltip.
     expect(screen.getByLabelText("2 updates servable")).toBeInTheDocument();
-    expect(screen.getByLabelText("Channel paused — updates are not served")).toBeInTheDocument();
+    // Paused is a property of the channel, so it is stated in its column header.
+    expect(screen.getByLabelText("Paused")).toBeInTheDocument();
     // The shared warning names the channel (also a column header) and the gap.
     expect(screen.getAllByText("production").length).toBeGreaterThan(1);
     expect(screen.getByText("v3.0.0")).toBeInTheDocument();
