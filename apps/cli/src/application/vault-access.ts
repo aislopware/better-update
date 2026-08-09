@@ -155,7 +155,7 @@ export const grantRecipient = (args: {
  */
 export const unlockVaultKeyInteractive = (
   api: ApiClient,
-  options?: { readonly cacheTtlMs?: number | undefined },
+  options: { readonly orgId: string; readonly cacheTtlMs?: number | undefined },
 ) =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;
@@ -163,13 +163,15 @@ export const unlockVaultKeyInteractive = (
       return yield* unlockVaultKey(api, undefined);
     }
     const cache = yield* VaultCache;
-    const cached = yield* cache.get(recipient.publicKey);
+    const cached = yield* cache.get({ orgId: options.orgId, publicKey: recipient.publicKey });
     if (cached !== undefined) {
       return cached.vault;
     }
     const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
     const vault = yield* unlockVaultKey(api, passphrase);
-    yield* cache.set(recipient.publicKey, vault, { ttlMs: options?.cacheTtlMs });
+    yield* cache.set({ orgId: options.orgId, publicKey: recipient.publicKey }, vault, {
+      ttlMs: options.cacheTtlMs,
+    });
     return vault;
     // Discharge `VaultCache` here — it only needs `CliRuntime` (already in scope),
     // so the cache stays an internal detail and never widens the requirements of
@@ -177,17 +179,24 @@ export const unlockVaultKeyInteractive = (
   }).pipe(Effect.provide(VaultCacheLive));
 
 /**
- * Forget the active recipient's cached vault key. Called after a rotation re-keys
- * the vault: the cached key + version are now stale, so leaving them would make
- * the next seal upload a key/version the server CAS-rejects (and the next decrypt
- * fail integrity). Clearing forces a fresh unlock at the new version next time —
- * which also correctly locks out a device that just revoked its own access.
+ * Forget this device's cached vault key for `orgId`. Called after a rotation
+ * re-keys the vault: the cached key + version are now stale, so leaving them
+ * would make the next seal upload a key/version the server CAS-rejects (and the
+ * next decrypt fail integrity). Clearing forces a fresh unlock at the new version
+ * next time — which also correctly locks out a device that just revoked its own
+ * access.
+ *
+ * `orgId` is explicit rather than "whatever org is active now" because the caller
+ * that matters most — `org switch` — runs this AFTER the switch has landed, and
+ * must clear the org it LEFT.
  */
-export const forgetCachedVaultKey: Effect.Effect<void, IdentityError, CliRuntime | IdentityStore> =
+export const forgetCachedVaultKey = (
+  orgId: string,
+): Effect.Effect<void, IdentityError, CliRuntime | IdentityStore> =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;
     const cache = yield* VaultCache;
-    yield* cache.clear(recipient.publicKey);
+    yield* cache.clear({ orgId, publicKey: recipient.publicKey });
   }).pipe(Effect.provide(VaultCacheLive));
 
 /** Look up a registered recipient by its key id or full `SHA256:` fingerprint. */

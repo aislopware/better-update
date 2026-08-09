@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
 
+import { getActiveOrgId } from "../../application/credential-cipher";
 import { unlockVaultKeyInteractive } from "../../application/vault-access";
 import { IdentityError } from "../../lib/exit-codes";
 import { printKeyValue } from "../../lib/output";
@@ -14,8 +15,17 @@ import type { ApiClient } from "../../services/api-client";
  * key when live, prompt for the device passphrase only on a cache miss, and none
  * at all for a CI robot's env-sourced key (`BETTER_UPDATE_ROBOT` or the
  * deprecated `BETTER_UPDATE_IDENTITY`).
+ *
+ * Resolves the active org itself — the cache is keyed by it, and the admin
+ * commands that call this (device/access/robot) already do enough round-trips
+ * that one more `/api/me` is free. Flows that have the org in hand call
+ * `unlockVaultKeyInteractive` directly instead.
  */
-export const unlockVaultInteractively = (api: ApiClient) => unlockVaultKeyInteractive(api);
+export const unlockVaultInteractively = (api: ApiClient) =>
+  Effect.gen(function* () {
+    const orgId = yield* getActiveOrgId(api);
+    return yield* unlockVaultKeyInteractive(api, { orgId });
+  });
 
 /** Resolve a recipient selector (key id or fingerprint) from a flag, prompting if absent. */
 export const resolveSelector = (flag: string | undefined, message: string) =>

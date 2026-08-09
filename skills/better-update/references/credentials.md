@@ -266,6 +266,12 @@ better-update credentials lock                               # clear the cached 
 better-update credentials status                            # is the vault unlocked? remaining TTL
 ```
 
+The cached key is **per organization**: `unlock`, `lock`, and `status` all act on the org this CLI
+session is currently switched to, and each org keeps its own keychain entry — so bouncing between
+orgs with `org switch` never re-prompts, and never hands one org's key to another. `org switch` also
+locks the org you just left. Set `BETTER_UPDATE_NO_CACHE=1` to opt out of caching entirely and be
+prompted every command.
+
 Typical onboarding: `identity init` (first person in the org) → teammates run `identity create` and
 an owner runs `access grant <recipient>` → each person `unlock`s to cache their key for a session.
 Post-cutover, `access grant` wraps **both** vault keys (credentials + env) to the recipient

@@ -105,33 +105,41 @@ export const unlockEnvVaultKey = (api: ApiClient, passphrase: string | undefined
  * the `"env"` cache namespace so the credentials and env vaults cache (and lock)
  * independently. A CI robot's env-sourced key is never cached.
  */
-export const unlockEnvVaultKeyInteractive = (api: ApiClient) =>
+export const unlockEnvVaultKeyInteractive = (api: ApiClient, orgId: string) =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;
     if (recipient.source !== "file") {
       return yield* unlockEnvVaultKey(api, undefined);
     }
     const cache = yield* VaultCache;
-    const cached = yield* cache.get(recipient.publicKey, "env");
+    const key = { orgId, publicKey: recipient.publicKey, vaultKind: "env" } as const;
+    const cached = yield* cache.get(key);
     if (cached !== undefined) {
       return cached.vault;
     }
     const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
     const vault = yield* unlockEnvVaultKey(api, passphrase);
-    yield* cache.set(recipient.publicKey, vault, { vaultKind: "env" });
+    yield* cache.set(key, vault);
     return vault;
   }).pipe(Effect.provide(VaultCacheLive));
 
-/** Forget this device's cached env-vault key — called after an env rotation re-keys it. */
-export const forgetCachedEnvVaultKey: Effect.Effect<
+/**
+ * Forget this device's cached env-vault key for `orgId` — called after an env
+ * rotation re-keys it, and when leaving an org. Explicit `orgId` for the same
+ * reason as {@link forgetCachedVaultKey}.
+ */
+export const forgetCachedEnvVaultKey = (
+  orgId: string,
+): Effect.Effect<
   void,
   IdentityError,
   Effect.Effect.Context<ReturnType<typeof unlockEnvVaultKeyInteractive>>
-> = Effect.gen(function* () {
-  const recipient = yield* activeRecipient;
-  const cache = yield* VaultCache;
-  yield* cache.clear(recipient.publicKey, "env");
-}).pipe(Effect.provide(VaultCacheLive));
+> =>
+  Effect.gen(function* () {
+    const recipient = yield* activeRecipient;
+    const cache = yield* VaultCache;
+    yield* cache.clear({ orgId, publicKey: recipient.publicKey, vaultKind: "env" });
+  }).pipe(Effect.provide(VaultCacheLive));
 
 /** `true` while a key recipient (device/machine/recovery) holds a wrap on the CURRENT env vault. */
 export const keyHoldsEnvWrap = (api: ApiClient, keyId: string) =>
@@ -149,25 +157,30 @@ export const keyHoldsEnvWrap = (api: ApiClient, keyId: string) =>
  * devices), so only report "already" when the wrap really exists — otherwise
  * drop the stale cache and grant once more against the freshly-fetched version.
  */
-export const grantEnvRecipientIdempotent = (api: ApiClient, target: UserEncryptionKey) => {
-  const grantOnce = Effect.gen(function* () {
-    const vault = yield* unlockEnvVaultKeyInteractive(api);
-    yield* grantEnvRecipient({ api, vault, target });
+export const grantEnvRecipientIdempotent = (api: ApiClient, target: UserEncryptionKey) =>
+  Effect.gen(function* () {
+    // Resolved once and closed over: both the unlock and the stale-cache retry
+    // must name the SAME org, and re-asking per attempt would be an extra
+    // round-trip for an answer that cannot change mid-command.
+    const orgId = yield* getActiveOrgId(api);
+    const grantOnce = Effect.gen(function* () {
+      const vault = yield* unlockEnvVaultKeyInteractive(api, orgId);
+      yield* grantEnvRecipient({ api, vault, target });
+    });
+    return yield* grantOnce.pipe(
+      Effect.as("granted" as const),
+      Effect.catchTag("Conflict", () =>
+        Effect.gen(function* () {
+          if (yield* keyHoldsEnvWrap(api, target.id)) {
+            return "already" as const;
+          }
+          yield* forgetCachedEnvVaultKey(orgId);
+          yield* grantOnce;
+          return "granted" as const;
+        }),
+      ),
+    );
   });
-  return grantOnce.pipe(
-    Effect.as("granted" as const),
-    Effect.catchTag("Conflict", () =>
-      Effect.gen(function* () {
-        if (yield* keyHoldsEnvWrap(api, target.id)) {
-          return "already" as const;
-        }
-        yield* forgetCachedEnvVaultKey;
-        yield* grantOnce;
-        return "granted" as const;
-      }),
-    ),
-  );
-};
 
 /**
  * Resolve the vault session env VALUES are sealed under, branched on the org's
@@ -190,6 +203,6 @@ export const openEnvVaultSessionInteractive = (api: ApiClient) =>
       return yield* openVaultSessionInteractive(api);
     }
     const orgId = yield* getActiveOrgId(api);
-    const ev = yield* unlockEnvVaultKeyInteractive(api);
+    const ev = yield* unlockEnvVaultKeyInteractive(api, orgId);
     return { orgId, vault: ev, vaultKind: "env" } satisfies VaultSession;
   });

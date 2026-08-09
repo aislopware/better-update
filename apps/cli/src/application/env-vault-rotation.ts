@@ -114,7 +114,7 @@ export const rotateEnvVault = (
       });
     }
 
-    const current = yield* unlockEnvVaultKeyInteractive(api);
+    const current = yield* unlockEnvVaultKeyInteractive(api, orgId);
     const toVersion = current.vaultVersion + 1;
     const newEvKey = generateVaultKey();
     const wraps = yield* rewrapSurvivingRecipients(api, newEvKey, options?.excludeKeyId);
@@ -128,6 +128,6 @@ export const rotateEnvVault = (
     const rotated = yield* api.envVault.rotate({
       payload: { fromVersion: current.vaultVersion, wraps, envDeks },
     });
-    yield* forgetCachedEnvVaultKey;
+    yield* forgetCachedEnvVaultKey(orgId);
     return rotated;
   });

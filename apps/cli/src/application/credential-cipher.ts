@@ -94,7 +94,7 @@ export const openVaultSession = (api: ApiClient, passphrase: string | undefined)
 export const openVaultSessionInteractive = (api: ApiClient) =>
   Effect.gen(function* () {
     const orgId = yield* getActiveOrgId(api);
-    const vault = yield* unlockVaultKeyInteractive(api);
+    const vault = yield* unlockVaultKeyInteractive(api, { orgId });
     return { orgId, vault, vaultKind: "credentials" } satisfies VaultSession;
   });
 

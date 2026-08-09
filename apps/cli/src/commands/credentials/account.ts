@@ -9,6 +9,7 @@ import { toBase64 } from "@better-update/encoding";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { getActiveOrgId } from "../../application/credential-cipher";
 import { orgHasCutOver, unlockEnvVaultKeyInteractive } from "../../application/env-vault-access";
 import { loadIdentityFileOrFail } from "../../application/identity";
 import { escrowToEnvelope } from "../../application/passphrase-change";
@@ -35,7 +36,7 @@ const linkAccountKeyToEnv = (
   params: { readonly accountKeyId: string; readonly agePublicKey: string },
 ) =>
   Effect.gen(function* () {
-    const ev = yield* unlockEnvVaultKeyInteractive(api);
+    const ev = yield* unlockEnvVaultKeyInteractive(api, yield* getActiveOrgId(api));
     const wrapped = yield* Effect.promise(async () =>
       wrapVaultKey({ vaultKey: ev.vaultKey, recipient: params.agePublicKey }),
     );

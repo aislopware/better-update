@@ -1,6 +1,7 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { getActiveOrgId } from "../../application/credential-cipher";
 import { activeRecipient } from "../../application/identity";
 import { unlockVaultKeyInteractive } from "../../application/vault-access";
 import { runEffect } from "../../lib/citty-effect";
@@ -59,12 +60,14 @@ const unlockCommand = defineCommand({
           return;
         }
         const api = yield* apiClient;
+        const orgId = yield* getActiveOrgId(api);
         const cache = yield* VaultCache;
+        const key = { orgId, publicKey: recipient.publicKey };
         // Force a fresh unlock: drop any live entry first so the interactive
         // unlock prompts and re-caches, rather than silently reusing the old key.
-        yield* cache.clear(recipient.publicKey);
-        yield* unlockVaultKeyInteractive(api, { cacheTtlMs });
-        const cached = yield* cache.get(recipient.publicKey);
+        yield* cache.clear(key);
+        yield* unlockVaultKeyInteractive(api, { orgId, cacheTtlMs });
+        const cached = yield* cache.get(key);
         const suffix =
           cached === undefined
             ? " (no OS keychain available — commands will keep prompting)"
@@ -83,8 +86,10 @@ const lockCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const recipient = yield* activeRecipient;
+        const api = yield* apiClient;
+        const orgId = yield* getActiveOrgId(api);
         const cache = yield* VaultCache;
-        yield* cache.clear(recipient.publicKey);
+        yield* cache.clear({ orgId, publicKey: recipient.publicKey });
         yield* printHuman("Vault locked — the cached key was cleared from your OS keychain.");
       }),
     ),
@@ -103,8 +108,10 @@ const statusCommand = defineCommand({
           yield* printHuman("Active identity is a robot (CI) key — caching not used.");
           return;
         }
+        const api = yield* apiClient;
+        const orgId = yield* getActiveOrgId(api);
         const cache = yield* VaultCache;
-        const cached = yield* cache.get(recipient.publicKey);
+        const cached = yield* cache.get({ orgId, publicKey: recipient.publicKey });
         yield* printHuman(
           cached === undefined
             ? "Locked — the next credential command will prompt for your passphrase."

@@ -162,6 +162,9 @@ describe("granting an env recipient idempotently", () => {
     stub: IdempotentApiStub,
   ): ApiClient =>
     ({
+      // The vault-key cache is keyed by org, so every unlock resolves the active
+      // one first.
+      me: { get: () => Effect.succeed({ activeOrganization: { id: "org-acme" } }) },
       userEncryptionKeys: {
         list: () =>
           Effect.succeed({

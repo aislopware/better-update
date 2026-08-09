@@ -18,14 +18,20 @@ const activeOrganizationId = Effect.gen(function* () {
   return me.activeOrganization?.id;
 });
 
-// The cached vault keys belong to the PREVIOUS organization's vaults — reused
-// against the new org they would fail to decrypt, or worse, seal fresh uploads
-// under a key nobody in the new org holds. Drop both caches so the next vault
-// operation re-unlocks against the newly active organization. Best-effort: a
-// device without a local identity has nothing cached.
-const dropVaultCaches = Effect.all([forgetCachedVaultKey, forgetCachedEnvVaultKey]).pipe(
-  Effect.catchAll(() => Effect.void),
-);
+// Lock the org being left: drop both of its cached vault keys so walking away
+// from an org also walks away from its unlocked secrets, rather than leaving
+// them readable for the rest of the TTL.
+//
+// This is no longer what keeps the vaults APART — the cache is keyed by org, so
+// the new org simply cannot see this entry either way. It takes the id of the
+// org being LEFT because it runs after the switch has already landed, when
+// "active org" means the new one.
+//
+// Best-effort: a device without a local identity has nothing cached.
+const dropVaultCaches = (orgId: string) =>
+  Effect.all([forgetCachedVaultKey(orgId), forgetCachedEnvVaultKey(orgId)]).pipe(
+    Effect.catchAll(() => Effect.void),
+  );
 
 const listCommand = defineCommand({
   meta: {
@@ -85,8 +91,11 @@ const switchCommand = defineCommand({
         const flag = args.org?.trim();
         const selector =
           flag !== undefined && flag.length > 0 ? flag : yield* promptForOrganization;
+        const leavingOrgId = yield* activeOrganizationId;
         const target = yield* switchOrganization(service, selector);
-        yield* dropVaultCaches;
+        if (leavingOrgId !== undefined) {
+          yield* dropVaultCaches(leavingOrgId);
+        }
         const api = yield* apiClient;
         const me = yield* api.me.get();
         const role = me.activeOrganization?.role;

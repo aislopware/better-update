@@ -38,7 +38,7 @@ export const rotateVaultTo = (args: {
 }) =>
   Effect.gen(function* () {
     const orgId = yield* getActiveOrgId(args.api);
-    const current = yield* unlockVaultKeyInteractive(args.api);
+    const current = yield* unlockVaultKeyInteractive(args.api, { orgId });
     const newVaultKey = generateVaultKey();
     const newVersion = current.vaultVersion + 1;
 
@@ -98,7 +98,7 @@ export const rotateVaultTo = (args: {
     const rotated = yield* args.api.orgVault.rotate({
       payload: { fromVersion: current.vaultVersion, recipientWraps, credentialDeks },
     });
-    yield* forgetCachedVaultKey;
+    yield* forgetCachedVaultKey(orgId);
     return rotated;
   });
 
