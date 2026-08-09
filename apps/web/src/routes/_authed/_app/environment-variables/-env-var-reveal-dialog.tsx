@@ -9,12 +9,11 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/dialog";
 import { InlineCode } from "@better-update/ui/components/inline-code";
-import { InputGroup } from "@better-update/ui/components/input-group";
 import { Loader } from "@better-update/ui/components/loader";
+import { SensitiveInput } from "@better-update/ui/components/sensitive-input";
 
 import type { EnvVar } from "@better-update/api";
 
-import { CopyButton } from "../../../../lib/copy-button";
 import { StepUpGate, useGuardedEnvValue } from "./-step-up-guard";
 
 import type { UnlockedEnvVault } from "../../../../lib/env-vault/use-env-vault";
@@ -51,14 +50,13 @@ const RevealBody = ({
   if (guarded.kind === "error") {
     return <p className="text-kumo-danger text-sm">{guarded.message}</p>;
   }
-  return (
-    <InputGroup>
-      <InputGroup.Input readOnly value={guarded.value} className="font-mono text-sm" />
-      <InputGroup.Addon align="end">
-        <CopyButton value={guarded.value} label={envVar.key} size="xs" />
-      </InputGroup.Addon>
-    </InputGroup>
-  );
+  // Kumo's own control for a secret, in place of a read-only field with a copy
+  // button bolted to its end: it comes up masked and reveals on a click or on
+  // Enter, hides again when focus leaves, carries its own copy button, and says
+  // all of that to a screen reader. The step-up gates fetching the envelope; a
+  // decrypted value left sitting on screen is a different exposure — a shared
+  // screen, someone walking past — and this is the one that answers it.
+  return <SensitiveInput readOnly value={guarded.value} className="font-mono text-sm" />;
 };
 
 /**
