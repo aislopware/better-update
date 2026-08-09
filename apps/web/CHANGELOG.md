@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.74.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.73.0...%40better-update%2Fweb%400.74.0) (2026-08-09)
+
+### Features
+
+* require the Android keystore certificate expiry ([ee219b8](https://github.com/better-update/better-update/commit/ee219b8d188d5ba77be537a280aca337a2beec18))
+
 ## [0.73.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.72.2...%40better-update%2Fweb%400.73.0) (2026-08-09)
 
 ### Features

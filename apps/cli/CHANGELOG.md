@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.73.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.72.0...%40better-update%2Fcli%400.73.0) (2026-08-09)
+
+### Features
+
+* require the Android keystore certificate expiry ([ee219b8](https://github.com/better-update/better-update/commit/ee219b8d188d5ba77be537a280aca337a2beec18))
+
+### Bug Fixes
+
+* **cli:** key the cached vault key by organization ([25ffb71](https://github.com/better-update/better-update/commit/25ffb718f84fd546ee98252e8fa5862d91a855b4))
+
 ## [0.72.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.7...%40better-update%2Fcli%400.72.0) (2026-08-09)
 
 ### Features
