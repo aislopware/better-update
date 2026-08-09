@@ -19,3 +19,18 @@ export const ROW_LINK =
 
 /** `ROW_LINK` for a list that rules its own rows rather than dividing them. */
 export const ROW_LINK_DIVIDED = `${ROW_LINK} border-kumo-line border-b last:border-0`;
+
+/**
+ * The way out of a panel to the full list it previews: "View all", "N more".
+ *
+ * Quiet, because it is an exit and not the content — but it is still a link,
+ * so it says where focus is. Belongs in the panel header rather than under the
+ * rows: the closing bar counts how much of the set is on screen, and a way out
+ * is not a fact about the set. That is where the Cloudflare dashboard puts it.
+ *
+ * Written seven ways before this: six copies of the same three utilities, one
+ * of which had thought to add `no-underline`, and none of which had a focus
+ * ring at all.
+ */
+export const VIEW_ALL_LINK =
+  "text-kumo-subtle hover:text-kumo-default focus-visible:ring-kumo-focus rounded-sm text-sm no-underline outline-none focus-visible:ring-2";

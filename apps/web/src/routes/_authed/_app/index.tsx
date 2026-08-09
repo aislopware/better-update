@@ -20,6 +20,7 @@ import { Suspense } from "react";
 import { PageHeader } from "../../../components/page-header";
 import { ShippingActivityPanel } from "../../../components/shipping-activity";
 import { DetailCardSkeleton } from "../../../components/skeletons";
+import { VIEW_ALL_LINK } from "../../../lib/panel-links";
 import { RelativeTime } from "../../../lib/relative-time";
 import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
 import { actionLabel, parseAuditMetadata, readAuditResourceName } from "./-audit-log-labels";
@@ -115,7 +116,7 @@ const RecentActivityCard = ({ orgId }: { orgId: string }) => {
       <CardHeader>
         <CardTitle>Recent activity</CardTitle>
         <CardAction>
-          <Link to="/audit-log" className="text-kumo-subtle hover:text-kumo-default text-sm">
+          <Link to="/audit-log" className={VIEW_ALL_LINK}>
             View audit log →
           </Link>
         </CardAction>
@@ -132,7 +133,7 @@ const LatestProjectLink = ({ project }: { project: { name: string; slug: string 
   <Link
     to="/projects/$projectSlug"
     params={{ projectSlug: project.slug }}
-    className="text-kumo-subtle hover:text-kumo-default text-sm"
+    className={VIEW_ALL_LINK}
   >
     Last activity in {project.name} →
   </Link>

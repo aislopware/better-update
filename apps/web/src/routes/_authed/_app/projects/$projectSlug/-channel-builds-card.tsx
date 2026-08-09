@@ -10,9 +10,9 @@ import {
   PlatformIndicator,
 } from "../../../../../components/attribute-badges";
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "../../../../../lib/data-table";
+import { ROW_LINK_DIVIDED, VIEW_ALL_LINK } from "../../../../../lib/panel-links";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
-import { ROW_LINK_DIVIDED } from "../../../../../lib/row-link";
 import { MissingMatchingBuilds } from "./-channel-compatibility";
 
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
@@ -133,7 +133,7 @@ export const ChannelBuildsCard = ({
               <Link
                 to="/projects/$projectSlug/builds"
                 params={{ projectSlug }}
-                className="text-kumo-subtle hover:text-kumo-default text-sm"
+                className={VIEW_ALL_LINK}
               >
                 View all builds →
               </Link>

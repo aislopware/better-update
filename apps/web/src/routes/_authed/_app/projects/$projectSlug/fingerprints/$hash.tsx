@@ -19,8 +19,8 @@ import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { useClientPagination } from "../../../../../../lib/data-table";
+import { ROW_LINK_DIVIDED } from "../../../../../../lib/panel-links";
 import { RelativeTime } from "../../../../../../lib/relative-time";
-import { ROW_LINK_DIVIDED } from "../../../../../../lib/row-link";
 
 interface RouteParams {
   projectSlug: string;

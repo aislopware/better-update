@@ -7,9 +7,9 @@ import type { Update } from "@better-update/api";
 
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "../../../../../lib/data-table";
+import { ROW_LINK_DIVIDED, VIEW_ALL_LINK } from "../../../../../lib/panel-links";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
-import { ROW_LINK_DIVIDED } from "../../../../../lib/row-link";
 
 /** Enough to read the shape of what this channel is serving, not a second list. */
 export const VISIBLE_UPDATE_LIMIT = 6;
@@ -102,7 +102,7 @@ export const ChannelUpdatesCard = ({
                 to="/projects/$projectSlug/updates"
                 params={{ projectSlug }}
                 search={{ page: 1, sort: "-createdAt" as const, branchId: [branchId] }}
-                className="text-kumo-subtle hover:text-kumo-default text-sm"
+                className={VIEW_ALL_LINK}
               >
                 View all updates →
               </Link>

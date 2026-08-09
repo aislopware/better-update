@@ -35,11 +35,11 @@ import {
   ListPanelHeader,
   useClientPagination,
 } from "../../../../../../lib/data-table";
+import { ROW_LINK_DIVIDED } from "../../../../../../lib/panel-links";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLink } from "../../../../../../lib/resource-link";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
-import { ROW_LINK_DIVIDED } from "../../../../../../lib/row-link";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "../-compatibility-join";

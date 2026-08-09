@@ -9,6 +9,7 @@ import { DetailHeader, DetailNotFound } from "../../../../../../components/detai
 import { TablePanelSkeleton } from "../../../../../../components/skeletons";
 import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
 import { DataTableView } from "../../../../../../lib/data-table";
+import { VIEW_ALL_LINK } from "../../../../../../lib/panel-links";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
@@ -64,16 +65,6 @@ const RuntimeHeaderMeta = ({
     ) : null}
   </>
 );
-
-/**
- * The way out of a preview panel to the full list it previews.
- *
- * Parked in the panel header rather than under the rows: the closing bar counts
- * how much of the set is on screen, and "view all" is a way out of the panel
- * rather than a fact about it — which is where the Cloudflare dashboard puts
- * it too.
- */
-const VIEW_ALL_CLASS = "text-kumo-subtle hover:text-kumo-default text-sm no-underline";
 
 const RuntimeDetailContent = () => {
   const { version } = Route.useParams();
@@ -176,7 +167,7 @@ const RuntimeDetailContent = () => {
                 // runtime means all of *its* builds, and the list says so with a
                 // chip rather than quietly showing the project's whole history.
                 search={{ page: 1, sort: "-createdAt" as const, runtimeVersion: version }}
-                className={VIEW_ALL_CLASS}
+                className={VIEW_ALL_LINK}
               >
                 View all builds →
               </Link>
@@ -222,7 +213,7 @@ const RuntimeDetailContent = () => {
                 to="/projects/$projectSlug/updates"
                 params={{ projectSlug }}
                 search={{ page: 1, sort: "-createdAt" as const, runtimeVersion: version }}
-                className={VIEW_ALL_CLASS}
+                className={VIEW_ALL_LINK}
               >
                 View all updates →
               </Link>

@@ -17,8 +17,8 @@ import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { ShippingActivityPanel } from "../../../../../components/shipping-activity";
 import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
+import { ROW_LINK, VIEW_ALL_LINK } from "../../../../../lib/panel-links";
 import { RelativeTime } from "../../../../../lib/relative-time";
-import { ROW_LINK } from "../../../../../lib/row-link";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { ChannelStatusBadge } from "./-channel-status-badge";
 
@@ -104,7 +104,7 @@ const LiveNowCard = ({
         <Link
           to="/projects/$projectSlug/channels"
           params={{ projectSlug: scope.projectSlug }}
-          className="text-kumo-subtle hover:text-kumo-default text-sm"
+          className={VIEW_ALL_LINK}
         >
           View channels →
         </Link>
@@ -172,7 +172,7 @@ const viewAllLink = (scope: OverviewScope, to: "updates" | "builds") => (
   <Link
     to={to === "updates" ? "/projects/$projectSlug/updates" : "/projects/$projectSlug/builds"}
     params={{ projectSlug: scope.projectSlug }}
-    className="text-kumo-subtle hover:text-kumo-default text-sm"
+    className={VIEW_ALL_LINK}
   >
     View all →
   </Link>
