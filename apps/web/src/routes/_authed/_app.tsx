@@ -1,7 +1,7 @@
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { inputVariants } from "@better-update/ui/components/input";
 import { Kbd } from "@better-update/ui/components/kbd";
-import { Sidebar } from "@better-update/ui/components/sidebar";
+import { Sidebar, useSidebar } from "@better-update/ui/components/sidebar";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/tooltip";
 import { cn } from "@better-update/ui/lib/utils";
@@ -76,6 +76,9 @@ const renderOrgTrigger = (
 const OrgSwitcher = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  // Switching org navigates, and on a phone this trigger sits inside the modal
+  // sheet — so the sheet has to stand down with it. See `NavSection`.
+  const { setOpenMobile } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const { activeOrg, orgs } = Route.useRouteContext();
@@ -104,6 +107,7 @@ const OrgSwitcher = () => {
       await router.navigate({ to: "/projects" });
       await router.invalidate();
       setMenuOpen(false);
+      setOpenMobile(false);
     },
   });
 
@@ -170,6 +174,7 @@ const OrgSwitcher = () => {
           <DropdownMenu.Separator />
           <DropdownMenu.Item
             onClick={() => {
+              setOpenMobile(false);
               setCreateOrgOpen(true);
             }}
             disabled={switchOrg.isPending}
@@ -253,34 +258,63 @@ const AppSidebar = ({
   isAccount: boolean;
   isSuperadmin: boolean;
   onSearch: () => void;
-}) => (
-  // Pinned to the viewport so the nav stays put while a long page scrolls;
-  // Kumo's own root is `h-full`, which would let it scroll away with the page.
-  <Sidebar
-    className="sticky top-0 z-40 h-svh self-start"
-    // A peek floats the nav over the page rather than pushing it, so it needs
-    // the elevation to read as a layer above rather than a slice out of it.
-    contentClassName="group-data-[state=peeking]/sidebar:shadow-2xl"
-  >
-    {/* Matched to the header row so the org trigger lines up with the
+}) => {
+  // Below Kumo's breakpoint this whole thing is a modal sheet, and Kumo leaves
+  // dismissing it to whoever put something in it: `Sidebar.MenuButton` is a
+  // plain link, so a tap navigated and left the new page underneath the nav —
+  // and its backdrop. Every way out of the sheet says so itself. A no-op on
+  // desktop, where the rail is drawn from `open`, not `openMobile`.
+  const { setOpenMobile } = useSidebar();
+  const dismiss = (): void => {
+    setOpenMobile(false);
+  };
+  return (
+    // Pinned to the viewport so the nav stays put while a long page scrolls;
+    // Kumo's own root is `h-full`, which would let it scroll away with the page.
+    //
+    // Desktop only, and that is the whole point of the breakpoint: under 768px
+    // Kumo swaps the rail for a modal sheet whose own classes are `fixed inset-y-0
+    // z-50`, and these are merged in after them. Unprefixed, `sticky` beat `fixed`
+    // and the sheet went back into the flex row — 260px of blank column shoving
+    // the page off the right edge of the phone — while `z-40` tied it with its own
+    // backdrop. `md:` is exactly the complement of Kumo's `max-width: 767px`, so
+    // each mode now gets only its own positioning.
+    <Sidebar
+      className="md:sticky md:top-0 md:z-40 md:h-svh md:self-start"
+      // A peek floats the nav over the page rather than pushing it, so it needs
+      // the elevation to read as a layer above rather than a slice out of it.
+      contentClassName="group-data-[state=peeking]/sidebar:shadow-2xl"
+    >
+      {/* Matched to the header row so the org trigger lines up with the
         breadcrumb bar and the nav starts under one continuous divider. The
         padding tracks Sidebar.Content's, which narrows as the rail collapses. */}
-    <Sidebar.Header className="h-(--header-height) px-2.5 group-not-data-[state=collapsed]/sidebar:px-3">
-      <OrgSwitcher />
-    </Sidebar.Header>
-    <Sidebar.Content>
-      <SidebarSearchButton onClick={onSearch} />
-      <SidebarSections
-        projectSlug={projectSlug}
-        isAccount={isAccount}
-        isSuperadmin={isSuperadmin}
-      />
-    </Sidebar.Content>
-    <Sidebar.Footer>
-      <Sidebar.Trigger />
-    </Sidebar.Footer>
-  </Sidebar>
-);
+      <Sidebar.Header className="h-(--header-height) px-2.5 group-not-data-[state=collapsed]/sidebar:px-3">
+        <OrgSwitcher />
+      </Sidebar.Header>
+      <Sidebar.Content>
+        <SidebarSearchButton
+          onClick={() => {
+            dismiss();
+            onSearch();
+          }}
+        />
+        <SidebarSections
+          projectSlug={projectSlug}
+          isAccount={isAccount}
+          isSuperadmin={isSuperadmin}
+        />
+      </Sidebar.Content>
+      <Sidebar.Footer>
+        {/* Narrowing the rail is a desktop idea — on a phone this is a sheet,
+            and the same control there means dismiss. Kumo's trigger does toggle
+            the sheet, but it labels itself from the desktop state, so it would
+            announce "Collapse sidebar" over a full-width overlay. */}
+        <Sidebar.Trigger className="hidden md:flex" />
+        <Sidebar.Close className="md:hidden" />
+      </Sidebar.Footer>
+    </Sidebar>
+  );
+};
 
 const AppLayout = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -309,8 +343,10 @@ const AppLayout = () => {
           <header className="bg-kumo-base/80 border-kumo-line sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center justify-between gap-2 border-b px-4 backdrop-blur lg:px-6">
             <div className="flex min-w-0 items-center gap-1">
               {/* Below Kumo's 768px breakpoint the sidebar is an offcanvas
-                  sheet, so its own footer trigger is off screen. */}
-              <Sidebar.Trigger className="-ml-1 md:hidden" />
+                  sheet, so its own footer trigger is off screen. Labelled here
+                  because Kumo's default reads the desktop expand/collapse
+                  state, which this button never touches. */}
+              <Sidebar.Trigger className="-ml-1 md:hidden" aria-label="Open navigation" />
               <Suspense fallback={<Skeleton className="h-7 w-32 rounded-md" />}>
                 <ProjectSwitcher orgId={activeOrg.id} currentProjectSlug={projectSlug} />
               </Suspense>

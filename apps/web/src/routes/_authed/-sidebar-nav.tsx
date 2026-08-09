@@ -1,5 +1,5 @@
 import { meQueryOptions } from "@better-update/api-client/react";
-import { Sidebar } from "@better-update/ui/components/sidebar";
+import { Sidebar, useSidebar } from "@better-update/ui/components/sidebar";
 import {
   BroadcastIcon,
   CloudArrowUpIcon,
@@ -298,6 +298,11 @@ const NavSection = ({
   items: readonly { href: string; label: string; icon: Icon; exact: boolean }[];
 }) => {
   const isCurrent = useIsCurrent();
+  // Below Kumo's breakpoint the rail is a modal sheet over the page, and a
+  // `MenuButton` is a plain link: without this a tap navigated and left the page
+  // it had asked for underneath the nav and its backdrop. Inert on desktop,
+  // where the rail is drawn from `open` rather than `openMobile`.
+  const { setOpenMobile } = useSidebar();
   return (
     <Sidebar.Group>
       <Sidebar.GroupLabel>{label}</Sidebar.GroupLabel>
@@ -311,6 +316,9 @@ const NavSection = ({
             href={item.href}
             icon={item.icon}
             active={isCurrent(item.href, item.exact)}
+            onClick={() => {
+              setOpenMobile(false);
+            }}
           >
             {item.label}
           </Sidebar.MenuButton>

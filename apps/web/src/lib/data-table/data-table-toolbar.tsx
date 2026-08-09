@@ -73,29 +73,37 @@ export const DataTableToolbar = ({
           12px: a filter row set smaller than the table it filters reads as a
           footnote to it. */}
       {hasFilters ? (
-        <Toolbar className={cn("max-w-full", ITEM_EDGES)}>
-          {search ? (
-            <Toolbar.InputGroup aria-label={search.placeholder} className="w-48 sm:w-64">
-              <InputGroup.Input
-                type="search"
-                value={search.value}
-                placeholder={search.placeholder}
-                onChange={(event) => {
-                  search.onChange(event.target.value);
-                }}
-              />
-              <InputGroup.Addon>
-                <MagnifyingGlassIcon />
-              </InputGroup.Addon>
-            </Toolbar.InputGroup>
-          ) : null}
-          {children}
-          {isFiltered && onReset ? (
-            <Toolbar.Button icon={XIcon} onClick={handleReset}>
-              Reset
-            </Toolbar.Button>
-          ) : null}
-        </Toolbar>
+        // A segmented strip cannot wrap — its items draw the seams between them
+        // — so where the row runs out of width it scrolls instead of squeezing.
+        // On a phone the flex row was taking it out of the search field, which
+        // shrank to a sliver of its own magnifier while the filters kept their
+        // labels. The negative margin is only so a focus ring has somewhere to
+        // go: a scroll container clips on both axes.
+        <div className="-my-1 max-w-full overflow-x-auto py-1">
+          <Toolbar className={cn("w-max", ITEM_EDGES)}>
+            {search ? (
+              <Toolbar.InputGroup aria-label={search.placeholder} className="w-48 sm:w-64">
+                <InputGroup.Input
+                  type="search"
+                  value={search.value}
+                  placeholder={search.placeholder}
+                  onChange={(event) => {
+                    search.onChange(event.target.value);
+                  }}
+                />
+                <InputGroup.Addon>
+                  <MagnifyingGlassIcon />
+                </InputGroup.Addon>
+              </Toolbar.InputGroup>
+            ) : null}
+            {children}
+            {isFiltered && onReset ? (
+              <Toolbar.Button icon={XIcon} onClick={handleReset}>
+                Reset
+              </Toolbar.Button>
+            ) : null}
+          </Toolbar>
+        </div>
       ) : null}
       {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
     </div>
