@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.47.0...%40better-update%2Fapi%400.47.1) (2026-08-09)
+
+### Bug Fixes
+
+* publish updates by projectId, not the Expo slug ([54b799d](https://gitlab.jmango360.com/mobile/better-update/commit/54b799da7f27895ff2f0ceb4981ac0c27b407de4))
+
 ## [0.47.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.46.0...%40better-update%2Fapi%400.47.0) (2026-08-09)
 
 ### Features

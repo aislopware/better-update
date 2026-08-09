@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.59.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.59.0...%40better-update%2Fserver%400.59.1) (2026-08-09)
+
+### Bug Fixes
+
+* publish updates by projectId, not the Expo slug ([54b799d](https://github.com/better-update/better-update/commit/54b799da7f27895ff2f0ceb4981ac0c27b407de4))
+
 ## [0.59.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.58.1...%40better-update%2Fserver%400.59.0) (2026-08-09)
 
 ### Features

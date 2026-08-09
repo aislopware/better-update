@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.7](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.6...%40better-update%2Fcli%400.71.7) (2026-08-09)
+
+### Bug Fixes
+
+* publish updates by projectId, not the Expo slug ([54b799d](https://github.com/better-update/better-update/commit/54b799da7f27895ff2f0ceb4981ac0c27b407de4))
+
 ## [0.71.6](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.5...%40better-update%2Fcli%400.71.6) (2026-08-09)
 
 **Note:** Version bump only for package @better-update/cli
