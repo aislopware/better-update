@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.72.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.7...%40better-update%2Fcli%400.72.0) (2026-08-09)
+
+### Features
+
+* record and surface Android keystore certificate expiry ([ef7b5c4](https://github.com/better-update/better-update/commit/ef7b5c42946a502d2bb1dcf97258984d618a7557))
+
 ## [0.71.7](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.71.6...%40better-update%2Fcli%400.71.7) (2026-08-09)
 
 ### Bug Fixes

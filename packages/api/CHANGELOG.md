@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.48.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.47.1...%40better-update%2Fapi%400.48.0) (2026-08-09)
+
+### Features
+
+* record and surface Android keystore certificate expiry ([ef7b5c4](https://gitlab.jmango360.com/mobile/better-update/commit/ef7b5c42946a502d2bb1dcf97258984d618a7557))
+
 ## [0.47.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.47.0...%40better-update%2Fapi%400.47.1) (2026-08-09)
 
 ### Bug Fixes

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.73.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.72.2...%40better-update%2Fweb%400.73.0) (2026-08-09)
+
+### Features
+
+* record and surface Android keystore certificate expiry ([ef7b5c4](https://github.com/better-update/better-update/commit/ef7b5c42946a502d2bb1dcf97258984d618a7557))
+* **web:** list Android upload keystores on the org credentials page ([2fb20bc](https://github.com/better-update/better-update/commit/2fb20bcac157f97d0b74b3c4580bbe5004dfb9a3))
+
 ## [0.72.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.72.1...%40better-update%2Fweb%400.72.2) (2026-08-09)
 
 ### Bug Fixes
