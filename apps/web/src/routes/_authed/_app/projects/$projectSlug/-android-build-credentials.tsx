@@ -1,17 +1,14 @@
 import {
   androidApplicationIdentifiersQueryOptions,
   androidBuildCredentialsQueryOptions,
-  androidUploadKeystoresQueryKey,
   androidUploadKeystoresQueryOptions,
   meQueryOptions,
-  setAndroidUploadKeystoreProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { Select } from "@better-update/ui/components/select";
-import { toast } from "@better-update/ui/components/toast";
 import { CheckCircleIcon, KeyIcon } from "@phosphor-icons/react";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type {
@@ -20,34 +17,16 @@ import type {
 } from "@better-update/api-client/react";
 
 import { BindingRowActions, BoundProjectsCell } from "../../-credential-bindings";
-import { ProtectionCell } from "../../-credential-cells";
+import { FingerprintCell } from "../../-credential-cells";
+import { AndroidUploadKeystoreProtectionSwitch } from "../../-credential-protection";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { SectionTitle } from "../../../../../components/page-header";
 import { isOrgAdmin } from "../../../../../lib/access";
-import { CopyButton } from "../../../../../lib/copy-button";
 import { onPicked } from "../../../../../lib/form-utils";
 import { RelativeTime } from "../../../../../lib/relative-time";
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
-
-const formatFingerprint = (value: string): string => {
-  if (value.length <= 12) {
-    return value;
-  }
-  return `${value.slice(0, 5)}…${value.slice(-4)}`;
-};
-
-const FingerprintCell = ({ value, label }: { value: string | null; label: string }) =>
-  value === null ? (
-    <span className="font-mono text-xs">—</span>
-  ) : (
-    <span className="flex items-center gap-1">
-      <span className="font-mono text-xs">{formatFingerprint(value)}</span>
-      <CopyButton value={value} label={label} />
-    </span>
-  );
 
 // Per-row protection toggle (GITLAB-RBAC-SPEC §3b): protected keystores are
 // restricted to Maintainers; only org admins/owners may flip the switch.
@@ -58,24 +37,12 @@ const KeystoreProtectionSwitch = ({
   orgId: string;
   keystore: AndroidUploadKeystoreItem;
 }) => {
-  const queryClient = useQueryClient();
   const { data: me } = useSuspenseQuery(meQueryOptions());
-  const protectionMutation = useApiMutation({
-    mutationFn: async (next: boolean) => setAndroidUploadKeystoreProtection(keystore.id, next),
-    onSuccess: async (_result, next) => {
-      toast.success(next ? "Keystore protected" : "Keystore unprotected");
-      await queryClient.invalidateQueries({ queryKey: androidUploadKeystoresQueryKey(orgId) });
-    },
-  });
   return (
-    <ProtectionCell
-      label={`Protect ${keystore.keyAlias}`}
-      checked={keystore.protected}
+    <AndroidUploadKeystoreProtectionSwitch
+      orgId={orgId}
+      keystore={keystore}
       canManage={isOrgAdmin(me.orgRole)}
-      isPending={protectionMutation.isPending}
-      onToggle={(next) => {
-        protectionMutation.mutate(next);
-      }}
     />
   );
 };

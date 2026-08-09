@@ -62,6 +62,9 @@ const pushKeySection = () => page.locator("section").filter({ hasText: "APNs Pus
 const googleSaSection = () =>
   page.locator("section").filter({ hasText: "Google Service Account Keys" });
 
+const androidKeystoreSection = () =>
+  page.locator("section").filter({ hasText: "Android Upload Keystores" });
+
 // A sidebar link shares its accessible name with the breadcrumb trail once the
 // page is open, so a bare role lookup is ambiguous on a retry. The sidebar
 // entry comes first in the DOM and is the only clickable one.
@@ -122,6 +125,10 @@ describe("dashboard credentials + robot accounts + audit log (browser)", () => {
       .first()
       .waitFor();
     await googleSaSection()
+      .getByText(/from the cli/iu)
+      .first()
+      .waitFor();
+    await androidKeystoreSection()
       .getByText(/from the cli/iu)
       .first()
       .waitFor();

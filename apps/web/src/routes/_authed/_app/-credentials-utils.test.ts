@@ -1,4 +1,9 @@
-import { dateToIsoBoundary, isoToDate } from "./-credentials-utils";
+import {
+  dateToIsoBoundary,
+  formatFingerprint,
+  formatKeystoreSubline,
+  isoToDate,
+} from "./-credentials-utils";
 
 describe(isoToDate, () => {
   it("returns undefined for an empty string", () => {
@@ -7,6 +12,36 @@ describe(isoToDate, () => {
 
   it("parses a stored ISO string back into a Date", () => {
     expect(isoToDate("2026-05-19T08:30:00.000Z")?.toISOString()).toBe("2026-05-19T08:30:00.000Z");
+  });
+});
+
+describe(formatFingerprint, () => {
+  it("leaves a short value whole", () => {
+    expect(formatFingerprint("AA:BB:CC:DD")).toBe("AA:BB:CC:DD");
+  });
+
+  it("keeps both ends of a long fingerprint, which is what tells two apart", () => {
+    expect(formatFingerprint("AA:BB:CC:DD:EE:FF:00:11")).toBe("AA:BB…0:11");
+  });
+});
+
+describe(formatKeystoreSubline, () => {
+  it("names the alias and the store format under a named keystore", () => {
+    expect(
+      formatKeystoreSubline({ name: "Release keystore", keyAlias: "upload", keystoreType: "JKS" }),
+    ).toBe("upload · JKS");
+  });
+
+  it("drops the alias when it is already the title", () => {
+    expect(formatKeystoreSubline({ name: null, keyAlias: "upload", keystoreType: "PKCS12" })).toBe(
+      "PKCS12",
+    );
+  });
+
+  it("says nothing when the alias is the title and the format is unknown", () => {
+    expect(
+      formatKeystoreSubline({ name: null, keyAlias: "upload", keystoreType: null }),
+    ).toBeNull();
   });
 });
 

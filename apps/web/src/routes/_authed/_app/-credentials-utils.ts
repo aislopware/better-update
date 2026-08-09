@@ -14,6 +14,29 @@ const APPLE_TEAM_TYPE_LABEL: Record<AppleTeamItem["appleTeamType"], string> = {
 export const formatAppleTeamType = (type: AppleTeamItem["appleTeamType"]): string =>
   APPLE_TEAM_TYPE_LABEL[type];
 
+// Keystore fingerprints are colon-separated hex; only the ends distinguish two
+// of them, so the middle is dropped and the copy button carries the full value.
+const FINGERPRINT_INLINE_MAX = 12;
+
+export const formatFingerprint = (value: string): string =>
+  value.length <= FINGERPRINT_INLINE_MAX ? value : `${value.slice(0, 5)}…${value.slice(-4)}`;
+
+/**
+ * The line under an upload keystore's name: the alias it is actually signed
+ * with, plus the store format. A keystore uploaded without `--name` is titled by
+ * its alias, so the alias drops out of the subline rather than being said twice.
+ */
+export const formatKeystoreSubline = (keystore: {
+  readonly name: string | null;
+  readonly keyAlias: string;
+  readonly keystoreType: string | null;
+}): string | null => {
+  const parts = [keystore.name === null ? null : keystore.keyAlias, keystore.keystoreType].filter(
+    (part) => part !== null,
+  );
+  return parts.length > 0 ? parts.join(" · ") : null;
+};
+
 // Apple credentials carry the internal team row UUID (`appleTeamId`); index the
 // org's teams by that id so credential tables can resolve a human-readable team.
 export const indexAppleTeamsById = (

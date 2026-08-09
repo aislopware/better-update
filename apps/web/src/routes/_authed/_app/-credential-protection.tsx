@@ -1,4 +1,5 @@
 import {
+  androidUploadKeystoresQueryKey,
   appleDistributionCertificatesQueryKey,
   applePassTypeCertificatesQueryKey,
   applePayCertificatesQueryKey,
@@ -12,6 +13,7 @@ import {
   setApplePayCertificateProtection,
   setApplePushCertificateProtection,
   setApplePushKeyProtection,
+  setAndroidUploadKeystoreProtection,
   setAppleTeamProtection,
   setAscApiKeyProtection,
   setGoogleServiceAccountKeyProtection,
@@ -19,7 +21,11 @@ import {
 import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type { AppleTeamItem, GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
+import type {
+  AndroidUploadKeystoreItem,
+  AppleTeamItem,
+  GoogleServiceAccountKeyItem,
+} from "@better-update/api-client/react";
 
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { ProtectionCell } from "./-credential-cells";
@@ -102,6 +108,27 @@ export const GsaKeyProtectionSwitch = ({
     canManage={canManage}
     queryKey={googleServiceAccountKeysQueryKey(orgId)}
     setProtection={async (next) => setGoogleServiceAccountKeyProtection(gsaKey.id, next)}
+  />
+);
+
+// Per-row toggle, same shape as the Google one: an upload keystore has no
+// parent credential to inherit a protected state from.
+export const AndroidUploadKeystoreProtectionSwitch = ({
+  orgId,
+  keystore,
+  canManage,
+}: {
+  orgId: string;
+  keystore: AndroidUploadKeystoreItem;
+  canManage: boolean;
+}) => (
+  <ProtectionSwitch
+    label={`Protect ${keystore.keyAlias}`}
+    toastLabel="Keystore"
+    checked={keystore.protected}
+    canManage={canManage}
+    queryKey={androidUploadKeystoresQueryKey(orgId)}
+    setProtection={async (next) => setAndroidUploadKeystoreProtection(keystore.id, next)}
   />
 );
 
