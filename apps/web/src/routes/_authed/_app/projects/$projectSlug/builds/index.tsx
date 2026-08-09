@@ -26,13 +26,14 @@ import {
   DataTableToolbar,
   DataTableView,
   DataTableViewOptions,
+  IN_PLACE,
   PAGE_SIZE,
+  PinnedFilterChip,
   computePagination,
-  fireAndForget,
   enumArrayParam,
+  fireAndForget,
   optionalStringParam,
   pageParam,
-  PinnedFilterChip,
   queryParam,
   sortParam,
   useDataTableSearch,
@@ -156,7 +157,7 @@ const BuildsContent = () => {
     onCommit: (value) => {
       fireAndForget(
         routeNavigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -167,7 +168,7 @@ const BuildsContent = () => {
   const handlePlatformChange = (next: readonly ("ios" | "android")[]) => {
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, platform: [...next], page: 1 }),
       }),
     );
@@ -177,7 +178,7 @@ const BuildsContent = () => {
     const next = value.filter(isBuildDistribution);
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, distribution: next, page: 1 }),
       }),
     );
@@ -186,7 +187,7 @@ const BuildsContent = () => {
   const handleAudienceChange = (next: readonly BuildAudience[]) => {
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, audience: [...next], page: 1 }),
       }),
     );
@@ -196,7 +197,7 @@ const BuildsContent = () => {
     handleSearchChange("");
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({
           ...prev,
           platform: [],
@@ -328,7 +329,7 @@ const BuildsContent = () => {
             onClear={() => {
               fireAndForget(
                 routeNavigate({
-                  to: ".",
+                  ...IN_PLACE,
                   search: (prev) => ({ ...prev, runtimeVersion: undefined, page: 1 }),
                 }),
               );

@@ -22,6 +22,7 @@ import {
   DataTableToolbar,
   DataTableView,
   DataTableViewOptions,
+  IN_PLACE,
   PAGE_SIZE,
   computePagination,
   enumArrayParam,
@@ -157,7 +158,7 @@ const DevicesContent = () => {
     onCommit: (value) => {
       fireAndForget(
         routeNavigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -175,7 +176,7 @@ const DevicesContent = () => {
   }): void => {
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, ...patch, page: 1 }),
       }),
     );

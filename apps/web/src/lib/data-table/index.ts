@@ -31,4 +31,4 @@ export {
 } from "./use-client-pagination";
 export { useDataTableSearch } from "./use-data-table-search";
 export { useDebouncedSearch } from "./use-debounced-search";
-export { fireAndForget } from "./use-search-navigate";
+export { IN_PLACE, fireAndForget } from "./use-search-navigate";

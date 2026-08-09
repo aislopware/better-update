@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { AuditLogSkeleton, AuditLogView, auditLogSearchSchema } from "../../-audit-log-view";
 import { PageHeader } from "../../../../../components/page-header";
-import { fireAndForget } from "../../../../../lib/data-table";
+import { IN_PLACE, fireAndForget } from "../../../../../lib/data-table";
 
 const ProjectAuditLogPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
@@ -22,7 +22,7 @@ const ProjectAuditLogPage = () => {
           scopeLabel="this project"
           search={search}
           onChangeSearch={(next) => {
-            fireAndForget(navigate({ to: ".", search: next }));
+            fireAndForget(navigate({ ...IN_PLACE, search: next }));
           }}
         />
       </Suspense>

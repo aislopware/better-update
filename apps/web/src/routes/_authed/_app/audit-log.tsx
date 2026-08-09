@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
 import { assertCapability } from "../../../lib/access";
-import { fireAndForget } from "../../../lib/data-table";
+import { IN_PLACE, fireAndForget } from "../../../lib/data-table";
 import { AuditLogSkeleton, AuditLogView, auditLogSearchSchema } from "./-audit-log-view";
 
 const AuditLogPage = () => {
@@ -24,7 +24,7 @@ const AuditLogPage = () => {
           scopeLabel="your organization"
           search={search}
           onChangeSearch={(next) => {
-            fireAndForget(navigate({ to: ".", search: next }));
+            fireAndForget(navigate({ ...IN_PLACE, search: next }));
           }}
         />
       </Suspense>

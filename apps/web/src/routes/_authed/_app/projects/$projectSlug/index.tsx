@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { PageHeader, SectionHeader } from "../../../../../components/page-header";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
-import { fireAndForget } from "../../../../../lib/data-table";
+import { IN_PLACE, fireAndForget } from "../../../../../lib/data-table";
 import { AnalyticsPeriodSelect, AnalyticsTab, analyticsSearchSchema } from "./-analytics-tab";
 import { OverviewContent } from "./-overview-content";
 
@@ -13,7 +13,7 @@ const ProjectOverview = () => {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const handleSearchChange = (next: Partial<typeof search>): void => {
-    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, ...next }) }));
+    fireAndForget(navigate({ ...IN_PLACE, search: (prev) => ({ ...prev, ...next }) }));
   };
 
   return (

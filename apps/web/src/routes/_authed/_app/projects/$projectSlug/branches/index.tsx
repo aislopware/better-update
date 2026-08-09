@@ -19,6 +19,7 @@ import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
   DataTableToolbar,
   DataTableView,
+  IN_PLACE,
   PAGE_SIZE,
   computePagination,
   fireAndForget,
@@ -152,7 +153,7 @@ const BranchesPage = () => {
     onCommit: (value) => {
       fireAndForget(
         navigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -164,7 +165,7 @@ const BranchesPage = () => {
     handleSearchChange("");
     fireAndForget(
       navigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, query: "", page: 1 }),
       }),
     );

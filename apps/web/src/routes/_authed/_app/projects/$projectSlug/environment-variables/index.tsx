@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 
 import { PageHeader } from "../../../../../../components/page-header";
-import { fireAndForget } from "../../../../../../lib/data-table";
+import { IN_PLACE, fireAndForget } from "../../../../../../lib/data-table";
 import { EnvVarsView, envVarsSearchSchema } from "../../../environment-variables/-env-vars-view";
 
 // The organization page has carried a title all along; this one opened straight
@@ -22,7 +22,7 @@ const EnvironmentVariablesPage = () => {
         mode={{ kind: "project", orgId: activeOrg.id, projectId: project.id }}
         search={search}
         onChangeSearch={(next) => {
-          fireAndForget(navigate({ to: ".", search: next }));
+          fireAndForget(navigate({ ...IN_PLACE, search: next }));
         }}
       />
     </div>

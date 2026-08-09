@@ -19,14 +19,15 @@ import {
   DataTableToolbar,
   DataTableView,
   DataTableViewOptions,
+  IN_PLACE,
   PAGE_SIZE,
+  PinnedFilterChip,
   computePagination,
   enumArrayParam,
   fireAndForget,
   freeStringArrayParam,
   optionalStringParam,
   pageParam,
-  PinnedFilterChip,
   queryParam,
   sortParam,
   useDataTableSearch,
@@ -157,7 +158,7 @@ const UpdatesContent = () => {
     onCommit: (value) => {
       fireAndForget(
         routeNavigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -168,7 +169,7 @@ const UpdatesContent = () => {
   const handleBranchFilter = (next: readonly string[]) => {
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, branchId: [...next], page: 1 }),
       }),
     );
@@ -177,7 +178,7 @@ const UpdatesContent = () => {
   const handlePlatformFilter = (next: readonly ("ios" | "android")[]) => {
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, platform: [...next], page: 1 }),
       }),
     );
@@ -187,7 +188,7 @@ const UpdatesContent = () => {
     handleSearchChange("");
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({
           ...prev,
           branchId: [],
@@ -296,7 +297,7 @@ const UpdatesContent = () => {
             onClear={() => {
               fireAndForget(
                 routeNavigate({
-                  to: ".",
+                  ...IN_PLACE,
                   search: (prev) => ({ ...prev, runtimeVersion: undefined, page: 1 }),
                 }),
               );

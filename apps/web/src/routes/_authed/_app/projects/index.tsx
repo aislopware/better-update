@@ -23,6 +23,7 @@ import {
   CardList,
   DataTableFacetedFilter,
   DataTableToolbar,
+  IN_PLACE,
   ListSortMenu,
   PAGE_SIZE,
   computePagination,
@@ -299,7 +300,7 @@ const Projects = () => {
     onCommit: (value) => {
       fireAndForget(
         routeNavigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -327,7 +328,7 @@ const Projects = () => {
   const handleStatusChange = (next: readonly string[]): void => {
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, status: next.filter(isStatusFilter), page: 1 }),
         replace: true,
       }),
@@ -338,7 +339,7 @@ const Projects = () => {
     handleSearchChange("");
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, query: "", status: [...DEFAULT_STATUS], page: 1 }),
         replace: true,
       }),

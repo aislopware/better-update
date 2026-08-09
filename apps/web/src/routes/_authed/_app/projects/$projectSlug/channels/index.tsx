@@ -23,6 +23,7 @@ import { CopyableId } from "../../../../../../lib/copy-button";
 import {
   DataTableToolbar,
   DataTableView,
+  IN_PLACE,
   PAGE_SIZE,
   computePagination,
   fireAndForget,
@@ -143,7 +144,7 @@ const ChannelsContent = () => {
     onCommit: (value) => {
       fireAndForget(
         routeNavigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -155,7 +156,7 @@ const ChannelsContent = () => {
     handleSearchChange("");
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, query: "", page: 1 }),
       }),
     );

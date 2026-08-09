@@ -27,6 +27,7 @@ import {
   DataTableFacetedFilter,
   DataTableToolbar,
   DataTableView,
+  IN_PLACE,
   PAGE_SIZE,
   computePagination,
   enumArrayParam,
@@ -160,7 +161,7 @@ const AdminUsers = () => {
     onCommit: (value) => {
       fireAndForget(
         routeNavigate({
-          to: ".",
+          ...IN_PLACE,
           search: (prev) => ({ ...prev, query: value, page: 1 }),
           replace: true,
         }),
@@ -207,12 +208,12 @@ const AdminUsers = () => {
   });
 
   const onPageChange = (next: number): void => {
-    fireAndForget(routeNavigate({ to: ".", search: (prev) => ({ ...prev, page: next }) }));
+    fireAndForget(routeNavigate({ ...IN_PLACE, search: (prev) => ({ ...prev, page: next }) }));
   };
 
   const setStatusFilter = (next: readonly StatusFilter[]): void => {
     fireAndForget(
-      routeNavigate({ to: ".", search: (prev) => ({ ...prev, status: [...next], page: 1 }) }),
+      routeNavigate({ ...IN_PLACE, search: (prev) => ({ ...prev, status: [...next], page: 1 }) }),
     );
   };
 
@@ -220,7 +221,7 @@ const AdminUsers = () => {
     handleSearchChange("");
     fireAndForget(
       routeNavigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev) => ({ ...prev, query: "", status: [], page: 1 }),
         replace: true,
       }),

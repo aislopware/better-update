@@ -13,6 +13,7 @@ import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons"
 import {
   DataTableFacetedFilter,
   DataTableToolbar,
+  IN_PLACE,
   enumArrayParam,
   fireAndForget,
   queryParam,
@@ -105,21 +106,28 @@ const useMembersFilters = () => {
     delayMs: SEARCH_DEBOUNCE_MS,
     onCommit: (value) => {
       fireAndForget(
-        navigate({ to: ".", search: (prev) => ({ ...prev, query: value }), replace: true }),
+        navigate({ ...IN_PLACE, search: (prev) => ({ ...prev, query: value }), replace: true }),
       );
     },
   });
 
   const handleStatusChange = (next: readonly string[]): void => {
     fireAndForget(
-      navigate({ to: ".", search: (prev) => ({ ...prev, status: next.filter(isStatusFilter) }) }),
+      navigate({
+        ...IN_PLACE,
+        search: (prev) => ({ ...prev, status: next.filter(isStatusFilter) }),
+      }),
     );
   };
 
   const handleResetFilters = (): void => {
     handleSearchChange("");
     fireAndForget(
-      navigate({ to: ".", search: (prev) => ({ ...prev, status: [], query: "" }), replace: true }),
+      navigate({
+        ...IN_PLACE,
+        search: (prev) => ({ ...prev, status: [], query: "" }),
+        replace: true,
+      }),
     );
   };
 

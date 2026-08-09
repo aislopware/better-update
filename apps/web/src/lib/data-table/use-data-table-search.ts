@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { SortingState } from "@tanstack/react-table";
 
 import { normalizeSortParam, sortParamToSortingState, sortingStateToSortParam } from "./sort-param";
-import { fireAndForget } from "./use-search-navigate";
+import { IN_PLACE, fireAndForget } from "./use-search-navigate";
 
 // eslint-disable-next-line typescript/no-explicit-any -- TanStack Router's per-route navigate type is too narrow to capture generically; callers pass the typed Route.useNavigate() output
 type SearchUpdater = (opts: any) => Promise<unknown>;
@@ -38,7 +38,7 @@ export const useDataTableSearch = <TColumn extends string>({
   const onSortChange = (nextSort: string): void => {
     fireAndForget(
       navigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev: Record<string, unknown>) => ({ ...prev, sort: nextSort, page: 1 }),
       }),
     );
@@ -56,7 +56,7 @@ export const useDataTableSearch = <TColumn extends string>({
   const onPageChange = (next: number): void => {
     fireAndForget(
       navigate({
-        to: ".",
+        ...IN_PLACE,
         search: (prev: Record<string, unknown>) => ({ ...prev, page: next }),
       }),
     );

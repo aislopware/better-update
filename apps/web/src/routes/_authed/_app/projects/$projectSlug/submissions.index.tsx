@@ -13,13 +13,14 @@ import { PageHeader } from "../../../../../components/page-header";
 import { QueryErrorState } from "../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import {
-  computePagination,
   DataTableFacetedFilter,
   DataTableToolbar,
   DataTableView,
-  fireAndForget,
-  enumArrayParam,
+  IN_PLACE,
   PAGE_SIZE,
+  computePagination,
+  enumArrayParam,
+  fireAndForget,
   pageParam,
 } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
@@ -85,12 +86,12 @@ const SubmissionsPage = () => {
 
   const setPlatformFilter = (next: readonly PlatformFilter[]): void => {
     fireAndForget(
-      navigate({ to: ".", search: (prev) => ({ ...prev, platform: [...next], page: 1 }) }),
+      navigate({ ...IN_PLACE, search: (prev) => ({ ...prev, platform: [...next], page: 1 }) }),
     );
   };
 
   const onPageChange = (nextPage: number): void => {
-    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, page: nextPage }) }));
+    fireAndForget(navigate({ ...IN_PLACE, search: (prev) => ({ ...prev, page: nextPage }) }));
   };
 
   if (isLoading || data === undefined) {

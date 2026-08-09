@@ -17,6 +17,7 @@ import { QueryErrorState } from "../../../../../../components/query-error-state"
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
   DataTableView,
+  IN_PLACE,
   PAGE_SIZE,
   computePagination,
   fireAndForget,
@@ -153,7 +154,7 @@ const RuntimesContent = () => {
   const { safePage } = computePagination(data.total, page);
 
   const onPageChange = (next: number) => {
-    fireAndForget(routeNavigate({ to: ".", search: (prev) => ({ ...prev, page: next }) }));
+    fireAndForget(routeNavigate({ ...IN_PLACE, search: (prev) => ({ ...prev, page: next }) }));
   };
 
   return (

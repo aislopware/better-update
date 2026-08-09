@@ -3,7 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 
 import { PageHeader } from "../../../../components/page-header";
 import { assertCapability } from "../../../../lib/access";
-import { fireAndForget } from "../../../../lib/data-table";
+import { IN_PLACE, fireAndForget } from "../../../../lib/data-table";
 import { EnvVarsView, envVarsSearchSchema } from "./-env-vars-view";
 import { EnvironmentsManager } from "./-environments-manager";
 
@@ -23,7 +23,7 @@ const GlobalEnvironmentVariablesPage = () => {
         mode={{ kind: "global", orgId: activeOrg.id }}
         search={search}
         onChangeSearch={(next) => {
-          fireAndForget(navigate({ to: ".", search: next }));
+          fireAndForget(navigate({ ...IN_PLACE, search: next }));
         }}
       />
     </div>
