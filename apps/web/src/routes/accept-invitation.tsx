@@ -1,6 +1,5 @@
 import { useMountEffect } from "@better-update/react-hooks";
 import { LinkButton } from "@better-update/ui/components/button";
-import { Card, CardContent } from "@better-update/ui/components/card";
 import { Loader } from "@better-update/ui/components/loader";
 import { CheckCircleIcon, EnvelopeSimpleIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,7 +7,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
-import { BrandWordmark } from "../components/brand-mark";
+import { CenteredCardBody, CenteredCardPage } from "../components/centered-card-page";
 import { GlobalLoading } from "../components/global-loading";
 import { StatusMedallion } from "../components/status-medallion";
 import { authClient, rejectOnAuthClientError } from "../lib/auth-client";
@@ -43,16 +42,11 @@ const AcceptInvitationPage = () => {
   });
 
   return (
-    <div className="bg-kumo-canvas relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-12">
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
-        <BrandWordmark />
-        <Card className="w-full">
-          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-            <Body isError={isError} isSuccess={isSuccess} isPending={isPending} error={error} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <CenteredCardPage>
+      <CenteredCardBody>
+        <Body isError={isError} isSuccess={isSuccess} isPending={isPending} error={error} />
+      </CenteredCardBody>
+    </CenteredCardPage>
   );
 };
 

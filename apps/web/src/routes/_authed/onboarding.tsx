@@ -1,6 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -14,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useRef } from "react";
 
-import { BrandWordmark } from "../../components/brand-mark";
+import { CenteredCardPage } from "../../components/centered-card-page";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { logout } from "../../lib/logout";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
@@ -77,106 +76,100 @@ const Onboarding = () => {
   });
 
   return (
-    <div className="bg-kumo-canvas relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-16">
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
-        <BrandWordmark />
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold">Create your organization</CardTitle>
-            <CardDescription>
-              An organization is where a team manages its projects and API keys together.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="flex w-full flex-col gap-4"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await form.handleSubmit();
+    <CenteredCardPage footer={<SignedInAs />}>
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold">Create your organization</CardTitle>
+        <CardDescription>
+          An organization is where a team manages its projects and API keys together.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex w-full flex-col gap-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await form.handleSubmit();
+          }}
+        >
+          <FieldGroup>
+            <form.Field
+              name="name"
+              validators={{
+                onBlur: ({ value }) => {
+                  const result = nameSchema.safeParse(value);
+                  return result.success ? undefined : result.error.issues[0]?.message;
+                },
               }}
             >
-              <FieldGroup>
-                <form.Field
-                  name="name"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = nameSchema.safeParse(value);
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
-                >
-                  {(field) => {
-                    const errorMessage = getFieldError(field);
-                    return (
-                      <Input
-                        label="Organization name"
-                        error={errorMessage}
-                        id="name"
-                        placeholder="Acme Inc."
-                        value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                          if (!slugEdited.current) {
-                            form.setFieldValue("slug", generateSlug(event.target.value), {
-                              dontUpdateMeta: true,
-                              dontValidate: true,
-                            });
-                          }
-                        }}
-                        onBlur={field.handleBlur}
-                      />
-                    );
-                  }}
-                </form.Field>
+              {(field) => {
+                const errorMessage = getFieldError(field);
+                return (
+                  <Input
+                    label="Organization name"
+                    error={errorMessage}
+                    id="name"
+                    placeholder="Acme Inc."
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                      if (!slugEdited.current) {
+                        form.setFieldValue("slug", generateSlug(event.target.value), {
+                          dontUpdateMeta: true,
+                          dontValidate: true,
+                        });
+                      }
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                );
+              }}
+            </form.Field>
 
-                <form.Field
-                  name="slug"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = slugSchema.safeParse(value);
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
-                >
-                  {(field) => {
-                    const errorMessage = getFieldError(field);
-                    return (
-                      <Input
-                        label="URL slug"
-                        error={errorMessage}
-                        id="slug"
-                        placeholder="acme-inc"
-                        value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                          slugEdited.current = event.target.value !== "";
-                        }}
-                        onBlur={field.handleBlur}
-                      />
-                    );
-                  }}
-                </form.Field>
-              </FieldGroup>
-              <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-                {([canSubmit, isSubmitting]) => (
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    className="w-full"
-                    disabled={!canSubmit || Boolean(isSubmitting)}
-                    loading={Boolean(isSubmitting)}
-                  >
-                    Create organization
-                  </Button>
-                )}
-              </form.Subscribe>
-            </form>
-          </CardContent>
-        </Card>
-        <SignedInAs />
-      </div>
-    </div>
+            <form.Field
+              name="slug"
+              validators={{
+                onBlur: ({ value }) => {
+                  const result = slugSchema.safeParse(value);
+                  return result.success ? undefined : result.error.issues[0]?.message;
+                },
+              }}
+            >
+              {(field) => {
+                const errorMessage = getFieldError(field);
+                return (
+                  <Input
+                    label="URL slug"
+                    error={errorMessage}
+                    id="slug"
+                    placeholder="acme-inc"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                      slugEdited.current = event.target.value !== "";
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                );
+              }}
+            </form.Field>
+          </FieldGroup>
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+            {([canSubmit, isSubmitting]) => (
+              <Button
+                variant="primary"
+                type="submit"
+                className="w-full"
+                disabled={!canSubmit || Boolean(isSubmitting)}
+                loading={Boolean(isSubmitting)}
+              >
+                Create organization
+              </Button>
+            )}
+          </form.Subscribe>
+        </form>
+      </CardContent>
+    </CenteredCardPage>
   );
 };
 

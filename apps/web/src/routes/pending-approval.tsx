@@ -1,10 +1,10 @@
 import { Button } from "@better-update/ui/components/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
+import { CardDescription, CardTitle } from "@better-update/ui/components/card";
 import { ClockIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 
-import { BrandWordmark } from "../components/brand-mark";
+import { CenteredCardBody, CenteredCardPage } from "../components/centered-card-page";
 import { GlobalLoading } from "../components/global-loading";
 import { StatusMedallion } from "../components/status-medallion";
 import { isApprovedUser } from "../lib/access";
@@ -21,36 +21,31 @@ const PendingApproval = () => {
   });
 
   return (
-    <div className="bg-kumo-canvas relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
-        <BrandWordmark />
-        <Card className="w-full">
-          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-            <StatusMedallion tone="warning">
-              <ClockIcon />
-            </StatusMedallion>
-            <div className="flex flex-col gap-1.5">
-              <CardTitle className="text-xl font-semibold">Account pending approval</CardTitle>
-              <CardDescription>
-                Better Update is still in development and access is invite-only. Your account (
-                <span className="font-medium">{user.email}</span>) is waiting for a superadmin to
-                approve it. You&apos;ll be able to sign in once it&apos;s approved.
-              </CardDescription>
-            </div>
-            <Button
-              variant="secondary"
-              className="mt-2"
-              onClick={() => {
-                logoutMutation.mutate();
-              }}
-              loading={logoutMutation.isPending}
-            >
-              Sign out
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <CenteredCardPage>
+      <CenteredCardBody>
+        <StatusMedallion tone="warning">
+          <ClockIcon />
+        </StatusMedallion>
+        <div className="flex flex-col gap-1.5">
+          <CardTitle className="text-xl font-semibold">Account pending approval</CardTitle>
+          <CardDescription>
+            Better Update is still in development and access is invite-only. Your account (
+            <span className="font-medium">{user.email}</span>) is waiting for a superadmin to
+            approve it. You&apos;ll be able to sign in once it&apos;s approved.
+          </CardDescription>
+        </div>
+        <Button
+          variant="secondary"
+          className="mt-2"
+          onClick={() => {
+            logoutMutation.mutate();
+          }}
+          loading={logoutMutation.isPending}
+        >
+          Sign out
+        </Button>
+      </CenteredCardBody>
+    </CenteredCardPage>
   );
 };
 

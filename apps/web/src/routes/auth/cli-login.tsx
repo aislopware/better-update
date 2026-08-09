@@ -1,12 +1,12 @@
 import { Button } from "@better-update/ui/components/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
+import { CardDescription, CardTitle } from "@better-update/ui/components/card";
 import { Link } from "@better-update/ui/components/link";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
-import { BrandWordmark } from "../../components/brand-mark";
+import { CenteredCardBody, CenteredCardPage } from "../../components/centered-card-page";
 import { CliCommandBlock } from "../../components/cli-command-block";
 import { StatusMedallion } from "../../components/status-medallion";
 import { authClient } from "../../lib/auth-client";
@@ -44,31 +44,26 @@ const CliLoginPage = () => {
   const { error } = Route.useRouteContext();
 
   return (
-    <div className="bg-kumo-canvas relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-6">
-        <BrandWordmark />
-        <Card className="w-full">
-          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-            <StatusMedallion tone="destructive">
-              <WarningCircleIcon />
-            </StatusMedallion>
-            <div className="flex flex-col gap-1.5">
-              <CardTitle className="text-xl font-semibold">CLI login failed</CardTitle>
-              <CardDescription>{error}</CardDescription>
-            </div>
-            <RetryInstructions />
-            <Button
-              variant="secondary"
-              onClick={() => {
-                globalThis.location.assign("/");
-              }}
-            >
-              Go to dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <CenteredCardPage>
+      <CenteredCardBody>
+        <StatusMedallion tone="destructive">
+          <WarningCircleIcon />
+        </StatusMedallion>
+        <div className="flex flex-col gap-1.5">
+          <CardTitle className="text-xl font-semibold">CLI login failed</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </div>
+        <RetryInstructions />
+        <Button
+          variant="secondary"
+          onClick={() => {
+            globalThis.location.assign("/");
+          }}
+        >
+          Go to dashboard
+        </Button>
+      </CenteredCardBody>
+    </CenteredCardPage>
   );
 };
 
