@@ -84,10 +84,12 @@ describe("compatibility UI", () => {
     expect(screen.getByText("Builds × channels")).toBeInTheDocument();
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("iOS build")).toBeInTheDocument();
-    // Cells are glyphs — the words live in the accessible label + tooltip.
-    expect(screen.getByLabelText("2 updates servable")).toBeInTheDocument();
+    // Cells are glyphs — the words live in screen-reader text + the tooltip.
+    // Asserted as text, not as a label: `getByLabelText` would also have passed
+    // on an `aria-label` written where the platform ignores it.
+    expect(screen.getByText("2 updates servable")).toBeInTheDocument();
     // Paused is a property of the channel, so it is stated in its column header.
-    expect(screen.getByLabelText("Paused")).toBeInTheDocument();
+    expect(screen.getByText("Paused")).toBeInTheDocument();
     // The shared warning names the channel (also a column header) and the gap.
     expect(screen.getAllByText("production").length).toBeGreaterThan(1);
     expect(screen.getByText("v3.0.0")).toBeInTheDocument();

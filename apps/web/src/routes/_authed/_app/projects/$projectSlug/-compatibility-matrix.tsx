@@ -32,6 +32,13 @@ const buildLabel = (build: BuildWithSyntheticChannels) =>
 
 // Fixed-height glyph cell: the grid scans like a matrix, the words live in the
 // tooltip. `label` doubles as the accessible name of the glyph.
+//
+// The label used to be an `aria-label` on the span, where it was discarded: a
+// plain span has no role that can carry a name, so the cell was read out as the
+// bare number it draws — "3", with nothing to say three of what. (The tests
+// could not see this; `getByLabelText` matches the attribute wherever it is
+// written, not where it counts.) Said as text instead, with the glyph and the
+// count hidden behind it, so the reading is the sentence and not its parts.
 const MatrixCellGlyph = ({
   label,
   tooltip,
@@ -43,9 +50,12 @@ const MatrixCellGlyph = ({
 }) => (
   <Tooltip
     content={tooltip ?? label}
-    render={<span aria-label={label} className="flex h-6 w-fit items-center gap-1.5 text-xs" />}
+    render={<span className="flex h-6 w-fit items-center text-xs" />}
   >
-    {children}
+    <span className="sr-only">{label}</span>
+    <span aria-hidden="true" className="flex items-center gap-1.5">
+      {children}
+    </span>
   </Tooltip>
 );
 
@@ -73,8 +83,10 @@ const MatrixChannelHeader = ({ name, isPaused }: { name: string; isPaused: boole
       render={<span className="flex items-center gap-1.5" />}
     >
       {name}
+      <span className="sr-only">Paused</span>
+      {/* Said above, drawn here — see MatrixCellGlyph for why not `aria-label`. */}
       <span
-        aria-label="Paused"
+        aria-hidden="true"
         className="bg-kumo-warning inline-block size-2 shrink-0 rounded-full"
       />
     </Tooltip>

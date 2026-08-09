@@ -31,12 +31,17 @@ describe(RolloutSplitDiagram, () => {
     },
   );
 
-  it("exposes an aria-label summarizing the split", () => {
+  // The bar is decoration; the legend under it is what states the split, so it
+  // has to name both branches rather than leave them to the two coloured
+  // segments. (This replaced an `aria-label` on the wrapping div, which the
+  // platform discards — a div has no role that can carry a name.)
+  it("names both branches in the legend", () => {
     render(
       <RolloutSplitDiagram oldBranchName="main" newBranchName="next" newBranchPercentage={25} />,
     );
 
-    expect(screen.getByLabelText("Rollout split: 75% on main, 25% on next")).toBeInTheDocument();
+    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(screen.getByText("next")).toBeInTheDocument();
   });
 
   it("shows a completion check only at 100%", () => {

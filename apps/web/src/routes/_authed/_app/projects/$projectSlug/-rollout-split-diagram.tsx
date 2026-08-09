@@ -25,10 +25,11 @@ export const RolloutSplitDiagram = ({
   const oldPercent = 100 - newPercent;
 
   return (
-    <div
-      className="flex flex-col gap-2"
-      aria-label={`Rollout split: ${oldPercent}% on ${oldBranchName}, ${newPercent}% on ${newBranchName}`}
-    >
+    // No `aria-label` here: a plain div has no role that can carry a name, so
+    // the one this used to have was thrown away. Nothing is lost by dropping
+    // it — the bar is `aria-hidden` decoration and the legend under it already
+    // says both branch names and both percentages in words.
+    <div className="flex flex-col gap-2">
       <div className="bg-kumo-tint relative h-7 overflow-hidden rounded-lg" aria-hidden="true">
         {oldPercent > 0 ? (
           <div
