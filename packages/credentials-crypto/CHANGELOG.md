@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.8](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fcredentials-crypto%400.2.7...%40better-update%2Fcredentials-crypto%400.2.8) (2026-08-09)
+
+**Note:** Version bump only for package @better-update/credentials-crypto
+
 ## [0.2.7](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fcredentials-crypto%400.2.6...%40better-update%2Fcredentials-crypto%400.2.7) (2026-08-09)
 
 **Note:** Version bump only for package @better-update/credentials-crypto

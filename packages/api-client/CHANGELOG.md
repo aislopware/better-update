@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.36.4](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.36.3...%40better-update%2Fapi-client%400.36.4) (2026-08-09)
+
+**Note:** Version bump only for package @better-update/api-client
+
 ## [0.36.3](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.36.2...%40better-update%2Fapi-client%400.36.3) (2026-08-09)
 
 **Note:** Version bump only for package @better-update/api-client
