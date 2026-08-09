@@ -1,6 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
 import { cn } from "@better-update/ui/lib/utils";
-import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
@@ -9,7 +8,12 @@ import {
   DistributionIndicator,
   PlatformIndicator,
 } from "../../../../../components/attribute-badges";
-import { ListPanel, ListPanelFooter, ListPanelHeader } from "../../../../../lib/data-table";
+import {
+  ListPanel,
+  ListPanelFooter,
+  ListPanelHeader,
+  RowCaret,
+} from "../../../../../lib/data-table";
 import { ROW_LINK_DIVIDED, VIEW_ALL_LINK } from "../../../../../lib/panel-links";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
@@ -73,11 +77,7 @@ const CompatibleBuildRow = ({
     </span>
     <span className="flex shrink-0 items-center gap-2">
       <UpdateCountStatus status={status} />
-      <CaretRightIcon
-        aria-hidden
-        weight="bold"
-        className="text-kumo-subtle size-4 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
-      />
+      <RowCaret />
     </span>
   </Link>
 );

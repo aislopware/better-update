@@ -7,7 +7,6 @@ import {
   TableRow,
 } from "@better-update/ui/components/table";
 import { cn } from "@better-update/ui/lib/utils";
-import { CaretRightIcon } from "@phosphor-icons/react";
 import { flexRender } from "@tanstack/react-table";
 
 import type { Cell, Table as ReactTableT, Row } from "@tanstack/react-table";
@@ -18,6 +17,7 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import { FilteredEmptyState } from "./list-empty-state";
 import { ListFooterArea } from "./list-footer";
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "./list-panel";
+import { RowCaret } from "./row-caret";
 
 import type { FilteredEmptyProps } from "./list-empty-state";
 import type { ListPaginationFooter } from "./list-footer";
@@ -180,10 +180,7 @@ const DataTableRow = <TData,>({
       })}
       {renderRowLink ? (
         <TableCell aria-hidden className="w-8 pl-0">
-          <CaretRightIcon
-            weight="bold"
-            className="text-kumo-subtle size-4 opacity-0 transition-opacity duration-(--duration-quick) group-focus-within/row:opacity-100 group-hover/row:opacity-100"
-          />
+          <RowCaret />
         </TableCell>
       ) : null}
     </TableRow>
