@@ -8,10 +8,11 @@ import { Effect } from "effect";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";
-import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
+import { extractSlug, readExpoConfig } from "../lib/expo-config";
 import { readExpoPublicConfig } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
+import { readProjectId } from "../lib/project-link";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File, sha256Namespaced } from "../lib/sha256";
 import { apiClient } from "../services/api-client";
@@ -176,8 +177,9 @@ export const runEmbeddedUpload = (options: RunEmbeddedUploadOptions) =>
       });
     }
 
-    const baseConfig = yield* readExpoConfig(projectRoot);
-    const projectId = yield* extractProjectId(baseConfig);
+    // Same resolver as publish/status (env > eas.json > Expo `extra`), so the
+    // baseline lands in the project every other command reports.
+    const projectId = yield* readProjectId;
 
     const environmentVars = yield* pullEnvVars(api, {
       projectId,
@@ -229,6 +231,9 @@ export const runEmbeddedUpload = (options: RunEmbeddedUploadOptions) =>
           // ONLY the groupId.
           id: embeddedId,
           branch,
+          // Same contract as publish: projectId decides the target, slug is only
+          // a fallback for servers predating the field.
+          projectId,
           slug,
           runtimeVersion,
           platform: options.platform,

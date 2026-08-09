@@ -164,7 +164,6 @@ export const UpdateActionsMenu = ({
         <RollbackToEmbeddedDialog
           update={update}
           branchName={branchName}
-          slug={slug}
           orgId={orgId}
           projectId={projectId}
           open={rollbackOpen}

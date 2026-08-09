@@ -28,8 +28,10 @@ import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
 import {
   confirmPublishPreview,
+  describePublishTarget,
   emitMetadataFile,
   resolveBranchAndMessage,
+  warnOnSlugDivergence,
 } from "./update-publish-helpers";
 import { publishPlatform } from "./update-publish-platform";
 
@@ -225,6 +227,10 @@ export const runUpdatePublish = (
       // slug from env vars publish under the same identity as `expo export`.
       const expoConfig = yield* readExpoConfig(projectRoot, environmentVars);
       const slug = yield* extractSlug(expoConfig);
+      // Name the destination project, and say so out loud when the config's slug
+      // points somewhere else — that divergence used to decide the target.
+      const target = yield* describePublishTarget(api, projectId);
+      yield* warnOnSlugDivergence({ target, localSlug: slug });
       const platforms = resolveUpdatePlatforms(expoConfig, options.platform);
       if (platforms.length === 0) {
         return yield* new UpdatePublishError({
@@ -273,6 +279,7 @@ export const runUpdatePublish = (
       const interactive = yield* InteractiveMode;
       if (interactive.allow && !options.auto) {
         const confirmed = yield* confirmPublishPreview({
+          target,
           branch,
           platforms,
           message,

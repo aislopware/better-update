@@ -12,7 +12,7 @@ import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateEmbeddedBaselineId } from "../domain/embedded-baseline-validation";
 import { verifySignedUpdate } from "../domain/signed-update-verification";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
-import { Conflict, NotFound } from "../errors";
+import { BadRequest, Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiPatchBaseCandidate } from "../http/to-api-patch";
@@ -33,6 +33,35 @@ import {
 } from "./update-sourcemaps";
 import { clampPatchBaseLimit, parseUpdateSort } from "./updates-helpers";
 import { assertAssetsExist, resolvePatchBaseBranchId } from "./updates-read-scope";
+
+/**
+ * Resolve the project a publish lands in.
+ *
+ * `projectId` wins outright — it is the identifier every read path already uses,
+ * so reads and writes agree. `slug` is honoured only when no id was sent (a CLI
+ * older than the projectId field): Expo infers slug from the app `name`, so slug
+ * alone can silently resolve to another tenant's project inside the same org.
+ * Cross-org reach is blocked by `assertProjectOwnership` at the call site, which
+ * 404s rather than 403s.
+ */
+const resolvePublishTarget = (payload: typeof CreateUpdateBody.Type) =>
+  Effect.gen(function* () {
+    const projectRepo = yield* ProjectRepo;
+    if (payload.projectId !== undefined) {
+      return yield* projectRepo.findById({ id: payload.projectId });
+    }
+    if (payload.slug === undefined) {
+      return yield* new BadRequest({
+        message:
+          "Missing publish target: send `projectId` (preferred) or `slug` in the update payload.",
+      });
+    }
+    const ctx = yield* CurrentActor;
+    return yield* projectRepo.findBySlug({
+      organizationId: ctx.organizationId,
+      slug: payload.slug,
+    });
+  });
 
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
   toApiWriteEffect(
@@ -77,12 +106,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         directiveBody: toDbNull(payload.directiveBody),
       });
 
-      const ctx = yield* CurrentActor;
-      const projectRepo = yield* ProjectRepo;
-      const project = yield* projectRepo.findBySlug({
-        organizationId: ctx.organizationId,
-        slug: payload.slug,
-      });
+      const project = yield* resolvePublishTarget(payload);
       yield* assertProjectOwnership(project.id);
 
       yield* assertAssetsExist(payload.assets);

@@ -33,6 +33,15 @@ Typical output:
 ✓ Update group e7f3… published to branch main
 ```
 
+### Which project it publishes to
+
+The linked **`projectId`** — the same id `status`, `branches` and `env` read, resolved as
+`BETTER_UPDATE_PROJECT_ID` > `eas.json` `projectId` > `app.json` `extra.betterUpdate.projectId`. The
+Expo `slug` does **not** choose the destination. The interactive confirmation names the target
+(`Project: <name> (<slug>) · <id>`), and the CLI warns whenever the config's slug belongs to a
+different project — Expo derives `slug` from the app `name` when it is unset, so two apps in one org
+can easily share one, and the slug used to decide the target.
+
 ## All `update publish` flags
 
 | Flag                                    | Default      | Notes                                                                                                                                                                                                       |

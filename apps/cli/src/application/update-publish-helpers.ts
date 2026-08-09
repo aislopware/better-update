@@ -8,10 +8,12 @@ import { drainPages } from "../lib/drain-cursor";
 import { UpdatePublishError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
 import { InteractiveMode } from "../lib/interactive-mode";
+import { printHuman } from "../lib/output";
 import { promptConfirm, promptSelect, promptText } from "../lib/prompts";
 
 import type { Platform } from "../lib/build-profile";
 import type { GitContext } from "../lib/git-context";
+import type { OutputMode } from "../lib/output-mode";
 import type { apiClient } from "../services/api-client";
 
 export interface PublishedPlatformMetadata {
@@ -193,11 +195,70 @@ export const resolveBranchAndMessage = (input: ResolveBranchAndMessageInput) =>
     return { branch, message } as const satisfies ResolvedBranchAndMessage;
   });
 
+/** The project a publish will land in, as far as the CLI could resolve it. */
+export interface PublishTarget {
+  readonly projectId: string;
+  /** Server-side name/slug; absent when the lookup was not permitted or failed. */
+  readonly name: string | undefined;
+  readonly slug: string | undefined;
+}
+
+/**
+ * Look up the destination project so the publish can name it. Best-effort by
+ * design: a robot granted `update:create` but not `project:read` must still be
+ * able to publish, so a failed lookup degrades to the bare id rather than
+ * aborting.
+ */
+export const describePublishTarget = (
+  client: Effect.Effect.Success<typeof apiClient>,
+  projectId: string,
+): Effect.Effect<PublishTarget> =>
+  client.projects.get({ path: { id: projectId } }).pipe(
+    Effect.map(
+      (project) =>
+        ({ projectId, name: project.name, slug: project.slug }) as const satisfies PublishTarget,
+    ),
+    Effect.orElseSucceed(
+      () => ({ projectId, name: undefined, slug: undefined }) as const satisfies PublishTarget,
+    ),
+  );
+
+/** `name (slug) · id`, degrading to the bare id when the lookup was denied. */
+export const formatPublishTarget = (target: PublishTarget): string =>
+  target.name === undefined
+    ? target.projectId
+    : `${target.name} (${target.slug ?? "?"}) · ${target.projectId}`;
+
+/**
+ * Warn when the Expo config's slug names a DIFFERENT project than the linked
+ * projectId. The slug no longer decides where an update lands, but the mismatch
+ * still means `expo export` and better-update disagree about this app's
+ * identity, and it is the exact shape that used to publish into another
+ * tenant's project. Printed unconditionally — `--auto` (CI) is where it matters
+ * most and there is no prompt there to catch it.
+ */
+export const warnOnSlugDivergence = (params: {
+  readonly target: PublishTarget;
+  readonly localSlug: string;
+}): Effect.Effect<void, never, OutputMode> =>
+  Effect.gen(function* () {
+    if (params.target.slug === undefined || params.target.slug === params.localSlug) {
+      return;
+    }
+    yield* printHuman(
+      `Warning: your Expo config resolves slug "${params.localSlug}", but project ` +
+        `${formatPublishTarget(params.target)} has slug "${params.target.slug}". ` +
+        "Publishing by projectId (the slug is ignored). Expo infers slug from the app " +
+        `\`name\` when it is unset — set "slug": "${params.target.slug}" in app.json to align them.`,
+    );
+  });
+
 /**
  * Show a pre-publish preview and ask for confirmation. Returns `false`
  * If the user declines so the caller can abort gracefully.
  */
 export const confirmPublishPreview = (preview: {
+  readonly target: PublishTarget;
   readonly branch: string;
   readonly platforms: readonly Platform[];
   readonly message: string;
@@ -205,6 +266,9 @@ export const confirmPublishPreview = (preview: {
 }) =>
   Effect.gen(function* () {
     yield* Console.log("");
+    // Project first: it is the one field a wrong link silently changes, and the
+    // only one the user can check against the dashboard at a glance.
+    yield* Console.log(`Project:     ${formatPublishTarget(preview.target)}`);
     yield* Console.log(`Branch:      ${preview.branch}`);
     yield* Console.log(`Platforms:   ${[...preview.platforms].join(", ")}`);
     yield* Console.log(`Environment: ${preview.environment}`);

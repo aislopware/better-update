@@ -3,8 +3,14 @@ import { Effect, Exit } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
+import { makeOutputModeLayer } from "../lib/output-mode";
 import { failureError } from "../lib/test-utils";
-import { resolveBranchAndMessage } from "./update-publish-helpers";
+import {
+  describePublishTarget,
+  formatPublishTarget,
+  resolveBranchAndMessage,
+  warnOnSlugDivergence,
+} from "./update-publish-helpers";
 
 import type { GitContext } from "../lib/git-context";
 import type { ApiClient } from "../services/api-client";
@@ -205,4 +211,91 @@ describe(resolveBranchAndMessage, () => {
       expect((err as UpdatePublishError).message).toContain("maps to a branch");
     }),
   );
+});
+
+// The publish target used to be resolved from the Expo slug, which Expo infers
+// from the app `name` when unset — so an app could publish into a SIBLING
+// project that happened to own that slug, and report success. The projectId is
+// now authoritative; these tests pin the two things that make the divergence
+// visible instead of silent: the target is named, and a slug pointing elsewhere
+// is called out by name.
+
+const projectApi = (
+  get: (params: { path: { id: string } }) => Effect.Effect<unknown, unknown>,
+): ApiClient => ({ projects: { get } }) as unknown as ApiClient;
+
+const captureStdout = async (effect: Effect.Effect<void>): Promise<string[]> => {
+  const lines: string[] = [];
+  const spy = vi.spyOn(console, "log").mockImplementation((value: unknown) => {
+    lines.push(String(value));
+  });
+  try {
+    await Effect.runPromise(effect);
+  } finally {
+    spy.mockRestore();
+  }
+  return lines;
+};
+
+describe(describePublishTarget, () => {
+  it.effect("names the project behind the linked id", () =>
+    Effect.gen(function* () {
+      const target = yield* describePublishTarget(
+        projectApi(({ path }) => Effect.succeed({ id: path.id, name: "Glamira", slug: "glamira" })),
+        "proj_1",
+      );
+      expect(target).toStrictEqual({ projectId: "proj_1", name: "Glamira", slug: "glamira" });
+    }),
+  );
+
+  it.effect("degrades to the bare id when the lookup is denied, rather than failing", () =>
+    Effect.gen(function* () {
+      // A CI robot may hold `update:create` without `project:read`. Publishing
+      // must not start depending on a read grant it never needed before.
+      const target = yield* describePublishTarget(
+        projectApi(() => Effect.fail(new Error("Insufficient permission: project:read"))),
+        "proj_1",
+      );
+      expect(target).toStrictEqual({ projectId: "proj_1", name: undefined, slug: undefined });
+      expect(formatPublishTarget(target)).toBe("proj_1");
+    }),
+  );
+});
+
+describe(warnOnSlugDivergence, () => {
+  it("names both slugs and both is-not-the-target facts when the config slug points elsewhere", async () => {
+    const lines = await captureStdout(
+      warnOnSlugDivergence({
+        target: { projectId: "proj_glamira", name: "glamira", slug: "glamira" },
+        localSlug: "jmango360",
+      }).pipe(Effect.provide(makeOutputModeLayer(false))),
+    );
+    const output = lines.join("\n");
+    expect(output).toContain('slug "jmango360"');
+    expect(output).toContain('slug "glamira"');
+    expect(output).toContain("proj_glamira");
+    // The word the old failure never printed — without it the user had no thread
+    // to pull on, which is what made the cross-tenant publish take hours to find.
+    expect(output).toContain("slug");
+  });
+
+  it("stays quiet when the config slug matches the project", async () => {
+    const lines = await captureStdout(
+      warnOnSlugDivergence({
+        target: { projectId: "proj_glamira", name: "glamira", slug: "glamira" },
+        localSlug: "glamira",
+      }).pipe(Effect.provide(makeOutputModeLayer(false))),
+    );
+    expect(lines).toStrictEqual([]);
+  });
+
+  it("stays quiet when the project lookup was denied (no slug to compare)", async () => {
+    const lines = await captureStdout(
+      warnOnSlugDivergence({
+        target: { projectId: "proj_1", name: undefined, slug: undefined },
+        localSlug: "jmango360",
+      }).pipe(Effect.provide(makeOutputModeLayer(false))),
+    );
+    expect(lines).toStrictEqual([]);
+  });
 });

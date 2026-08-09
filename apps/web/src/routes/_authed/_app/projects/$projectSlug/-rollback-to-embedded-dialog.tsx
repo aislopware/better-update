@@ -22,7 +22,6 @@ import { invalidateUpdates } from "./-update-helpers";
 interface RollbackToEmbeddedDialogProps {
   readonly update: Update;
   readonly branchName: string;
-  readonly slug: string;
   readonly orgId: string;
   readonly projectId: string;
   readonly open: boolean;
@@ -32,7 +31,6 @@ interface RollbackToEmbeddedDialogProps {
 export const RollbackToEmbeddedDialog = ({
   update,
   branchName,
-  slug,
   orgId,
   projectId,
   open,
@@ -43,7 +41,9 @@ export const RollbackToEmbeddedDialog = ({
     mutationFn: async () =>
       createUpdate({
         branch: branchName,
-        slug,
+        // Target by id, never by the route's slug: slug is a display handle that
+        // can be re-pointed, and the id is what every other call on this page uses.
+        projectId,
         runtimeVersion: update.runtimeVersion,
         platform: update.platform,
         message: "Rollback to embedded",

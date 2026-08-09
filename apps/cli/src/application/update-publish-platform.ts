@@ -376,6 +376,10 @@ export const publishPlatform = (
       .create({
         payload: {
           branch: params.branch,
+          // projectId is the publish target; the server ignores `slug` whenever
+          // it is present. slug rides along only so an older self-hosted server
+          // (one predating projectId on this payload) still resolves the project.
+          projectId: params.projectId,
           slug: params.slug,
           runtimeVersion,
           platform: params.platform,

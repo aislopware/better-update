@@ -66,7 +66,6 @@ vi.mock(apiReactModule, async (importOriginal) => {
 
 const orgId = "org-1";
 const projectId = "proj-1";
-const slug = "updates-test";
 
 const branch = {
   id: "branch-main",
@@ -377,7 +376,6 @@ describe("mutation dialogs", () => {
       <RollbackToEmbeddedDialog
         update={update}
         branchName="main"
-        slug={slug}
         orgId={orgId}
         projectId={projectId}
         open
@@ -396,7 +394,7 @@ describe("mutation dialogs", () => {
     expect(payload).toStrictEqual(
       expect.objectContaining({
         branch: "main",
-        slug,
+        projectId,
         runtimeVersion: update.runtimeVersion,
         platform: update.platform,
         message: "Rollback to embedded",

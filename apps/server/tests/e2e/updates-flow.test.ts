@@ -364,6 +364,69 @@ describe("Updates & Assets API flow", () => {
     expect(previewChannel.branchId).toBe(publishBody.branchId);
   });
 
+  // Regression: the publish target used to be resolved from `slug` ALONE. Expo
+  // infers slug from the app `name` when it is unset, so an app could carry a
+  // slug owned by a SIBLING project in the same org and publish there — reported
+  // as success, with the wrong tenant's devices then eligible for the bundle.
+  // projectId is authoritative now; a conflicting slug must not move the target.
+  //
+  // Deliberately publishes into `autoProjectId` while naming `projectId`'s slug:
+  // a leak would show up as an extra row under `projectId`, which the later
+  // "lists updates for project" total also pins.
+  it("publishes to projectId, not the project owning a conflicting slug", async () => {
+    const publishResponse = await post(
+      "/api/updates",
+      {
+        projectId: autoProjectId,
+        // The OTHER project's slug — exactly the collision that caused the leak.
+        slug: "updates-test",
+        branch: "slug-conflict",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "projectId must win over slug",
+        groupId: "group-slug-conflict",
+        metadata: {},
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(publishResponse.status).toBe(201);
+    const publishBody = await publishResponse.json();
+
+    const named = async (targetProjectId: string) => {
+      const response = await get(`/api/branches?projectId=${targetProjectId}`, { cookie: cookies });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      return body.items.find((branch: { name: string }) => branch.name === "slug-conflict");
+    };
+
+    const landed = await named(autoProjectId);
+    expect(landed).toBeDefined();
+    expect(landed.id).toBe(publishBody.branchId);
+    // And nothing at all was created under the slug's owner.
+    expect(await named(projectId)).toBeUndefined();
+  });
+
+  it("rejects a publish that names neither projectId nor slug", async () => {
+    const publishResponse = await post(
+      "/api/updates",
+      {
+        branch: "no-target",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "No publish target",
+        groupId: "group-no-target",
+        metadata: {},
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(publishResponse.status).toBe(400);
+    expect(await publishResponse.json()).toEqual(
+      expect.objectContaining({ message: expect.stringContaining("Missing publish target") }),
+    );
+  });
+
   it("rejects auto branch creation when the channel name is already linked elsewhere", async () => {
     const conflictingBranchResponse = await post(
       "/api/branches",

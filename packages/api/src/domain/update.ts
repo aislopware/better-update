@@ -110,7 +110,18 @@ export const UpdateAssetEntry = Schema.Struct({
 
 export const CreateUpdateBody = Schema.Struct({
   branch: Schema.String.pipe(Schema.minLength(1)),
-  slug: Schema.String.pipe(Schema.minLength(1)),
+  // Destination project. `projectId` is AUTHORITATIVE and always wins: it is the
+  // same id every read command (`status`, `branches`, `env`) resolves through, so
+  // reads and writes can no longer disagree about which project is being touched.
+  //
+  // `slug` is the legacy locator, kept only so a CLI predating `projectId` still
+  // publishes against a current server. It is a WEAK identifier: Expo derives it
+  // from the app `name` when `slug` is unset, so two sibling apps in one org can
+  // easily resolve to a THIRD project that happens to own that slug — a
+  // cross-tenant publish the CLI reported as success. Never resolve by slug when
+  // a projectId is present, and never add a new caller that sends slug alone.
+  projectId: Schema.optional(Id),
+  slug: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   runtimeVersion: Schema.String.pipe(Schema.minLength(1)),
   platform: Platform,
   message: Schema.String,

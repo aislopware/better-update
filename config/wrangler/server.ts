@@ -113,15 +113,20 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    // 0.71.4 and older ship a binary that cannot tell the server which channel
-    // it is on: for any project whose `projectType` is not "expo", channel
-    // injection was gated on the build strategy, so `expo-channel-name` was
-    // never baked in and the device silently reads the DEFAULT channel — an
-    // update publishes green and reaches nobody. The same gate also left every
-    // such build without a runtimeVersion, so `builds compatibility-matrix`
-    // could not warn about it either. Neither failure is visible without
-    // unpacking the artifact, so retire them all rather than let them ship.
-    REQUIRE_CLI_VERSION_ABOVE: "0.71.4",
+    // 0.71.6 and older name the publish destination by Expo `slug` alone. Expo
+    // derives slug from the app `name` when it is unset, so such a CLI can
+    // resolve to a SIBLING project in the same org that happens to own that
+    // slug — and publish there, reporting success. The wrongly-placed update
+    // sits on that project's branch under the same runtimeVersion, so the other
+    // tenant's devices become eligible for this app's JS bundle. Nothing in the
+    // CLI output names the slug, so it is undetectable from the terminal; the
+    // server still honours slug-only payloads for compatibility, which makes
+    // this gate the thing that actually retires them.
+    //
+    // (0.71.4 and older additionally never baked `expo-channel-name` or a
+    // runtimeVersion into non-Expo builds — updates published green and reached
+    // nobody. Also covered by this bound.)
+    REQUIRE_CLI_VERSION_ABOVE: "0.71.6",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on

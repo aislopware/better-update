@@ -11,14 +11,10 @@ import type { CommandExecutor } from "@effect/platform";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdateRollbackError } from "../lib/exit-codes";
-import {
-  extractCodeSigningConfig,
-  extractProjectId,
-  extractSlug,
-  readExpoConfig,
-} from "../lib/expo-config";
+import { extractCodeSigningConfig, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { formatCause } from "../lib/format-error";
 import { signDirectiveBody } from "../lib/manifest-signing";
+import { readProjectId } from "../lib/project-link";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { apiClient } from "../services/api-client";
@@ -41,6 +37,7 @@ import type { IdentityStore } from "../services/identity-store";
 
 interface CreateRollbackParams {
   readonly branch: string;
+  readonly projectId: string;
   readonly projectSlug: string;
   readonly runtimeVersion: string;
   readonly platform: Platform;
@@ -275,6 +272,9 @@ const createRollbackForPlatform = (
       .create({
         payload: {
           branch: params.branch,
+          // Same contract as publish: projectId decides the target, slug is only
+          // a fallback for servers predating the field.
+          projectId: params.projectId,
           slug: params.projectSlug,
           runtimeVersion: params.runtimeVersion,
           platform: params.platform,
@@ -327,8 +327,9 @@ export const runUpdateRollback = (
     const projectRoot = yield* runtime.cwd;
     const api = yield* apiClient;
 
-    const baseConfig = yield* readExpoConfig(projectRoot);
-    const projectId = yield* extractProjectId(baseConfig);
+    // Same resolver as publish/status (env > eas.json > Expo `extra`), so a
+    // rollback can never target a different project than the publish it undoes.
+    const projectId = yield* readProjectId;
 
     const environmentVars = yield* pullEnvVars(api, {
       projectId,
@@ -407,6 +408,7 @@ export const runUpdateRollback = (
           });
           return yield* createRollbackForPlatform({
             branch: options.branch,
+            projectId,
             projectSlug,
             runtimeVersion,
             platform,
