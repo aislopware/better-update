@@ -60,7 +60,10 @@ const MemberCell = ({ row }: { row: Row }) => {
       </div>
     );
   }
-  return <span className="truncate text-sm font-medium">{row.email}</span>;
+  // `block`, unlike the pair above: those are flex children and so already
+  // blockified, while this one lands straight in the cell, where an inline box
+  // has no overflow to hide and `truncate` would quietly do nothing.
+  return <span className="block truncate text-sm font-medium">{row.email}</span>;
 };
 
 // Dot + label for both states, so the column reads as one vocabulary instead of

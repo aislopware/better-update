@@ -43,8 +43,23 @@ export const Toaster = ({ children }: { children: ReactNode }) => {
           The marker attribute is what the reduced-motion rule hangs off: Kumo
           writes the half-second stack transition as an inline arbitrary value
           on a Base UI root that carries no stable class of its own, so this
-          container is the only handle on the whole viewport. */}
-      <div ref={setStack} data-toast-stack className="relative z-100" />
+          container is the only handle on the whole viewport.
+
+          The close button is nudged from the same handle. Kumo pads the toast
+          by 16px but pins its dismiss at 8px, so the button sat above the title
+          it belongs to and tighter to the right edge than any other content —
+          near enough to look like a mistake, far enough to read as one. At 16px
+          its 20px box centres on the title's 20px line and its right edge meets
+          the padding, which is where the eye expects it.
+
+          Which leaves the title sharing that line with it, in a 340px toast —
+          so the title, and only the title, keeps the button's width clear. The
+          description sits on the next line down and has the full width. */}
+      <div
+        ref={setStack}
+        data-toast-stack
+        className="relative z-100 [&_[data-kumo-part=close]]:top-4 [&_[data-kumo-part=close]]:right-4 [&_[data-toast-title]]:pr-6"
+      />
     </>
   );
 };

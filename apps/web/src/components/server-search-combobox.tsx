@@ -193,8 +193,21 @@ export const ServerSearchCombobox = ({
         <Combobox.Empty>{isPending ? "Searching…" : emptyMessage}</Combobox.Empty>
         <Combobox.List>
           {(option: ComboboxOption) => (
-            <Combobox.Item key={option.value} value={option}>
-              {option.content ?? <span className="truncate">{option.label}</span>}
+            // Kumo lays the row out as `grid-cols-[1fr_16px]` — label, then room
+            // for the tick. A grid track's automatic minimum is its content's,
+            // so `1fr` there is a floor of min-content, not a share of the
+            // width: a long label pushed the row wider than the popup instead of
+            // truncating inside it. `minmax(0,…)` is what lets it give.
+            <Combobox.Item
+              key={option.value}
+              value={option}
+              className="grid-cols-[minmax(0,1fr)_16px]"
+            >
+              {/* `block`, because Kumo drops the row's children into a plain
+                  div rather than making them grid items: an inline span cannot
+                  be told to hide its overflow, so `truncate` alone was a no-op
+                  and the label simply ran past the row. */}
+              {option.content ?? <span className="block truncate">{option.label}</span>}
             </Combobox.Item>
           )}
         </Combobox.List>
