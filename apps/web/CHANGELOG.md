@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.71.0...%40better-update%2Fweb%400.71.1) (2026-08-09)
+
+### Bug Fixes
+
+* **web:** give the phone back its sidebar ([06c0976](https://github.com/better-update/better-update/commit/06c09762d8b6682f9285e544657fed00923b2b09))
+
 ## [0.71.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.70.0...%40better-update%2Fweb%400.71.0) (2026-08-09)
 
 ### Features
