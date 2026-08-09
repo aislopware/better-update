@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.72.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.71.2...%40better-update%2Fweb%400.72.0) (2026-08-09)
+
+### Features
+
+* **web:** reveal an env value with Kumo's sensitive input ([265f007](https://github.com/better-update/better-update/commit/265f007cde6a064ba3736ba4b1921880c37cc8a6))
+
+### Bug Fixes
+
+* **ui:** make a row that says it truncates actually do it ([56bc865](https://github.com/better-update/better-update/commit/56bc8654e1e4dabe716d8e79839fb53d24968654))
+* **web:** say the compatibility matrix out loud ([35d3ed4](https://github.com/better-update/better-update/commit/35d3ed41714c98281f98f5176d25ed9c15e698c0))
+* **web:** size a badge's icon, and drop the attribute that was meant to ([d631749](https://github.com/better-update/better-update/commit/d63174974ec19d9d093f024508cbc82408870264))
+* **web:** stop opening a popup from scrolling the page away ([f7899b6](https://github.com/better-update/better-update/commit/f7899b6db203e3803d40864e7d962b7337fdd5d0))
+
 ## [0.71.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.71.1...%40better-update%2Fweb%400.71.2) (2026-08-09)
 
 ### Bug Fixes

@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.9.0...%40better-update%2Fui%400.9.1) (2026-08-09)
+
+### Bug Fixes
+
+* **ui:** give the overlay layer a width so a menu can size to its labels ([eef92f7](https://gitlab.jmango360.com/mobile/better-update/commit/eef92f744b9544bf177729b2245bb5fa962e8447))
+* **ui:** make a row that says it truncates actually do it ([56bc865](https://gitlab.jmango360.com/mobile/better-update/commit/56bc8654e1e4dabe716d8e79839fb53d24968654))
+* **web:** stop opening a popup from scrolling the page away ([f7899b6](https://gitlab.jmango360.com/mobile/better-update/commit/f7899b6db203e3803d40864e7d962b7337fdd5d0))
+
 ## [0.9.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.8.2...%40better-update%2Fui%400.9.0) (2026-08-09)
 
 ### Features
