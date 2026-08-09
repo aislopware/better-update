@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.46.0...%40better-update%2Fapi%400.47.0) (2026-08-09)
+
+### Features
+
+* **web:** flag the runtime only one platform ever shipped ([1c2a209](https://gitlab.jmango360.com/mobile/better-update/commit/1c2a20932965f31a6c95db1d640e2eeb04365b95))
+* **web:** give every project row its own month ([38806b3](https://gitlab.jmango360.com/mobile/better-update/commit/38806b3010c81a6e0ec005910ce9faabe32e3ec1))
+* **web:** open the dashboard on what shipped, not on four numbers ([6d5903f](https://gitlab.jmango360.com/mobile/better-update/commit/6d5903f0444f7f0c49396eee417c8f0dd9149564))
+* **web:** say which channels serve a branch and when it last shipped ([dcf6aa1](https://gitlab.jmango360.com/mobile/better-update/commit/dcf6aa1550bbcb00b6a5e0f3d4fb7bff632859f0))
+
 ## [0.46.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi%400.45.3...%40better-update%2Fapi%400.46.0) (2026-08-03)
 
 ### Features

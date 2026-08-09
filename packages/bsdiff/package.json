@@ -1,6 +1,6 @@
 {
   "name": "@better-update/bsdiff",
-  "version": "0.2.25",
+  "version": "0.2.26",
   "license": "MIT",
   "files": [
     "index.js",

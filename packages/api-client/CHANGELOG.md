@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.36.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.35.0...%40better-update%2Fapi-client%400.36.0) (2026-08-09)
+
+### Features
+
+* **web:** give every project row its own month ([38806b3](https://gitlab.jmango360.com/mobile/better-update/commit/38806b3010c81a6e0ec005910ce9faabe32e3ec1))
+* **web:** open the dashboard on what shipped, not on four numbers ([6d5903f](https://gitlab.jmango360.com/mobile/better-update/commit/6d5903f0444f7f0c49396eee417c8f0dd9149564))
+
 ## [0.35.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.34.3...%40better-update%2Fapi-client%400.35.0) (2026-08-03)
 
 ### Features

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Foxlint-config%400.3.10...%40better-update%2Foxlint-config%400.4.0) (2026-08-09)
+
+### Features
+
+* **ui:** wire Kumo as the UI foundation ([bbd4862](https://gitlab.jmango360.com/mobile/better-update/commit/bbd4862a8194ee48af07c558eb0de22b94b1b26c))
+
 ## [0.3.10](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Foxlint-config%400.3.9...%40better-update%2Foxlint-config%400.3.10) (2026-07-29)
 
 **Note:** Version bump only for package @better-update/oxlint-config

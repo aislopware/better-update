@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.8.2...%40better-update%2Fui%400.9.0) (2026-08-09)
+
+### Features
+
+* **ui:** wire Kumo as the UI foundation ([bbd4862](https://gitlab.jmango360.com/mobile/better-update/commit/bbd4862a8194ee48af07c558eb0de22b94b1b26c))
+
+### Bug Fixes
+
+* **ui:** give the dialog header its bottom edge ([c5f6792](https://gitlab.jmango360.com/mobile/better-update/commit/c5f67925e7c1a82addc39dd82362f001ea677b31))
+* **ui:** lay the range calendar out as one row ([eebf4f4](https://gitlab.jmango360.com/mobile/better-update/commit/eebf4f4153d690d7924d33f6bb6a4d8c0b53bcf3))
+* **ui:** round the header band's bottom, unstick the overlay portal ([67dfef1](https://gitlab.jmango360.com/mobile/better-update/commit/67dfef1910a794c1d8ed4a822cf43ff668cf6036))
+* **web:** retarget the leftovers of the pre-Kumo markup ([add2fb7](https://gitlab.jmango360.com/mobile/better-update/commit/add2fb77b6a5ffc52e5135cbdc67926aa06ff07d))
+
 ## [0.8.2](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.8.1...%40better-update%2Fui%400.8.2) (2026-08-03)
 
 **Note:** Version bump only for package @better-update/ui

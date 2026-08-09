@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.59.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.58.1...%40better-update%2Fserver%400.59.0) (2026-08-09)
+
+### Features
+
+* **web:** flag the runtime only one platform ever shipped ([1c2a209](https://github.com/better-update/better-update/commit/1c2a20932965f31a6c95db1d640e2eeb04365b95))
+* **web:** give every project row its own month ([38806b3](https://github.com/better-update/better-update/commit/38806b3010c81a6e0ec005910ce9faabe32e3ec1))
+* **web:** make an audit row lead to the thing it describes ([dc9fe8e](https://github.com/better-update/better-update/commit/dc9fe8e82b61fb71c0080bdf12c50d1e5cf2cb04))
+* **web:** open the dashboard on what shipped, not on four numbers ([6d5903f](https://github.com/better-update/better-update/commit/6d5903f0444f7f0c49396eee417c8f0dd9149564))
+* **web:** say which channels serve a branch and when it last shipped ([dcf6aa1](https://github.com/better-update/better-update/commit/dcf6aa1550bbcb00b6a5e0f3d4fb7bff632859f0))
+
+### Bug Fixes
+
+* **seed:** start the rollout channel from the branch it is rolling off ([997ef73](https://github.com/better-update/better-update/commit/997ef73d1a202bc29881a4cba99ca07668391b24))
+* **server:** invent the invited-member addresses too ([c28f0a3](https://github.com/better-update/better-update/commit/c28f0a399c5e8c6f313f70febcc42f8505015b5c))
+* **server:** seed devices that have been through devices sync ([55da63a](https://github.com/better-update/better-update/commit/55da63acfaa3215aac64e1a2706e12cd27513ba3))
+* **server:** stop naming a real person in the dev seed ([ca9893a](https://github.com/better-update/better-update/commit/ca9893a1bedb1a892d3143da99844461dd69b0a4))
+
 ## [0.58.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.58.0...%40better-update%2Fserver%400.58.1) (2026-08-04)
 
 **Note:** Version bump only for package @better-update/server

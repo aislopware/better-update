@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.70.0...%40better-update%2Fweb%400.71.0) (2026-08-09)
+
+### Features
+
+* **ui:** wire Kumo as the UI foundation ([bbd4862](https://github.com/better-update/better-update/commit/bbd4862a8194ee48af07c558eb0de22b94b1b26c))
+* **web:** bring delete confirmations up to Kumo's block ([1ee66ec](https://github.com/better-update/better-update/commit/1ee66eca55cb97e1d58655e0a710366d200b6c37))
+* **web:** carry the runtime into the list it opens ([023b900](https://github.com/better-update/better-update/commit/023b9002febcb03c10f12a75672d0b41e14ad8af))
+* **web:** derive every design token from Kumo's palette and scale ([6e450bb](https://github.com/better-update/better-update/commit/6e450bb0e6728d7dfa7fdd304c842f042f11f9b6))
+* **web:** flag the runtime only one platform ever shipped ([1c2a209](https://github.com/better-update/better-update/commit/1c2a20932965f31a6c95db1d640e2eeb04365b95))
+* **web:** give a wrong URL a page instead of two words ([757ebfc](https://github.com/better-update/better-update/commit/757ebfca70181b70ae93376eee3972dd3b315b23))
+* **web:** give every project row its own month ([38806b3](https://github.com/better-update/better-update/commit/38806b3010c81a6e0ec005910ce9faabe32e3ec1))
+* **web:** make an audit row lead to the thing it describes ([dc9fe8e](https://github.com/better-update/better-update/commit/dc9fe8e82b61fb71c0080bdf12c50d1e5cf2cb04))
+* **web:** move buttons, links and spinners onto Kumo ([2c1abde](https://github.com/better-update/better-update/commit/2c1abdef54980b70f4ac4f98c548a29edd9e73af))
+* **web:** open the dashboard on what shipped, not on four numbers ([6d5903f](https://github.com/better-update/better-update/commit/6d5903f0444f7f0c49396eee417c8f0dd9149564))
+* **web:** put the theme in the account menu ([4be20e9](https://github.com/better-update/better-update/commit/4be20e90a099037e9ff34abf7eae20d99a2ac42e))
+* **web:** rebuild the projects list as Cloudflare card rows ([973da07](https://github.com/better-update/better-update/commit/973da076780e96c34a4158ae91682da3562dc6f2))
+* **web:** say which channels serve a branch and when it last shipped ([dcf6aa1](https://github.com/better-update/better-update/commit/dcf6aa1550bbcb00b6a5e0f3d4fb7bff632859f0))
+* **web:** show what a channel is serving ([67a9fe2](https://github.com/better-update/better-update/commit/67a9fe21b5e4cb110b2f7e428a49c6a14e32457c))
+
+### Bug Fixes
+
+* **ui:** give the dialog header its bottom edge ([c5f6792](https://github.com/better-update/better-update/commit/c5f67925e7c1a82addc39dd82362f001ea677b31))
+* **web:** give menu items their icon gap ([60218aa](https://github.com/better-update/better-update/commit/60218aa36af46b42435f45a0b47cefa9eaaa49ef))
+* **web:** give the project members page its heading while it loads ([31f5235](https://github.com/better-update/better-update/commit/31f52351041c1c27d911c4f1f165b078edaa8ad1))
+* **web:** keep the filter card's edges off the focus guards ([4e4f33c](https://github.com/better-update/better-update/commit/4e4f33cf657c22ab18708636da5f7df0532736c2))
+* **web:** retarget the leftovers of the pre-Kumo markup ([add2fb7](https://github.com/better-update/better-update/commit/add2fb77b6a5ffc52e5135cbdc67926aa06ff07d))
+* **web:** stop the filter popover's search row squaring off its frame ([1f06284](https://github.com/better-update/better-update/commit/1f06284c6c40ee88c31b9800e750d333264cd2c4))
+* **web:** stop the submissions list promising outcomes it cannot show ([0b12759](https://github.com/better-update/better-update/commit/0b1275909b3352cb8face6e18c2b1c72008c024c))
+* **web:** stop two dates printing over each other on the activity axis ([4be6f16](https://github.com/better-update/better-update/commit/4be6f1602dde2677f81475059a51d7b76589161e))
+
 ## [0.70.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.69.1...%40better-update%2Fweb%400.70.0) (2026-08-03)
 
 ### Features
