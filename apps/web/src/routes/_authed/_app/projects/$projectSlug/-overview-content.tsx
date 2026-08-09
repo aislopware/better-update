@@ -142,10 +142,16 @@ const RecentListCard = ({
 }) => (
   <ListPanel>
     <ListPanelHeader title={title} actions={viewAllLabel} />
+    {/* `grow` on the body, in both shapes it takes: these two panels sit side by
+        side in a grid, so the shorter of them is stretched to its neighbour's
+        height whether or not it has the rows to fill it. Without this the island
+        stopped under the last row and the rest of the panel came out in the
+        card's own colour — a grey band under a single row, with the island's
+        bottom curve stranded above it. */}
     {entries.length === 0 ? (
-      <p className="text-kumo-subtle m-0 px-4 py-3 text-sm">{emptyMessage}</p>
+      <p className="text-kumo-subtle m-0 grow px-4 py-3 text-sm">{emptyMessage}</p>
     ) : (
-      <div className="divide-kumo-line/60 flex flex-col divide-y">
+      <div className="divide-kumo-line/60 flex grow flex-col divide-y">
         {entries.map((entry) =>
           renderLink(
             entry,
