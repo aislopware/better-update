@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.74.3](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.2...%40better-update%2Fweb%400.74.3) (2026-08-09)
+
+### Bug Fixes
+
+* **web:** stop the root route crashing during pending navigations ([0540431](https://github.com/better-update/better-update/commit/0540431528309ebf437c3f19c1f1177707304798))
+
 ## [0.74.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.1...%40better-update%2Fweb%400.74.2) (2026-08-09)
 
 ### Bug Fixes
