@@ -77,9 +77,15 @@ export const DataTableToolbar = ({
         // — so where the row runs out of width it scrolls instead of squeezing.
         // On a phone the flex row was taking it out of the search field, which
         // shrank to a sliver of its own magnifier while the filters kept their
-        // labels. The negative margin is only so a focus ring has somewhere to
-        // go: a scroll container clips on both axes.
-        <div className="-my-1 max-w-full overflow-x-auto py-1">
+        // labels.
+        //
+        // The padding is what the scroll costs: a scroll container clips on all
+        // four sides, and the toolbar's outline is a `ring` — a shadow drawn
+        // outside its box, not a border inside it. Without room to sit in, the
+        // strip lost its left and right caps and a focused item lost its ring.
+        // The negative margin hands that room back so the strip still lines up
+        // with the table under it.
+        <div className="-m-1 max-w-full overflow-x-auto p-1">
           <Toolbar className={cn("w-max", ITEM_EDGES)}>
             {search ? (
               <Toolbar.InputGroup aria-label={search.placeholder} className="w-48 sm:w-64">
