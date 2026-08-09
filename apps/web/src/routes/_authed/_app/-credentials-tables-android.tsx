@@ -12,7 +12,7 @@ import type { AndroidUploadKeystoreItem } from "@better-update/api-client/react"
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BindingRowActions, BoundProjectsCell } from "./-credential-bindings";
-import { FingerprintCell } from "./-credential-cells";
+import { ExpiryCell, FingerprintCell } from "./-credential-cells";
 import { AndroidUploadKeystoreProtectionSwitch } from "./-credential-protection";
 import { formatKeystoreSubline } from "./-credentials-utils";
 
@@ -37,6 +37,7 @@ export const AndroidUploadKeystoresTable = ({
             check a keystore against, so both get a column. */}
         <TableHead>SHA-1</TableHead>
         <TableHead>SHA-256</TableHead>
+        <TableHead>Expires</TableHead>
         <TableHead>Projects</TableHead>
         <TableHead>Uploaded</TableHead>
         <TableHead className="text-right">Protected</TableHead>
@@ -61,6 +62,11 @@ export const AndroidUploadKeystoresTable = ({
             </TableCell>
             <TableCell>
               <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
+            </TableCell>
+            {/* Null for keystores uploaded before the CLI read the certificate;
+                ExpiryCell says "No expiry" for those rather than inventing one. */}
+            <TableCell>
+              <ExpiryCell validUntil={keystore.validUntil} />
             </TableCell>
             <TableCell>
               <BoundProjectsCell

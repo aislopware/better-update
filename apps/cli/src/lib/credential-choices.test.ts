@@ -24,6 +24,7 @@ const keystore = (overrides: Partial<AndroidUploadKeystore>): AndroidUploadKeyst
     sha1Fingerprint: overrides.sha1Fingerprint ?? null,
     sha256Fingerprint: overrides.sha256Fingerprint ?? null,
     keystoreType: overrides.keystoreType ?? null,
+    validUntil: overrides.validUntil ?? null,
     createdAt: overrides.createdAt ?? "2026-01-02T03:04:05.000Z",
     updatedAt: overrides.updatedAt ?? "2026-01-02T03:04:05.000Z",
   });

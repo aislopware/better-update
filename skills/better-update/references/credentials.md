@@ -13,7 +13,7 @@ platform → category → action wizard — handy when you don't remember the ex
 ```bash
 better-update credentials list [--platform <ios|android>]
 # columns: ID | Name (the --name label) | Identifier (key alias / cert serial / …) | Platform | Type | Created | SHA-1
-better-update credentials view <id> --type <type>            # metadata, no secret (keystore view shows all fingerprints)
+better-update credentials view <id> --type <type>            # metadata, no secret (keystore view shows all fingerprints + certificate expiry)
 better-update credentials download <id> --type <type> [--output <path>]   # decrypt via vault session → file (default ./<id>.<ext>)
 better-update credentials delete <id> --platform <ios|android> --type <type>
 better-update credentials remove [--platform <ios|android>] [--type <type>] [--yes]   # interactive picker
@@ -47,6 +47,11 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 keystores and ASC API keys (separate from the key alias / internal identifier), so use a distinct
 `--name` to tell apart credentials that share an internal id — e.g. white-label Android keystores that
 all reuse a single shared key alias such as `upload`.
+
+Uploading a keystore runs `keytool -list -rfc` locally and records the signing certificate's MD5 /
+SHA-1 / SHA-256 fingerprints and its **expiry** alongside the encrypted keystore — the server never
+sees the keystore bytes, so only the CLI can read them. Keystores uploaded by an older CLI show no
+expiry on the dashboard until they are uploaded again.
 
 **Auto-bind on create**: when an upload/generate runs inside a linked project, the CLI passes the
 linked `projectId` and the new credential (or its Apple team) is **bound to that project** in the

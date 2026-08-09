@@ -11,11 +11,11 @@ import { PageHeader } from "../../../components/page-header";
 import { TablePanelSkeleton } from "../../../components/skeletons";
 import { assertCapability, isOrgAdmin } from "../../../lib/access";
 import { CredentialPanel } from "./-credential-panel";
+import { ExpiryRollupBanner } from "./-credentials-expiry-rollup";
 import {
   AppleTeamsSection,
   AscApiKeysSection,
   DistributionCertificatesSection,
-  ExpiryRollupBanner,
   PassTypeCertificatesSection,
   PayCertificatesSection,
   PushCertificatesSection,

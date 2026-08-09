@@ -12,7 +12,7 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { extractKeystoreFingerprints, generateAndroidKeystore } from "./android-keystore";
+import { extractKeystoreCertificate, generateAndroidKeystore } from "./android-keystore";
 import { autoBindProjectId } from "./project-link";
 import { acquireBuildTempDir } from "./temp-dir";
 
@@ -61,7 +61,7 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
       });
 
       const bytes = yield* fs.readFile(keystorePath);
-      const fingerprints = yield* extractKeystoreFingerprints({
+      const certificate = yield* extractKeystoreCertificate({
         keystorePath,
         keyAlias: input.keyAlias,
         storePassword: input.storePassword,
@@ -70,9 +70,10 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
       const metadata = compact({
         name: input.name,
         keyAlias: input.keyAlias,
-        md5Fingerprint: fingerprints.md5,
-        sha1Fingerprint: fingerprints.sha1,
-        sha256Fingerprint: fingerprints.sha256,
+        md5Fingerprint: certificate.md5,
+        sha1Fingerprint: certificate.sha1,
+        sha256Fingerprint: certificate.sha256,
+        validUntil: certificate.validUntil,
         // generateAndroidKeystore always emits a JKS container.
         keystoreType: "JKS" as const,
       });

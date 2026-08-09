@@ -74,6 +74,7 @@ export interface AndroidUploadKeystores {
   sha1_fingerprint: string | null;
   sha256_fingerprint: string | null;
   updated_at: Generated<string>;
+  valid_until: string | null;
   vault_version: number;
   wrapped_dek: string;
 }

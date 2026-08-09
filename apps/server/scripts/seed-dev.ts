@@ -622,6 +622,7 @@ const seedOrg = (org: OrgRow, orgIndex: number): void => {
     md5_fingerprint: hex(32).toUpperCase(),
     sha1_fingerprint: hex(40).toUpperCase(),
     sha256_fingerprint: hex(64).toUpperCase(),
+    valid_until: daysAgo(-365 * 25),
     r2_key: `seed/credentials/${sid("keystore-1")}.jks`,
     vault_version: 1,
     wrapped_dek: fakeBlob(48),

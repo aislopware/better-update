@@ -1,0 +1,11 @@
+-- Upload keystores carry a signing certificate, and that certificate expires:
+-- keytool's default is 90 days unless the generator asked for more, and a build
+-- signed with an expired one is rejected by Play. Every other expiring
+-- credential already stores its notAfter (apple_distribution_certificates,
+-- apple_push_certificates, …) so the dashboard can warn ahead of time; keystores
+-- were the one type that could go stale silently.
+--
+-- Nullable, and null for every keystore uploaded before this: the server never
+-- sees the keystore bytes (client-encrypted envelope), so the date can only come
+-- from the CLI at upload time. Existing rows fill in when re-uploaded.
+ALTER TABLE "android_upload_keystores" ADD COLUMN "valid_until" TEXT;

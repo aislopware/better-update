@@ -209,6 +209,7 @@ const viewKeystore = (api: ApiClient, id: string) =>
         ["SHA-1", item.sha1Fingerprint ?? "-"],
         ["SHA-256", item.sha256Fingerprint ?? "-"],
         ["MD5", item.md5Fingerprint ?? "-"],
+        ["Valid until", item.validUntil ?? "-"],
         ["Created", item.createdAt],
         ["Updated", item.updatedAt],
       ] as const,

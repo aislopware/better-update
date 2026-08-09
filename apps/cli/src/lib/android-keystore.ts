@@ -1,3 +1,5 @@
+import { X509Certificate, createHash } from "node:crypto";
+
 import { Command } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -22,48 +24,64 @@ export const renderDistinguishedName = (params: {
   readonly organization: string;
 }): string => `CN=${params.commonName}, O=${params.organization}`;
 
-export interface KeystoreFingerprints {
-  readonly md5: string | undefined;
-  readonly sha1: string | undefined;
-  readonly sha256: string | undefined;
+export interface KeystoreCertificate {
+  readonly md5: string;
+  readonly sha1: string;
+  readonly sha256: string;
+  /** notAfter as an ISO instant — the signing certificate's expiry. */
+  readonly validUntil: string;
 }
 
-const FINGERPRINT_PATTERNS = {
-  md5: /MD5:\s*(?<value>[0-9A-F:]+)/iu,
-  sha1: /SHA-?1:\s*(?<value>[0-9A-F:]+)/iu,
-  sha256: /SHA-?256:\s*(?<value>[0-9A-F:]+)/iu,
-} as const;
+const PEM_CERTIFICATE = /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/u;
 
 /**
- * Parse certificate fingerprints out of `keytool -list -v` output. The fingerprint
- * labels (`MD5:`, `SHA1:`, `SHA256:`) are stable across keytool locales — only the
- * surrounding prose is translated — so label-anchored regexes are robust. MD5 is
- * absent on modern JDKs (dropped from `-v` output); that field stays `undefined`.
- * keytool already emits the canonical uppercase, colon-separated form the dashboard
- * displays verbatim, so no normalization is needed.
+ * Pull the leaf certificate out of `keytool -list -rfc` output, which wraps each
+ * PEM block in prose (alias name, entry type, chain length). The first block is
+ * the leaf; the rest of a chain is its issuers, which say nothing about this key.
  */
-export const parseKeystoreFingerprints = (output: string): KeystoreFingerprints => ({
-  md5: output.match(FINGERPRINT_PATTERNS.md5)?.groups?.["value"],
-  sha1: output.match(FINGERPRINT_PATTERNS.sha1)?.groups?.["value"],
-  sha256: output.match(FINGERPRINT_PATTERNS.sha256)?.groups?.["value"],
-});
+export const parseKeystoreCertificatePem = (output: string): string | undefined =>
+  PEM_CERTIFICATE.exec(output)?.[0];
+
+const toColonHex = (digest: string): string => (digest.toUpperCase().match(/../gu) ?? []).join(":");
 
 /**
- * Run `keytool -list -v` against an on-disk keystore and extract its certificate
- * fingerprints. Only the store password is required to read a certificate. Used at
- * upload/generate time to populate the public, server-visible fingerprint metadata
- * the dashboard renders.
+ * The public facts a keystore's certificate carries: the three fingerprints the
+ * Play Console and Firebase ask for, and the date after which anything signed
+ * with it is rejected.
+ *
+ * Read from the DER rather than scraped from `keytool -list -v`: that output
+ * renders dates through the JVM's default timezone as an abbreviation no
+ * JavaScript Date can parse ("… until: Fri Sep 18 13:39:53 ICT 2026"), and drops
+ * MD5 entirely on modern JDKs. Node's own digests come out in keytool's exact
+ * uppercase colon-separated form, so the values are byte-identical to what a
+ * developer sees when they run keytool themselves.
  */
-export const extractKeystoreFingerprints = (params: {
+export const readKeystoreCertificate = (pem: string): KeystoreCertificate => {
+  const cert = new X509Certificate(pem);
+  return {
+    md5: toColonHex(createHash("md5").update(cert.raw).digest("hex")),
+    sha1: cert.fingerprint,
+    sha256: cert.fingerprint256,
+    validUntil: cert.validToDate.toISOString(),
+  };
+};
+
+/**
+ * Run `keytool -list -rfc` against an on-disk keystore and read its signing
+ * certificate. Only the store password is required to read a certificate. Used at
+ * upload/generate time to populate the public, server-visible metadata the
+ * dashboard renders.
+ */
+export const extractKeystoreCertificate = (params: {
   readonly keystorePath: string;
   readonly keyAlias: string;
   readonly storePassword: string;
-}): Effect.Effect<KeystoreFingerprints, BuildFailedError, CommandExecutor.CommandExecutor> =>
+}): Effect.Effect<KeystoreCertificate, BuildFailedError, CommandExecutor.CommandExecutor> =>
   Command.string(
     Command.make(
       "keytool",
       "-list",
-      "-v",
+      "-rfc",
       "-keystore",
       params.keystorePath,
       "-alias",
@@ -75,29 +93,36 @@ export const extractKeystoreFingerprints = (params: {
     Effect.mapError(
       (cause) =>
         new BuildFailedError({
-          step: "extract keystore fingerprints",
+          step: "read keystore certificate",
           exitCode: 1,
           message: `keytool -list failed to run (is the JDK installed?): ${String(cause)}`,
         }),
     ),
     Effect.flatMap((output) => {
-      const fingerprints = parseKeystoreFingerprints(output);
+      const pem = parseKeystoreCertificatePem(output);
       // `Command.string` resolves with whatever landed on stdout even when keytool
-      // exits non-zero (wrong store password, unknown alias), so an empty
-      // fingerprint set is the only reliable signal that the certificate was never
-      // read. Fail loudly here — before any credential row is created — so the user
-      // fixes the input instead of uploading a fingerprint-less keystore.
-      if (fingerprints.sha1 === undefined && fingerprints.sha256 === undefined) {
+      // exits non-zero (wrong store password, unknown alias), so a missing PEM
+      // block is the only reliable signal that the certificate was never read.
+      // Fail loudly here — before any credential row is created — so the user
+      // fixes the input instead of uploading metadata-less keystore.
+      if (pem === undefined) {
         return Effect.fail(
           new BuildFailedError({
-            step: "extract keystore fingerprints",
+            step: "read keystore certificate",
             exitCode: 1,
-            message:
-              "keytool produced no SHA-1/SHA-256 fingerprints — verify the key alias and keystore password",
+            message: "keytool produced no certificate — verify the key alias and keystore password",
           }),
         );
       }
-      return Effect.succeed(fingerprints);
+      return Effect.try({
+        try: () => readKeystoreCertificate(pem),
+        catch: (cause) =>
+          new BuildFailedError({
+            step: "read keystore certificate",
+            exitCode: 1,
+            message: `keystore certificate could not be parsed: ${String(cause)}`,
+          }),
+      });
     }),
   );
 

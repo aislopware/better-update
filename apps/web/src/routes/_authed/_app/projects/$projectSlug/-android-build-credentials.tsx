@@ -17,7 +17,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { BindingRowActions, BoundProjectsCell } from "../../-credential-bindings";
-import { FingerprintCell } from "../../-credential-cells";
+import { ExpiryCell, FingerprintCell } from "../../-credential-cells";
 import { AndroidUploadKeystoreProtectionSwitch } from "../../-credential-protection";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
@@ -105,6 +105,9 @@ const KeystoreCard = ({
         </DetailStat>
         <DetailStat label="SHA-256 fingerprint">
           <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
+        </DetailStat>
+        <DetailStat label="Expires">
+          <ExpiryCell validUntil={keystore.validUntil} />
         </DetailStat>
         <DetailStat label="Protected">
           <KeystoreProtectionSwitch orgId={orgId} keystore={keystore} />

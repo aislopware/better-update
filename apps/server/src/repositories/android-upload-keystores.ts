@@ -24,6 +24,7 @@ export interface AndroidUploadKeystoreRepository {
     readonly sha1Fingerprint: string | null;
     readonly sha256Fingerprint: string | null;
     readonly keystoreType: "JKS" | "PKCS12" | null;
+    readonly validUntil: string | null;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -68,6 +69,7 @@ const COLUMNS = [
   "sha1_fingerprint",
   "sha256_fingerprint",
   "keystore_type",
+  "valid_until",
   "is_protected",
   "created_at",
   "updated_at",
@@ -85,6 +87,7 @@ const toModel = (row: Selectable<AndroidUploadKeystores>): AndroidUploadKeystore
   sha1Fingerprint: row.sha1_fingerprint,
   sha256Fingerprint: row.sha256_fingerprint,
   keystoreType: row.keystore_type,
+  validUntil: row.valid_until,
   isProtected: row.is_protected === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -110,6 +113,7 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
               sha1_fingerprint: params.sha1Fingerprint,
               sha256_fingerprint: params.sha256Fingerprint,
               keystore_type: params.keystoreType,
+              valid_until: params.validUntil,
               created_at: params.createdAt,
               updated_at: params.updatedAt,
             })

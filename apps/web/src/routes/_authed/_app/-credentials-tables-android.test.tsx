@@ -21,6 +21,7 @@ const makeKeystore = (
   sha1Fingerprint: SHA1,
   sha256Fingerprint: SHA256,
   keystoreType: "JKS",
+  validUntil: "2036-08-06T06:41:43.000Z",
   protected: false,
   boundProjectIds: [],
   boundToAllProjects: false,
@@ -80,6 +81,26 @@ describe(AndroidUploadKeystoresTable, () => {
 
     expect(screen.getAllByText("—")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Copy SHA-1" })).not.toBeInTheDocument();
+  });
+
+  it("dates the certificate expiry, with no badge while it is comfortably valid", () => {
+    renderTable([makeKeystore()]);
+
+    expect(screen.getByText("Aug 6, 2036")).toBeInTheDocument();
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+  });
+
+  it("flags an expired keystore, since Play rejects anything it signs", () => {
+    renderTable([makeKeystore({ validUntil: "2020-01-01T00:00:00.000Z" })]);
+
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+  });
+
+  // Uploaded before the CLI read the certificate — unknown, not "never expires".
+  it("says No expiry for a keystore that predates the recorded date", () => {
+    renderTable([makeKeystore({ validUntil: null })]);
+
+    expect(screen.getByText("No expiry")).toBeInTheDocument();
   });
 
   it("surfaces an unbound keystore rather than hiding it, as the project pages do", async () => {

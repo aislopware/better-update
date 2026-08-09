@@ -333,6 +333,7 @@ export const toApiAndroidUploadKeystore = (
     sha1Fingerprint: model.sha1Fingerprint,
     sha256Fingerprint: model.sha256Fingerprint,
     keystoreType: model.keystoreType,
+    validUntil: model.validUntil,
     protected: model.isProtected,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
