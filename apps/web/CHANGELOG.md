@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.74.4](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.3...%40better-update%2Fweb%400.74.4) (2026-08-09)
+
+### Bug Fixes
+
+* **web:** keep layout route context while a pending navigation loads ([ce682ae](https://github.com/better-update/better-update/commit/ce682ae3ec5d223fcdc1fa81e4807866e5c8e431))
+
 ## [0.74.3](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.2...%40better-update%2Fweb%400.74.3) (2026-08-09)
 
 ### Bug Fixes
