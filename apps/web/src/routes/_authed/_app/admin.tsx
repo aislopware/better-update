@@ -11,13 +11,11 @@ import { toast } from "@better-update/ui/components/toast";
 import { UsersIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { AdminUserItem } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { PageHeader } from "../../../components/page-header";
 import { QueryErrorState } from "../../../components/query-error-state";
@@ -34,11 +32,14 @@ import {
   fireAndForget,
   pageParam,
   queryParam,
+  useDataTable,
   useDebouncedSearch,
 } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
 import { useApiMutation } from "../../../lib/use-api-mutation";
+
+import type { DataTableColumnDef } from "../../../lib/data-table";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -78,7 +79,7 @@ const UserCell = ({ user }: { user: AdminUserItem }) => (
 const buildColumns = (
   onSetApproval: (variables: ApprovalVariables) => void,
   pendingUserId: string | undefined,
-): readonly ColumnDef<AdminUserItem>[] => [
+): readonly DataTableColumnDef<AdminUserItem>[] => [
   {
     id: "user",
     accessorKey: "email",
@@ -200,11 +201,10 @@ const AdminUsers = () => {
 
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     enableSorting: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const onPageChange = (next: number): void => {

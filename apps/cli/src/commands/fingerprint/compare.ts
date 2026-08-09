@@ -137,13 +137,11 @@ const localRef = (
     ? runFingerprintFull(projectRoot)
     : runFingerprintForPlatform(projectRoot, platform)
   ).pipe(
-    Effect.map(
-      (result): FingerprintRef => ({
-        label: platform === undefined ? "local project" : `local project (${platform})`,
-        hash: result.hash,
-        sources: result.sources,
-      }),
-    ),
+    Effect.map((result): FingerprintRef => ({
+      label: platform === undefined ? "local project" : `local project (${platform})`,
+      hash: result.hash,
+      sources: result.sources,
+    })),
   );
 
 const isPathSource = (item: FingerprintDiffItem): boolean =>

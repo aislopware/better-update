@@ -1,24 +1,23 @@
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { PencilSimpleIcon } from "@phosphor-icons/react";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import type { RobotAccountItem } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { PROJECT_ROLE_LABELS } from "../../-invite-dialog";
 import { CopyableId } from "../../../../../lib/copy-button";
 import {
-  clientPaginationFooter,
   DataTableView,
   RowActionsMenu,
+  clientPaginationFooter,
   useClientPagination,
+  useDataTable,
 } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { EditRobotDialog } from "./-project-robot-edit-dialog";
 import { useProjectRobotsHandlers } from "./-project-robots-mutations";
 
-import type { ListPaginationFooter } from "../../../../../lib/data-table";
+import type { DataTableColumnDef, ListPaginationFooter } from "../../../../../lib/data-table";
 import type { EditTarget } from "./-project-robots-mutations";
 
 const RowActions = ({
@@ -45,7 +44,7 @@ const RowActions = ({
 const robotColumns = (
   pendingRobotId: string | undefined,
   onEdit: (target: EditTarget) => void,
-): readonly ColumnDef<RobotAccountItem>[] => [
+): readonly DataTableColumnDef<RobotAccountItem>[] => [
   {
     id: "name",
     header: "Name",
@@ -114,11 +113,10 @@ export const ProjectRobotsTableView = ({
 }) => {
   const columns = useMemo(() => robotColumns(pendingRobotId, onEdit), [pendingRobotId, onEdit]);
   const data = useMemo(() => [...items], [items]);
-  const table = useReactTable({
+  const table = useDataTable({
     data,
     columns: [...columns],
     enableSorting: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   return <DataTableView table={table} columnsCount={columns.length} pagination={pagination} />;

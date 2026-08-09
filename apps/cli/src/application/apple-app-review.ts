@@ -126,13 +126,11 @@ export const viewThread = (
     );
     return {
       thread: toThreadView(thread),
-      messages: messages.map(
-        (message): MessageView => ({
-          createdDate: message.attributes.createdDate,
-          body: message.attributes.messageBody,
-          text: htmlToPlain(message.attributes.messageBody),
-        }),
-      ),
+      messages: messages.map((message): MessageView => ({
+        createdDate: message.attributes.createdDate,
+        body: message.attributes.messageBody,
+        text: htmlToPlain(message.attributes.messageBody),
+      })),
     };
   });
 
@@ -155,13 +153,11 @@ export const threadRejections = (
       thread.fetchRejectionReasonsAsync(),
     );
     return rejections.flatMap((rejection) =>
-      rejection.attributes.reasons.map(
-        (reason): RejectionView => ({
-          section: reason.reasonSection,
-          code: reason.reasonCode,
-          description: reason.reasonDescription,
-        }),
-      ),
+      rejection.attributes.reasons.map((reason): RejectionView => ({
+        section: reason.reasonSection,
+        code: reason.reasonCode,
+        description: reason.reasonDescription,
+      })),
     );
   });
 

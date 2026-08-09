@@ -1,12 +1,12 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { withoutPinnedColumns } from "./pinned-columns";
+
+import type { DataTableColumnDef } from "./table-features";
 
 interface Row {
   readonly name: string;
 }
 
-const columns: ColumnDef<Row>[] = [
+const columns: DataTableColumnDef<Row>[] = [
   { id: "name", header: "Name" },
   { id: "branch", header: "Branch" },
   { id: "platform", header: "Platform" },

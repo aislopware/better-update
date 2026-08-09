@@ -1,5 +1,3 @@
-import type { RowData } from "@tanstack/react-table";
-
 /**
  * Typed-cell presentation applied centrally by DataTableView (opt-in, additive).
  * `text`, `status`, and `link` are semantic markers only — the column's own
@@ -15,16 +13,6 @@ export interface DataTableColumnMeta {
   readonly cellType?: DataTableCellType;
   /** The column that absorbs the table's leftover width. At most one per table. */
   readonly primary?: boolean;
-}
-
-declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData extends RowData, TValue> {
-    align?: "right";
-    muted?: boolean;
-    stopRowClick?: boolean;
-    cellType?: DataTableCellType;
-    primary?: boolean;
-  }
 }
 
 const CELL_TYPE_CLASSES: Partial<Record<DataTableCellType, string>> = {

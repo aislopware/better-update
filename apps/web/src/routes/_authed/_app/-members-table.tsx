@@ -1,17 +1,11 @@
 import { Select } from "@better-update/ui/components/select";
-import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import type { MemberProjectMembershipsItem } from "@better-update/api-client/react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
 
 import { StatusDot } from "../../../components/status-dot";
-import { DataTableView, PAGE_SIZE } from "../../../lib/data-table";
+import { DataTableView, PAGE_SIZE, useDataTable } from "../../../lib/data-table";
 import { onPicked } from "../../../lib/form-utils";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
 import { pluralize } from "../../../lib/pluralize";
@@ -20,7 +14,7 @@ import { MemberProjectsCell } from "./-member-projects-cell";
 import { MemberRowActions } from "./-member-row-actions";
 import { buildRows } from "./-members-row";
 
-import type { FilteredEmptyProps } from "../../../lib/data-table";
+import type { DataTableColumnDef, FilteredEmptyProps } from "../../../lib/data-table";
 import type { ManageProjectsTarget } from "./-member-projects-cell";
 import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members-row";
 
@@ -178,7 +172,7 @@ const RoleCell = ({
   return <RoleSelect row={row} isPending={isPending} onRoleChange={onRoleChange} />;
 };
 
-const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
+const buildColumns = (params: BuildColumnsParams): DataTableColumnDef<Row>[] => [
   {
     id: "name",
     accessorFn: (row) => row.name,
@@ -346,29 +340,26 @@ export const MembersTableView = ({
     ],
   );
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns,
     state: { sorting },
-    initialState: { pagination: { pageSize: PAGE_SIZE } },
+    initialState: { pagination: { pageIndex: 0, pageSize: PAGE_SIZE } },
     onSortingChange,
     enableMultiSort: false,
     enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   });
 
   // The footer counts what the table holds, filters included — the page
   // upstream no longer has to thread a label down for it.
-  const rowCount = table.getPrePaginationRowModel().rows.length;
+  const rowCount = table.getPrePaginatedRowModel().rows.length;
 
   return (
     <DataTableView
       table={table}
       columnsCount={columns.length}
       pagination={{
-        page: table.getState().pagination.pageIndex + 1,
+        page: table.state.pagination.pageIndex + 1,
         perPage: PAGE_SIZE,
         totalCount: rowCount,
         entity: pluralize(rowCount, "member"),

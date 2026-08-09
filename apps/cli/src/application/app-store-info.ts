@@ -62,14 +62,12 @@ export const showAppInfo = (ctx: AppleUtils.RequestContext, appId: string) =>
       state: info.attributes.state,
       primaryCategory: toDbNull(info.attributes.primaryCategory?.id),
       secondaryCategory: toDbNull(info.attributes.secondaryCategory?.id),
-      localizations: localizations.map(
-        (loc): AppInfoLocalizationView => ({
-          locale: loc.attributes.locale,
-          name: loc.attributes.name,
-          subtitle: loc.attributes.subtitle,
-          privacyPolicyUrl: loc.attributes.privacyPolicyUrl,
-        }),
-      ),
+      localizations: localizations.map((loc): AppInfoLocalizationView => ({
+        locale: loc.attributes.locale,
+        name: loc.attributes.name,
+        subtitle: loc.attributes.subtitle,
+        privacyPolicyUrl: loc.attributes.privacyPolicyUrl,
+      })),
     } satisfies AppInfoView;
   });
 
@@ -165,11 +163,9 @@ export const listCategories = (
     }),
   ).pipe(
     Effect.map((categories) =>
-      categories.map(
-        (category): CategoryView => ({
-          id: category.id,
-          platforms: category.attributes.platforms,
-        }),
-      ),
+      categories.map((category): CategoryView => ({
+        id: category.id,
+        platforms: category.attributes.platforms,
+      })),
     ),
   );

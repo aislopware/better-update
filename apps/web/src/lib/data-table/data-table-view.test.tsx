@@ -1,12 +1,11 @@
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { DataTableView } from "./data-table-view";
+import { useDataTable } from "./table-features";
 
 import type { FilteredEmptyProps } from "./list-empty-state";
+import type { DataTableColumnDef } from "./table-features";
 
 interface TestRow {
   readonly id: string;
@@ -15,7 +14,7 @@ interface TestRow {
   readonly note: string | null;
 }
 
-const columns: ColumnDef<TestRow>[] = [
+const columns: DataTableColumnDef<TestRow>[] = [
   { id: "name", accessorKey: "name", header: "Name", enableSorting: false },
   {
     id: "identifier",
@@ -54,7 +53,7 @@ const TestTable = ({
   emptyMessage?: string;
   filteredEmpty?: FilteredEmptyProps;
 }) => {
-  const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
+  const table = useDataTable({ data, columns });
   return (
     <DataTableView
       table={table}

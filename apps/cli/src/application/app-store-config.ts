@@ -57,17 +57,16 @@ export const pullConfig = (
     );
     return {
       versionString: version.attributes.versionString,
-      localizations: localizations.map(
-        (loc): LocalizationDoc =>
-          compact({
-            locale: loc.attributes.locale,
-            whatsNew: toOptional(loc.attributes.whatsNew),
-            description: toOptional(loc.attributes.description),
-            keywords: toOptional(loc.attributes.keywords),
-            promotionalText: toOptional(loc.attributes.promotionalText),
-            marketingUrl: toOptional(loc.attributes.marketingUrl),
-            supportUrl: toOptional(loc.attributes.supportUrl),
-          }),
+      localizations: localizations.map((loc): LocalizationDoc =>
+        compact({
+          locale: loc.attributes.locale,
+          whatsNew: toOptional(loc.attributes.whatsNew),
+          description: toOptional(loc.attributes.description),
+          keywords: toOptional(loc.attributes.keywords),
+          promotionalText: toOptional(loc.attributes.promotionalText),
+          marketingUrl: toOptional(loc.attributes.marketingUrl),
+          supportUrl: toOptional(loc.attributes.supportUrl),
+        }),
       ),
     } satisfies ConfigDoc;
   });

@@ -9,14 +9,12 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Suspense, useMemo } from "react";
 
 import type {
   AndroidApplicationIdentifierItem,
   AppleTeamItem,
 } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { EmptyDash, TeamNameCell } from "../../-credential-cells";
 import { AndroidIcon } from "../../../../../components/android-icon";
@@ -26,14 +24,16 @@ import { PageHeader } from "../../../../../components/page-header";
 import { TablePanelSkeleton } from "../../../../../components/skeletons";
 import { PanelTitle, TablePanel } from "../../../../../components/table-panel";
 import {
-  clientPaginationFooter,
   DataTableView,
+  clientPaginationFooter,
   useClientPagination,
+  useDataTable,
 } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { groupIosConfigs, summarizeAndroidCredentials } from "./-credentials-index-helpers";
 import { DISTRIBUTION_LABELS } from "./-ios-detail-shared";
 
+import type { DataTableColumnDef } from "../../../../../lib/data-table";
 import type { IosBundleGroup, IosSigningSlots } from "./-credentials-index-helpers";
 
 const SectionListSkeleton = () => <TablePanelSkeleton columns={4} rows={3} />;
@@ -113,7 +113,9 @@ const IosTeamCell = ({
   return <TeamNameCell team={teams.find((item) => item.id === first)} />;
 };
 
-const iosColumns = (teams: readonly AppleTeamItem[]): readonly ColumnDef<IosBundleGroup>[] => [
+const iosColumns = (
+  teams: readonly AppleTeamItem[],
+): readonly DataTableColumnDef<IosBundleGroup>[] => [
   {
     id: "bundleIdentifier",
     header: "Bundle identifier",
@@ -227,7 +229,9 @@ const AndroidServiceAccountsCell = ({
   );
 };
 
-const androidColumns = (orgId: string): readonly ColumnDef<AndroidApplicationIdentifierItem>[] => [
+const androidColumns = (
+  orgId: string,
+): readonly DataTableColumnDef<AndroidApplicationIdentifierItem>[] => [
   {
     id: "packageName",
     header: "Application identifier",
@@ -285,11 +289,10 @@ const AndroidSection = ({
   const pagination = useClientPagination(items, "identifier");
   const columns = useMemo(() => androidColumns(orgId), [orgId]);
   const tableData = useMemo(() => [...pagination.pageItems], [pagination.pageItems]);
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     enableSorting: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const title = <PanelTitle icon={<AndroidIcon />} label="Android" />;
@@ -337,11 +340,10 @@ const IosSection = ({
   const pagination = useClientPagination(groups, "bundle identifier");
   const columns = useMemo(() => iosColumns(teamsResult.items), [teamsResult.items]);
   const tableData = useMemo(() => [...pagination.pageItems], [pagination.pageItems]);
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     enableSorting: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const title = <PanelTitle icon={<AppleIcon />} label="iOS" />;

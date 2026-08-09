@@ -3,7 +3,6 @@ import { Empty } from "@better-update/ui/components/empty";
 import { CloudArrowUpIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
@@ -30,6 +29,7 @@ import {
   pageParam,
   queryParam,
   sortParam,
+  useDataTable,
   useDataTableSearch,
   useDebouncedSearch,
   withoutPinnedColumns,
@@ -215,7 +215,7 @@ const UpdatesContent = () => {
 
   const { data, error, isPlaceholderData, isLoading, refetch } = updatesQuery;
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     // Size stays opt-in (View options) so the table fits without horizontal scroll.
@@ -225,7 +225,6 @@ const UpdatesContent = () => {
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const header = (

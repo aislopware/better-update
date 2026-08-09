@@ -52,13 +52,11 @@ const EDGE_BY_ID: Readonly<Record<string, Edge>> = Object.fromEntries(
 );
 
 const buildMarkers = (): Marker[] =>
-  EDGES.map(
-    (edge): Marker => ({
-      id: edge.id,
-      location: [edge.location[0], edge.location[1]],
-      size: 0,
-    }),
-  );
+  EDGES.map((edge): Marker => ({
+    id: edge.id,
+    location: [edge.location[0], edge.location[1]],
+    size: 0,
+  }));
 
 const buildArcs = (): Arc[] =>
   ARCS.flatMap((arc): Arc[] => {

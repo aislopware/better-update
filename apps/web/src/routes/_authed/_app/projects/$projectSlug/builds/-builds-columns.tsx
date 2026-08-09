@@ -1,5 +1,4 @@
 import type { BuildWithArtifact } from "@better-update/api";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import {
   DistributionIndicator,
@@ -9,6 +8,8 @@ import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { BuildRowActions } from "./-build-row-actions";
 
+import type { DataTableColumnDef } from "../../../../../../lib/data-table";
+
 export type BuildItem = BuildWithArtifact;
 
 const buildLabel = (build: BuildItem) =>
@@ -17,7 +18,7 @@ const buildLabel = (build: BuildItem) =>
 export const buildBuildsColumns = (
   orgId: string,
   projectId: string,
-): readonly ColumnDef<BuildItem>[] => [
+): readonly DataTableColumnDef<BuildItem>[] => [
   {
     id: "message",
     header: "Build",

@@ -1,4 +1,6 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+
+import type { DataTableColumnDef } from "./table-features";
 
 /**
  * Drops the columns a filter has already answered.
@@ -12,8 +14,8 @@ import type { ColumnDef } from "@tanstack/react-table";
  * Keyed by column id, so a caller reads as the rule it is stating:
  * `withoutPinnedColumns(columns, { branch: branchIds.length === 1 })`.
  */
-export const withoutPinnedColumns = <TData>(
-  columns: readonly ColumnDef<TData>[],
+export const withoutPinnedColumns = <TData extends RowData>(
+  columns: readonly DataTableColumnDef<TData>[],
   pinned: Readonly<Record<string, boolean>>,
-): readonly ColumnDef<TData>[] =>
+): readonly DataTableColumnDef<TData>[] =>
   columns.filter((column) => column.id === undefined || !pinned[column.id]);

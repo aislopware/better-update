@@ -1,10 +1,11 @@
 import { Badge } from "@better-update/ui/components/badge";
 
 import type { SubmissionItem } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { PlatformGlyph } from "../../../../../components/attribute-badges";
 import { RelativeTime } from "../../../../../lib/relative-time";
+
+import type { DataTableColumnDef } from "../../../../../lib/data-table";
 
 const PERCENT = 100;
 
@@ -108,7 +109,7 @@ const DestinationCell = ({ submission }: { submission: SubmissionItem }) => {
   );
 };
 
-export const submissionColumns: readonly ColumnDef<SubmissionItem>[] = [
+export const submissionColumns: readonly DataTableColumnDef<SubmissionItem>[] = [
   {
     id: "profile",
     header: "Submission",

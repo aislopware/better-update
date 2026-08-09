@@ -2,22 +2,22 @@ import { Badge } from "@better-update/ui/components/badge";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Select } from "@better-update/ui/components/select";
 import { UserMinusIcon } from "@phosphor-icons/react";
-import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
 
-import { DataTableView, PAGE_SIZE, RowActionsMenu } from "../../../../../lib/data-table";
+import {
+  DataTableView,
+  PAGE_SIZE,
+  RowActionsMenu,
+  useDataTable,
+} from "../../../../../lib/data-table";
 import { onPicked } from "../../../../../lib/form-utils";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
 
+import type { DataTableColumnDef } from "../../../../../lib/data-table";
 import type { RemoveTarget } from "./-project-members-mutations";
 
 // GitLab ladder order for the role sort (maintainer outranks developer etc.).
@@ -137,7 +137,7 @@ interface BuildColumnsParams {
   onRemove: (target: RemoveTarget) => void;
 }
 
-const buildColumns = (params: BuildColumnsParams): ColumnDef<ProjectMemberItem>[] => [
+const buildColumns = (params: BuildColumnsParams): DataTableColumnDef<ProjectMemberItem>[] => [
   {
     id: "name",
     accessorFn: (row) => principalDisplayName(row).toLowerCase(),
@@ -192,7 +192,7 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<ProjectMemberItem>[
           },
           enableSorting: false,
           meta: { align: "right" },
-        } satisfies ColumnDef<ProjectMemberItem>,
+        } satisfies DataTableColumnDef<ProjectMemberItem>,
       ]
     : []),
 ];
@@ -220,29 +220,26 @@ export const ProjectMembersTableView = ({
     [canManage, pendingPrincipalId, onRoleChange, onRemove],
   );
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns,
     state: { sorting },
-    initialState: { pagination: { pageSize: PAGE_SIZE } },
+    initialState: { pagination: { pageIndex: 0, pageSize: PAGE_SIZE } },
     onSortingChange,
     enableMultiSort: false,
     enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   });
 
   // The footer counts what the table holds, filters included — the page
   // upstream no longer has to thread a label down for it.
-  const rowCount = table.getPrePaginationRowModel().rows.length;
+  const rowCount = table.getPrePaginatedRowModel().rows.length;
 
   return (
     <DataTableView
       table={table}
       columnsCount={columns.length}
       pagination={{
-        page: table.getState().pagination.pageIndex + 1,
+        page: table.state.pagination.pageIndex + 1,
         perPage: PAGE_SIZE,
         totalCount: rowCount,
         entity: pluralize(rowCount, "member"),

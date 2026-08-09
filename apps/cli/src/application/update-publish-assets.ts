@@ -49,18 +49,16 @@ export const preparePlatformAssets = ({
       exportedAssets,
       (asset) =>
         sha256File(asset.path).pipe(
-          Effect.map(
-            ({ sha256: contentSha256Hex, byteSize }): PreparedAsset => ({
-              path: asset.path,
-              key: asset.key,
-              fileExt: asset.fileExt,
-              contentType: asset.contentType,
-              isLaunch: asset.isLaunch,
-              hash: sha256Namespaced(asset.contentType, contentSha256Hex),
-              contentChecksum: toBase64Url(fromHex(contentSha256Hex)),
-              byteSize,
-            }),
-          ),
+          Effect.map(({ sha256: contentSha256Hex, byteSize }): PreparedAsset => ({
+            path: asset.path,
+            key: asset.key,
+            fileExt: asset.fileExt,
+            contentType: asset.contentType,
+            isLaunch: asset.isLaunch,
+            hash: sha256Namespaced(asset.contentType, contentSha256Hex),
+            contentChecksum: toBase64Url(fromHex(contentSha256Hex)),
+            byteSize,
+          })),
         ),
       { concurrency: 4 },
     );

@@ -3,13 +3,11 @@ import { Empty } from "@better-update/ui/components/empty";
 import { StackIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { RuntimeAggregate } from "@better-update/api";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { PlatformIndicator } from "../../../../../../components/attribute-badges";
 import { PageHeader } from "../../../../../../components/page-header";
@@ -22,9 +20,12 @@ import {
   computePagination,
   fireAndForget,
   pageParam,
+  useDataTable,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+
+import type { DataTableColumnDef } from "../../../../../../lib/data-table";
 
 const runtimesSearchSchema = z.object({
   page: pageParam(),
@@ -56,7 +57,7 @@ const RuntimeVersionCell = ({ runtime }: { runtime: RuntimeAggregate }) => {
   );
 };
 
-const columns: readonly ColumnDef<RuntimeAggregate>[] = [
+const columns: readonly DataTableColumnDef<RuntimeAggregate>[] = [
   {
     id: "version",
     header: "Runtime",
@@ -116,11 +117,10 @@ const RuntimesContent = () => {
 
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     enableSorting: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading || data === undefined) {

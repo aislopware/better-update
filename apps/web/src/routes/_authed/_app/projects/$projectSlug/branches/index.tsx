@@ -4,13 +4,11 @@ import { Empty } from "@better-update/ui/components/empty";
 import { GitBranchIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { BranchItem, BranchSortColumn } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { CreateBranchDialog } from "../-create-branch-dialog";
 import { PageHeader } from "../../../../../../components/page-header";
@@ -26,12 +24,15 @@ import {
   pageParam,
   queryParam,
   sortParam,
+  useDataTable,
   useDataTableSearch,
   useDebouncedSearch,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { BranchRowActions } from "./-branch-row-actions";
+
+import type { DataTableColumnDef } from "../../../../../../lib/data-table";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -81,7 +82,10 @@ const BranchNameCell = ({ branch }: { branch: BranchItem }) => (
   </div>
 );
 
-const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<BranchItem>[] => [
+const buildColumns = (
+  orgId: string,
+  projectId: string,
+): readonly DataTableColumnDef<BranchItem>[] => [
   {
     id: "name",
     accessorKey: "name",
@@ -184,7 +188,7 @@ const BranchesPage = () => {
   const columns = useMemo(() => buildColumns(orgId, projectId), [orgId, projectId]);
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     state: { sorting },
@@ -192,7 +196,6 @@ const BranchesPage = () => {
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const createCta = <CreateBranchDialog orgId={orgId} projectId={projectId} />;

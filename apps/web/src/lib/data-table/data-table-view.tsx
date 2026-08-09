@@ -9,7 +9,7 @@ import {
 import { cn } from "@better-update/ui/lib/utils";
 import { flexRender } from "@tanstack/react-table";
 
-import type { Cell, Table as ReactTableT, Row } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import type { MouseEvent, ReactNode } from "react";
 
 import { cellAlignClass, columnWidthClass } from "./column-meta";
@@ -21,6 +21,7 @@ import { RowCaret } from "./row-caret";
 
 import type { FilteredEmptyProps } from "./list-empty-state";
 import type { ListPaginationFooter } from "./list-footer";
+import type { DataTableCell, DataTableInstance, DataTableRow } from "./table-features";
 
 /** What a caller has to render for `renderRowLink`: its own `Link`, wearing these. */
 export interface RowLinkProps {
@@ -28,10 +29,10 @@ export interface RowLinkProps {
   readonly children: ReactNode;
 }
 
-export type RowLinkRender<TData> = (row: TData, props: RowLinkProps) => ReactNode;
+export type RowLinkRender<TData extends RowData> = (row: TData, props: RowLinkProps) => ReactNode;
 
-export interface DataTableViewProps<TData> {
-  readonly table: ReactTableT<TData>;
+export interface DataTableViewProps<TData extends RowData> {
+  readonly table: DataTableInstance<TData>;
   readonly columnsCount: number;
   /**
    * Names the list from inside its own frame. For a page whose whole subject is
@@ -87,7 +88,7 @@ const isMissingValue = (value: unknown): boolean => value === undefined || value
 
 // Em-dash for absent values is gated on typed columns with a real accessor so
 // renderer-only columns (no accessorKey/accessorFn) keep their own output.
-const renderCell = <TData,>(cell: Cell<TData, unknown>): ReactNode =>
+const renderCell = <TData extends RowData>(cell: DataTableCell<TData>): ReactNode =>
   cell.column.columnDef.meta?.cellType !== undefined &&
   cell.column.accessorFn !== undefined &&
   isMissingValue(cell.getValue())
@@ -101,7 +102,7 @@ const ROW_LINK_CLASS =
   "focus-visible:ring-kumo-focus block min-w-0 rounded-sm text-inherit no-underline outline-none focus-visible:ring-2";
 
 /** Which cell holds the row's name: the primary column, else the first one. */
-const linkCellId = <TData,>(row: Row<TData>): string | undefined => {
+const linkCellId = <TData extends RowData>(row: DataTableRow<TData>): string | undefined => {
   const cells = row.getVisibleCells();
   return (cells.find((cell) => cell.column.columnDef.meta?.primary) ?? cells[0])?.id;
 };
@@ -134,11 +135,11 @@ const followRowLink = (event: MouseEvent<HTMLElement>): void => {
   event.currentTarget.querySelector<HTMLAnchorElement>("[data-row-link] a")?.click();
 };
 
-const DataTableRow = <TData,>({
+const DataTableViewRow = <TData extends RowData>({
   row,
   renderRowLink,
 }: {
-  row: Row<TData>;
+  row: DataTableRow<TData>;
   renderRowLink: RowLinkRender<TData> | undefined;
 }) => {
   const nameCellId = renderRowLink ? linkCellId(row) : undefined;
@@ -217,7 +218,7 @@ const FilteredEmptyRow = ({
   </TableRow>
 );
 
-export const DataTableView = <TData,>({
+export const DataTableView = <TData extends RowData>({
   table,
   columnsCount,
   title,
@@ -274,7 +275,7 @@ export const DataTableView = <TData,>({
           {rows.length === 0
             ? emptyRow
             : rows.map((row) => (
-                <DataTableRow key={row.id} row={row} renderRowLink={renderRowLink} />
+                <DataTableViewRow key={row.id} row={row} renderRowLink={renderRowLink} />
               ))}
         </TableBody>
       </Table>

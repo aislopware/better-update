@@ -6,21 +6,19 @@ import type { CurrentActor as CurrentActorModel } from "../models";
 
 export const CurrentActor = pipe(
   AuthContext,
-  Effect.map(
-    (ctx): CurrentActorModel => ({
-      userId: ctx.userId,
-      organizationId: ctx.organizationId,
-      memberId: ctx.memberId,
-      role: ctx.role,
-      orgRole: ctx.orgRole,
-      isOwner: ctx.isOwner,
-      projectRoles: ctx.projectRoles,
-      source: ctx.source,
-      transport: ctx.transport,
-      sessionId: ctx.sessionId,
-      actorEmail: ctx.actorEmail,
-      isSuperadmin: ctx.isSuperadmin,
-      robotId: ctx.robotId,
-    }),
-  ),
+  Effect.map((ctx): CurrentActorModel => ({
+    userId: ctx.userId,
+    organizationId: ctx.organizationId,
+    memberId: ctx.memberId,
+    role: ctx.role,
+    orgRole: ctx.orgRole,
+    isOwner: ctx.isOwner,
+    projectRoles: ctx.projectRoles,
+    source: ctx.source,
+    transport: ctx.transport,
+    sessionId: ctx.sessionId,
+    actorEmail: ctx.actorEmail,
+    isSuperadmin: ctx.isSuperadmin,
+    robotId: ctx.robotId,
+  })),
 );

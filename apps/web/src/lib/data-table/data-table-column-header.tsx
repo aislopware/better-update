@@ -4,10 +4,12 @@ import { cn } from "@better-update/ui/lib/utils";
 import { CaretUpDownIcon } from "@phosphor-icons/react";
 import { flexRender } from "@tanstack/react-table";
 
-import type { Header } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 
 import { columnWidthClass, headerAlignsRight } from "./column-meta";
 import { SortIcon, toAriaSort } from "./sort-icon";
+
+import type { DataTableHeader } from "./table-features";
 
 /**
  * Column header with an inline sort toggle. Non-sortable columns render a plain
@@ -16,7 +18,11 @@ import { SortIcon, toAriaSort } from "./sort-icon";
  * via useDataTableSearch). Both read alike — the header band is one row of
  * labels, and only the arrow says which of them the rows are ordered by.
  */
-export const DataTableColumnHeader = <TData,>({ header }: { header: Header<TData, unknown> }) => {
+export const DataTableColumnHeader = <TData extends RowData>({
+  header,
+}: {
+  header: DataTableHeader<TData>;
+}) => {
   const { column } = header;
   const { meta } = column.columnDef;
   const alignRight = headerAlignsRight(meta);

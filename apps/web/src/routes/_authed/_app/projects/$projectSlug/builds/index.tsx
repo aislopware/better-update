@@ -6,7 +6,6 @@ import { Empty } from "@better-update/ui/components/empty";
 import { PackageIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
@@ -36,6 +35,7 @@ import {
   pageParam,
   queryParam,
   sortParam,
+  useDataTable,
   useDataTableSearch,
   useDebouncedSearch,
   withoutPinnedColumns,
@@ -239,7 +239,7 @@ const BuildsContent = () => {
   });
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     // Secondary numeric columns stay opt-in (View options) so the table fits
@@ -250,7 +250,6 @@ const BuildsContent = () => {
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading || data === undefined) {

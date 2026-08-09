@@ -2,13 +2,12 @@ import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-clie
 import { CloudArrowUpIcon, PackageIcon, StackIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Suspense, useMemo } from "react";
 
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { TablePanelSkeleton } from "../../../../../../components/skeletons";
 import { PanelTitle, TablePanel } from "../../../../../../components/table-panel";
-import { DataTableView } from "../../../../../../lib/data-table";
+import { DataTableView, useDataTable } from "../../../../../../lib/data-table";
 import { VIEW_ALL_LINK } from "../../../../../../lib/panel-links";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -99,7 +98,7 @@ const RuntimeDetailContent = () => {
 
   const buildColumns = useMemo(() => buildBuildsColumns(orgId, projectId), [orgId, projectId]);
   const buildsTableData = useMemo(() => [...buildsData.items], [buildsData.items]);
-  const buildsTable = useReactTable({
+  const buildsTable = useDataTable({
     data: buildsTableData,
     columns: [...buildColumns],
     enableMultiSort: false,
@@ -109,7 +108,6 @@ const RuntimeDetailContent = () => {
     initialState: {
       columnVisibility: { buildNumber: false, size: false, runtimeVersion: false },
     },
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const updateColumns = useMemo(
@@ -117,12 +115,11 @@ const RuntimeDetailContent = () => {
     [projectSlug, orgId, projectId],
   );
   const updatesTableData = useMemo(() => [...updatesData.items], [updatesData.items]);
-  const updatesTable = useReactTable({
+  const updatesTable = useDataTable({
     data: updatesTableData,
     columns: [...updateColumns],
     enableMultiSort: false,
     initialState: { columnVisibility: { runtimeVersion: false, size: false } },
-    getCoreRowModel: getCoreRowModel(),
   });
 
   if (buildsCount === 0 && updatesCount === 0) {

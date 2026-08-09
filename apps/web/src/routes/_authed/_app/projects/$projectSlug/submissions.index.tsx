@@ -3,7 +3,6 @@ import { Empty } from "@better-update/ui/components/empty";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -22,6 +21,7 @@ import {
   enumArrayParam,
   fireAndForget,
   pageParam,
+  useDataTable,
 } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
 import { submissionColumns } from "./-submissions-columns";
@@ -77,11 +77,10 @@ const SubmissionsPage = () => {
 
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...submissionColumns],
     enableSorting: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const setPlatformFilter = (next: readonly PlatformFilter[]): void => {

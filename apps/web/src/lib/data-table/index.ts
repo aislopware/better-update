@@ -13,6 +13,8 @@ export { withoutPinnedColumns } from "./pinned-columns";
 export { PinnedFilterChip } from "./pinned-filter-chip";
 export { RowActionsMenu } from "./row-actions-menu";
 export { RowCaret } from "./row-caret";
+export { useDataTable } from "./table-features";
+export type { DataTableColumnDef } from "./table-features";
 export {
   enumArrayParam,
   enumParam,

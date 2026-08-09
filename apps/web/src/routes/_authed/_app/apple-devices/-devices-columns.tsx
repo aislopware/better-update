@@ -7,7 +7,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { AppleTeamItem, DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { TeamNameCell } from "../-credential-cells";
 import { StatusDot } from "../../../../components/status-dot";
@@ -17,6 +16,8 @@ import { RelativeTime } from "../../../../lib/relative-time";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { DeleteDeviceDialog } from "./-delete-device-dialog";
 import { RenameDeviceDialog } from "./-rename-device-dialog";
+
+import type { DataTableColumnDef } from "../../../../lib/data-table";
 
 const CLASS_LABEL: Record<DeviceClassValue, string> = {
   IPHONE: "iPhone",
@@ -149,7 +150,7 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
 export const buildDeviceColumns = (
   orgId: string,
   teamsById: ReadonlyMap<string, AppleTeamItem>,
-): readonly ColumnDef<DeviceItem>[] => [
+): readonly DataTableColumnDef<DeviceItem>[] => [
   {
     id: "name",
     accessorKey: "name",

@@ -184,27 +184,24 @@ const resolveOneBundleSettled = (
           fields: ["p12Base64", "p12Password"],
           hint: bindHint,
         }).pipe(
-          Effect.map(
-            (secret): ResolveSettled => ({
-              status: "ok",
+          Effect.map((secret): ResolveSettled => ({
+            status: "ok",
+            bundleIdentifier: options.bundleIdentifier,
+            value: {
               bundleIdentifier: options.bundleIdentifier,
-              value: {
-                bundleIdentifier: options.bundleIdentifier,
-                p12Base64: secret.p12Base64,
-                p12Password: secret.p12Password,
-                mobileprovisionBase64: resolved.provisioningProfile.mobileprovisionBase64,
-                profileUuid: resolved.provisioningProfile.uuid,
-                context: resolved.context,
-              },
+              p12Base64: secret.p12Base64,
+              p12Password: secret.p12Password,
+              mobileprovisionBase64: resolved.provisioningProfile.mobileprovisionBase64,
+              profileUuid: resolved.provisioningProfile.uuid,
+              context: resolved.context,
+            },
+          })),
+          Effect.catchAll((error): Effect.Effect<ResolveSettled> =>
+            Effect.succeed({
+              status: "failed",
+              bundleIdentifier: options.bundleIdentifier,
+              error,
             }),
-          ),
-          Effect.catchAll(
-            (error): Effect.Effect<ResolveSettled> =>
-              Effect.succeed({
-                status: "failed",
-                bundleIdentifier: options.bundleIdentifier,
-                error,
-              }),
           ),
         );
       }),

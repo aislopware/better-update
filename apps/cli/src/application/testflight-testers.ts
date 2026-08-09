@@ -101,13 +101,11 @@ export const importTesters = (group: AppleUtils.BetaGroup, rows: readonly Import
     group.createBulkBetaTesterAssignmentsAsync([...rows]),
   ).pipe(
     Effect.map((assignment) =>
-      assignment.attributes.betaTesters.map(
-        (tester): ImportResultRow => ({
-          email: tester.email,
-          result: tester.assignmentResult,
-          errors: (tester.errors ?? []).map((error) => error.key),
-        }),
-      ),
+      assignment.attributes.betaTesters.map((tester): ImportResultRow => ({
+        email: tester.email,
+        result: tester.assignmentResult,
+        errors: (tester.errors ?? []).map((error) => error.key),
+      })),
     ),
   );
 

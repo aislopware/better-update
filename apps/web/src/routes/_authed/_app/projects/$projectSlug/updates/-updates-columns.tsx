@@ -1,7 +1,6 @@
 import { Badge } from "@better-update/ui/components/badge";
 
 import type { Update } from "@better-update/api";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { UpdateActionsMenu } from "../-update-actions-menu";
 import { readUpdateEnvironment } from "../-update-helpers";
@@ -9,6 +8,8 @@ import { EnvironmentBadge, PlatformIndicator } from "../../../../../../component
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+
+import type { DataTableColumnDef } from "../../../../../../lib/data-table";
 
 export type UpdateItem = Update;
 
@@ -18,7 +19,7 @@ export const buildUpdateColumns = (
   slug: string,
   orgId: string,
   projectId: string,
-): readonly ColumnDef<UpdateItem>[] => [
+): readonly DataTableColumnDef<UpdateItem>[] => [
   {
     id: "message",
     header: "Update",

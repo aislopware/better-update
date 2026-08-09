@@ -4,14 +4,12 @@ import { Empty } from "@better-update/ui/components/empty";
 import { BroadcastIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { Channel } from "@better-update/api";
 import type { ChannelSortColumn } from "@better-update/api-client/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { ChannelRowActions } from "../-channel-row-actions";
 import { ChannelStatusBadge } from "../-channel-status-badge";
@@ -30,11 +28,14 @@ import {
   pageParam,
   queryParam,
   sortParam,
+  useDataTable,
   useDataTableSearch,
   useDebouncedSearch,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+
+import type { DataTableColumnDef } from "../../../../../../lib/data-table";
 
 type ChannelItem = Channel;
 
@@ -58,7 +59,10 @@ const ChannelsEmptyState = () => (
   />
 );
 
-const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<ChannelItem>[] => [
+const buildColumns = (
+  orgId: string,
+  projectId: string,
+): readonly DataTableColumnDef<ChannelItem>[] => [
   {
     id: "name",
     accessorKey: "name",
@@ -175,7 +179,7 @@ const ChannelsContent = () => {
   const columns = useMemo(() => buildColumns(orgId, projectId), [orgId, projectId]);
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
-  const table = useReactTable({
+  const table = useDataTable({
     data: tableData,
     columns: [...columns],
     state: { sorting },
@@ -183,7 +187,6 @@ const ChannelsContent = () => {
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
   });
 
   const createCta = <CreateChannelDialog orgId={orgId} projectId={projectId} />;

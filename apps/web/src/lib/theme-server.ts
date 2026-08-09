@@ -9,10 +9,9 @@ import {
 
 import type { ThemeSnapshot } from "./theme";
 
-export const getServerThemeSnapshot = createServerFn({ method: "GET" }).handler(
-  (): ThemeSnapshot =>
-    getServerThemeSnapshotFromCookieValues(
-      getCookie(THEME_COOKIE_NAME),
-      getCookie(RESOLVED_THEME_COOKIE_NAME),
-    ),
+export const getServerThemeSnapshot = createServerFn({ method: "GET" }).handler((): ThemeSnapshot =>
+  getServerThemeSnapshotFromCookieValues(
+    getCookie(THEME_COOKIE_NAME),
+    getCookie(RESOLVED_THEME_COOKIE_NAME),
+  ),
 );

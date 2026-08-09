@@ -39,14 +39,12 @@ export const getPrivacy = (ctx: AppleUtils.RequestContext, appId: string) =>
     return {
       published: publishState?.attributes.published ?? false,
       lastPublished: toDbNull(publishState?.attributes.lastPublished),
-      usages: usages.map(
-        (usage): DataUsageRow => ({
-          id: usage.id,
-          category: toDbNull(usage.attributes.category?.id),
-          protection: toDbNull(usage.attributes.dataProtection?.id),
-          purpose: toDbNull(usage.attributes.purpose?.id),
-        }),
-      ),
+      usages: usages.map((usage): DataUsageRow => ({
+        id: usage.id,
+        category: toDbNull(usage.attributes.category?.id),
+        protection: toDbNull(usage.attributes.dataProtection?.id),
+        purpose: toDbNull(usage.attributes.purpose?.id),
+      })),
     } satisfies PrivacyView;
   });
 

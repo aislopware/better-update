@@ -73,21 +73,20 @@ export const showAvailability = (ctx: AppleUtils.RequestContext, appId: string) 
     const territories = yield* wrapConnect("apple-get-available-territories", async () =>
       app.getAvailableTerritoriesAsync(),
     );
-    return territories.map(
-      (territory): TerritoryRow => ({ id: territory.id, currency: territory.attributes.currency }),
-    );
+    return territories.map((territory): TerritoryRow => ({
+      id: territory.id,
+      currency: territory.attributes.currency,
+    }));
   });
 
 /** List every App Store territory id + currency (the reference set for `availability set`). */
 export const listAllTerritories = (ctx: AppleUtils.RequestContext) =>
   wrapConnect("apple-list-territories", async () => AppleUtils.Territory.getAsync(ctx)).pipe(
     Effect.map((territories) =>
-      territories.map(
-        (territory): TerritoryRow => ({
-          id: territory.id,
-          currency: territory.attributes.currency,
-        }),
-      ),
+      territories.map((territory): TerritoryRow => ({
+        id: territory.id,
+        currency: territory.attributes.currency,
+      })),
     ),
   );
 

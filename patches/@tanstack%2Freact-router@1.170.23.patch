@@ -1,0 +1,26 @@
+diff --git a/dist/cjs/CatchBoundary.cjs b/dist/cjs/CatchBoundary.cjs
+index 49a2eccc4c3f0ff2f45d0f435e8c1eb85d786077..ac0e2926004c172798233a2bdd0537953b9fc33b 100644
+--- a/dist/cjs/CatchBoundary.cjs
++++ b/dist/cjs/CatchBoundary.cjs
+@@ -24,7 +24,7 @@ var CatchBoundaryImpl = class extends react.Component {
+ 		return { resetKey };
+ 	}
+ 	static getDerivedStateFromError(error) {
+-		return { error };
++		return { error: error || new Error(`Unhandled falsy error: ${String(error)}`) };
+ 	}
+ 	componentDidCatch(error, errorInfo) {
+ 		this.props.onCatch?.(error, errorInfo);
+diff --git a/dist/esm/CatchBoundary.js b/dist/esm/CatchBoundary.js
+index 4878d619b1272200a5c3d3a3232e8c5ab27831fc..a4931d35028d5cd2424833c4bee57d8630c214cc 100644
+--- a/dist/esm/CatchBoundary.js
++++ b/dist/esm/CatchBoundary.js
+@@ -22,7 +22,7 @@ var CatchBoundaryImpl = class extends React$1.Component {
+ 		return { resetKey };
+ 	}
+ 	static getDerivedStateFromError(error) {
+-		return { error };
++		return { error: error || new Error(`Unhandled falsy error: ${String(error)}`) };
+ 	}
+ 	componentDidCatch(error, errorInfo) {
+ 		this.props.onCatch?.(error, errorInfo);

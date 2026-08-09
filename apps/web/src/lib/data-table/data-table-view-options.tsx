@@ -2,14 +2,20 @@ import { Button } from "@better-update/ui/components/button";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 
-import type { Table as ReactTableT } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+
+import type { DataTableInstance } from "./table-features";
 
 /**
  * Column visibility toggle (shadcn data-table pattern). Only columns that
  * explicitly opt in with `enableHiding: true` are listed — pair with the Hide
  * item in DataTableColumnHeader so hidden columns stay recoverable.
  */
-export const DataTableViewOptions = <TData,>({ table }: { table: ReactTableT<TData> }) => {
+export const DataTableViewOptions = <TData extends RowData>({
+  table,
+}: {
+  table: DataTableInstance<TData>;
+}) => {
   const columns = table.getAllColumns().filter((column) => column.columnDef.enableHiding === true);
   if (columns.length === 0) {
     return null;
