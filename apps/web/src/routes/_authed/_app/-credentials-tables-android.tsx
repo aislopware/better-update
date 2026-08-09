@@ -63,8 +63,6 @@ export const AndroidUploadKeystoresTable = ({
             <TableCell>
               <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
             </TableCell>
-            {/* Null for keystores uploaded before the CLI read the certificate;
-                ExpiryCell says "No expiry" for those rather than inventing one. */}
             <TableCell>
               <ExpiryCell validUntil={keystore.validUntil} />
             </TableCell>

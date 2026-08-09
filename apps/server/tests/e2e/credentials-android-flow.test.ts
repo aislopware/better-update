@@ -105,6 +105,7 @@ describe("Credentials Android flow", () => {
         keyAlias: "upload",
         sha256Fingerprint: "00:11:22:33:44:55:66:77",
         keystoreType: "JKS",
+        validUntil: "2036-01-01T00:00:00Z",
       },
       { cookie: cookies },
     );
@@ -114,7 +115,21 @@ describe("Credentials Android flow", () => {
     expect(body.keyAlias).toBe("upload");
     expect(body.sha256Fingerprint).toBe("00:11:22:33:44:55:66:77");
     expect(body.keystoreType).toBe("JKS");
+    expect(body.validUntil).toBe("2036-01-01T00:00:00Z");
     keystoreId = body.id;
+  });
+
+  // Only the client can read the certificate out of the keystore, so an upload
+  // that omits the date would leave a row nobody can ever warn about. Pre-0.72
+  // CLIs are already refused by the version killswitch — this is the contract
+  // saying the same thing.
+  it("refuses a keystore upload with no certificate expiry", async () => {
+    const res = await post(
+      "/api/android/upload-keystores",
+      { ...credentialEnvelope(), keyAlias: "no-expiry" },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(400);
   });
 
   it("uploads two Google service account keys", async () => {

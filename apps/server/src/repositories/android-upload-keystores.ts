@@ -24,7 +24,7 @@ export interface AndroidUploadKeystoreRepository {
     readonly sha1Fingerprint: string | null;
     readonly sha256Fingerprint: string | null;
     readonly keystoreType: "JKS" | "PKCS12" | null;
-    readonly validUntil: string | null;
+    readonly validUntil: string;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;

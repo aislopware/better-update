@@ -96,13 +96,6 @@ describe(AndroidUploadKeystoresTable, () => {
     expect(screen.getByText("Expired")).toBeInTheDocument();
   });
 
-  // Uploaded before the CLI read the certificate — unknown, not "never expires".
-  it("says No expiry for a keystore that predates the recorded date", () => {
-    renderTable([makeKeystore({ validUntil: null })]);
-
-    expect(screen.getByText("No expiry")).toBeInTheDocument();
-  });
-
   it("surfaces an unbound keystore rather than hiding it, as the project pages do", async () => {
     renderTable([makeKeystore()]);
 

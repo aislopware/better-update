@@ -349,7 +349,7 @@ describe("OrgVaultRepo — D1 integration", () => {
       );
       // One encrypted credential at v1 — org-scoped, so no apple_teams FK to seed.
       await env.DB.prepare(
-        `INSERT INTO "android_upload_keystores" ("id", "organization_id", "key_alias", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO "android_upload_keystores" ("id", "organization_id", "key_alias", "r2_key", "wrapped_dek", "vault_version", "valid_until", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
         .bind(
           "ks-rot",
@@ -358,6 +358,7 @@ describe("OrgVaultRepo — D1 integration", () => {
           "android-upload-keystores/ov-rot/ks-rot.jks.enc",
           "ks-dek-v1",
           1,
+          "2036-03-01T00:00:00Z",
           "2026-03-01T00:00:00Z",
           "2026-03-01T00:00:00Z",
         )

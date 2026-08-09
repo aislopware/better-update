@@ -17,8 +17,8 @@ export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   sha1Fingerprint: Schema.NullOr(Schema.String),
   sha256Fingerprint: Schema.NullOr(Schema.String),
   keystoreType: Schema.NullOr(Schema.Literal("JKS", "PKCS12")),
-  /** notAfter of the keystore's signing certificate; null for keystores uploaded before the CLI read it. */
-  validUntil: Schema.NullOr(DateTimeString),
+  /** notAfter of the keystore's signing certificate, read by the CLI at upload time. */
+  validUntil: DateTimeString,
   /** Protected-credential flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
   protected: Schema.Boolean,
   createdAt: DateTimeString,
@@ -40,7 +40,12 @@ export const UploadAndroidUploadKeystoreBody = Schema.Struct({
   sha1Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   sha256Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   keystoreType: Schema.optional(Schema.Literal("JKS", "PKCS12")),
-  validUntil: Schema.optional(DateTimeString),
+  /**
+   * Required: the certificate's notAfter, which only the client can read out of
+   * the keystore. Rejecting an upload without it keeps "when does this stop
+   * signing?" answerable for every stored keystore.
+   */
+  validUntil: DateTimeString,
 });
 
 export const DeleteAndroidUploadKeystoreResult = DeletedResult;

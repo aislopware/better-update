@@ -291,6 +291,7 @@ describe("Build credentials resolve flow", () => {
       {
         ...keystoreEnv,
         keyAlias: "release-alias",
+        validUntil: "2036-01-01T00:00:00Z",
         projectId,
       },
       { cookie: cookies },

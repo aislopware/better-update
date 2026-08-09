@@ -357,8 +357,8 @@ export interface AndroidUploadKeystoreModel {
   readonly sha1Fingerprint: string | null;
   readonly sha256Fingerprint: string | null;
   readonly keystoreType: "JKS" | "PKCS12" | null;
-  /** notAfter of the signing certificate, read by the CLI at upload; null for rows predating it. */
-  readonly validUntil: string | null;
+  /** notAfter of the signing certificate, read by the CLI at upload. */
+  readonly validUntil: string;
   /** Protected-credential flag (GITLAB-RBAC-SPEC §3b) — per-row, no parent. */
   readonly isProtected: boolean;
   readonly createdAt: string;

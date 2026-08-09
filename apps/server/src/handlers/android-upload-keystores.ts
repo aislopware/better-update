@@ -133,7 +133,6 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
             const sha1Fingerprint = toDbNull(payload.sha1Fingerprint);
             const sha256Fingerprint = toDbNull(payload.sha256Fingerprint);
             const keystoreType = toDbNull(payload.keystoreType);
-            const validUntil = toDbNull(payload.validUntil);
             const now = new Date().toISOString();
             yield* withR2Compensation(
               artifacts.delete(r2Key),
@@ -149,7 +148,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
                 sha1Fingerprint,
                 sha256Fingerprint,
                 keystoreType,
-                validUntil,
+                validUntil: payload.validUntil,
                 createdAt: now,
                 updatedAt: now,
               }),
@@ -181,7 +180,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
                 sha1Fingerprint,
                 sha256Fingerprint,
                 keystoreType,
-                validUntil,
+                validUntil: payload.validUntil,
                 isProtected: false,
                 createdAt: now,
                 updatedAt: now,
