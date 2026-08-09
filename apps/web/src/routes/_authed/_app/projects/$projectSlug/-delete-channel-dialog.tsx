@@ -1,11 +1,9 @@
 import { deleteChannel } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/button";
-import { TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { Channel } from "@better-update/api";
 
-import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
+import { ConfirmDeleteDialog, deleteIconTrigger } from "./-confirm-delete-dialog";
 import { invalidateChannels } from "./-update-helpers";
 
 /**
@@ -42,16 +40,7 @@ export const DeleteChannelDialog = ({
       open={open}
       onOpenChange={onOpenChange}
     >
-      {open === undefined ? (
-        <Button
-          variant="ghost"
-          shape="square"
-          className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
-          aria-label="Delete channel"
-        >
-          <TrashIcon weight="bold" className="size-4" />
-        </Button>
-      ) : undefined}
+      {open === undefined ? deleteIconTrigger("Delete channel") : undefined}
     </ConfirmDeleteDialog>
   );
 };

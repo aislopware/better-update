@@ -1,11 +1,9 @@
 import { deleteBuild } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/button";
-import { TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { BuildWithArtifact } from "@better-update/api";
 
-import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
+import { ConfirmDeleteDialog, deleteIconTrigger } from "./-confirm-delete-dialog";
 import { invalidateBuilds } from "./-update-helpers";
 
 /**
@@ -41,16 +39,7 @@ export const DeleteBuildDialog = ({
       open={open}
       onOpenChange={onOpenChange}
     >
-      {open === undefined ? (
-        <Button
-          variant="ghost"
-          shape="square"
-          className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
-          aria-label="Delete build"
-        >
-          <TrashIcon weight="bold" className="size-4" />
-        </Button>
-      ) : undefined}
+      {open === undefined ? deleteIconTrigger("Delete build") : undefined}
     </ConfirmDeleteDialog>
   );
 };

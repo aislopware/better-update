@@ -11,12 +11,33 @@ import {
 } from "@better-update/ui/components/dialog";
 import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
+import { TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { ReactElement } from "react";
 
 import { CopyChip } from "../../../../../lib/copy-button";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
+
+/**
+ * The trash button a row hangs its delete dialog on — quiet until pointed at,
+ * then the colour of what it does.
+ *
+ * A function returning an element rather than a component: what it produces is
+ * handed to `DialogTrigger render=`, which merges its own click handler and
+ * ARIA state onto the element it is given. A component boundary in between
+ * would have to spread those through by hand.
+ */
+export const deleteIconTrigger = (label: string): ReactElement => (
+  <Button
+    variant="ghost"
+    shape="square"
+    className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
+    aria-label={label}
+  >
+    <TrashIcon weight="bold" className="size-4" />
+  </Button>
+);
 
 interface ConfirmDeleteDialogProps {
   /** Entity name the user must type to confirm. */

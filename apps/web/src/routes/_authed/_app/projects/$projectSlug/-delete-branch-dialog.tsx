@@ -1,11 +1,9 @@
 import { deleteBranch } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/button";
-import { TrashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
-import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
+import { ConfirmDeleteDialog, deleteIconTrigger } from "./-confirm-delete-dialog";
 import { invalidateBranches } from "./-update-helpers";
 
 /**
@@ -41,16 +39,7 @@ export const DeleteBranchDialog = ({
       open={open}
       onOpenChange={onOpenChange}
     >
-      {open === undefined ? (
-        <Button
-          variant="ghost"
-          shape="square"
-          className="text-kumo-subtle/70 hover:text-kumo-danger size-8"
-          aria-label="Delete branch"
-        >
-          <TrashIcon weight="bold" className="size-4" />
-        </Button>
-      ) : undefined}
+      {open === undefined ? deleteIconTrigger("Delete branch") : undefined}
     </ConfirmDeleteDialog>
   );
 };
