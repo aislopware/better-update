@@ -41,9 +41,15 @@ export const OverlayPortal = ({ children }: { children: ReactNode }) => {
           Base UI's `positionMethod="fixed"` would buy — without every call site
           having to ask for it.
 
-          Zero-sized, so it intercepts nothing; only the popups inside it have
-          any area to receive a pointer. */}
-      <div ref={setLayer} className="fixed top-0 left-0 z-50" />
+          Zero-height, so it intercepts nothing — only the popups inside it have
+          any area to receive a pointer — but as wide as the viewport, which it
+          has to be. A popup is positioned absolutely inside here, and an
+          absolutely positioned box with `width: auto` is sized to fit the space
+          its containing block offers. Offer it none and it shrinks to its
+          longest word instead of its longest line: every row-actions menu came
+          out at its 144px floor with "Preview on device" broken over three
+          lines. The width costs nothing while the height is zero. */}
+      <div ref={setLayer} className="fixed top-0 left-0 z-50 h-0 w-full" />
     </>
   );
 };
