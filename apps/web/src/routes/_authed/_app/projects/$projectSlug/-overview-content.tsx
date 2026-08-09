@@ -62,7 +62,14 @@ const LiveNowRow = ({ scope, channel }: { scope: OverviewScope; channel: Channel
       params={{ projectSlug: scope.projectSlug, channelId: channel.id }}
       className={cn(
         ROW_LINK,
-        "grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3",
+        // Three columns is a shape for a wide row. The state column is `auto`,
+        // so it takes the width of its own sentence — "Rolling out to
+        // feature/new-checkout 25%" — before the other two get anything, and
+        // the two that name the row were left with a single character of
+        // channel name and a date broken over three lines. Narrower than `lg`
+        // the row is one column and the three parts stack.
+        "grid grid-cols-1 gap-1 px-4 py-3",
+        "lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] lg:items-center lg:gap-4",
       )}
     >
       <span className="flex min-w-0 flex-col gap-0.5">

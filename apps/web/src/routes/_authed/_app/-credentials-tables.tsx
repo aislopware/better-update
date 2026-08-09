@@ -169,7 +169,9 @@ export const AscApiKeysTable = ({
           <TableCell className={PRIMARY_COLUMN_CLASS}>
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate font-medium">{key.name}</span>
-              <span className="text-kumo-subtle flex items-center gap-1 font-mono text-xs">
+              {/* Clips rather than pushing the column open — see the same
+                  sub-line in the Google service account table. */}
+              <span className="text-kumo-subtle flex min-w-0 items-center gap-1 overflow-hidden font-mono text-xs">
                 <CopyableId value={key.keyId} label="Key ID" length={10} />
                 <span aria-hidden>·</span>
                 <CopyableId value={key.issuerId} label="Issuer ID" />

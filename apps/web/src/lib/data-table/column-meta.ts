@@ -33,8 +33,18 @@ export const headerAlignsRight = (meta: DataTableColumnMeta | undefined): boolea
  * width for the primary column, and `max-w-0` drops its minimum contribution to
  * nothing so the truncation happens inside the cell rather than by pushing the
  * whole table wider than its frame.
+ *
+ * `min-w-56` is the floor under that. "Leftover width" is nothing at all once
+ * the other columns' own widths add up past the frame — which is every table
+ * here below about 1100px, not some pathological narrow case — and a column
+ * whose minimum contribution is zero answers that by collapsing to its padding.
+ * The name column vanished, and whatever inside it could not shrink any further
+ * (a badge, a mono id) was painted straight over the column to its right. The
+ * floor is a real minimum contribution, so the table widens past its frame and
+ * the container scrolls — which is what the other columns already do, and what
+ * the scrollport is there for.
  */
-export const PRIMARY_COLUMN_CLASS = "w-full max-w-0";
+export const PRIMARY_COLUMN_CLASS = "w-full max-w-0 min-w-56";
 
 export const columnWidthClass = (meta: DataTableColumnMeta | undefined): string | undefined =>
   meta?.primary ? PRIMARY_COLUMN_CLASS : undefined;

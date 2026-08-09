@@ -25,7 +25,7 @@ describe(cellAlignClass, () => {
 
 describe(columnWidthClass, () => {
   it("claims the leftover width for the primary column only", () => {
-    expect(columnWidthClass({ primary: true })).toBe("w-full max-w-0");
+    expect(columnWidthClass({ primary: true })).toBe("w-full max-w-0 min-w-56");
     expect(columnWidthClass({})).toBeUndefined();
     expect(columnWidthClass(undefined)).toBeUndefined();
   });

@@ -199,8 +199,12 @@ const ProjectCard = ({
       {/* The tray behind the card: Kumo pulls it under the primary surface so
           only the strip shows, which is where the numbers belong — present when
           looked for, never competing with the name. */}
-      <LayerCard.Secondary className="justify-between gap-4 text-sm">
-        <span className="flex min-w-0 items-center gap-4">
+      {/* Wraps rather than squeezing: every figure in the strip is a phrase that
+          cannot break ("5 branches · 5 channels", "5 hours ago"), so on a phone
+          the row had nothing to give and the last of them printed over the one
+          before it. Given a second line they simply stack. */}
+      <LayerCard.Secondary className="flex-wrap justify-between gap-x-4 gap-y-1 text-sm">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
           <span className="whitespace-nowrap">
             <span className="text-kumo-default tabular-nums">{project.updateCount}</span>{" "}
             {pluralize(project.updateCount, "update")}

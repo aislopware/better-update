@@ -49,7 +49,12 @@ export const GoogleServiceAccountKeysTable = ({
                 <span className="truncate font-mono text-xs font-medium">{key.clientEmail}</span>
                 <CopyButton value={key.clientEmail} label="Client email" size="xs" />
               </span>
-              <span className="text-kumo-subtle flex items-center gap-1 font-mono text-xs">
+              {/* Two abbreviated ids side by side are already as short as they
+                  go, so the sub-line has nothing left to give when the column
+                  is at its floor — without this it pushes the cell open and
+                  prints over the column to its right. It clips instead; the
+                  full value is a click away on either copy button. */}
+              <span className="text-kumo-subtle flex min-w-0 items-center gap-1 overflow-hidden font-mono text-xs">
                 <CopyableId value={key.googleProjectId} label="Project ID" length={16} />
                 <span aria-hidden>·</span>
                 <CopyableId value={key.privateKeyId} label="Private key ID" />
