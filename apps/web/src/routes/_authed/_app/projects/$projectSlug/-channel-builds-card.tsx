@@ -1,4 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
+import { cn } from "@better-update/ui/lib/utils";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
@@ -11,6 +12,7 @@ import {
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
+import { ROW_LINK_DIVIDED } from "../../../../../lib/row-link";
 import { MissingMatchingBuilds } from "./-channel-compatibility";
 
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
@@ -51,7 +53,7 @@ const CompatibleBuildRow = ({
   <Link
     to="/projects/$projectSlug/builds/$buildId"
     params={{ projectSlug, buildId: build.id }}
-    className="border-kumo-line hover:bg-kumo-tint focus-visible:ring-kumo-focus group/row flex items-start justify-between gap-3 border-b px-4 py-3 no-underline outline-none last:border-0 focus-visible:ring-2 focus-visible:ring-inset"
+    className={cn(ROW_LINK_DIVIDED, "group/row flex items-start justify-between gap-3 px-4 py-3")}
   >
     <span className="flex min-w-0 flex-col gap-1">
       <span className="truncate font-medium">

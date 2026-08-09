@@ -7,6 +7,7 @@ import {
 import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/badge";
 import { Button, buttonVariants } from "@better-update/ui/components/button";
+import { cn } from "@better-update/ui/lib/utils";
 import { CaretRightIcon, PackageIcon } from "@phosphor-icons/react";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -38,6 +39,7 @@ import { pluralize } from "../../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLink } from "../../../../../../lib/resource-link";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
+import { ROW_LINK_DIVIDED } from "../../../../../../lib/row-link";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "../-compatibility-join";
@@ -268,7 +270,7 @@ const CompatibleChannelRow = ({
   <Link
     to="/projects/$projectSlug/channels/$channelId"
     params={{ projectSlug, channelId: channel.channelId }}
-    className="border-kumo-line hover:bg-kumo-tint focus-visible:ring-kumo-focus group/row flex items-center justify-between gap-3 border-b px-4 py-3 no-underline outline-none last:border-0 focus-visible:ring-2 focus-visible:ring-inset"
+    className={cn(ROW_LINK_DIVIDED, "group/row flex items-center justify-between gap-3 px-4 py-3")}
   >
     <span className="flex min-w-0 flex-wrap items-center gap-2">
       <ChannelBadge name={channel.channelName} />

@@ -5,6 +5,7 @@ import {
   updatesQueryOptions,
 } from "@better-update/api-client/react";
 import { Empty } from "@better-update/ui/components/empty";
+import { cn } from "@better-update/ui/lib/utils";
 import { GitBranchIcon, RocketIcon } from "@phosphor-icons/react";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -17,6 +18,7 @@ import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { ShippingActivityPanel } from "../../../../../components/shipping-activity";
 import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
+import { ROW_LINK } from "../../../../../lib/row-link";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { ChannelStatusBadge } from "./-channel-status-badge";
 
@@ -58,7 +60,10 @@ const LiveNowRow = ({ scope, channel }: { scope: OverviewScope; channel: Channel
     <Link
       to="/projects/$projectSlug/channels/$channelId"
       params={{ projectSlug: scope.projectSlug, channelId: channel.id }}
-      className="hover:bg-kumo-tint/50 grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3"
+      className={cn(
+        ROW_LINK,
+        "grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3",
+      )}
     >
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{channel.name}</span>
@@ -175,7 +180,7 @@ const viewAllLink = (scope: OverviewScope, to: "updates" | "builds") => (
 
 // Full-bleed inside the panel, like every other list row: the frame draws the
 // edge, so a row that insets itself from it reads as a card within a card.
-const ROW_LINK_CLASS = "hover:bg-kumo-tint/50 flex items-center justify-between gap-3 px-4 py-3";
+const ROW_LINK_CLASS = cn(ROW_LINK, "flex items-center justify-between gap-3 px-4 py-3");
 
 export const OverviewContent = ({ scope }: { scope: OverviewScope }) => {
   const { orgId, projectId } = scope;

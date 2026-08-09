@@ -1,4 +1,5 @@
 import { Badge } from "@better-update/ui/components/badge";
+import { cn } from "@better-update/ui/lib/utils";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
@@ -8,6 +9,7 @@ import { PlatformIndicator } from "../../../../../components/attribute-badges";
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
+import { ROW_LINK_DIVIDED } from "../../../../../lib/row-link";
 
 /** Enough to read the shape of what this channel is serving, not a second list. */
 export const VISIBLE_UPDATE_LIMIT = 6;
@@ -25,7 +27,7 @@ const ChannelUpdateRow = ({ projectSlug, update }: { projectSlug: string; update
   <Link
     to="/projects/$projectSlug/updates/$updateId"
     params={{ projectSlug, updateId: update.id }}
-    className="border-kumo-line hover:bg-kumo-tint focus-visible:ring-kumo-focus group/row flex items-start justify-between gap-3 border-b px-4 py-3 no-underline outline-none last:border-0 focus-visible:ring-2 focus-visible:ring-inset"
+    className={cn(ROW_LINK_DIVIDED, "group/row flex items-start justify-between gap-3 px-4 py-3")}
   >
     <span className="flex min-w-0 flex-col gap-1">
       <span className="flex min-w-0 items-center gap-1.5">

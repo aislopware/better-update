@@ -1,6 +1,7 @@
 import { fingerprintDetailQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
+import { cn } from "@better-update/ui/lib/utils";
 import { CloudArrowUpIcon, PackageIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -19,6 +20,7 @@ import { PanelTitle, TablePanel } from "../../../../../../components/table-panel
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { useClientPagination } from "../../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { ROW_LINK_DIVIDED } from "../../../../../../lib/row-link";
 
 interface RouteParams {
   projectSlug: string;
@@ -29,8 +31,7 @@ type BuildItem = BuildWithArtifact;
 type UpdateItem = Update;
 
 /** Row shell shared by the two panels: name on top, quiet facts under it, time trailing. */
-const ROW_CLASS =
-  "hover:bg-kumo-tint/50 border-kumo-line/60 flex items-center justify-between gap-3 border-b px-4 py-3 last:border-0";
+const ROW_CLASS = cn(ROW_LINK_DIVIDED, "flex items-center justify-between gap-3 px-4 py-3");
 
 const RowBody = ({
   name,
