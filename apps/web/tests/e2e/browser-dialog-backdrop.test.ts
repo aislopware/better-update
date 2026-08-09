@@ -13,12 +13,15 @@ import { seedUserOrgProject } from "../helpers/web-seeder";
 
 // Closing a dialog must fade its backdrop out and keep it out. Base UI gates the
 // unmount on the *popup* element's animations only (`useAnimationsFinished` reads
-// `popupRef.getAnimations()`), so a backdrop whose own exit animation ends earlier
-// stays mounted with nothing holding it at `opacity: 0` — and `animate-out` has
-// `animation-fill-mode: none`, which snaps it back to full opacity for the
-// remaining frames. That is a visible black flash right before the dialog
-// disappears. Guarded here by sampling the backdrop's computed opacity every
-// frame from the close interaction until it leaves the DOM.
+// `popupRef.getAnimations()`), so a backdrop whose own exit ends earlier stays
+// mounted for a few frames with nothing holding it down. Under the pre-Kumo
+// markup those frames snapped back to full opacity — `animate-out` leaves
+// `animation-fill-mode` at `none` — and read as solid black right before the
+// dialog disappeared. Kumo drives the same fade with a transition rather than a
+// keyframe animation, which does not have that failure mode, but the property
+// being guarded is the user-visible one either way: sample the backdrop's
+// computed opacity every frame from the close interaction until it leaves the
+// DOM, and reject any rebound.
 
 const dashboard = setupE2EDashboard();
 const runtime = createSharedBrowserRuntime();
@@ -41,19 +44,41 @@ interface TracingWindow {
 }
 
 // Kumo puts no identifying attribute on the backdrop, so it is addressed
-// structurally: `DialogContent` renders it as the sibling immediately before the
-// popup inside the portal, and the popup carries the dialog role.
+// structurally. Inside the portal, a modal dialog lays out as
+//
+//   <div role="presentation" data-base-ui-inert>   ← Base UI `InternalBackdrop`
+//   <div role="presentation" class="fixed …">      ← Kumo's painted backdrop
+//   <span data-floating-ui-focus-guard>            ← `FloatingFocusManager`
+//   <div role="dialog">                            ← the popup
+//   <span data-floating-ui-focus-guard>
+//
+// which is why the combinator is the *general* sibling one (a focus guard sits
+// between the backdrop and the popup, so `+` matches nothing) and why the
+// selector resolves to two elements. `InternalBackdrop` is `DialogPortal`'s
+// first child and Kumo's is the first of `props.children`, so the painted one
+// is always the last match.
 const backdropSelector = (role: "alertdialog" | "dialog"): string =>
-  `[role="presentation"]:has(+ [role="${role}"])`;
+  `[role="presentation"]:has(~ [role="${role}"])`;
+
+const backdropLocator = (role: "alertdialog" | "dialog") =>
+  page.locator(backdropSelector(role)).last();
 
 /**
  * Installs a per-frame sampler on the on-screen backdrop and parks the resulting
  * promise on `window`. Awaited before the close interaction so no frame of the
  * fade-out is missed to a round-trip.
+ *
+ * Returns the backdrop's resting opacity, which is the caller's yardstick for
+ * the trace. It is read here rather than by the caller because the enter fade
+ * has to have settled first, and this is the one place that waits for it —
+ * Playwright counts a fully transparent element as visible, so a reading taken
+ * off the locator the moment it appears is 0.
  */
-const startBackdropTrace = async (selector: string): Promise<void> =>
+const startBackdropTrace = async (selector: string): Promise<number> =>
   page.evaluate(async (backdropSelector_: string) => {
-    const backdrop = document.querySelector(backdropSelector_);
+    // `.at(-1)`, matching `backdropLocator`: the first match is Base UI's
+    // unpainted `InternalBackdrop`, whose opacity says nothing about the flash.
+    const backdrop = [...document.querySelectorAll(backdropSelector_)].at(-1);
     if (!backdrop) {
       throw new Error(`no ${backdropSelector_} on screen to trace`);
     }
@@ -85,6 +110,8 @@ const startBackdropTrace = async (selector: string): Promise<void> =>
         requestAnimationFrame(tick);
       },
     );
+
+    return Number.parseFloat(getComputedStyle(backdrop).opacity);
   }, selector);
 
 const readBackdropTrace = async (): Promise<BackdropTrace> =>
@@ -96,18 +123,31 @@ const readBackdropTrace = async (): Promise<BackdropTrace> =>
     return trace;
   });
 
-/** Asserts the fade-out is one-way: never brighter than the frame before it. */
-const expectNoBackdropFlash = (trace: BackdropTrace, label: string): void => {
+/**
+ * Asserts the fade-out is one-way: never brighter than the frame before it.
+ *
+ * `restingOpacity` is read off the backdrop while the dialog is open, rather
+ * than assumed: Kumo rests its backdrop at `opacity-80`, and pinning the number
+ * here would make the suite fail the next time that shade is retuned.
+ */
+const expectNoBackdropFlash = (
+  trace: BackdropTrace,
+  label: string,
+  restingOpacity: number,
+): void => {
   const { samples } = trace;
   const report = `${label}: [${samples.map((value) => value.toFixed(2)).join(", ")}]`;
 
   expect(trace.unmounted, `${label}: backdrop never unmounted — ${report}`).toBe(true);
   // A one-frame trace would satisfy every assertion below without proving anything.
   expect(samples.length, `${label}: too few frames to judge — ${report}`).toBeGreaterThan(2);
+  // A painted backdrop, not Base UI's transparent `InternalBackdrop`.
+  expect(restingOpacity, `${label}: backdrop is not painted — ${report}`).toBeGreaterThan(0.1);
   // The trace has to open on a fully drawn backdrop, or it caught the wrong animation.
-  expect(samples[0] ?? 0, `${label}: trace did not start fully open — ${report}`).toBeGreaterThan(
-    0.9,
-  );
+  expect(
+    samples[0] ?? 0,
+    `${label}: trace did not start at rest (${restingOpacity.toFixed(2)}) — ${report}`,
+  ).toBeGreaterThan(restingOpacity - 0.02);
 
   // Rebound check: allow float noise, but nothing resembling a step back up.
   const rebound = samples.findIndex(
@@ -154,29 +194,34 @@ afterAll(async () => {
 describe("dialog backdrop fade-out (browser)", () => {
   it("does not flash the command palette backdrop back on when closing", async () => {
     await page.keyboard.press("ControlOrMeta+k");
-    const backdrop = page.locator(backdropSelector("dialog"));
-    await backdrop.waitFor({ state: "visible" });
+    // The dialog's own content first: a structural backdrop lookup that finds
+    // nothing cannot say whether the markup moved or the dialog never opened.
     await page.getByPlaceholder("Search pages, projects…").waitFor();
+    const backdrop = backdropLocator("dialog");
+    await backdrop.waitFor({ state: "visible" });
 
-    await startBackdropTrace(backdropSelector("dialog"));
+    const resting = await startBackdropTrace(backdropSelector("dialog"));
     await page.keyboard.press("Escape");
 
-    expectNoBackdropFlash(await readBackdropTrace(), "command palette");
+    expectNoBackdropFlash(await readBackdropTrace(), "command palette", resting);
     await backdrop.waitFor({ state: "detached" });
   });
 
+  // The project settings confirmations are both `role="alertdialog"` (a click
+  // outside must not throw away a destructive answer), so the plain-dialog case
+  // is taken from the projects list instead.
   it("does not flash a regular dialog backdrop back on when closing", async () => {
-    await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/settings`);
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.goto(`${dashboard.getBaseUrl()}/projects`);
+    await page.getByRole("button", { name: "Create project" }).click();
 
-    const backdrop = page.locator(backdropSelector("dialog"));
+    await page.getByRole("heading", { name: "Create a project" }).waitFor();
+    const backdrop = backdropLocator("dialog");
     await backdrop.waitFor({ state: "visible" });
-    await page.getByRole("heading", { name: `Delete ${projectName}?` }).waitFor();
 
-    await startBackdropTrace(backdropSelector("dialog"));
+    const resting = await startBackdropTrace(backdropSelector("dialog"));
     await page.keyboard.press("Escape");
 
-    expectNoBackdropFlash(await readBackdropTrace(), "delete project dialog");
+    expectNoBackdropFlash(await readBackdropTrace(), "create project dialog", resting);
     await backdrop.waitFor({ state: "detached" });
   });
 
@@ -184,16 +229,16 @@ describe("dialog backdrop fade-out (browser)", () => {
     await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}/settings`);
     await page.getByRole("button", { name: "Archive", exact: true }).click();
 
-    const backdrop = page.locator(backdropSelector("alertdialog"));
-    await backdrop.waitFor({ state: "visible" });
     await page.getByRole("heading", { name: `Archive ${projectName}?` }).waitFor();
+    const backdrop = backdropLocator("alertdialog");
+    await backdrop.waitFor({ state: "visible" });
 
-    await startBackdropTrace(backdropSelector("alertdialog"));
+    const resting = await startBackdropTrace(backdropSelector("alertdialog"));
     // An alert dialog is not dismissible from outside, so close it through its
     // cancel action.
     await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
 
-    expectNoBackdropFlash(await readBackdropTrace(), "archive project alert dialog");
+    expectNoBackdropFlash(await readBackdropTrace(), "archive project alert dialog", resting);
     await backdrop.waitFor({ state: "detached" });
   });
 });

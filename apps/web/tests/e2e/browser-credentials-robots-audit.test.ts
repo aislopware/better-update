@@ -54,16 +54,23 @@ afterAll(async () => {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-// The /credentials page is read-only: one <section> per credential type, each
+// The /credentials page is read-only: one panel per credential type, each
 // showing metadata + a "use the CLI" hint and no upload/delete affordance.
-// Scope lookups to a section to assert the per-type empty-state copy.
-const pushKeySection = () => page.locator("section").filter({ hasText: "APNs Push Keys" });
+// Scope lookups to a panel to assert the per-type empty-state copy.
+//
+// A panel is a `Card`, not a `<section>` — `CredentialPanel` draws it with
+// `TablePanel` → `ListPanel` → `Card`, and Kumo's `LayerCard` is a plain div.
+// `data-slot="card"` is the app's own marker on that surface, so it is the
+// stable handle; `.last()` picks the innermost card should a panel ever be
+// nested inside another.
+const credentialPanel = (title: string) =>
+  page.locator('[data-slot="card"]').filter({ hasText: title }).last();
 
-const googleSaSection = () =>
-  page.locator("section").filter({ hasText: "Google Service Account Keys" });
+const pushKeySection = () => credentialPanel("APNs Push Keys");
 
-const androidKeystoreSection = () =>
-  page.locator("section").filter({ hasText: "Android Upload Keystores" });
+const googleSaSection = () => credentialPanel("Google Service Account Keys");
+
+const androidKeystoreSection = () => credentialPanel("Android Upload Keystores");
 
 // A sidebar link shares its accessible name with the breadcrumb trail once the
 // page is open, so a bare role lookup is ambiguous on a retry. The sidebar
