@@ -1,4 +1,5 @@
 import { Button } from "@better-update/ui/components/button";
+import { Link } from "@better-update/ui/components/link";
 import { ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -222,14 +223,16 @@ const TrustPoints = () => (
 
 const LegalFootnote = () => (
   <p className="text-kumo-subtle max-w-[38ch] text-[0.7rem] leading-relaxed">
+    {/* `current`: the colour of the sentence, underlined always — see the same
+        pair in the legal footer. */}
     By continuing you agree to our{" "}
-    <a href="/terms" className="text-kumo-default underline-offset-4 hover:underline">
+    <Link variant="current" href="/terms">
       Terms of Service
-    </a>{" "}
+    </Link>{" "}
     and{" "}
-    <a href="/privacy" className="text-kumo-default underline-offset-4 hover:underline">
+    <Link variant="current" href="/privacy">
       Privacy Policy
-    </a>
+    </Link>
     .
   </p>
 );

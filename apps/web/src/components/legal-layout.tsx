@@ -1,6 +1,8 @@
 import { LinkButton } from "@better-update/ui/components/button";
+import { Link as KumoLink } from "@better-update/ui/components/link";
 import { Link } from "@tanstack/react-router";
 
+import { RouterLink } from "../lib/resource-link";
 import { SITE } from "../lib/site-config";
 import { BrandWordmark } from "./brand-mark";
 
@@ -69,25 +71,27 @@ const LegalHeader = () => (
 const LegalFooter = () => (
   <footer className="border-kumo-line/60 mt-2 flex flex-col gap-3 border-t pt-8">
     <p className="text-kumo-subtle text-sm leading-relaxed">
+      {/* Kumo's `current` variant: a link that takes the colour of the sentence
+          around it and is underlined all the time. The hand-rolled version this
+          replaced only underlined on hover, which left a link in body text with
+          nothing at all to mark it for anyone who is not already pointing at
+          it. */}
       Questions about this page? Email{" "}
-      <a
-        href={`mailto:${SITE.legalEmail}`}
-        className="text-kumo-default underline-offset-4 hover:underline"
-      >
+      <KumoLink variant="current" href={`mailto:${SITE.legalEmail}`}>
         {SITE.legalEmail}
-      </a>
+      </KumoLink>
       .
     </p>
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      <Link to="/terms" className="text-kumo-default underline-offset-4 hover:underline">
+      <RouterLink variant="current" to="/terms">
         Terms of Service
-      </Link>
-      <Link to="/privacy" className="text-kumo-default underline-offset-4 hover:underline">
+      </RouterLink>
+      <RouterLink variant="current" to="/privacy">
         Privacy Policy
-      </Link>
-      <Link to="/auth/login" className="text-kumo-subtle underline-offset-4 hover:underline">
+      </RouterLink>
+      <RouterLink variant="current" to="/auth/login" className="text-kumo-subtle">
         Back to sign in
-      </Link>
+      </RouterLink>
     </div>
   </footer>
 );

@@ -1,5 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@better-update/ui/components/card";
+import { Link } from "@better-update/ui/components/link";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -26,14 +27,14 @@ const RetryInstructions = () => (
     <CliCommandBlock commands={["better-update login"]} />
     <p className="text-kumo-subtle text-xs leading-relaxed">
       Return to your terminal and run the command again to retry. Need help? See the{" "}
-      <a
+      <Link
+        variant="current"
         href="https://www.npmjs.com/package/@better-update/cli"
         target="_blank"
         rel="noreferrer"
-        className="text-kumo-default underline-offset-4 hover:underline"
       >
         CLI docs
-      </a>
+      </Link>
       .
     </p>
   </div>
