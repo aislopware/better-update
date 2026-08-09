@@ -113,20 +113,27 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    // 0.71.7 and older never read the Android upload keystore's signing
-    // certificate beyond its SHA-1/SHA-256: no expiry and no MD5. The server
-    // cannot recover either — the vault is client-encrypted, so only the CLI
-    // ever sees keystore bytes — so a keystore uploaded by such a CLI is
-    // recorded with a null `valid_until` and is silently absent from the
-    // dashboard's expiry rollup. Nothing warns before Play rejects the build.
+    // 0.72.0 and older cache the unlocked vault key in the OS keychain under the
+    // device's age public key alone. That key is USER-scoped and shared by every
+    // org the user belongs to, while each org has its own vault key — so for up
+    // to the 15-minute TTL a command run against org B can be handed org A's
+    // key. Reads fail with a misleading "rotated or revoked"; WRITES are worse,
+    // because the server compares only the vault version NUMBER and cannot see
+    // plaintext, so a credential sealed with the wrong org's key at a matching
+    // version is accepted and is undecryptable by anyone, forever. Only affects
+    // multi-org humans (CI robots are never cached), which is why it survived
+    // this long — and why it has to be a hard block rather than a warning.
     //
-    // (0.71.6 and older additionally name the publish destination by Expo
-    // `slug` alone, and can therefore publish into a SIBLING project in the
-    // same org that happens to own that slug — reported as success, and
-    // undetectable from the terminal. 0.71.4 and older never baked
+    // (0.71.7 and older never read the Android upload keystore's signing
+    // certificate beyond its SHA-1/SHA-256: no expiry and no MD5, which the
+    // server cannot recover because only the CLI ever sees keystore bytes.
+    // Uploads from those versions are now rejected outright by the required
+    // `validUntil`. 0.71.6 and older additionally name the publish destination
+    // by Expo `slug` alone and can publish into a SIBLING project in the same
+    // org, reported as success. 0.71.4 and older never baked
     // `expo-channel-name` or a runtimeVersion into non-Expo builds, so their
-    // updates published green and reached nobody. Both covered by this bound.)
-    REQUIRE_CLI_VERSION_ABOVE: "0.71.7",
+    // updates published green and reached nobody. All covered by this bound.)
+    REQUIRE_CLI_VERSION_ABOVE: "0.72.0",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
