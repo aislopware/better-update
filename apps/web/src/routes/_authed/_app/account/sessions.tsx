@@ -12,6 +12,7 @@ import {
   ClientPaginationBar,
   ListPanel,
   ListPanelFooter,
+  ListPanelRow,
   useClientPagination,
 } from "../../../../lib/data-table";
 import { RelativeTime } from "../../../../lib/relative-time";
@@ -84,36 +85,38 @@ const SessionsList = () => {
           const isCurrent = session.token === currentToken;
           const isRevoking = revokingToken === session.token;
           return (
-            <div
+            <ListPanelRow
               key={session.id}
-              className="border-kumo-line flex items-center gap-3 border-b px-4 py-3 last:border-0"
-            >
-              <MonitorIcon weight="bold" className="text-kumo-subtle size-4 shrink-0" />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-center gap-2 text-sm font-medium">
+              media={<MonitorIcon weight="bold" />}
+              title={
+                <>
                   <span className="truncate">
                     {session.userAgent ? parseUserAgent(session.userAgent) : "Unknown device"}
                   </span>
                   {isCurrent ? <Badge variant="success">This device</Badge> : null}
-                </span>
-                <span className="text-kumo-subtle text-xs">
+                </>
+              }
+              description={
+                <>
                   {displayIp(session.ipAddress) ? `${displayIp(session.ipAddress)} · ` : ""}
                   Signed in <RelativeTime value={session.createdAt} />
-                </span>
-              </div>
-              {isCurrent ? null : (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    revokeMutation.mutate(session.token);
-                  }}
-                  disabled={isRevoking || isRevokingAll || revokeMutation.isPending}
-                  loading={isRevoking}
-                >
-                  Revoke
-                </Button>
-              )}
-            </div>
+                </>
+              }
+              actions={
+                isCurrent ? null : (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      revokeMutation.mutate(session.token);
+                    }}
+                    disabled={isRevoking || isRevokingAll || revokeMutation.isPending}
+                    loading={isRevoking}
+                  >
+                    Revoke
+                  </Button>
+                )
+              }
+            />
           );
         })}
         <ListPanelFooter>

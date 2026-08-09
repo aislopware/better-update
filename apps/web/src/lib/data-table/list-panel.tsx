@@ -111,6 +111,42 @@ export const ListPanelHeader = ({
   </CardHeader>
 );
 
+/**
+ * A row of a settings-style list: a mark, what the row is and one line about
+ * it, and the controls that act on it.
+ *
+ * Sessions, passkeys, connections and pending invites are the same row wearing
+ * four different icons, and all four had written it out themselves — down to the
+ * same four utilities on the same four spans. The one that had not, invites,
+ * had drifted: rounded row cards inside a hand-built panel, separated by
+ * elements rather than by the rule a row draws under itself.
+ */
+export const ListPanelRow = ({
+  media,
+  title,
+  description,
+  actions,
+}: {
+  /** Leading mark — an icon, sized and toned by the row. */
+  media?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) => (
+  <div className="border-kumo-line flex items-center gap-3 border-b px-4 py-3 last:border-0">
+    {media ? (
+      <span className="text-kumo-subtle flex shrink-0 items-center [&>svg]:size-4">{media}</span>
+    ) : null}
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span className="flex min-w-0 items-center gap-2 text-sm font-medium">{title}</span>
+      {description ? (
+        <span className="text-kumo-subtle truncate text-xs">{description}</span>
+      ) : null}
+    </div>
+    {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+  </div>
+);
+
 /** Closing bar of a `ListPanel` — the count, and page controls when there are pages. */
 export const ListPanelFooter = ({ children }: { children: ReactNode }) => (
   // A panel's chrome is one surface interrupted by the island, so the closing

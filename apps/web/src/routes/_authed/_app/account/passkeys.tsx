@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { TableSkeleton } from "../../../../components/skeletons";
-import { ListPanel, ListPanelFooter } from "../../../../lib/data-table";
+import { ListPanel, ListPanelFooter, ListPanelRow } from "../../../../lib/data-table";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { passkeysQueryOptions } from "../../../../queries/auth";
 import { AddPasskeyDialog, DeletePasskeyDialog, RenamePasskeyDialog } from "./-passkey-dialogs";
@@ -45,37 +45,41 @@ const PasskeysList = () => {
           </ListPanelFooter>
         ) : (
           passkeys.map((passkey) => (
-            <div
+            <ListPanelRow
               key={passkey.id}
-              className="border-kumo-line flex items-center gap-3 border-b px-4 py-3 last:border-0"
-            >
-              <FingerprintIcon weight="bold" className="text-kumo-subtle size-4 shrink-0" />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-center gap-2 text-sm font-medium">
+              media={<FingerprintIcon weight="bold" />}
+              title={
+                <>
                   <span className="truncate">{passkey.name ?? "Unnamed passkey"}</span>
                   {passkey.backedUp ? <Badge variant="success">Synced</Badge> : null}
-                </span>
-                <span className="text-kumo-subtle text-xs">
+                </>
+              }
+              description={
+                <>
                   Added <RelativeTime value={passkey.createdAt} />
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setActive({ mode: "rename", passkey });
-                }}
-              >
-                Rename
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setActive({ mode: "delete", passkey });
-                }}
-              >
-                Remove
-              </Button>
-            </div>
+                </>
+              }
+              actions={
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setActive({ mode: "rename", passkey });
+                    }}
+                  >
+                    Rename
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setActive({ mode: "delete", passkey });
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </>
+              }
+            />
           ))
         )}
       </ListPanel>

@@ -9,7 +9,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { PageHeader } from "../../../../components/page-header";
 import { TableSkeleton } from "../../../../components/skeletons";
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
-import { ListPanel } from "../../../../lib/data-table";
+import { ListPanel, ListPanelRow } from "../../../../lib/data-table";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { accountsQueryOptions } from "../../../../queries/auth";
 
@@ -74,42 +74,42 @@ const ConnectionsList = () => {
           const isUnlinking = unlinkingProvider === provider.id;
           const canUnlink = isLinked && provider.id !== "credential" && accounts.length > 1;
           return (
-            <div
+            <ListPanelRow
               key={provider.id}
-              className="border-kumo-line flex items-center gap-3 border-b px-4 py-3 last:border-0"
-            >
-              <provider.icon weight="bold" className="text-kumo-subtle size-4 shrink-0" />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-sm font-medium">{provider.label}</span>
-                <span className="text-kumo-subtle text-xs">{provider.description}</span>
-              </div>
-              {provider.id === "github" && !isLinked ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    linkGithubMutation.mutate();
-                  }}
-                  loading={linkGithubMutation.isPending}
-                >
-                  Connect
-                </Button>
-              ) : null}
-              {canUnlink ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    unlinkMutation.mutate(provider.id);
-                  }}
-                  disabled={isUnlinking || unlinkMutation.isPending}
-                  loading={isUnlinking}
-                >
-                  Disconnect
-                </Button>
-              ) : null}
-              {isLinked && !canUnlink ? (
-                <span className="text-kumo-subtle text-xs">Connected</span>
-              ) : null}
-            </div>
+              media={<provider.icon weight="bold" />}
+              title={<span className="truncate">{provider.label}</span>}
+              description={provider.description}
+              actions={
+                <>
+                  {provider.id === "github" && !isLinked ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        linkGithubMutation.mutate();
+                      }}
+                      loading={linkGithubMutation.isPending}
+                    >
+                      Connect
+                    </Button>
+                  ) : null}
+                  {canUnlink ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        unlinkMutation.mutate(provider.id);
+                      }}
+                      disabled={isUnlinking || unlinkMutation.isPending}
+                      loading={isUnlinking}
+                    >
+                      Disconnect
+                    </Button>
+                  ) : null}
+                  {isLinked && !canUnlink ? (
+                    <span className="text-kumo-subtle text-xs">Connected</span>
+                  ) : null}
+                </>
+              }
+            />
           );
         })}
       </ListPanel>

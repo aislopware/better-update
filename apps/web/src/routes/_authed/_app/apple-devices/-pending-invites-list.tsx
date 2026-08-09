@@ -1,46 +1,41 @@
 import { registrationRequestsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/card";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemSeparator,
-  ItemTitle,
-} from "@better-update/ui/components/item";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Fragment } from "react";
 
 import type { DeviceRegistrationRequestItem } from "@better-update/api-client/react";
 
 import { CopyButton } from "../../../../lib/copy-button";
-import { ClientPaginationFooter, useClientPagination } from "../../../../lib/data-table";
+import {
+  ClientPaginationFooter,
+  ListPanel,
+  ListPanelHeader,
+  ListPanelRow,
+  useClientPagination,
+} from "../../../../lib/data-table";
 import { formatRelativeFuture } from "../../../../lib/format-relative-time";
 
 const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => (
-  <Item size="sm" className="px-4">
-    <ItemContent>
-      <ItemTitle>
-        {invite.deviceNameHint ?? "Unnamed invite"}
+  <ListPanelRow
+    title={
+      <>
+        <span className="truncate">{invite.deviceNameHint ?? "Unnamed invite"}</span>
         {invite.deviceClassHint ? (
           <Badge variant="secondary" className="text-xs font-normal">
             {invite.deviceClassHint}
           </Badge>
         ) : null}
-      </ItemTitle>
-      <ItemDescription className="max-w-[46ch] truncate font-mono text-xs">
-        {invite.url}
-      </ItemDescription>
-    </ItemContent>
-    <ItemActions>
-      <span className="text-kumo-subtle text-xs">
-        Expires {formatRelativeFuture(invite.expiresAt)}
-      </span>
-      <CopyButton value={invite.url} label="Invite link" variant="secondary" size="base" />
-    </ItemActions>
-  </Item>
+      </>
+    }
+    description={<span className="font-mono">{invite.url}</span>}
+    actions={
+      <>
+        <span className="text-kumo-subtle text-xs">
+          Expires {formatRelativeFuture(invite.expiresAt)}
+        </span>
+        <CopyButton value={invite.url} label="Invite link" variant="secondary" size="base" />
+      </>
+    }
+  />
 );
 
 export const PendingInvitesList = ({ orgId }: { orgId: string }) => {
@@ -53,22 +48,15 @@ export const PendingInvitesList = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <Card className="gap-0 py-0">
-        <CardHeader className="flex-row items-center justify-between border-b px-4 py-3">
-          <CardTitle className="text-sm font-medium">Pending invites</CardTitle>
-          <Badge variant="secondary">{data.items.length}</Badge>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ItemGroup>
-            {pagination.pageItems.map((invite, index) => (
-              <Fragment key={invite.id}>
-                {index > 0 ? <ItemSeparator /> : null}
-                <InviteRow invite={invite} />
-              </Fragment>
-            ))}
-          </ItemGroup>
-        </CardContent>
-      </Card>
+      <ListPanel>
+        <ListPanelHeader
+          title="Pending invites"
+          actions={<Badge variant="secondary">{data.items.length}</Badge>}
+        />
+        {pagination.pageItems.map((invite) => (
+          <InviteRow key={invite.id} invite={invite} />
+        ))}
+      </ListPanel>
       <ClientPaginationFooter state={pagination} />
     </div>
   );

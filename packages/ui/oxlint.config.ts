@@ -19,7 +19,6 @@ export default defineConfig({
     "!src/components/field.tsx",
     "!src/components/field-layout.tsx",
     "!src/components/inline-code.tsx",
-    "!src/components/item.tsx",
     "!src/components/kbd.tsx",
     "!src/components/overlay-portal.tsx",
     "!src/components/separator.tsx",

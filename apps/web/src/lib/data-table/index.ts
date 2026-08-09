@@ -7,7 +7,7 @@ export { DataTableToolbar } from "./data-table-toolbar";
 export { DataTableView, ROW_ACTION_DISCLOSURE } from "./data-table-view";
 export { DataTableViewOptions } from "./data-table-view-options";
 export type { FilteredEmptyProps } from "./list-empty-state";
-export { ListPanel, ListPanelFooter, ListPanelHeader } from "./list-panel";
+export { ListPanel, ListPanelFooter, ListPanelHeader, ListPanelRow } from "./list-panel";
 export { ListSortMenu } from "./list-sort-menu";
 export { withoutPinnedColumns } from "./pinned-columns";
 export { PinnedFilterChip } from "./pinned-filter-chip";
