@@ -1,0 +1,52 @@
+diff --git a/dist/cjs/load-client.cjs b/dist/cjs/load-client.cjs
+index 6eed29eeec63c8ea5458199fead4670ef588f792..a03d470d472f1ef92d4d1a269b1f65a9beb3bab1 100644
+--- a/dist/cjs/load-client.cjs
++++ b/dist/cjs/load-client.cjs
+@@ -693,10 +693,17 @@ function offerPending(router, tx) {
+ 		}
+ 		session[2] = 0;
+ 	}
+-	const offered = matches.map((match) => ({
+-		...match,
+-		_flight: void 0
+-	}));
++	const offered = matches.map((match, index) => {
++		const prior = presented[index];
++		return {
++			...match,
++			context: prior?.id === match.id && prior.context ? {
++				...prior.context,
++				...match.context
++			} : match.context,
++			_flight: void 0
++		};
++	});
+ 	offered[boundary].status = "pending";
+ 	const ack = router.startTransition(() => router.stores.setMatches(offered), offered).then((rendered) => {
+ 		if (rendered && router._pending === session && session[4] === ack && !session[2]) session[2] = Date.now() + min;
+diff --git a/dist/esm/load-client.js b/dist/esm/load-client.js
+index d0c9ea68c0647c1b3f22db9121ab8752c63fc235..dfe03afff2ff6385147beecc35b0b8ba992a0ca8 100644
+--- a/dist/esm/load-client.js
++++ b/dist/esm/load-client.js
+@@ -693,10 +693,17 @@ function offerPending(router, tx) {
+ 		}
+ 		session[2] = 0;
+ 	}
+-	const offered = matches.map((match) => ({
+-		...match,
+-		_flight: void 0
+-	}));
++	const offered = matches.map((match, index) => {
++		const prior = presented[index];
++		return {
++			...match,
++			context: prior?.id === match.id && prior.context ? {
++				...prior.context,
++				...match.context
++			} : match.context,
++			_flight: void 0
++		};
++	});
+ 	offered[boundary].status = "pending";
+ 	const ack = router.startTransition(() => router.stores.setMatches(offered), offered).then((rendered) => {
+ 		if (rendered && router._pending === session && session[4] === ack && !session[2]) session[2] = Date.now() + min;

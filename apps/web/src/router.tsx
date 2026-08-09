@@ -120,6 +120,14 @@ export const getRouter = () => {
     },
   });
 
+  // Routes with `pendingMs: 0` reveal their pending component before the
+  // router has computed the incoming matches' context, so every layout that
+  // stays mounted across the navigation — the root, `_authed`, `_app` — used to
+  // re-render against an empty context and throw. `patches/@tanstack%2Frouter-
+  // core@1.171.19.patch` makes that publish carry the on-screen match's context
+  // forward, so a layout keeps rendering what it already showed until the new
+  // context lands. Drop the patch once upstream stops publishing matches it has
+  // not contextualized.
   const router = createRouter({
     // A getter, not a value: the router holds this object for the lifetime of
     // the app and spreads it into every match context, so the theme has to be
