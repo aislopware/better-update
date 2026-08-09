@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.74.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.1...%40better-update%2Fweb%400.74.2) (2026-08-09)
+
+### Bug Fixes
+
+* **web:** stop the primary table column collapsing on narrow screens ([b4896f3](https://github.com/better-update/better-update/commit/b4896f3c14cd4575862723afdfed60d1123016d7))
+
 ## [0.74.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.0...%40better-update%2Fweb%400.74.1) (2026-08-09)
 
 **Note:** Version bump only for package @better-update/web
