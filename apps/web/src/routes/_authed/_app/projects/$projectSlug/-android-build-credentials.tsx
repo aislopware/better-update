@@ -23,6 +23,7 @@ import { BindingRowActions, BoundProjectsCell } from "../../-credential-bindings
 import { ProtectionCell } from "../../-credential-cells";
 import { CliCommandBlock } from "../../../../../components/cli-command-block";
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
+import { SectionTitle } from "../../../../../components/page-header";
 import { isOrgAdmin } from "../../../../../lib/access";
 import { CopyButton } from "../../../../../lib/copy-button";
 import { onPicked } from "../../../../../lib/form-utils";
@@ -253,7 +254,7 @@ export const AndroidBuildCredentialsSection = ({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
+          <SectionTitle>Build credentials</SectionTitle>
           {/* A picker holding one option is a control that decides nothing.
               With a single group its name is a fact about the keystore below,
               so it is said here instead of offered as a choice. */}

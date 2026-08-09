@@ -17,6 +17,7 @@ import type {
 
 import { ExpiryCell, ProtectedMark, TeamCell } from "../../-credential-cells";
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
+import { SectionTitle } from "../../../../../components/page-header";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
@@ -198,7 +199,7 @@ export const IosBuildCredentialsSection = ({
       {/* No sentence under the heading: it named the two panels below it and
           the tab strip between them, all three of which say it themselves. */}
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="font-heading text-base leading-none font-semibold">Build credentials</h2>
+        <SectionTitle>Build credentials</SectionTitle>
         {/* A strip of one tab is a control that offers no choice. Most bundles
             ship a single distribution type, and then it is a fact about the
             credentials below rather than a switch between them. */}

@@ -14,6 +14,7 @@ import type {
 
 import { ProtectedMark, RolesCell, TeamCell } from "../../-credential-cells";
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
+import { SectionTitle } from "../../../../../components/page-header";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
@@ -160,7 +161,7 @@ export const IosServiceCredentialsSection = ({
     <section className="flex flex-col gap-4">
       {/* The sentence here listed the two panels under it by name — the page
           is already scoped to this bundle identifier by its own header. */}
-      <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
+      <SectionTitle>Service credentials</SectionTitle>
       <PushKeyCard pushKey={pushKey} team={pushTeam} />
       <AscKeyCard ascKey={ascKey} team={ascTeam} />
     </section>

@@ -26,6 +26,7 @@ import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailHeader } from "../../../../../../components/detail-header";
 import { DetailStat, DetailStatStrip } from "../../../../../../components/detail-stats";
+import { SectionTitle } from "../../../../../../components/page-header";
 import {
   DetailCardSkeleton,
   TablePanelSkeleton,
@@ -350,7 +351,7 @@ const UpdateDetailContent = () => {
         branchName={branchName}
       />
       <div className="flex flex-col gap-3">
-        <h2 className="font-heading text-base leading-none font-semibold">Platform variants</h2>
+        <SectionTitle>Platform variants</SectionTitle>
         {group.items.map((variant) => (
           <PlatformVariantCard
             key={variant.id}

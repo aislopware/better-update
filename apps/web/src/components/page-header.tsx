@@ -42,6 +42,18 @@ export const PageHeader = ({ title, description, actions, className }: PageHeade
   </header>
 );
 
+/**
+ * The heading a section within a page wears.
+ *
+ * Split out of `SectionHeader` because five sections could not use that whole
+ * component — they set a label or a picker on the heading's own baseline, which
+ * it has no slot for — and so wrote its `h2` out by hand instead, five times.
+ * That is the part worth sharing; the row around it is not.
+ */
+export const SectionTitle = ({ children }: { children: ReactNode }) => (
+  <h2 className="font-heading text-base leading-none font-semibold">{children}</h2>
+);
+
 interface SectionHeaderProps {
   readonly title: ReactNode;
   readonly description?: ReactNode;
@@ -57,7 +69,7 @@ export const SectionHeader = ({ title, description, actions, className }: Sectio
     )}
   >
     <div className="flex flex-col gap-1">
-      <h2 className="font-heading text-base leading-none font-semibold">{title}</h2>
+      <SectionTitle>{title}</SectionTitle>
       {description ? <p className="text-kumo-subtle text-sm">{description}</p> : null}
     </div>
     {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

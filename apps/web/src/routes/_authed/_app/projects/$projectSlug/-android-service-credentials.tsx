@@ -8,6 +8,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
+import { SectionTitle } from "../../../../../components/page-header";
 import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
@@ -94,7 +95,7 @@ export const AndroidServiceCredentialsSection = ({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
+        <SectionTitle>Service credentials</SectionTitle>
         {/* The sentence used to open by naming the panel below it. What it
             knows and the panel does not is how far the key reaches — and that
             is only worth saying where there is more than one group to reach
