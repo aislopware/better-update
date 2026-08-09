@@ -4,6 +4,7 @@ import {
   THEME_COOKIE_NAME,
   THEME_INIT_SCRIPT,
   applyTheme,
+  getBaseThemeSnapshot,
   getResolvedThemeFromCookie,
   getServerThemeSnapshotFromCookieValues,
   getThemeFromCookie,
@@ -86,6 +87,25 @@ describe(getResolvedThemeFromCookie, () => {
   it("returns the persisted resolved theme", () => {
     stubCookieJar("resolved-theme=dark");
     expect(getResolvedThemeFromCookie()).toBe("dark");
+  });
+});
+
+describe(getBaseThemeSnapshot, () => {
+  // The router spreads its base context into every match, so this has to read
+  // the cookie at call time — a snapshot frozen at boot would drag a stale
+  // theme back onto `<html>` for the pending phase of the next navigation.
+  it("re-reads the cookie on every call", () => {
+    Object.defineProperty(globalThis, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: () => ({ matches: false }),
+    });
+
+    stubCookieJar("theme=dark");
+    expect(getBaseThemeSnapshot()).toStrictEqual({ theme: "dark", resolvedTheme: "dark" });
+
+    stubCookieJar("theme=light");
+    expect(getBaseThemeSnapshot()).toStrictEqual({ theme: "light", resolvedTheme: "light" });
   });
 });
 

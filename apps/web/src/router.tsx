@@ -8,7 +8,10 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 
 import { NotFoundState } from "./components/not-found-state";
 import { QueryErrorState } from "./components/query-error-state";
+import { getBaseThemeSnapshot } from "./lib/theme";
 import { routeTree } from "./routeTree.gen";
+
+import type { ThemeSnapshot } from "./lib/theme";
 
 // eslint-disable-next-line eslint-js/no-restricted-syntax -- Vite build-time env; empty fallback resolves API calls against current origin via Vite dev proxy.
 const apiBaseUrl: string = import.meta.env.VITE_API_URL ?? "";
@@ -118,7 +121,15 @@ export const getRouter = () => {
   });
 
   const router = createRouter({
-    context: { queryClient },
+    // A getter, not a value: the router holds this object for the lifetime of
+    // the app and spreads it into every match context, so the theme has to be
+    // read at navigation time rather than frozen at boot.
+    context: {
+      queryClient,
+      get theme(): ThemeSnapshot {
+        return getBaseThemeSnapshot();
+      },
+    },
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: NotFoundState,

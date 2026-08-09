@@ -58,6 +58,21 @@ export const getThemeSnapshotFromCookie = (): ThemeSnapshot => {
   return { theme, resolvedTheme: resolveTheme(theme, getSystemPreference() === "dark") };
 };
 
+/**
+ * The theme snapshot the router's base context carries.
+ *
+ * TanStack Router strips a route's `beforeLoad` result from its context while
+ * it re-runs that `beforeLoad`, and it publishes those stripped matches to the
+ * store as soon as a pending component is revealed — so the root match falls
+ * back to the router's base context for the whole pending phase of every
+ * navigation. The cookie is the live source of truth on the client; the server
+ * fallback is never rendered, because SSR waits for the root `beforeLoad`.
+ */
+export const getBaseThemeSnapshot = (): ThemeSnapshot =>
+  typeof document === "undefined"
+    ? { theme: "system", resolvedTheme: "light" }
+    : getThemeSnapshotFromCookie();
+
 export const getServerThemeSnapshotFromCookieValues = (
   themeValue: string | undefined,
   resolvedThemeValue: string | undefined,
