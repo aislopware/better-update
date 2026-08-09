@@ -42,7 +42,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon weight="bold" data-icon="inline-start" />
+        <PlusIcon weight="bold" />
         Create branch
       </DialogTrigger>
       <DialogContent>

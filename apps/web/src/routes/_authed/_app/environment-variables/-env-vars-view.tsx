@@ -185,7 +185,7 @@ const VaultToolbarActions = ({
           vault.lock();
         }}
       >
-        <LockKeyIcon weight="bold" data-icon="inline-start" />
+        <LockKeyIcon weight="bold" />
         Lock
       </Button>
     </>

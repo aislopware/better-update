@@ -207,7 +207,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
           setOpen(true);
         }}
       >
-        <PlusIcon weight="bold" data-icon="inline-start" />
+        <PlusIcon weight="bold" />
         Create channel
       </Button>
       <DialogContent size="lg">

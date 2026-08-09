@@ -398,7 +398,7 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
           setOpen(true);
         }}
       >
-        <GitDiffIcon weight="bold" data-icon="inline-start" />
+        <GitDiffIcon weight="bold" />
         Compare
       </Button>
       <Dialog

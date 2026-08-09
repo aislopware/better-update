@@ -342,7 +342,7 @@ const StartRolloutSection = (
               setIsStartingRollout(true);
             }}
           >
-            <RocketIcon weight="bold" data-icon="inline-start" />
+            <RocketIcon weight="bold" />
             Start rollout
           </Button>
         </Tooltip>

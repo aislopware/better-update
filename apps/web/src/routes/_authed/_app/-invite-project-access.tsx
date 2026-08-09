@@ -204,7 +204,7 @@ export const ProjectGrantsSection = ({
       />
     ))}
     <Button type="button" variant="secondary" size="sm" className="self-start" onClick={onAdd}>
-      <PlusIcon weight="bold" data-icon="inline-start" />
+      <PlusIcon weight="bold" />
       Add project
     </Button>
   </div>

@@ -41,7 +41,7 @@ export const VaultSetupActions = ({
   if (meQuery.isPending || accountKeysQuery.isPending) {
     return (
       <Button variant="secondary" disabled>
-        <Loader size="sm" data-icon="inline-start" />
+        <Loader size="sm" />
         Checking access…
       </Button>
     );

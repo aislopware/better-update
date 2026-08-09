@@ -73,9 +73,7 @@ export const BranchNameForm = ({
               disabled={!canSubmit || Boolean(isSubmitting)}
               loading={Boolean(isSubmitting)}
             >
-              {!isSubmitting && SubmitIcon ? (
-                <SubmitIcon weight="bold" data-icon="inline-start" />
-              ) : null}
+              {!isSubmitting && SubmitIcon ? <SubmitIcon weight="bold" /> : null}
               {submitLabel}
             </Button>
           )}

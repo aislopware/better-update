@@ -152,7 +152,7 @@ export const AddProjectMemberDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <UserPlusIcon weight="bold" data-icon="inline-start" />
+        <UserPlusIcon weight="bold" />
         Add member
       </DialogTrigger>
       <DialogContent size="lg">

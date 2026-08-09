@@ -256,7 +256,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="secondary" />}>
-        <LinkIcon weight="bold" data-icon="inline-start" />
+        <LinkIcon weight="bold" />
         Invite link
       </DialogTrigger>
       <DialogContent size="lg">

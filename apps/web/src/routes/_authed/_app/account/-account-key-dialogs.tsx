@@ -152,11 +152,11 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
             <Button variant="primary" type="submit" disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <Loader size="sm" data-icon="inline-start" /> Generating &amp; sealing…
+                  <Loader size="sm" /> Generating &amp; sealing…
                 </>
               ) : (
                 <>
-                  <KeyIcon weight="bold" data-icon="inline-start" />
+                  <KeyIcon weight="bold" />
                   Enroll account key
                 </>
               )}
@@ -192,7 +192,7 @@ export const EnrollAccountKeyDialog = ({ orgId }: { orgId: string }) => {
       }}
     >
       <DialogTrigger render={<Button variant="secondary" />}>
-        <KeyIcon weight="bold" data-icon="inline-start" />
+        <KeyIcon weight="bold" />
         Set up vault access
       </DialogTrigger>
       <DialogContent size="lg">

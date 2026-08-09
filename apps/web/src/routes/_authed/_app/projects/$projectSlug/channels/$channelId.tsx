@@ -77,11 +77,7 @@ const ChannelHeaderActions = ({
         loading={togglePauseMutation.isPending}
       >
         {!togglePauseMutation.isPending &&
-          (channel.isPaused ? (
-            <PlayIcon weight="bold" data-icon="inline-start" />
-          ) : (
-            <PauseIcon weight="bold" data-icon="inline-start" />
-          ))}
+          (channel.isPaused ? <PlayIcon weight="bold" /> : <PauseIcon weight="bold" />)}
         {channel.isPaused ? "Resume" : "Pause"}
       </Button>
       {channel.isBuiltin ? null : (

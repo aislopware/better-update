@@ -26,22 +26,28 @@ import { AppleIcon } from "./apple-icon";
 type BadgeVariant = "outline" | "secondary" | "info" | "success" | "warning";
 type BadgeSize = "sm" | "default" | "lg";
 
-const SIZE_CLASSES: Record<BadgeSize, string | undefined> = {
-  sm: "h-4 px-1.5 text-[0.65rem]",
-  default: undefined,
-  lg: "h-6 px-2.5 text-sm",
+/**
+ * Kumo's Badge is a bare pill: it sets no gap between its children and nothing
+ * that sizes an icon inside it — only the `dot` appearance gets a gap, and it
+ * draws its own dot. Both are ours to say, per size, so the mark keeps its
+ * distance from the word at every scale.
+ */
+const SIZE_CLASSES: Record<BadgeSize, string> = {
+  sm: "h-4 gap-1 px-1.5 text-[0.65rem]",
+  default: "gap-1",
+  lg: "h-6 gap-1.5 px-2.5 text-sm",
 };
+
+/** Set in `em` so one rule covers all three sizes and tracks the label's own. */
+const BADGE_ICON = "size-[1em] shrink-0";
 
 interface AttributeBadgeProps {
   size?: BadgeSize;
   className?: string;
 }
 
-/**
- * The narrowest shape both icon families satisfy: a phosphor icon takes every
- * SVG prop, while the hand-written brand marks take only these two.
- */
-type BadgeIcon = ComponentType<{ className?: string; "data-icon"?: string }>;
+/** The narrowest shape both icon families satisfy — phosphor's and our own. */
+type BadgeIcon = ComponentType<{ className?: string }>;
 
 interface Definition {
   label: string;
@@ -81,8 +87,8 @@ const renderBadge = (
   size: BadgeSize | undefined,
   className: string | undefined,
 ): ReactElement => (
-  <Badge variant={variant} className={cn(size ? SIZE_CLASSES[size] : undefined, className)}>
-    <Icon data-icon="inline-start" />
+  <Badge variant={variant} className={cn(SIZE_CLASSES[size ?? "default"], className)}>
+    <Icon className={BADGE_ICON} />
     {label}
   </Badge>
 );
@@ -165,8 +171,8 @@ export const ChannelBadge = ({
   size,
   className,
 }: AttributeBadgeProps & { name: string }): ReactElement => (
-  <Badge variant="outline" className={cn(size ? SIZE_CLASSES[size] : undefined, className)}>
-    <BroadcastIcon weight="bold" data-icon="inline-start" />
+  <Badge variant="outline" className={cn(SIZE_CLASSES[size ?? "default"], className)}>
+    <BroadcastIcon weight="bold" className={BADGE_ICON} />
     {name}
   </Badge>
 );

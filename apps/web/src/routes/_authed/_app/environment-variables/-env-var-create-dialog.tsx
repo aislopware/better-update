@@ -330,7 +330,7 @@ export const EnvVarCreateDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon weight="bold" data-icon="inline-start" />
+        <PlusIcon weight="bold" />
         Add variable
       </DialogTrigger>
       <DialogContent size="lg">

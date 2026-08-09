@@ -240,7 +240,7 @@ export const InviteDialog = ({
       }}
     >
       <DialogTrigger render={<Button variant="primary" />}>
-        <UserPlusIcon weight="bold" data-icon="inline-start" />
+        <UserPlusIcon weight="bold" />
         Invite member
       </DialogTrigger>
       <DialogContent size="lg">

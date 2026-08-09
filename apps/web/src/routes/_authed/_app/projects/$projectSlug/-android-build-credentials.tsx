@@ -163,7 +163,7 @@ const GroupOptionLabel = ({ group }: { group: AndroidBuildCredentialsItem }) => 
     <span className="truncate">{group.name}</span>
     {group.isDefault ? (
       <Badge variant="success">
-        <CheckCircleIcon weight="bold" data-icon="inline-start" />
+        <CheckCircleIcon weight="bold" />
         Default
       </Badge>
     ) : null}
