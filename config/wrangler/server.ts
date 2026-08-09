@@ -113,20 +113,20 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    // 0.71.6 and older name the publish destination by Expo `slug` alone. Expo
-    // derives slug from the app `name` when it is unset, so such a CLI can
-    // resolve to a SIBLING project in the same org that happens to own that
-    // slug — and publish there, reporting success. The wrongly-placed update
-    // sits on that project's branch under the same runtimeVersion, so the other
-    // tenant's devices become eligible for this app's JS bundle. Nothing in the
-    // CLI output names the slug, so it is undetectable from the terminal; the
-    // server still honours slug-only payloads for compatibility, which makes
-    // this gate the thing that actually retires them.
+    // 0.71.7 and older never read the Android upload keystore's signing
+    // certificate beyond its SHA-1/SHA-256: no expiry and no MD5. The server
+    // cannot recover either — the vault is client-encrypted, so only the CLI
+    // ever sees keystore bytes — so a keystore uploaded by such a CLI is
+    // recorded with a null `valid_until` and is silently absent from the
+    // dashboard's expiry rollup. Nothing warns before Play rejects the build.
     //
-    // (0.71.4 and older additionally never baked `expo-channel-name` or a
-    // runtimeVersion into non-Expo builds — updates published green and reached
-    // nobody. Also covered by this bound.)
-    REQUIRE_CLI_VERSION_ABOVE: "0.71.6",
+    // (0.71.6 and older additionally name the publish destination by Expo
+    // `slug` alone, and can therefore publish into a SIBLING project in the
+    // same org that happens to own that slug — reported as success, and
+    // undetectable from the terminal. 0.71.4 and older never baked
+    // `expo-channel-name` or a runtimeVersion into non-Expo builds, so their
+    // updates published green and reached nobody. Both covered by this bound.)
+    REQUIRE_CLI_VERSION_ABOVE: "0.71.7",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
