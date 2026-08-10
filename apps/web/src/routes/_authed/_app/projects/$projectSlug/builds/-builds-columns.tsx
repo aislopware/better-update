@@ -15,6 +15,15 @@ export type BuildItem = BuildWithArtifact;
 const buildLabel = (build: BuildItem) =>
   (build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`;
 
+// Crash reports name a build by version AND native build number, so the two
+// travel together in one column rather than the build number hiding behind the
+// View menu. A build number with no version to qualify stays unlabelled — both
+// fields are optional on upload, and a bare "(41)" reads as a version.
+const appVersionLabel = (build: BuildItem) =>
+  build.appVersion === null
+    ? null
+    : `${build.appVersion}${build.buildNumber === null ? "" : ` (${build.buildNumber})`}`;
+
 export const buildBuildsColumns = (
   orgId: string,
   projectId: string,
@@ -76,26 +85,15 @@ export const buildBuildsColumns = (
     id: "appVersion",
     accessorKey: "appVersion",
     header: "App version",
-    cell: ({ row }) =>
-      row.original.appVersion === null ? (
+    cell: ({ row }) => {
+      const label = appVersionLabel(row.original);
+      return label === null ? (
         <span className="text-kumo-subtle text-xs">—</span>
       ) : (
-        <span className="font-mono text-xs">{row.original.appVersion}</span>
-      ),
+        <span className="font-mono text-xs">{label}</span>
+      );
+    },
     enableSorting: true,
-    enableHiding: true,
-  },
-  {
-    id: "buildNumber",
-    accessorKey: "buildNumber",
-    header: "Build number",
-    cell: ({ row }) =>
-      row.original.buildNumber === null ? (
-        <span className="text-kumo-subtle text-xs">—</span>
-      ) : (
-        <code className="font-mono text-xs">{row.original.buildNumber}</code>
-      ),
-    enableSorting: false,
     enableHiding: true,
   },
   {

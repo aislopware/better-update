@@ -106,7 +106,7 @@ const RuntimeDetailContent = () => {
     // so the table fits without horizontal scroll. The runtime column goes too:
     // every row on this page carries the version the page is named after.
     initialState: {
-      columnVisibility: { buildNumber: false, size: false, runtimeVersion: false },
+      columnVisibility: { size: false, runtimeVersion: false },
     },
   });
 

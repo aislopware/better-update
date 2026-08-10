@@ -257,7 +257,7 @@ export const DataTableView = <TData extends RowData>({
       {title === undefined ? null : (
         <ListPanelHeader title={title} description={description} actions={actions} />
       )}
-      {/* Headers never wrap: a two-line "Build number" over one-line neighbours
+      {/* Headers never wrap: a two-line "App version" over one-line neighbours
           makes a straight header row look broken, and the primary column has
           already taken the width the others would have wrapped to fit. */}
       <Table className="[&_th]:whitespace-nowrap">

@@ -244,7 +244,7 @@ const BuildsContent = () => {
     columns: [...columns],
     // Secondary numeric columns stay opt-in (View options) so the table fits
     // without horizontal scroll.
-    initialState: { columnVisibility: { buildNumber: false, size: false } },
+    initialState: { columnVisibility: { size: false } },
     state: { sorting },
     onSortingChange,
     manualSorting: true,
