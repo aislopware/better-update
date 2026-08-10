@@ -1,3 +1,4 @@
+import { asVersionSlot } from "@better-update/type-guards";
 import { Console, Effect } from "effect";
 
 import { BuildProfileError } from "./exit-codes";
@@ -27,13 +28,16 @@ export const bumpBuildNumber = (
   });
 
 export const bumpVersionCode = (
-  current: number | undefined,
+  current: number | string | undefined,
 ): Effect.Effect<number, BuildProfileError> =>
   Effect.gen(function* () {
-    const value = current ?? 0;
+    // app.json is hand-written, so `versionCode` reaches us as an integer or as
+    // its string spelling — the same pair `extractBuildNumber` accepts. Report
+    // the original on failure, not the normalized NaN.
+    const value = current === undefined ? 0 : Number(asVersionSlot(current) ?? Number.NaN);
     if (!Number.isInteger(value) || value < 0) {
       return yield* new BuildProfileError({
-        message: `Cannot autoIncrement android.versionCode: current value ${String(value)} is not a non-negative integer.`,
+        message: `Cannot autoIncrement android.versionCode: current value ${String(current)} is not a non-negative integer.`,
       });
     }
     return value + 1;

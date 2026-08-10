@@ -256,6 +256,23 @@ describe(resolveEasBuildProfile, () => {
     }),
   );
 
+  it.effect("normalizes the numeric version slots EAS spells as integers", () =>
+    Effect.gen(function* () {
+      const config = yield* parseEasConfig(
+        JSON.stringify({
+          build: {
+            prod: {
+              ios: { buildNumber: 41 },
+              android: { versionCode: 41 },
+            },
+          },
+        }),
+      );
+      expect(config.build?.["prod"]?.ios?.buildNumber).toBe("41");
+      expect(config.build?.["prod"]?.android?.versionCode).toBe("41");
+    }),
+  );
+
   it.effect("rejects invalid platform-scoped autoIncrement values silently", () =>
     Effect.gen(function* () {
       const config = yield* parseEasConfig(

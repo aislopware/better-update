@@ -9,6 +9,7 @@ import { ProjectNotLinkedError } from "./exit-codes";
 import {
   expoSdkVersionFromPackageVersion,
   extractAppVersion,
+  extractBuildNumber,
   extractProjectId,
   extractRawRuntimeVersion,
   extractSlug,
@@ -255,6 +256,30 @@ describe(readAppMeta, () => {
       expect(meta.appVersion).toBe("9.9.9");
     }),
   );
+});
+
+describe(extractBuildNumber, () => {
+  it("reads the spelling each platform documents", () => {
+    const config: ExpoConfig = { ios: { buildNumber: "41" }, android: { versionCode: 41 } };
+    expect(extractBuildNumber(config, "ios")).toBe("41");
+    expect(extractBuildNumber(config, "android")).toBe("41");
+  });
+
+  it("accepts the swapped spellings hand-written app.json files carry", () => {
+    // Neither slot is validated by Expo at read time, so a numeric
+    // ios.buildNumber / string android.versionCode both reach us in practice.
+    const config = {
+      ios: { buildNumber: 41 },
+      android: { versionCode: "41" },
+    } as unknown as ExpoConfig;
+    expect(extractBuildNumber(config, "ios")).toBe("41");
+    expect(extractBuildNumber(config, "android")).toBe("41");
+  });
+
+  it("returns undefined when the slot is absent", () => {
+    expect(extractBuildNumber({}, "ios")).toBeUndefined();
+    expect(extractBuildNumber({}, "android")).toBeUndefined();
+  });
 });
 
 describe(extractRawRuntimeVersion, () => {

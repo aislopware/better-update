@@ -2,7 +2,7 @@ import nodePath from "node:path";
 import process from "node:process";
 
 import { CODE_SIGNING_ALG } from "@better-update/expo-codesign";
-import { asRecord, compact } from "@better-update/type-guards";
+import { asRecord, asVersionSlot, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect, Option } from "effect";
 
@@ -338,15 +338,15 @@ export const writeExpoConfigPatch = (
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
-export const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | undefined => {
-  if (platform === "ios") {
-    return config.ios?.buildNumber;
-  }
-  if (config.android?.versionCode === undefined) {
-    return undefined;
-  }
-  return String(config.android.versionCode);
-};
+/**
+ * The native build number from app.json. Both slots are hand-written JSON, so
+ * both spellings show up in real projects regardless of what Expo's types say —
+ * `asVersionSlot` normalizes either to a string.
+ */
+export const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | undefined =>
+  platform === "ios"
+    ? asVersionSlot(config.ios?.buildNumber)
+    : asVersionSlot(config.android?.versionCode);
 
 /**
  * Resolve the effective app version for a platform, mirroring

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { asRecord, compact } from "@better-update/type-guards";
+import { asRecord, asVersionSlot, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -208,7 +208,7 @@ const parseIosProfile = (raw: unknown): EasIosProfile | undefined => {
   const podInstall = asBooleanValue(record["podInstall"]);
   const bundleIdentifier = asStringValue(record["bundleIdentifier"]);
   const version = asStringValue(record["version"]);
-  const buildNumber = asStringValue(record["buildNumber"]);
+  const buildNumber = asVersionSlot(record["buildNumber"]);
   return compact({
     distribution,
     buildConfiguration,
@@ -240,7 +240,7 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
   const gradleTask = asStringValue(record["gradleTask"]);
   const applicationId = asStringValue(record["applicationId"]);
   const version = asStringValue(record["version"]);
-  const versionCode = asStringValue(record["versionCode"]);
+  const versionCode = asVersionSlot(record["versionCode"]);
   return compact({
     buildType,
     flavor,

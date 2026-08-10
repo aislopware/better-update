@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { asRecord, compact, isRecord, toOptional } from "./index";
+import { asRecord, asVersionSlot, compact, isRecord, toOptional } from "./index";
 
 describe(isRecord, () => {
   it("detects plain objects", () => {
@@ -72,6 +72,33 @@ describe(compact, () => {
     const input = Object.create(base) as Record<string, unknown>;
     input["own"] = "x";
     expect(compact(input)).toStrictEqual({ own: "x" });
+  });
+});
+
+describe(asVersionSlot, () => {
+  it("passes a string through", () => {
+    expect(asVersionSlot("41")).toBe("41");
+    expect(asVersionSlot("6.0.5")).toBe("6.0.5");
+  });
+
+  it("stringifies an integer (eas.json android.versionCode)", () => {
+    expect(asVersionSlot(41)).toBe("41");
+    expect(asVersionSlot(0)).toBe("0");
+  });
+
+  it("keeps a malformed number visible instead of reading as absent", () => {
+    // Callers validate the string form and report it back to the user; mapping
+    // it to undefined here would make them fall through to a default.
+    expect(asVersionSlot(4.1)).toBe("4.1");
+  });
+
+  it("rejects non-finite numbers and non-scalars", () => {
+    expect(asVersionSlot(Number.NaN)).toBeUndefined();
+    expect(asVersionSlot(Number.POSITIVE_INFINITY)).toBeUndefined();
+    expect(asVersionSlot(null)).toBeUndefined();
+    expect(asVersionSlot(undefined)).toBeUndefined();
+    expect(asVersionSlot(true)).toBeUndefined();
+    expect(asVersionSlot({ versionCode: 41 })).toBeUndefined();
   });
 });
 

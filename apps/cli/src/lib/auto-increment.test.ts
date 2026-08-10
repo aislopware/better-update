@@ -47,6 +47,22 @@ describe(bumpVersionCode, () => {
     }),
   );
 
+  it.effect("increments the string spelling hand-written app.json files carry", () =>
+    Effect.gen(function* () {
+      expect(yield* bumpVersionCode("41")).toBe(42);
+    }),
+  );
+
+  it.effect("fails on a non-numeric string", () =>
+    Effect.gen(function* () {
+      const exit = yield* bumpVersionCode("nope").pipe(Effect.exit);
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(failureError(exit)).toBeInstanceOf(BuildProfileError);
+      }
+    }),
+  );
+
   it.effect("fails on non-integer (decimal)", () =>
     Effect.gen(function* () {
       const exit = yield* bumpVersionCode(1.5).pipe(Effect.exit);
