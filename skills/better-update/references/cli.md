@@ -704,6 +704,11 @@ better-update testflight review set-detail [--contact-email <e>] [--contact-firs
 # Build "What to Test"
 better-update testflight build whats-new (--build <id> | --build-version <n> | --latest) \
   [--locale en-US] (--whats-new <text> | --text-file <path>)
+
+# Tester feedback (read-only)
+better-update testflight feedback list [--type screenshot|crash|all] \        # newest first, both kinds by default
+  [--build <id> | --build-version <n>] [--platform ios|mac|tv|vision] \
+  [--device-model iPhone14,2] [--os-version 18.2] [--tester-email <e>] [--limit 50]
 ```
 
 `testflight group create` is the unblocker for `submit ios`, which hard-fails (`TESTFLIGHT_GROUP_NOT_FOUND`)
@@ -719,6 +724,21 @@ admit only App Store Connect users; `--no-internal` makes an external group (pub
   to keep it out of shell history. It is never echoed.
 - A **build** is selected by `--build <ascBuildId>` or `--build-version <CFBundleVersion>` (the build number); the
   latter resolves the uploaded build for the app.
+- **`feedback list`** reads what testers send from the TestFlight app — Apple keeps screenshot feedback and crash
+  feedback in two sibling collections, so both are fetched concurrently with the same filter and merged
+  newest-first (`--type` narrows to one). It is read-only: the ASC API has no reply endpoint. Each row names its
+  build (from the response's `included`), so a crash wave can be pinned to a build number without a second query.
+  Screenshot **URLs are short-lived** (each carries its own `expiresAt`) and are surfaced in `--json` only — the
+  human table shows a `Shots` count and the comment's first 60 characters, with control characters neutralised
+  (tester comments are untrusted text). The crash **log text** is not fetched by the list: it needs one extra
+  request per row (`GET /v1/betaFeedbackCrashSubmissions/{id}/crashLog`); the submission's
+  device/OS/battery/uptime metadata is included.
+  - `--limit` is a true cap: paging stops as soon as it is met, so a small `--limit` costs one request (Apple's
+    page size is clamped to its 200 maximum and higher limits page). Filters go server-side except
+    `--device-model`, which is matched client-side because ASC reads a comma in a filter value as a multi-value
+    OR separator and every device identifier contains one (`iPhone14,2`).
+  - `--build` / `--build-version` are validated against **this** app (and `--platform`, for a build number shared
+    across platforms), so a wrong or foreign build id fails loudly instead of silently listing nothing.
 - **`build whats-new`** additionally accepts `--latest` (newest uploaded build, precedence `--build` > `--build-version`
   > `--latest`) so you can fix "What to Test" on the last upload without looking up its build number — e.g. after a
   > `submit` where the text was rejected as too short. It edits the build's `betaBuildLocalizations` in place (no

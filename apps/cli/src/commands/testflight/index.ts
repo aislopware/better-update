@@ -1,6 +1,7 @@
 import { defineCommand } from "citty";
 
 import { testflightBuildCommand } from "./build";
+import { testflightFeedbackCommand } from "./feedback";
 import { testflightGroupCommand } from "./group";
 import { testflightReviewCommand } from "./review";
 import { testflightTesterCommand } from "./tester";
@@ -16,5 +17,6 @@ export const testflightCommand = defineCommand({
     tester: testflightTesterCommand,
     review: testflightReviewCommand,
     build: testflightBuildCommand,
+    feedback: testflightFeedbackCommand,
   },
 });

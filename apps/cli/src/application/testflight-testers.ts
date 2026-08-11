@@ -47,6 +47,33 @@ export const listTesters = (
   ).pipe(Effect.map((testers) => testers.map(toView)));
 };
 
+/**
+ * Resolve a beta tester *entity* by email, failing with a clear message when
+ * Apple knows no such tester. Shared by `tester remove` and the `feedback list`
+ * `--tester-email` filter (ASC filters feedback by tester id, never by email).
+ *
+ * The address is trimmed and matched case-insensitively: apple-utils' own
+ * `findAsync` post-filters the ASC result with an exact `===`, so a value pasted
+ * with trailing whitespace (CRLF files, `read -r` loops) or in a different case
+ * than Apple stores would report a missing tester that plainly exists.
+ */
+export const findTesterByEmail = (ctx: AppleUtils.RequestContext, email: string) =>
+  Effect.gen(function* () {
+    const wanted = email.trim().toLowerCase();
+    const candidates = yield* wrapConnect("apple-find-beta-tester", async () =>
+      AppleUtils.BetaTester.getAsync(ctx, { query: { filter: { email: email.trim() } } }),
+    );
+    const tester = candidates.find(
+      (candidate) => candidate.attributes.email?.trim().toLowerCase() === wanted,
+    );
+    if (tester === undefined) {
+      return yield* new AppStoreError({
+        message: `No TestFlight tester found with email ${email.trim()}.`,
+      });
+    }
+    return tester;
+  });
+
 export interface AddTesterInput {
   readonly email: string;
   readonly firstName: string | undefined;
@@ -120,14 +147,7 @@ export interface RemoveTesterInput {
 /** Remove a tester from a single group, or delete the tester account entirely. */
 export const removeTester = (ctx: AppleUtils.RequestContext, input: RemoveTesterInput) =>
   Effect.gen(function* () {
-    const tester = yield* wrapConnect("apple-find-beta-tester", async () =>
-      AppleUtils.BetaTester.findAsync(ctx, { email: input.email }),
-    );
-    if (tester === null) {
-      return yield* new AppStoreError({
-        message: `No TestFlight tester found with email ${input.email}.`,
-      });
-    }
+    const tester = yield* findTesterByEmail(ctx, input.email);
     if (input.deleteAccount) {
       yield* wrapConnect("apple-delete-beta-tester", async () => tester.deleteAsync());
       return { id: tester.id, email: input.email, removed: "account" };
