@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.74.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.73.2...%40better-update%2Fcli%400.74.0) (2026-08-11)
+
+### Features
+
+* **cli:** list TestFlight tester feedback ([75f5fbc](https://github.com/better-update/better-update/commit/75f5fbcc1c8503f6df3e843cf42ab875efc4596d))
+
 ## [0.73.2](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.73.1...%40better-update%2Fcli%400.73.2) (2026-08-11)
 
 ### Bug Fixes
