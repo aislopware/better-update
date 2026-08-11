@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.0.21](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Ftype-guards%400.0.20...%40better-update%2Ftype-guards%400.0.21) (2026-08-11)
+
+### Bug Fixes
+
+* **cli:** read the integer spelling of a native build number ([abb75d5](https://gitlab.jmango360.com/mobile/better-update/commit/abb75d5e574ac3ae87234370029a0ad103e46df3))
+
 ## [0.0.20](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Ftype-guards%400.0.19...%40better-update%2Ftype-guards%400.0.20) (2026-08-09)
 
 **Note:** Version bump only for package @better-update/type-guards

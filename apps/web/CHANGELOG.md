@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.75.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.4...%40better-update%2Fweb%400.75.0) (2026-08-11)
+
+### Features
+
+* **web:** show the native build number in the builds list ([016bd08](https://github.com/better-update/better-update/commit/016bd0819d2d984342f167d2c8c3db4a858740ce))
+
 ## [0.74.4](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.74.3...%40better-update%2Fweb%400.74.4) (2026-08-09)
 
 ### Bug Fixes

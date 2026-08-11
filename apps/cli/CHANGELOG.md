@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.73.2](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.73.1...%40better-update%2Fcli%400.73.2) (2026-08-11)
+
+### Bug Fixes
+
+* **cli:** read the integer spelling of a native build number ([abb75d5](https://github.com/better-update/better-update/commit/abb75d5e574ac3ae87234370029a0ad103e46df3))
+
 ## [0.73.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.73.0...%40better-update%2Fcli%400.73.1) (2026-08-09)
 
 **Note:** Version bump only for package @better-update/cli
