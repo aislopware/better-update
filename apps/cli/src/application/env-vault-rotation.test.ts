@@ -12,6 +12,7 @@ import type { IdentityFile } from "@better-update/credentials-crypto";
 
 import { InteractiveModeLive } from "../lib/interactive-mode";
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import { rotateEnvVault } from "./env-vault-rotation";
 
@@ -130,6 +131,7 @@ describe("rotating the env vault with an excluded recipient", () => {
         Effect.provide(
           Layer.mergeAll(
             cliRuntimeStub({ BETTER_UPDATE_IDENTITY: caller.privateKey }),
+            DeviceUnlockMemoLive,
             identityStoreStub(null),
             InteractiveModeLive,
           ),
@@ -213,6 +215,7 @@ describe("rotating the env vault with an excluded recipient", () => {
         Effect.provide(
           Layer.mergeAll(
             cliRuntimeStub({ BETTER_UPDATE_IDENTITY: caller.privateKey }),
+            DeviceUnlockMemoLive,
             identityStoreStub(null),
             InteractiveModeLive,
           ),

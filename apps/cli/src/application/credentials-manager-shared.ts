@@ -18,6 +18,7 @@ import type { OutputMode } from "../lib/output-mode";
 import type { ApiClient } from "../services/api-client";
 import type { AppleAuth } from "../services/apple-auth";
 import type { CliRuntime } from "../services/cli-runtime";
+import type { DeviceUnlockMemo } from "../services/device-unlock-memo";
 import type { IdentityStore } from "../services/identity-store";
 
 export const APPLE_PUSH_KEY_PORTAL_URL =
@@ -50,6 +51,7 @@ export type MenuEffect = Effect.Effect<
   | CliRuntime
   | CommandExecutor.CommandExecutor
   | FileSystem.FileSystem
+  | DeviceUnlockMemo
   | IdentityStore
   | InteractiveMode
   | OutputMode

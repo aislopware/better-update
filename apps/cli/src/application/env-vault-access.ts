@@ -5,11 +5,10 @@ import { Effect } from "effect";
 import type { UserEncryptionKey } from "@better-update/api";
 
 import { IdentityError } from "../lib/exit-codes";
-import { promptPassword } from "../lib/prompts";
 import { VaultCache, VaultCacheLive } from "../services/vault-cache";
 import { getActiveOrgId, openVaultSessionInteractive } from "./credential-cipher";
 import { activeRecipient, recipientKind } from "./identity";
-import { unlockActivePrivateKey } from "./vault-access";
+import { unlockActivePrivateKey, unlockDeviceIdentityInteractive } from "./vault-access";
 
 import type { ApiClient } from "../services/api-client";
 import type { VaultSession } from "./credential-cipher";
@@ -64,13 +63,14 @@ export const grantEnvRecipient = (args: {
  * Unlock the ENV-vault key for this device via its env wrap (post-cutover). The
  * env vault holds a DIFFERENT key from the credentials vault — wrapped to the same
  * device/recovery/machine recipients PLUS per-user account keys — so this mirrors
- * {@link unlockVaultKey} but reads the polymorphic `org_env_vault_key_wraps` row
- * keyed by this device's `(recipientKind, keyId)`.
+ * `unlockVaultKey` but reads the polymorphic `org_env_vault_key_wraps` row
+ * keyed by this device's `(recipientKind, keyId)`. Split into a `…With` half for
+ * the same reason as the credentials vault: the interactive path supplies a
+ * private key the device already unlocked this run.
  */
-export const unlockEnvVaultKey = (api: ApiClient, passphrase: string | undefined) =>
+const unlockEnvVaultKeyWith = (api: ApiClient, privateKey: string) =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;
-    const privateKey = yield* unlockActivePrivateKey(passphrase);
     const { items } = yield* api.userEncryptionKeys.list();
     const own = items.find((key) => key.publicKey === recipient.publicKey);
     if (!own) {
@@ -100,10 +100,18 @@ export const unlockEnvVaultKey = (api: ApiClient, passphrase: string | undefined
     return { vaultKey, vaultVersion: wrap.envVaultVersion, keyId: own.id } satisfies UnlockedVault;
   });
 
+/** {@link unlockEnvVaultKeyWith} with the private key resolved from the env (CI) or `passphrase`. */
+export const unlockEnvVaultKey = (api: ApiClient, passphrase: string | undefined) =>
+  unlockActivePrivateKey(passphrase).pipe(
+    Effect.flatMap((privateKey) => unlockEnvVaultKeyWith(api, privateKey)),
+  );
+
 /**
- * Cache-aware env-vault unlock, mirroring {@link unlockVaultKeyInteractive} but on
+ * Cache-aware env-vault unlock, mirroring `unlockVaultKeyInteractive` but on
  * the `"env"` cache namespace so the credentials and env vaults cache (and lock)
- * independently. A CI robot's env-sourced key is never cached.
+ * independently. A CI robot's env-sourced key is never cached. The prompt is
+ * shared with the credentials vault via `unlockDeviceIdentityInteractive`, so
+ * unlocking both vaults in one command asks for the passphrase once.
  */
 export const unlockEnvVaultKeyInteractive = (api: ApiClient, orgId: string) =>
   Effect.gen(function* () {
@@ -117,8 +125,8 @@ export const unlockEnvVaultKeyInteractive = (api: ApiClient, orgId: string) =>
     if (cached !== undefined) {
       return cached.vault;
     }
-    const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
-    const vault = yield* unlockEnvVaultKey(api, passphrase);
+    const { privateKey } = yield* unlockDeviceIdentityInteractive();
+    const vault = yield* unlockEnvVaultKeyWith(api, privateKey);
     yield* cache.set(key, vault);
     return vault;
   }).pipe(Effect.provide(VaultCacheLive));

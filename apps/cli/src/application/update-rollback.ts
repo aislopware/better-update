@@ -33,6 +33,7 @@ import type { InteractiveMode } from "../lib/interactive-mode";
 import type { OutputMode } from "../lib/output-mode";
 import type { UpdatePlatformOption } from "../lib/update-platforms";
 import type { ApiClientService } from "../services/api-client";
+import type { DeviceUnlockMemo } from "../services/device-unlock-memo";
 import type { IdentityStore } from "../services/identity-store";
 
 interface CreateRollbackParams {
@@ -318,6 +319,7 @@ export const runUpdateRollback = (
   | CliRuntime
   | CommandExecutor.CommandExecutor
   | FileSystem.FileSystem
+  | DeviceUnlockMemo
   | IdentityStore
   | InteractiveMode
   | OutputMode

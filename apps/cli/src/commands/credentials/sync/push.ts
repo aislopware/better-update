@@ -16,6 +16,7 @@ import { SYNC_EXIT_EXTRAS } from "./helpers";
 import type { CredentialsJson } from "../../../lib/credentials-json";
 import type { InteractiveMode } from "../../../lib/interactive-mode";
 import type { ApiClient } from "../../../services/api-client";
+import type { DeviceUnlockMemo } from "../../../services/device-unlock-memo";
 import type { IdentityStore } from "../../../services/identity-store";
 import type { SyncRow } from "./helpers";
 
@@ -24,6 +25,7 @@ type PushRequirements =
   | FileSystem.FileSystem
   | CommandExecutor.CommandExecutor
   | CliRuntime
+  | DeviceUnlockMemo
   | IdentityStore
   | InteractiveMode;
 

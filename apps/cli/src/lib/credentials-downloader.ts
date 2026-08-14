@@ -14,6 +14,7 @@ import { MissingCredentialsError } from "./exit-codes";
 import type { VaultSession } from "../application/credential-cipher";
 import type { ApiClient } from "../services/api-client";
 import type { CliRuntime } from "../services/cli-runtime";
+import type { DeviceUnlockMemo } from "../services/device-unlock-memo";
 import type { IdentityStore } from "../services/identity-store";
 import type { IosDistribution } from "./build-profile";
 import type { InteractiveMode } from "./interactive-mode";
@@ -233,7 +234,7 @@ export const downloadIosCredentials = (
 ): Effect.Effect<
   IosCredentials,
   MissingCredentialsError | PlatformError,
-  FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode
+  FileSystem.FileSystem | CliRuntime | DeviceUnlockMemo | IdentityStore | InteractiveMode
 > =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -345,7 +346,7 @@ const maybeAutoProvision = (
 ): Effect.Effect<
   readonly AutoProvisionedEntry[],
   MissingCredentialsError | PlatformError,
-  FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode
+  FileSystem.FileSystem | CliRuntime | DeviceUnlockMemo | IdentityStore | InteractiveMode
 > =>
   Effect.gen(function* () {
     if (params.missing.length === 0) {
@@ -438,7 +439,7 @@ export const downloadAndroidCredentials = (
 ): Effect.Effect<
   AndroidCredentials,
   MissingCredentialsError | PlatformError,
-  FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode
+  FileSystem.FileSystem | CliRuntime | DeviceUnlockMemo | IdentityStore | InteractiveMode
 > =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;

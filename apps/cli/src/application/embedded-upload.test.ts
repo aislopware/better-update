@@ -14,6 +14,7 @@ import { OutputModeLive } from "../lib/output-mode";
 import { failureError } from "../lib/test-utils";
 import { ApiClientService } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import { UpdateAssetUploader } from "../services/update-asset-uploader";
 import { runEmbeddedUpload } from "./embedded-upload";
@@ -127,6 +128,7 @@ const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, 
 const stubVaultLayer = Layer.mergeAll(
   makeInteractiveModeLayer(false),
   OutputModeLive,
+  DeviceUnlockMemoLive,
   Layer.succeed(IdentityStore, {
     load: Effect.sync(() => null),
     save: () => Effect.void,

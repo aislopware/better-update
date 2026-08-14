@@ -3,12 +3,16 @@ import { fromBase64, toBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
+import type { IdentityFile } from "@better-update/credentials-crypto";
 
 import { IdentityError } from "../lib/exit-codes";
 import { promptPassword } from "../lib/prompts";
+import { DeviceUnlockMemo } from "../services/device-unlock-memo";
 import { VaultCache, VaultCacheLive } from "../services/vault-cache";
 import { activeEnvPrivateKey, activeRecipient, loadIdentityFileOrFail } from "./identity";
 
+import type { InteractiveProhibitedError } from "../lib/exit-codes";
+import type { InteractiveMode } from "../lib/interactive-mode";
 import type { ApiClient } from "../services/api-client";
 import type { CliRuntime } from "../services/cli-runtime";
 import type { IdentityStore } from "../services/identity-store";
@@ -20,12 +24,32 @@ export interface UnlockedVault {
   readonly keyId: string;
 }
 
+/** This device's on-disk identity, opened: the age private key plus the passphrase that opened it. */
+export interface UnlockedDeviceIdentity {
+  readonly privateKey: string;
+  readonly passphrase: string;
+}
+
+/**
+ * Open a sealed identity envelope. `openIdentity` re-derives — and the seal
+ * authenticates — the public key, so a wrong passphrase and a tampered file both
+ * land on the same guidance here.
+ */
+const openIdentityFile = (file: IdentityFile, passphrase: string) =>
+  Effect.tryPromise({
+    try: async () => openIdentity({ file, passphrase }),
+    catch: () =>
+      new IdentityError({
+        message:
+          "Could not unlock this device's identity — wrong passphrase, or the identity file was altered.",
+      }),
+  });
+
 /**
  * Resolve this device's age private key. A CI robot's env-sourced key (from
  * `BETTER_UPDATE_ROBOT`, or the deprecated standalone `BETTER_UPDATE_IDENTITY`)
  * is used raw (no passphrase); otherwise the on-disk envelope is opened with the
- * supplied passphrase. `openIdentity` re-derives — and the seal authenticates —
- * the public key, so a wrong passphrase or a tampered file fails here.
+ * supplied passphrase.
  */
 export const unlockActivePrivateKey = (
   passphrase: string | undefined,
@@ -41,15 +65,43 @@ export const unlockActivePrivateKey = (
         message: "A passphrase is required to unlock ~/.better-update/identity.json.",
       });
     }
-    const identity = yield* Effect.tryPromise({
-      try: async () => openIdentity({ file, passphrase }),
-      catch: () =>
-        new IdentityError({
-          message:
-            "Could not unlock this device's identity — wrong passphrase, or the identity file was altered.",
-        }),
-    });
+    const identity = yield* openIdentityFile(file, passphrase);
     return identity.privateKey;
+  });
+
+/**
+ * Open this device's on-disk identity for an interactive command, prompting for
+ * the passphrase at most ONCE per process ({@link DeviceUnlockMemo}). Every
+ * interactive vault unlock funnels through here, so a command that touches both
+ * org vaults — `credentials access grant`, a build resolving credentials and env
+ * values — asks a single time instead of once per vault. The memo is only
+ * written after `openIdentity` succeeds, so a typo is never remembered.
+ *
+ * Callers that must act as the ACTIVE identity (robot env key included) go
+ * through {@link unlockVaultKeyInteractive} instead; this one is on-disk only,
+ * because the passphrase it returns is what seals a per-user account key.
+ *
+ * `message` tailors the prompt for callers that want to say what the passphrase
+ * is about to be used for; it is naturally unused on a memo hit, where there is
+ * no prompt to word.
+ */
+export const unlockDeviceIdentityInteractive = (
+  message = "Passphrase to unlock this device's identity:",
+): Effect.Effect<
+  UnlockedDeviceIdentity,
+  IdentityError | InteractiveProhibitedError,
+  DeviceUnlockMemo | IdentityStore | InteractiveMode
+> =>
+  Effect.gen(function* () {
+    const file = yield* loadIdentityFileOrFail;
+    const memo = yield* DeviceUnlockMemo;
+    const remembered = yield* memo.get(file.publicKey);
+    if (remembered !== undefined) {
+      return remembered;
+    }
+    const passphrase = yield* promptPassword(message);
+    const identity = yield* openIdentityFile(file, passphrase);
+    return yield* memo.set(file.publicKey, { privateKey: identity.privateKey, passphrase });
   });
 
 /**
@@ -82,15 +134,16 @@ const vaultAccessError = (api: ApiClient) =>
   });
 
 /**
- * Unlock the org vault key for this device: find this device's recipient row,
- * fetch its wrap, and unwrap it with the local private key. A missing wrap is
+ * Unlock the org vault key from an ALREADY-resolved private key: find this
+ * device's recipient row, fetch its wrap, and unwrap it. A missing wrap is
  * resolved by {@link vaultAccessError} into init-vs-grant guidance; an unwrap
- * failure means access was revoked or rotated.
+ * failure means access was revoked or rotated. Split out from
+ * {@link unlockVaultKey} so the interactive path can feed it a private key the
+ * device unlocked once for the whole run.
  */
-export const unlockVaultKey = (api: ApiClient, passphrase: string | undefined) =>
+const unlockVaultKeyWith = (api: ApiClient, privateKey: string) =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;
-    const privateKey = yield* unlockActivePrivateKey(passphrase);
     const { items } = yield* api.userEncryptionKeys.list();
     const own = items.find((key) => key.publicKey === recipient.publicKey);
     if (!own) {
@@ -112,6 +165,15 @@ export const unlockVaultKey = (api: ApiClient, passphrase: string | undefined) =
     });
     return { vaultKey, vaultVersion: wrap.vaultVersion, keyId: own.id } satisfies UnlockedVault;
   });
+
+/**
+ * Unlock the org vault key for this device, resolving the private key from the
+ * env (CI robot) or from the on-disk identity + `passphrase` first.
+ */
+export const unlockVaultKey = (api: ApiClient, passphrase: string | undefined) =>
+  unlockActivePrivateKey(passphrase).pipe(
+    Effect.flatMap((privateKey) => unlockVaultKeyWith(api, privateKey)),
+  );
 
 /**
  * Wrap the (already-unlocked) vault key to another recipient and push the wrap
@@ -143,6 +205,9 @@ export const grantRecipient = (args: {
  * A CI robot's env-sourced key carries no passphrase and is never cached: it
  * skips straight to the raw unwrap. On a cache miss the full unlock runs —
  * prompt, Argon2id, fetch + unwrap — and the result is cached for next time.
+ * The prompt itself goes through {@link unlockDeviceIdentityInteractive}, so a
+ * miss here still costs no prompt if this run already opened the identity for
+ * another vault.
  *
  * The cached key is the unwrapped vault key, which both unwraps (decrypt/read)
  * and wraps (encrypt/write) DEKs — so this single entry point backs every vault
@@ -167,8 +232,8 @@ export const unlockVaultKeyInteractive = (
     if (cached !== undefined) {
       return cached.vault;
     }
-    const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
-    const vault = yield* unlockVaultKey(api, passphrase);
+    const { privateKey } = yield* unlockDeviceIdentityInteractive();
+    const vault = yield* unlockVaultKeyWith(api, privateKey);
     yield* cache.set({ orgId: options.orgId, publicKey: recipient.publicKey }, vault, {
       ttlMs: options.cacheTtlMs,
     });

@@ -15,6 +15,7 @@ import type { Identity } from "@better-update/credentials-crypto";
 
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import { rotateVaultTo } from "./vault-rotation";
 
@@ -44,6 +45,7 @@ const vaultLayer = (privateKey: string) =>
       commandEnvironment: () => Effect.succeed({}),
       setExitCode: () => Effect.void,
     }),
+    DeviceUnlockMemoLive,
     Layer.succeed(IdentityStore, {
       load: Effect.sync(() => null),
       save: () => Effect.void,

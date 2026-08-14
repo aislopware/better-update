@@ -272,6 +272,10 @@ orgs with `org switch` never re-prompts, and never hands one org's key to anothe
 locks the org you just left. Set `BETTER_UPDATE_NO_CACHE=1` to opt out of caching entirely and be
 prompted every command.
 
+The credentials vault and the env vault cache **independently**, but a single command that needs both
+(`access grant`, `account create`, a build that reads credentials then env values) still asks for the
+passphrase **once**: the opened identity is reused in memory for the rest of that run.
+
 Typical onboarding: `identity init` (first person in the org) → teammates run `identity create` and
 an owner runs `access grant <recipient>` → each person `unlock`s to cache their key for a session.
 Post-cutover, `access grant` wraps **both** vault keys (credentials + env) to the recipient

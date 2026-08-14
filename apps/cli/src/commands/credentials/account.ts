@@ -1,7 +1,6 @@
 import {
   generateAccountKey,
   openAccountKey,
-  openIdentity,
   sealAccountKey,
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
@@ -11,8 +10,8 @@ import { Effect } from "effect";
 
 import { getActiveOrgId } from "../../application/credential-cipher";
 import { orgHasCutOver, unlockEnvVaultKeyInteractive } from "../../application/env-vault-access";
-import { loadIdentityFileOrFail } from "../../application/identity";
 import { escrowToEnvelope } from "../../application/passphrase-change";
+import { unlockDeviceIdentityInteractive } from "../../application/vault-access";
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
 import { printHuman, printKeyValue } from "../../lib/output";
@@ -53,25 +52,15 @@ const linkAccountKeyToEnv = (
   });
 
 /**
- * Prompt for — and verify — the device passphrase, so the account escrow is sealed
- * under the SAME passphrase as the device identity (the "one passphrase" promise:
- * a later `passphrase change` re-seals both). Verifying via `openIdentity` also
- * stops a typo from minting an escrow no one can open.
+ * The verified device passphrase, so the account escrow is sealed under the SAME
+ * passphrase as the device identity (the "one passphrase" promise: a later
+ * `passphrase change` re-seals both). Verified by actually opening the identity,
+ * which stops a typo from minting an escrow no one can open — and shared with
+ * the env-vault unlock below, so enrolling asks only once.
  */
-const promptVerifiedDevicePassphrase = Effect.gen(function* () {
-  const file = yield* loadIdentityFileOrFail;
-  const passphrase = yield* promptPassword(
-    "Passphrase for this device's identity (the account key uses the same one):",
-  );
-  yield* Effect.tryPromise({
-    try: async () => openIdentity({ file, passphrase }),
-    catch: () =>
-      new IdentityError({
-        message: "Wrong passphrase — could not unlock this device's identity.",
-      }),
-  });
-  return passphrase;
-});
+const verifiedDevicePassphrase = unlockDeviceIdentityInteractive(
+  "Passphrase for this device's identity (the account key uses the same one):",
+).pipe(Effect.map((unlocked) => unlocked.passphrase));
 
 const createCommand = defineCommand({
   meta: {
@@ -91,7 +80,7 @@ const createCommand = defineCommand({
           });
         }
 
-        const passphrase = yield* promptVerifiedDevicePassphrase;
+        const passphrase = yield* verifiedDevicePassphrase;
         const material = yield* Effect.promise(async () => generateAccountKey());
         const envelope = sealAccountKey({ material, passphrase });
         const registered = yield* api.accountKeys.register({

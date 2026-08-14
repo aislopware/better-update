@@ -13,6 +13,7 @@ import type { UserEncryptionKey } from "@better-update/api";
 
 import { InteractiveModeLive } from "../lib/interactive-mode";
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import { grantEnvRecipient, grantEnvRecipientIdempotent, orgHasCutOver } from "./env-vault-access";
 
@@ -143,6 +144,7 @@ describe("granting an env recipient idempotently", () => {
         commandEnvironment: () => Effect.succeed({}),
         setExitCode: () => Effect.void,
       }),
+      DeviceUnlockMemoLive,
       Layer.succeed(IdentityStore, {
         load: Effect.sync(() => null),
         save: () => Effect.void,

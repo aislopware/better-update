@@ -17,6 +17,7 @@ import { Data, Effect, Exit, Layer } from "effect";
 import type { Identity } from "@better-update/credentials-crypto";
 
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import { pullEnvVars } from "./env-exporter";
 import { EnvExportError } from "./exit-codes";
@@ -143,6 +144,7 @@ const vaultLayer = (privateKey: string, { json = true }: { json?: boolean } = {}
       commandEnvironment: () => Effect.succeed({}),
       setExitCode: () => Effect.void,
     }),
+    DeviceUnlockMemoLive,
     Layer.succeed(IdentityStore, {
       load: Effect.sync(() => null),
       save: () => Effect.void,

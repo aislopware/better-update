@@ -14,6 +14,7 @@ import type { RequestContext } from "@expo/apple-utils";
 import type * as AppleUtilsModule from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import {
   defaultAscApiKeyNickname,
@@ -124,6 +125,7 @@ const vaultLayer = (privateKey: string) =>
       commandEnvironment: () => Effect.succeed({}),
       setExitCode: () => Effect.void,
     }),
+    DeviceUnlockMemoLive,
     Layer.succeed(IdentityStore, {
       load: Effect.sync(() => null),
       save: () => Effect.void,

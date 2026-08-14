@@ -8,6 +8,7 @@ import { makeInteractiveModeLayer } from "../lib/interactive-mode";
 import { makeOutputModeLayer } from "../lib/output-mode";
 import { AppleAuth } from "../services/apple-auth";
 import { CliRuntime } from "../services/cli-runtime";
+import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
 import { ensureIosCredentials } from "./credentials-interactive";
 
@@ -110,6 +111,7 @@ const stubLayer = (interactive: boolean) =>
     makeOutputModeLayer(false),
     Layer.succeed(AppleAuth, "unused" as unknown as Context.Tag.Service<typeof AppleAuth>),
     Layer.succeed(CliRuntime, "unused" as unknown as Context.Tag.Service<typeof CliRuntime>),
+    DeviceUnlockMemoLive,
     Layer.succeed(IdentityStore, "unused" as unknown as Context.Tag.Service<typeof IdentityStore>),
     Layer.succeed(FileSystem.FileSystem, "unused" as unknown as FileSystem.FileSystem),
   );

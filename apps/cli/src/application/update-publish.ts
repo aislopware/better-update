@@ -50,6 +50,7 @@ import type { ExpoConfig } from "../lib/expo-config";
 import type { OutputMode } from "../lib/output-mode";
 import type { ApiClientService } from "../services/api-client";
 import type { BsdiffService } from "../services/bsdiff";
+import type { DeviceUnlockMemo } from "../services/device-unlock-memo";
 import type { IdentityStore } from "../services/identity-store";
 import type { PatchUploader } from "../services/patch-uploader";
 import type { PresignedDownloadClient } from "../services/presigned-download";
@@ -184,6 +185,7 @@ export const runUpdatePublish = (
   | CommandExecutor.CommandExecutor
   | FileSystem.FileSystem
   | InteractiveMode
+  | DeviceUnlockMemo
   | IdentityStore
   | BsdiffService
   | PatchUploader

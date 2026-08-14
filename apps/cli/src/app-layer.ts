@@ -11,6 +11,7 @@ import { AuthStoreLive } from "./services/auth-store";
 import { BsdiffServiceLive } from "./services/bsdiff";
 import { CliRuntimeLive } from "./services/cli-runtime";
 import { ConfigStoreLive } from "./services/config-store";
+import { DeviceUnlockMemoLive } from "./services/device-unlock-memo";
 import { IdentityStoreLive } from "./services/identity-store";
 import { MinVersionCheckLive } from "./services/min-version-check";
 import { PatchUploaderLive } from "./services/patch-uploader";
@@ -27,6 +28,9 @@ const CliStoreLayer = Layer.mergeAll(
   AppleSessionStoreLive,
   IdentityStoreLive,
   VaultCacheLive,
+  // Process-scoped: built once per command run, so every vault unlock in that
+  // run shares one passphrase prompt.
+  DeviceUnlockMemoLive,
 ).pipe(Layer.provide(CliPlatformLayer));
 const CliAdapterDependencies = Layer.mergeAll(CliPlatformLayer, CliStoreLayer);
 const ApiClientLayer = ApiClientLive.pipe(Layer.provide(CliAdapterDependencies));
