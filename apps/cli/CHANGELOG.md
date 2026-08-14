@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.74.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.74.0...%40better-update%2Fcli%400.74.1) (2026-08-14)
+
+### Bug Fixes
+
+* **cli:** prompt for the device passphrase once per command ([1857734](https://github.com/better-update/better-update/commit/18577349bfd6b9c27e69ca6932a23beac07c37cd))
+
 ## [0.74.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.73.2...%40better-update%2Fcli%400.74.0) (2026-08-11)
 
 ### Features
