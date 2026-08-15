@@ -150,8 +150,8 @@ interface GithubButtonProps {
 
 const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
   <Button
-    variant="primary"
     size="lg"
+    variant="secondary"
     className="relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
     disabled={isPending}
