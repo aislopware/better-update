@@ -1,10 +1,13 @@
 import {
+  fetchUpdateSourcemapDownload,
   updateAnalyticsQueryOptions,
   updateAssetsQueryOptions,
   updateGroupQueryOptions,
   updateQueryOptions,
+  updateSourcemapQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/badge";
+import { Button } from "@better-update/ui/components/button";
 import { InputGroup } from "@better-update/ui/components/input-group";
 import {
   Table,
@@ -44,6 +47,7 @@ import {
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLink } from "../../../../../../lib/resource-link";
+import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 type UpdateItem = Update;
 
@@ -233,6 +237,71 @@ const PlatformVariantAssets = ({
   );
 };
 
+const SOURCEMAP_ROW_CLASS =
+  "border-kumo-line flex items-center justify-between gap-3 border-b px-4 py-3";
+
+/**
+ * The sourcemap `update publish` stored for this variant's launch bundle.
+ *
+ * It lives here rather than on the build page because it is the OTA bundle's
+ * map, not the one embedded in a binary — a crash on a device that took this
+ * update symbolicates against this file. Capture is best-effort (a publish made
+ * with `--no-source-maps`, or by a CLI predating the feature, has none), so the
+ * row says which of the two a variant is instead of vanishing when there is
+ * nothing to download.
+ */
+const SourcemapRow = ({
+  orgId,
+  projectId,
+  updateId,
+}: {
+  orgId: string;
+  projectId: string;
+  updateId: string;
+}) => {
+  const { data: sourcemap } = useSuspenseQuery(
+    updateSourcemapQueryOptions(orgId, projectId, updateId),
+  );
+  const download = useApiMutation({
+    mutationFn: async () => fetchUpdateSourcemapDownload(updateId),
+    // Same-tab navigation: the presigned URL is signed with an attachment
+    // content-disposition, so this saves the file without leaving the page.
+    // (window.open here would run outside the click's user-gesture stack —
+    // after the await — and get popup-blocked on Safari by default.)
+    onSuccess: ({ url }) => {
+      globalThis.location.assign(url);
+    },
+  });
+  return (
+    <div className={SOURCEMAP_ROW_CLASS}>
+      <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+        <span className="truncate text-sm font-medium">JS bundle sourcemap</span>
+        <span className="text-kumo-subtle text-xs tabular-nums">
+          {sourcemap ? formatBytes(sourcemap.byteSize) : "Not stored for this publish"}
+        </span>
+      </div>
+      {sourcemap ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={download.isPending}
+          onClick={() => {
+            download.mutate();
+          }}
+        >
+          Download
+        </Button>
+      ) : null}
+    </div>
+  );
+};
+
+const SourcemapRowFallback = () => (
+  <div className={SOURCEMAP_ROW_CLASS}>
+    <span className="text-kumo-subtle text-sm">JS bundle sourcemap</span>
+  </div>
+);
+
 const PlatformVariantDownloads = ({
   orgId,
   projectId,
@@ -288,6 +357,9 @@ const PlatformVariantCard = ({
         </Suspense>
       </DetailStat>
     </DetailStatStrip>
+    <Suspense fallback={<SourcemapRowFallback />}>
+      <SourcemapRow orgId={orgId} projectId={projectId} updateId={update.id} />
+    </Suspense>
     <Suspense fallback={<TableRowsSkeleton columns={2} rows={3} />}>
       <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
     </Suspense>

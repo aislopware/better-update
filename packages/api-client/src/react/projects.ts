@@ -56,6 +56,9 @@ export const runtimesQueryKey = (orgId: string, projectId: string) =>
 export const updateAssetsQueryKey = (orgId: string, projectId: string, updateId: string) =>
   ["org", orgId, "projects", projectId, "updates", updateId, "assets"] as const;
 
+export const updateSourcemapQueryKey = (orgId: string, projectId: string, updateId: string) =>
+  ["org", orgId, "projects", projectId, "updates", updateId, "sourcemap"] as const;
+
 export const updateQueryKey = (orgId: string, projectId: string, updateId: string) =>
   ["org", orgId, "projects", projectId, "update", updateId] as const;
 
@@ -286,6 +289,19 @@ export const updateAssetsQueryOptions = (orgId: string, projectId: string, updat
       runApi((api) => api.updates.listAssets({ path: { id: updateId } }), signal),
     staleTime: 60_000,
   });
+
+/** Metadata of the sourcemap stored at publish time — `null` when none was captured. */
+export const updateSourcemapQueryOptions = (orgId: string, projectId: string, updateId: string) =>
+  queryOptions({
+    queryKey: updateSourcemapQueryKey(orgId, projectId, updateId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.updates.getSourcemap({ path: { id: updateId } }), signal),
+    staleTime: 60_000,
+  });
+
+/** Short-lived presigned download URL for an update's stored sourcemap. */
+export const fetchUpdateSourcemapDownload = async (updateId: string) =>
+  runApi((api) => api.updates.getSourcemapDownload({ path: { id: updateId } }));
 
 export const updateQueryOptions = (orgId: string, projectId: string, updateId: string) =>
   queryOptions({
