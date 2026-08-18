@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.37.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.36.5...%40better-update%2Fapi-client%400.37.0) (2026-08-18)
+
+### Features
+
+* track bundle delivery in Analytics Engine and surface read failures ([8907dfa](https://gitlab.jmango360.com/mobile/better-update/commit/8907dfaabe973894f94fc7954ea90d2224718554))
+
 ## [0.36.5](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.36.4...%40better-update%2Fapi-client%400.36.5) (2026-08-11)
 
 **Note:** Version bump only for package @better-update/api-client

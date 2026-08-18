@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.76.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.75.1...%40better-update%2Fweb%400.76.0) (2026-08-18)
+
+### Features
+
+* track bundle delivery in Analytics Engine and surface read failures ([8907dfa](https://github.com/better-update/better-update/commit/8907dfaabe973894f94fc7954ea90d2224718554))
+
 ## [0.75.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.75.0...%40better-update%2Fweb%400.75.1) (2026-08-15)
 
 **Note:** Version bump only for package @better-update/web
