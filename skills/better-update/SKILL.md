@@ -91,7 +91,7 @@ better-update
 ├── env                       Project env vars: list/get/set/update/delete/history/rollback/import/export/pull/push/exec
 ├── environments              Org environment definitions: list/create/rename/delete
 ├── fingerprint               generate · compare (runtime-compatibility hashes)
-├── analytics                 adoption · updates · channels · platforms
+├── analytics                 adoption · updates · downloads · channels · platforms
 ├── audit-logs                list (every mutation, with actor + timestamp)
 ├── apple                     login · logout · whoami · accounts (multi-account switch); builds · users (CI-safe); asc-key · sandbox (Apple ID login; `sandbox list` prefers an ASC key)
 ├── submit                    Submit a build to App Store Connect / Google Play

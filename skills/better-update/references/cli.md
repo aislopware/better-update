@@ -48,7 +48,7 @@ better-update
 │                                  import · export · pull · push · exec
 ├── environments                   list · create · rename · delete (org environment definitions)
 ├── fingerprint                    generate · compare
-├── analytics                      adoption · updates · channels · platforms
+├── analytics                      adoption · updates · downloads · channels · platforms
 ├── audit-logs                     list
 ├── apple                          login · logout · whoami (Apple Developer session)
 ├── macos                          sign · notarize — Developer ID signing + Apple notary service
@@ -490,11 +490,20 @@ better-update fingerprint compare [hash] [--build-id <id[,id]>] [--update-id <id
 ```bash
 better-update analytics adoption [--period <1d|7d|30d|90d>]
 better-update analytics updates --update-id <id> [--period <1d|7d|30d|90d>]
+better-update analytics downloads [--period <1d|7d|30d|90d>]
 better-update analytics channels --channel <name> [--period <1d|7d|30d|90d>]
 better-update analytics platforms [--period <1d|7d|30d|90d>]
 ```
 
 `--period` defaults to a server-defined window when omitted.
+
+`downloads` reports what the bundle route actually served — patch vs full bundle, bytes,
+and patch hit-rate. That is a different (smaller) number than `updates`: a device already
+on the latest update checks in and downloads nothing.
+
+All five degrade rather than fail when the server cannot query Analytics Engine: they
+still exit `0`, and print `Analytics unavailable …` instead of the empty-table line. On a
+self-hosted instance that is usually a missing `CLOUDFLARE_API_TOKEN` worker secret.
 
 ## audit-logs
 

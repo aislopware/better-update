@@ -5,6 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
+import { warnIfUnavailable } from "../analytics/unavailable";
 import { channelErrorExtras } from "./helpers";
 
 export const insightsCommand = defineCommand({
@@ -24,6 +25,7 @@ export const insightsCommand = defineCommand({
           urlParams: { projectId, channel: args.name, ...periodFilter },
         });
 
+        yield* warnIfUnavailable(result.unavailable);
         yield* printKeyValue([
           ["Channel", result.channel],
           ["Total Requests", String(result.totalRequests)],

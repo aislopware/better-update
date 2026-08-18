@@ -199,6 +199,8 @@ export {
   adoptionQueryOptions,
   channelAnalyticsQueryKey,
   channelAnalyticsQueryOptions,
+  deliveryAnalyticsQueryKey,
+  deliveryAnalyticsQueryOptions,
   platformAnalyticsQueryKey,
   platformAnalyticsQueryOptions,
   projectActivityQueryKey,

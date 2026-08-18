@@ -5,6 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
+import { warnIfUnavailable } from "./unavailable";
 
 export const updatesCommand = defineCommand({
   meta: { name: "updates", description: "Stats for a specific update" },
@@ -24,6 +25,7 @@ export const updatesCommand = defineCommand({
           urlParams: { projectId, updateId: args["update-id"], ...periodFilter },
         });
 
+        yield* warnIfUnavailable(result.unavailable);
         yield* printKeyValue([
           ["Update ID", result.updateId],
           ["Total Requests", String(result.totalRequests)],

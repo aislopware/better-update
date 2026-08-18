@@ -5,6 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { printList } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
+import { emptyMessage } from "./unavailable";
 
 export const adoptionCommand = defineCommand({
   meta: { name: "adoption", description: "Show update adoption across devices" },
@@ -31,7 +32,7 @@ export const adoptionCommand = defineCommand({
             update.firstSeen,
             update.lastSeen,
           ]),
-          "No adoption data found.",
+          emptyMessage(result.unavailable, "No adoption data found."),
         );
       }),
     ),

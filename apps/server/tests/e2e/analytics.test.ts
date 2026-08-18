@@ -74,7 +74,17 @@ describe("Analytics endpoints", () => {
     expect(response.status).toBe(401);
   });
 
-  // ── Authenticated responses (WAE unavailable -> empty results) ─
+  it("GET /api/analytics/downloads rejects unauthenticated requests", async () => {
+    const response = await get(`/api/analytics/downloads?projectId=${projectId}`);
+    expect(response.status).toBe(401);
+  });
+
+  // ── Authenticated responses ───────────────────────────────────
+  //
+  // The e2e worker has no Analytics Engine read credential, so every query
+  // fails and each endpoint answers 200 with zeros and `unavailable: true`.
+  // That degradation is the contract these assert: analytics never fails the
+  // request, and it never claims the dataset was empty when it was never read.
 
   it("GET /api/analytics/adoption returns valid shape", async () => {
     const response = await get(`/api/analytics/adoption?projectId=${projectId}`, {
@@ -121,6 +131,29 @@ describe("Analytics endpoints", () => {
     expect(Array.isArray(body.platforms)).toBe(true);
   });
 
+  it("GET /api/analytics/downloads returns valid shape", async () => {
+    const response = await get(`/api/analytics/downloads?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty("downloads");
+    expect(body).toHaveProperty("patchDownloads");
+    expect(body).toHaveProperty("fullDownloads");
+    expect(body).toHaveProperty("bytesServed");
+    expect(body).toHaveProperty("patchEligibleRequests");
+  });
+
+  it("reports an unreadable Analytics Engine as unavailable rather than empty", async () => {
+    const response = await get(`/api/analytics/adoption?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.unavailable).toBe(true);
+    expect(body.updates).toStrictEqual([]);
+  });
+
   // ── Cross-org authorization ─────────────────────────────────
 
   let attackerCookies: string;
@@ -161,6 +194,13 @@ describe("Analytics endpoints", () => {
 
   it("rejects cross-org analytics access on platforms endpoint", async () => {
     const response = await get(`/api/analytics/platforms?projectId=${projectId}`, {
+      cookie: attackerCookies,
+    });
+    expect([403, 404]).toContain(response.status);
+  });
+
+  it("rejects cross-org analytics access on downloads endpoint", async () => {
+    const response = await get(`/api/analytics/downloads?projectId=${projectId}`, {
       cookie: attackerCookies,
     });
     expect([403, 404]).toContain(response.status);

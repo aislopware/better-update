@@ -277,6 +277,8 @@ export {
   AdoptionResult,
   ChannelAnalyticsParams,
   ChannelAnalyticsResult,
+  DeliveryParams,
+  DeliveryResult,
   PeriodLiteral,
   PlatformParams,
   PlatformResult,

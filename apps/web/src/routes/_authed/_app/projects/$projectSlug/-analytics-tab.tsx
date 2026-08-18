@@ -15,14 +15,16 @@ import { z } from "zod";
 import { enumParam, optionalStringParam } from "../../../../../lib/data-table";
 import { onPicked } from "../../../../../lib/form-utils";
 import {
+  ANALYTICS_UNAVAILABLE_MESSAGE,
   AdoptionChart,
   ChannelHealthChart,
+  DeliveryChart,
   PERIOD_LABELS,
   PERIODS,
   PlatformChart,
   UpdateTrafficChart,
   chartSkeleton,
-  useHasAnalytics,
+  useAnalyticsStatus,
 } from "./-analytics-charts";
 
 export const analyticsSearchSchema = z.object({
@@ -64,7 +66,7 @@ export const AnalyticsPeriodSelect = ({
 
 const GRID_CLASS = "grid gap-4 sm:grid-cols-2";
 
-const CHART_CARD_COUNT = 4;
+const CHART_CARD_COUNT = 5;
 
 const AnalyticsSkeleton = () => (
   <div className={GRID_CLASS}>
@@ -90,11 +92,29 @@ const AnalyticsEmpty = () => (
   />
 );
 
+/**
+ * Telemetry is down, not absent. Said once for the section, in the same place
+ * the "nothing yet" sentence would go — reading zeros as no traffic when the
+ * server never got an answer is the mistake this exists to prevent.
+ */
+const AnalyticsUnavailable = () => (
+  <Empty
+    size="sm"
+    icon={<ChartLineUpIcon className="text-kumo-inactive size-8" />}
+    title="Analytics unavailable"
+    description={ANALYTICS_UNAVAILABLE_MESSAGE}
+  />
+);
+
 const AnalyticsCharts = ({ orgId, projectId, search, onSearchChange }: AnalyticsTabProps) => {
   const { period, channel, update } = search;
-  const hasAnalytics = useHasAnalytics(orgId, projectId, period);
+  const status = useAnalyticsStatus(orgId, projectId, period);
 
-  if (!hasAnalytics) {
+  if (status === "unavailable") {
+    return <AnalyticsUnavailable />;
+  }
+
+  if (status === "empty") {
     return <AnalyticsEmpty />;
   }
 
@@ -140,6 +160,18 @@ const AnalyticsCharts = ({ orgId, projectId, search, onSearchChange }: Analytics
                 onSearchChange({ channel: next });
               }}
             />
+          </Suspense>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bundle delivery</CardTitle>
+          <CardDescription>What devices downloaded: patch vs full bundle</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={chartSkeleton}>
+            <DeliveryChart orgId={orgId} projectId={projectId} period={period} />
           </Suspense>
         </CardContent>
       </Card>

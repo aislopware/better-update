@@ -7,10 +7,13 @@ import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { warnIfUnavailable } from "./unavailable";
 
-export const channelsCommand = defineCommand({
-  meta: { name: "channels", description: "Stats for a specific channel" },
+/** "62%", or "—" when nothing was eligible to be patched. */
+const patchRate = (patched: number, eligible: number): string =>
+  eligible === 0 ? "—" : `${Math.round((patched / eligible) * 100)}%`;
+
+export const downloadsCommand = defineCommand({
+  meta: { name: "downloads", description: "Bundle downloads: patch vs full, bytes served" },
   args: {
-    channel: { type: "string", required: true, description: "Channel name" },
     period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
   },
   run: async ({ args }) =>
@@ -21,18 +24,18 @@ export const channelsCommand = defineCommand({
 
         const periodFilter = args.period ? { period: args.period } : {};
 
-        const result = yield* api.analytics.channels({
-          urlParams: { projectId, channel: args.channel, ...periodFilter },
+        const result = yield* api.analytics.downloads({
+          urlParams: { projectId, ...periodFilter },
         });
 
         yield* warnIfUnavailable(result.unavailable);
         yield* printKeyValue([
-          ["Channel", result.channel],
-          ["Total Requests", String(result.totalRequests)],
-          ["Unique Devices", String(result.uniqueDevices)],
-          ["Manifest", String(result.responseTypeDistribution.manifest)],
-          ["Directive", String(result.responseTypeDistribution.directive)],
-          ["No Update", String(result.responseTypeDistribution.no_update)],
+          ["Downloads", String(result.downloads)],
+          ["Patch", String(result.patchDownloads)],
+          ["Full Bundle", String(result.fullDownloads)],
+          ["Not Found", String(result.notFound)],
+          ["Bytes Served", String(result.bytesServed)],
+          ["Patch Rate", patchRate(result.patchDownloads, result.patchEligibleRequests)],
         ]);
       }),
     ),

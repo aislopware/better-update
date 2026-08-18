@@ -22,6 +22,9 @@ export const channelAnalyticsQueryKey = (orgId: string, projectId: string, chann
 export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
+export const deliveryAnalyticsQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "project", projectId, "analytics", "downloads"] as const;
+
 /**
  * Shipping activity. Without a project it covers the whole organization, so the
  * key hangs off the org and carries the scope as its last segment.
@@ -78,6 +81,18 @@ export const platformAnalyticsQueryOptions = (
     queryKey: [...platformAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
       runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } }), signal),
+    staleTime: 60_000,
+  });
+
+export const deliveryAnalyticsQueryOptions = (
+  orgId: string,
+  projectId: string,
+  period?: AnalyticsPeriod,
+) =>
+  queryOptions({
+    queryKey: [...deliveryAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.analytics.downloads({ urlParams: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 

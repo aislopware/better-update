@@ -9,6 +9,8 @@ import {
   AdoptionResult,
   ChannelAnalyticsParams,
   ChannelAnalyticsResult,
+  DeliveryParams,
+  DeliveryResult,
   PlatformParams,
   PlatformResult,
   ProjectActivityParams,
@@ -59,6 +61,17 @@ export class AnalyticsGroup extends HttpApiGroup.make("analytics")
         OpenApi.annotations({
           title: "Platform analytics",
           description: "Device count breakdown by platform",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("downloads", "/api/analytics/downloads")
+      .setUrlParams(DeliveryParams)
+      .addSuccess(DeliveryResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Bundle delivery analytics",
+          description: "Bundle downloads: patch vs full, bytes served, patch hit-rate",
         }),
       ),
   )

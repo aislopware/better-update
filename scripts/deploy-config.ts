@@ -46,6 +46,7 @@ const KEYS = {
   BU_R2_CREDENTIALS_BUCKET: { fallback: "better-update-credentials" },
   BU_R2_ACCESS_KEY_ID: { fallback: "" },
   BU_ANALYTICS_DATASET: { fallback: "update_events" },
+  BU_DELIVERY_ANALYTICS_DATASET: { fallback: "delivery_events" },
   BU_EMAIL_SENDER: { required: true },
   BU_LEGAL_EMAIL: { fallback: "" },
   BU_SUPERADMIN_EMAILS: { fallback: "" },
@@ -92,6 +93,8 @@ export interface DeployConfig {
   readonly r2CredentialsBucket: string;
   readonly r2AccessKeyId: string;
   readonly analyticsDataset: string;
+  /** Second AE dataset: bundle/patch delivery, written from the bundle route. */
+  readonly deliveryAnalyticsDataset: string;
   readonly emailSender: string;
   readonly legalEmail: string;
   readonly superadminEmails: string;
@@ -195,6 +198,7 @@ export const loadDeployConfig = (options: LoadOptions = { strict: true }): Deplo
     r2CredentialsBucket: read("BU_R2_CREDENTIALS_BUCKET"),
     r2AccessKeyId: read("BU_R2_ACCESS_KEY_ID"),
     analyticsDataset: read("BU_ANALYTICS_DATASET"),
+    deliveryAnalyticsDataset: read("BU_DELIVERY_ANALYTICS_DATASET"),
     emailSender,
     // One contact address by default: an instance that sets no separate legal
     // address is reachable at the one it already sends mail from.

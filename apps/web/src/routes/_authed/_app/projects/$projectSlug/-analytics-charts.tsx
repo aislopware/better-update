@@ -2,6 +2,7 @@ import {
   adoptionQueryOptions,
   channelAnalyticsQueryOptions,
   channelsQueryOptions,
+  deliveryAnalyticsQueryOptions,
   platformAnalyticsQueryOptions,
   updateAnalyticsQueryOptions,
   updatesQueryOptions,
@@ -21,7 +22,8 @@ import {
   useServerSearchList,
 } from "../../../../../components/server-search-combobox";
 import { echarts } from "../../../../../lib/echarts";
-import { compactNumber, numberFormatter } from "../../../../../lib/format-number";
+import { formatBytes } from "../../../../../lib/format-bytes";
+import { compactNumber, numberFormatter, percentFormatter } from "../../../../../lib/format-number";
 import { truncateId } from "../../../../../lib/truncate-id";
 import { useTheme } from "../../../../../lib/use-theme";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
@@ -63,23 +65,43 @@ const ChartEmptyState = ({ message }: { message: string }) => (
 );
 
 /**
- * Whether any device has reported to this project in the period. Reads the same
- * cache keys as the adoption and platform charts below, so asking a beat early
- * costs no extra request — and it lets the section say "nothing here yet" once
- * instead of four times, which is what a project with no traffic looks like.
+ * The server answered, but could not reach Analytics Engine — the zeros below
+ * mean "not asked", not "not found". Worth its own sentence: a wrong reading of
+ * this one sends people hunting for a traffic problem they do not have.
  */
-export const useHasAnalytics = (
+export const ANALYTICS_UNAVAILABLE_MESSAGE =
+  "Analytics unavailable — the server could not query Cloudflare Analytics Engine.";
+
+const ChartUnavailableState = () => <ChartEmptyState message={ANALYTICS_UNAVAILABLE_MESSAGE} />;
+
+/**
+ * What the section can draw, decided once for all four cards.
+ *
+ * `unavailable` is the read path being down; `empty` is the far more common
+ * case of a project no device has checked into yet. Reads the same cache keys
+ * as the adoption and platform charts below, so asking a beat early costs no
+ * extra request — and it lets the section say it once instead of four times.
+ */
+export type AnalyticsStatus = "unavailable" | "empty" | "ready";
+
+export const useAnalyticsStatus = (
   orgId: string,
   projectId: string,
   period: AnalyticsPeriod,
-): boolean =>
+): AnalyticsStatus =>
   useSuspenseQueries({
     queries: [
       adoptionQueryOptions(orgId, projectId, period),
       platformAnalyticsQueryOptions(orgId, projectId, period),
     ],
-    combine: ([adoption, platform]) =>
-      adoption.data.updates.length > 0 || platform.data.platforms.length > 0,
+    combine: ([adoption, platform]) => {
+      if (adoption.data.unavailable || platform.data.unavailable) {
+        return "unavailable";
+      }
+      return adoption.data.updates.length > 0 || platform.data.platforms.length > 0
+        ? "ready"
+        : "empty";
+    },
   });
 
 const ChartSummary = ({ requests, devices }: { requests: number; devices: number }) => (
@@ -100,6 +122,10 @@ export const AdoptionChart = ({
 }) => {
   const { data } = useSuspenseQuery(adoptionQueryOptions(orgId, projectId, period));
   const isDarkMode = useIsDarkMode();
+
+  if (data.unavailable) {
+    return <ChartUnavailableState />;
+  }
 
   if (data.updates.length === 0) {
     return (
@@ -133,6 +159,10 @@ export const PlatformChart = ({
 }) => {
   const { data } = useSuspenseQuery(platformAnalyticsQueryOptions(orgId, projectId, period));
   const isDarkMode = useIsDarkMode();
+
+  if (data.unavailable) {
+    return <ChartUnavailableState />;
+  }
 
   if (data.platforms.length === 0) {
     return (
@@ -181,6 +211,57 @@ export const PlatformChart = ({
   );
 };
 
+/**
+ * What the bundle route served, which the manifest charts above cannot show: a
+ * device that checks and is already current downloads nothing, and one that
+ * does download takes either a bsdiff patch or the whole bundle.
+ */
+export const DeliveryChart = ({
+  orgId,
+  projectId,
+  period,
+}: {
+  orgId: string;
+  projectId: string;
+  period: AnalyticsPeriod;
+}) => {
+  const { data } = useSuspenseQuery(deliveryAnalyticsQueryOptions(orgId, projectId, period));
+  const isDarkMode = useIsDarkMode();
+
+  if (data.unavailable) {
+    return <ChartUnavailableState />;
+  }
+
+  if (data.downloads === 0 && data.notFound === 0) {
+    return (
+      <ChartEmptyState message="No bundle downloads yet — data appears once devices install an update." />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-kumo-subtle text-sm">
+        {numberFormatter.format(data.downloads)} downloads &middot; {formatBytes(data.bytesServed)}{" "}
+        served
+        {data.patchEligibleRequests > 0
+          ? ` · ${percentFormatter.format(data.patchDownloads / data.patchEligibleRequests)} patched`
+          : ""}
+      </p>
+      <Chart
+        echarts={echarts}
+        height={CHART_HEIGHT}
+        isDarkMode={isDarkMode}
+        options={rankedBarOptions({
+          labels: ["Patch", "Full bundle", "Not found"],
+          values: [data.patchDownloads, data.fullDownloads, data.notFound],
+          seriesName: "Requests",
+          isDarkMode,
+        })}
+      />
+    </div>
+  );
+};
+
 const ChannelHealthInner = ({
   orgId,
   projectId,
@@ -196,6 +277,10 @@ const ChannelHealthInner = ({
     channelAnalyticsQueryOptions(orgId, projectId, channel, period),
   );
   const isDarkMode = useIsDarkMode();
+
+  if (data.unavailable) {
+    return <ChartUnavailableState />;
+  }
 
   if (data.totalRequests === 0) {
     return (
@@ -305,6 +390,10 @@ const UpdateTrafficInner = ({
     updateAnalyticsQueryOptions(orgId, projectId, updateId, period),
   );
   const isDarkMode = useIsDarkMode();
+
+  if (data.unavailable) {
+    return <ChartUnavailableState />;
+  }
 
   if (data.totalRequests === 0) {
     return (

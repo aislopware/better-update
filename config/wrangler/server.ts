@@ -83,7 +83,16 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
       remote: true,
     },
   ],
-  analytics_engine_datasets: [{ binding: "ANALYTICS", dataset: config.analyticsDataset }],
+  // Two datasets, because the two event shapes have nothing in common and
+  // Analytics Engine cannot JOIN or UNION across a dataset boundary — mixing
+  // them would force every existing `update_events` query to grow a
+  // discriminator filter. ANALYTICS = manifest checks (did a device ask, what
+  // did it get); DELIVERY_ANALYTICS = bundle downloads (what actually went over
+  // the wire, patch or full, how many bytes).
+  analytics_engine_datasets: [
+    { binding: "ANALYTICS", dataset: config.analyticsDataset },
+    { binding: "DELIVERY_ANALYTICS", dataset: config.deliveryAnalyticsDataset },
+  ],
   send_email: [{ name: "EMAIL", allowed_sender_addresses: [config.emailSender] }],
   durable_objects: {
     bindings: [
@@ -97,6 +106,12 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
   triggers: { crons: ["0 3 * * *"] },
   vars: {
     ACCOUNT_ID: config.accountId,
+    // The bindings above name the datasets for WRITES; the SQL API takes the
+    // dataset as a table name, so reads need the names as values too. An
+    // instance that renames a dataset must not end up writing to one table and
+    // querying another.
+    ANALYTICS_DATASET: config.analyticsDataset,
+    DELIVERY_ANALYTICS_DATASET: config.deliveryAnalyticsDataset,
     ASSETS_BUCKET_NAME: config.r2AssetsBucket,
     BUILD_BUCKET_NAME: config.r2BuildsBucket,
     BUILD_RETENTION_PRODUCTION: "90",

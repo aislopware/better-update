@@ -2,11 +2,13 @@ import { Effect, Layer, Match } from "effect";
 
 import { resolveBundle } from "../application/resolve-bundle";
 import { provideCloudflareEnv } from "../cloudflare/context";
+import { trackDelivery } from "../cloudflare/delivery-runtime";
 import { bundleCacheTags } from "../domain/cache-tags";
 import { parsePatchRequest, patchResponseHeaders } from "../protocol/patch-negotiation";
 import { BundleRepoLive, ManifestRepoLive } from "../repositories";
 
 import type { BundleResolution } from "../application/resolve-bundle";
+import type { PatchRequest } from "../protocol/patch-negotiation";
 
 // Imperative shell for the Expo OTA bundle route (RFC-3229 / A-IM bsdiff
 // content negotiation). The launch asset URL in the manifest now points here
@@ -109,9 +111,9 @@ export const toResponse = (options: { readonly emit226: boolean; readonly cacheT
 
 const BundleServicesLive = Layer.mergeAll(ManifestRepoLive, BundleRepoLive);
 
-const resolve = (request: Request, projectId: string, updateId: string) =>
+const resolve = (patchRequest: PatchRequest, projectId: string, updateId: string) =>
   resolveBundle({
-    request: parsePatchRequest(request.headers),
+    request: patchRequest,
     projectId,
     updateId,
   }).pipe(Effect.provide(BundleServicesLive));
@@ -123,9 +125,15 @@ export const handleBundleRequest = async (
   projectId: string,
   updateId: string,
 ): Promise<Response> => {
+  const startTime = Date.now();
+  const patchRequest = parsePatchRequest(request.headers);
   const resolution = await Effect.runPromise(
-    provideCloudflareEnv(resolve(request, projectId, updateId), env),
+    provideCloudflareEnv(resolve(patchRequest, projectId, updateId), env),
   );
+  // Fire-and-forget, after the decision and before the Response: what the
+  // manifest dataset cannot see is which of patch/full/404 a device actually
+  // received, and how many bytes that cost.
+  trackDelivery({ env, projectId, updateId, request: patchRequest, resolution, startTime });
   // Opt-in 226 emission, gated by the EMIT_HTTP_226 var (Cloudflare vars are
   // strings). Default "false"/absent -> 200 for patches. Only affects the
   // status line; the patch headers + body are identical to the 200 path.

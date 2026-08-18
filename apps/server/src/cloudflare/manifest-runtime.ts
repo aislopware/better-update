@@ -5,6 +5,12 @@ import { cloudflareEnv } from "./context";
 import type { ProtocolHeaders } from "../protocol/headers";
 import type { ResponseType } from "../protocol/response-type";
 
+/**
+ * Sampling-key stand-in for a device that sent no `EAS-Client-ID`. One bucket
+ * per project — see the note at the `indexes` write below.
+ */
+const ANONYMOUS_CLIENT_ID = "anonymous";
+
 export type TrackManifestResponse = (
   branchId: string,
   updateId: string,
@@ -53,7 +59,15 @@ export const manifestRuntime: Effect.Effect<ManifestRuntime> = Effect.gen(functi
         // eslint-disable-next-line functional/no-try-statements -- Analytics Engine writeDataPoint may throw synchronously on a limit violation; telemetry is best-effort and must never fail serving (priority #4: telemetry must never fail the manifest path)
         try {
           env.ANALYTICS.writeDataPoint({
-            indexes: [`${projectId}:${ph.easClientId ?? crypto.randomUUID()}`],
+            // A request with no `EAS-Client-ID` is ONE bucket per project, not a
+            // fresh identity per request. A random id here would make every
+            // header-less request its own `COUNT(DISTINCT index1)` row, so a
+            // build that ships without the header — the exact case the channel
+            // default below exists for — would report unique-device counts equal
+            // to its request count. Collapsing them to `:anonymous` under-counts
+            // instead, which is the honest direction and what
+            // docs/specs/server/18-deployment-analytics.md specifies.
+            indexes: [`${projectId}:${ph.easClientId ?? ANONYMOUS_CLIENT_ID}`],
             blobs: [
               projectId,
               ph.channelName,

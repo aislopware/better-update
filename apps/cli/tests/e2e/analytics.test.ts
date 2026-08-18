@@ -56,7 +56,7 @@ const parseEnvelope = (stdout: string): SuccessEnvelope => {
 
 // ── Tests ────────────────────────────────────────────────────────
 
-describe("analytics: adoption / platforms / updates / channels (Analytics Engine empty path)", () => {
+describe("analytics: adoption / platforms / updates / channels / downloads (Analytics Engine empty path)", () => {
   // not-linked guard runs FIRST: the fresh temp app.json carries no projectId
   // until `init` writes it, so any analytics command resolves to
   // ProjectNotLinkedError → exit code 4. Human mode writes the message to
@@ -137,16 +137,36 @@ describe("analytics: adoption / platforms / updates / channels (Analytics Engine
     expect(data["No Update"]).toBe("0");
   });
 
-  it("analytics adoption human (non-json) prints empty message", () => {
+  // Whether this harness can actually READ Analytics Engine depends on the
+  // credential it was handed, and the two outcomes print different sentences —
+  // "nothing recorded" vs "could not ask". Accept either: what is under test is
+  // that an empty table always states which, never nothing at all.
+  const EMPTY_OR_UNAVAILABLE = /No adoption data found\.|Analytics unavailable/u;
+
+  it("analytics adoption human (non-json) says why the table is empty", () => {
     const result = cli.runCli("analytics", "adoption");
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("No adoption data found.");
+    expect(result.stdout).toMatch(EMPTY_OR_UNAVAILABLE);
   });
 
-  it("analytics platforms human (non-json) prints empty message", () => {
+  it("analytics platforms human (non-json) says why the table is empty", () => {
     const result = cli.runCli("analytics", "platforms");
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("No platform data found.");
+    expect(result.stdout).toMatch(/No platform data found\.|Analytics unavailable/u);
+  });
+
+  it("analytics downloads --json returns flat key/value delivery metrics", () => {
+    const result = cli.runCli("--json", "analytics", "downloads");
+    expect(result.exitCode).toBe(0);
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.ok).toBe(true);
+    expect(envelope.command).toBe("analytics.downloads");
+    const { data } = envelope;
+    expect(data["Downloads"]).toBe("0");
+    expect(data["Patch"]).toBe("0");
+    expect(data["Full Bundle"]).toBe("0");
+    // No eligible request means no rate to quote, not a zero rate.
+    expect(data["Patch Rate"]).toBe("—");
   });
 
   it("analytics channels human prints aligned key/value rows", () => {

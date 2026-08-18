@@ -5,6 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { printList } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
+import { emptyMessage } from "./unavailable";
 
 export const platformsCommand = defineCommand({
   meta: { name: "platforms", description: "Stats by platform" },
@@ -30,7 +31,7 @@ export const platformsCommand = defineCommand({
             String(platform.requests),
             String(platform.devices),
           ]),
-          "No platform data found.",
+          emptyMessage(result.unavailable, "No platform data found."),
         );
       }),
     ),

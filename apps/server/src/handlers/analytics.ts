@@ -30,6 +30,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
             firstSeen: update.firstSeen,
             lastSeen: update.lastSeen,
           })),
+          unavailable: result.unavailable,
         };
       }),
     )
@@ -53,6 +54,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
             timestamp: entry.timestamp,
             requests: entry.requests,
           })),
+          unavailable: result.unavailable,
         };
       }),
     )
@@ -72,6 +74,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
             directive: result.responseTypeDistribution.directive,
             no_update: result.responseTypeDistribution.noUpdate,
           },
+          unavailable: result.unavailable,
         };
       }),
     )
@@ -88,6 +91,25 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
             requests: platform.requests,
             devices: platform.devices,
           })),
+          unavailable: result.unavailable,
+        };
+      }),
+    )
+    .handle("downloads", ({ urlParams: { projectId, period } }) =>
+      Effect.gen(function* () {
+        yield* assertProjectOwnership(projectId);
+        yield* assertAccess("project", "read", { kind: "project", projectId });
+        const repo = yield* AnalyticsRepo;
+        const result = yield* repo.getDeliveryMetrics({ projectId, period });
+
+        return {
+          downloads: result.downloads,
+          patchDownloads: result.patchDownloads,
+          fullDownloads: result.fullDownloads,
+          notFound: result.notFound,
+          bytesServed: result.bytesServed,
+          patchEligibleRequests: result.patchEligibleRequests,
+          unavailable: result.unavailable,
         };
       }),
     )

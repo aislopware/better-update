@@ -1,6 +1,7 @@
 import {
   adoptionQueryOptions,
   channelsQueryOptions,
+  deliveryAnalyticsQueryOptions,
   platformAnalyticsQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
@@ -32,11 +33,27 @@ const SEARCH = { period: PERIOD, channel: undefined, update: undefined } as cons
 const DROPDOWN_LIMIT = { limit: 100 };
 
 const seed = (
-  adoption: { readonly updates: readonly unknown[] },
-  platforms: { readonly platforms: readonly unknown[] },
+  adoption: { readonly updates: readonly unknown[]; readonly unavailable?: boolean },
+  platforms: { readonly platforms: readonly unknown[]; readonly unavailable?: boolean },
 ): [readonly unknown[], unknown][] => [
-  [adoptionQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey, adoption],
-  [platformAnalyticsQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey, platforms],
+  [adoptionQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey, { unavailable: false, ...adoption }],
+  [
+    platformAnalyticsQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey,
+    { unavailable: false, ...platforms },
+  ],
+  // The delivery card reads its own dataset; nothing here asserts on it.
+  [
+    deliveryAnalyticsQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey,
+    {
+      downloads: 0,
+      patchDownloads: 0,
+      fullDownloads: 0,
+      notFound: 0,
+      bytesServed: 0,
+      patchEligibleRequests: 0,
+      unavailable: false,
+    },
+  ],
   // The pickers in the channel and traffic cards suspend on their own lists.
   [channelsQueryOptions(ORG_ID, PROJECT_ID, DROPDOWN_LIMIT).queryKey, { items: [], total: 0 }],
   [updatesQueryOptions(ORG_ID, PROJECT_ID, DROPDOWN_LIMIT).queryKey, { items: [], total: 0 }],
@@ -66,6 +83,15 @@ describe(AnalyticsTab, () => {
     await expect(screen.findByText("No analytics in this period")).resolves.toBeInTheDocument();
     expect(screen.queryByText("Update adoption")).not.toBeInTheDocument();
     expect(screen.queryByText("Channel health")).not.toBeInTheDocument();
+  });
+
+  // Zeros because the server could not ask read identically to zeros because
+  // nobody has run the app — telling them apart is the point of the flag.
+  it("distinguishes a telemetry outage from a project with no traffic", async () => {
+    renderTab(seed({ updates: [], unavailable: true }, { platforms: [], unavailable: true }));
+
+    await expect(screen.findByText("Analytics unavailable")).resolves.toBeInTheDocument();
+    expect(screen.queryByText("No analytics in this period")).not.toBeInTheDocument();
   });
 
   it("shows the cards when either source has something to plot", async () => {

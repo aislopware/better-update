@@ -87,7 +87,16 @@ bunx wrangler secret put INSTALL_TOKEN_SECRET
 bunx wrangler secret put R2_SECRET_ACCESS_KEY     # pairs with BU_R2_ACCESS_KEY_ID
 bunx wrangler secret put GITHUB_CLIENT_SECRET     # only if BU_GITHUB_CLIENT_ID is set
 bunx wrangler secret put GOOGLE_CLIENT_SECRET     # only if BU_GOOGLE_CLIENT_ID is set
+bunx wrangler secret put CLOUDFLARE_API_TOKEN     # only to READ analytics — see below
 ```
+
+`CLOUDFLARE_API_TOKEN` is the one secret nothing else needs. Writing telemetry
+uses the `ANALYTICS` binding and works without it; **reading** it back goes
+through the Analytics Engine SQL API, which is an account-level HTTP endpoint
+and wants a token with **Account → Account Analytics → Read**. Leave it unset
+and every chart on the project page reports "Analytics unavailable" — the rest
+of the dashboard is unaffected, and the Worker logs
+`Analytics Engine query failed` with the HTTP status behind it.
 
 None of the deploy-config values are secrets in the cryptographic sense — an
 account id, a zone id, a database uuid or an R2 access key **id** is useless
