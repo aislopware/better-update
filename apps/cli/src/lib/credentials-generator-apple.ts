@@ -26,12 +26,14 @@ import {
   messageOf,
 } from "./apple-asc-connect";
 import { extractMetadataFromP12, normalizeAppleSerial } from "./apple-cert-to-p12";
+import { isMacosCertificateType } from "./apple-certificate-type";
 import { collectProfileDeviceSet } from "./apple-device-roster";
 import { fetchAscCredentials } from "./asc-credentials";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
+import type { AppleCertificateType } from "./apple-certificate-type";
 
 // Re-exported so Apple-ID-session generators (asc-key, apns, merchant) keep a single
 // import site for the shared error helpers.
@@ -85,28 +87,40 @@ const wrapCertificateCreate = <T>(run: () => Promise<T>) =>
   });
 
 /**
- * Certificate kinds the CLI can generate/list. `DEVELOPER_ID_APPLICATION` signs
- * macOS apps distributed outside the Mac App Store — Apple only issues those to
- * the Account Holder, so API-key creation can be rejected with a permissions error.
+ * Certificate kinds the CLI can ask Apple to issue. The stored set
+ * ({@link AppleCertificateType}) is wider: `DEVELOPER_ID_INSTALLER` has no
+ * `@expo/apple-utils` enum member, so it can be uploaded but not generated.
+ *
+ * The macOS kinds are restricted on Apple's side: only the team's Account
+ * Holder may create a Developer ID certificate, so creation can come back as a
+ * permissions error for everyone else.
  */
-export type AppleCertificateType =
+export type GeneratableCertificateType = Extract<
+  AppleCertificateType,
   | "IOS_DISTRIBUTION"
   | "IOS_DEVELOPMENT"
-  | "DEVELOPER_ID_APPLICATION";
+  | "MAC_APP_DEVELOPMENT"
+  | "MAC_APP_DISTRIBUTION"
+  | "MAC_INSTALLER_DISTRIBUTION"
+  | "DEVELOPER_ID_APPLICATION"
+>;
 
-const CERTIFICATE_TYPE_TO_APPLE: Record<AppleCertificateType, AppleUtils.CertificateType> = {
+const CERTIFICATE_TYPE_TO_APPLE: Record<GeneratableCertificateType, AppleUtils.CertificateType> = {
   IOS_DISTRIBUTION: AppleUtils.CertificateType.IOS_DISTRIBUTION,
   IOS_DEVELOPMENT: AppleUtils.CertificateType.IOS_DEVELOPMENT,
+  MAC_APP_DEVELOPMENT: AppleUtils.CertificateType.MAC_APP_DEVELOPMENT,
+  MAC_APP_DISTRIBUTION: AppleUtils.CertificateType.MAC_APP_DISTRIBUTION,
+  MAC_INSTALLER_DISTRIBUTION: AppleUtils.CertificateType.MAC_INSTALLER_DISTRIBUTION,
   DEVELOPER_ID_APPLICATION: AppleUtils.CertificateType.DEVELOPER_ID_APPLICATION,
 };
 
 const certificateTypeOf = (
-  certificateType: AppleCertificateType | undefined,
+  certificateType: GeneratableCertificateType | undefined,
 ): AppleUtils.CertificateType => CERTIFICATE_TYPE_TO_APPLE[certificateType ?? "IOS_DISTRIBUTION"];
 
 export interface GenerateCertificateInput {
   readonly context: AppleUtils.RequestContext;
-  readonly certificateType?: AppleCertificateType;
+  readonly certificateType?: GeneratableCertificateType;
 }
 
 export const generateAndUploadDistributionCertificate = (
@@ -131,8 +145,12 @@ export const generateAndUploadDistributionCertificate = (
     );
 
     const session = yield* openVaultSessionInteractive(api);
+    // Sealed alongside the rest so the certificate kind is authenticated end to
+    // end: a server that swapped the type on a download would fail the
+    // metadata-consistency check rather than hand a macOS cert to an iOS build.
     const envelopeMetadata = {
       serialNumber: metadata.serialNumber,
+      certificateType: metadata.certificateType,
       appleTeamIdentifier: metadata.appleTeamId,
       validFrom: metadata.validFrom,
       validUntil: metadata.validUntil,
@@ -163,6 +181,7 @@ export const generateAndUploadDistributionCertificate = (
     return {
       id: created.id,
       serialNumber: metadata.serialNumber,
+      certificateType: created.certificateType,
       appleTeamId: created.appleTeamId,
       appleTeamIdentifier: metadata.appleTeamId,
       developerPortalIdentifier: result.certificate.id,
@@ -179,7 +198,7 @@ export interface DistributionCertificateSummary {
 
 export const listDistributionCerts = (
   ctx: AppleUtils.RequestContext,
-  certificateType: AppleCertificateType = "IOS_DISTRIBUTION",
+  certificateType: GeneratableCertificateType = "IOS_DISTRIBUTION",
 ) =>
   Effect.gen(function* () {
     const certs = yield* wrap("apple-list-certificates", async () =>
@@ -221,9 +240,35 @@ export interface RevokeLocalDistributionCertificateResult {
 }
 
 /**
- * Revoke the distribution certificate behind a stored row: match it on Apple by
- * serial (across distribution + development), delete it there, and optionally
- * delete the local row. Builds a headless Token context from the ASC key.
+ * Which App Store Connect certificate lists to search for a stored row's serial.
+ *
+ * The stored type is the authority, so a macOS certificate is looked for among
+ * macOS certificates. Two exceptions keep this from missing a match: a stored
+ * `IOS_*` type also searches its sibling (Apple issues one universal "Apple
+ * Distribution" certificate and a row could have been classified either way),
+ * and `DEVELOPER_ID_INSTALLER` has no `@expo/apple-utils` enum member so it
+ * cannot be queried at all — the revoke then only removes the local row.
+ */
+const ascSearchTypes = (
+  certificateType: AppleCertificateType,
+): readonly AppleUtils.CertificateType[] => {
+  if (certificateType === "IOS_DISTRIBUTION" || certificateType === "IOS_DEVELOPMENT") {
+    return [
+      AppleUtils.CertificateType.IOS_DISTRIBUTION,
+      AppleUtils.CertificateType.IOS_DEVELOPMENT,
+    ];
+  }
+  if (certificateType === "DEVELOPER_ID_INSTALLER") {
+    return [];
+  }
+  return [CERTIFICATE_TYPE_TO_APPLE[certificateType]];
+};
+
+/**
+ * Revoke the certificate behind a stored row: match it on Apple by serial
+ * (within the lists its stored type can live in), delete it there, and
+ * optionally delete the local row. Builds a headless Token context from the ASC
+ * key.
  */
 export const revokeLocalDistributionCertificate = (
   api: ApiClient,
@@ -244,24 +289,17 @@ export const revokeLocalDistributionCertificate = (
     const targetSerial = normalizeAppleSerial(local.serialNumber);
 
     const matching = yield* Effect.all(
-      [
+      ascSearchTypes(local.certificateType).map((certificateType) =>
         wrap("apple-list-certificates", async () =>
-          AppleUtils.Certificate.getAsync(ctx, {
-            query: { filter: { certificateType: AppleUtils.CertificateType.IOS_DISTRIBUTION } },
-          }),
+          AppleUtils.Certificate.getAsync(ctx, { query: { filter: { certificateType } } }),
         ),
-        wrap("apple-list-certificates", async () =>
-          AppleUtils.Certificate.getAsync(ctx, {
-            query: { filter: { certificateType: AppleUtils.CertificateType.IOS_DEVELOPMENT } },
-          }),
-        ),
-      ],
+      ),
       { concurrency: 2 },
     );
 
-    const ascMatch = [...matching[0], ...matching[1]].find(
-      (entry) => normalizeAppleSerial(entry.attributes.serialNumber) === targetSerial,
-    );
+    const ascMatch = matching
+      .flat()
+      .find((entry) => normalizeAppleSerial(entry.attributes.serialNumber) === targetSerial);
 
     let revokedOnApple = false;
     if (ascMatch !== undefined) {
@@ -362,6 +400,15 @@ export const generateAndUploadProvisioningProfile = (
           : Effect.succeed(match),
       ),
     );
+
+    // An iOS profile can only carry an iOS certificate; Apple rejects the pair
+    // with an opaque error, so name the mismatch before spending the round trip.
+    if (isMacosCertificateType(cert.certificateType)) {
+      return yield* new AppleIdGenerateFailedError({
+        step: "load-distribution-certificate",
+        message: `Certificate ${input.distributionCertificateId} is a macOS ${cert.certificateType} certificate and cannot back an iOS provisioning profile`,
+      });
+    }
 
     const certificateType = DISTRIBUTION_TO_CERTIFICATE_TYPE[input.distributionType];
 

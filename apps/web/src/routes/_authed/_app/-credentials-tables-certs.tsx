@@ -1,3 +1,4 @@
+import { APPLE_CERTIFICATE_TYPE_LABELS } from "@better-update/api";
 import {
   Table,
   TableBody,
@@ -8,6 +9,7 @@ import {
 } from "@better-update/ui/components/table";
 
 import type {
+  AppleDistributionCertificateItem,
   ApplePassTypeCertificateItem,
   ApplePayCertificateItem,
   ApplePushCertificateItem,
@@ -116,6 +118,77 @@ export const PushCertificatesTable = ({
     primaryHeader="Bundle identifier"
     primaryOf={(cert) => cert.bundleIdentifier}
   />
+);
+
+export const MACOS_CERTIFICATES_EMPTY_HINT =
+  "Upload or generate a Developer ID or Mac App Store .p12 from the CLI to sign macOS apps.";
+
+/**
+ * macOS certificates come off the same endpoint as the iOS distribution ones —
+ * one table, split by `certificateType` (mig 0101). Which kind it is leads the
+ * row: a Developer ID Application certificate and a Developer ID Installer one
+ * are interchangeable in every other column and in neither use.
+ */
+export const MacosCertificatesTable = ({
+  items,
+  orgId,
+  teamsById,
+  canManageProtection,
+}: ChildCredentialTableProps & { items: readonly AppleDistributionCertificateItem[] }) => (
+  <Table className="[&_th]:whitespace-nowrap">
+    <TableHeader>
+      <TableRow>
+        <TableHead className={PRIMARY_COLUMN_CLASS}>Kind</TableHead>
+        <TableHead>Team</TableHead>
+        <TableHead>Serial</TableHead>
+        <TableHead>Expires</TableHead>
+        <TableHead>Uploaded</TableHead>
+        <TableHead className="text-right">Protected</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {items.map((cert) => (
+        <TableRow key={cert.id}>
+          <TableCell className={PRIMARY_COLUMN_CLASS}>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate font-medium">
+                {APPLE_CERTIFICATE_TYPE_LABELS[cert.certificateType]}
+              </span>
+              {/* The UID Apple puts on a Developer ID certificate, which is how
+                  `macos sign` and notarization identify the signer. */}
+              {cert.developerIdIdentifier === null ? null : (
+                <span className="text-kumo-subtle truncate font-mono text-xs">
+                  {cert.developerIdIdentifier}
+                </span>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <TeamCell team={teamsById.get(cert.appleTeamId)} />
+          </TableCell>
+          <TableCell>
+            <CopyableMono value={cert.serialNumber} label="Serial" />
+          </TableCell>
+          <TableCell>
+            <ExpiryCell validUntil={cert.validUntil} />
+          </TableCell>
+          <TableCell className="text-kumo-subtle">
+            <RelativeTime value={cert.createdAt} />
+          </TableCell>
+          <TableCell className="text-right">
+            <AppleChildProtectionSwitch
+              orgId={orgId}
+              kind="distributionCertificate"
+              id={cert.id}
+              label={cert.serialNumber}
+              isProtected={cert.protected}
+              canManage={canManageProtection}
+            />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
 );
 
 export const PAY_CERTIFICATES_EMPTY_HINT =

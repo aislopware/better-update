@@ -153,6 +153,7 @@ describe("command coverage (by-construction --json / --non-interactive)", () => 
       "src/application/credentials-manager-ios.ts",
       "src/application/credentials-manager-ios-asc.ts",
       "src/application/credentials-manager-ios-revoke.ts",
+      "src/application/credentials-manager-macos.ts",
     ]);
     const offenders = grepFiles(String.raw`-E 'Console\.(log|error)'`)
       .filter(

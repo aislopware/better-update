@@ -16,6 +16,7 @@ import {
   AppleTeamsSection,
   AscApiKeysSection,
   DistributionCertificatesSection,
+  MacosCertificatesSection,
   PassTypeCertificatesSection,
   PayCertificatesSection,
   PushCertificatesSection,
@@ -99,6 +100,9 @@ const Credentials = () => {
       </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <DistributionCertificatesSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <MacosCertificatesSection orgId={orgId} />
       </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <PushKeysSection orgId={orgId} />

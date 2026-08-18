@@ -291,31 +291,32 @@ better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]   
 ## credentials
 
 Bare `better-update credentials` (or `credentials manager`) launches an interactive
-platform→category→action wizard. Otherwise:
+platform→category→action wizard (iOS / Android / macOS). Otherwise:
 
 ### Signing material
 
 ```bash
-better-update credentials list [--platform <ios|android>]
+better-update credentials list [--platform <ios|android|macos>] [--type <type>]
 better-update credentials view <id> --type <type>            # metadata, no secrets
 better-update credentials download <id> --type <type> [--output <path>]   # decrypt via vault session → file
 
-better-update credentials upload --platform <ios|android> --type <type> --name <display> --file <path> \
+better-update credentials upload --platform <ios|android|macos> --type <type> --name <display> --file <path> \
   [--password] [--key-alias] [--key-password] [--key-id] [--issuer-id] [--apple-team-identifier] \
   [--bundle-identifier] [--merchant-identifier] [--pass-type-identifier]
 better-update credentials upload-asc-key --p8 <path> [--key-id] [--issuer-id] [--apple-team-identifier] [--name]
 
-better-update credentials delete <id> --platform <ios|android> --type <type>
-better-update credentials remove [--platform <ios|android>] [--type <type>] [--yes]   # interactive picker
+better-update credentials delete <id> --platform <ios|android|macos> --type <type>
+better-update credentials remove [--platform <ios|android|macos>] [--type <type>] [--yes]   # interactive picker
 ```
 
 `--type` ∈ `distribution-certificate`, `provisioning-profile`, `push-key`, `push-certificate`,
-`apple-pay-certificate`, `pass-type-certificate`, `asc-api-key` (iOS); `keystore`,
-`google-service-account-key` (Android). Type-specific upload flags:
+`apple-pay-certificate`, `pass-type-certificate`, `asc-api-key` (iOS); `macos-certificate` (macOS);
+`keystore`, `google-service-account-key` (Android). Type-specific upload flags:
 
 | Type                         | Required extras                               |
 | ---------------------------- | --------------------------------------------- |
 | `distribution-certificate`   | `--password`, `--apple-team-identifier`       |
+| `macos-certificate`          | `--password`                                  |
 | `provisioning-profile`       | (none)                                        |
 | `push-key`                   | `--key-id`, `--apple-team-identifier`         |
 | `asc-api-key`                | `--key-id`, `--issuer-id`                     |
@@ -329,7 +330,7 @@ better-update credentials remove [--platform <ios|android>] [--type <type>] [--y
 
 ```bash
 better-update credentials generate keystore [--name] [--alias] [--store-password] [--key-password] [--common-name] [--organization] [--validity-days <n>=10000]
-better-update credentials generate distribution-certificate --asc-key-id <id> [--type <distribution|development|developer-id>=distribution]   # developer-id = macOS Developer ID Application (Account Holder only)
+better-update credentials generate distribution-certificate --asc-key-id <id> [--type <distribution|development|developer-id|mac-app-store|mac-installer|mac-development>=distribution]   # developer-id = macOS Developer ID Application (Account Holder only); mac-* = Mac App Store. Developer ID Installer has no ASC creation path — upload it instead.
 better-update credentials generate provisioning-profile --asc-key-id <id> --cert-id <id> --bundle <id> \
   --distribution <APP_STORE|AD_HOC|DEVELOPMENT|ENTERPRISE> [--device-ids id1,id2]
 better-update credentials generate push-key [--method <apple-id|upload>] [--key-id] [--apple-team-id] [--p8 <path>] [--asc-key-id] [--name] [--skip-portal-hint]
@@ -584,7 +585,8 @@ better-update macos notarize <path-to .app|.dmg|.pkg|.zip> [--asc-key-id <id>] \
 Signs and notarizes macOS apps distributed **outside** the Mac App Store, using the vault:
 
 - **`macos sign`** downloads + decrypts the stored **Developer ID Application** `.p12` (create one
-  with `credentials generate distribution-certificate --type developer-id`), imports it into an
+  with `credentials generate distribution-certificate --type developer-id`, or upload an exported
+  one with `credentials upload --platform macos --type macos-certificate`), imports it into an
   ephemeral keychain (torn down on every exit path), then signs **inside-out**: every nested
   framework / helper app / XPC service / dylib / loose Mach-O first, the outer bundle last — always
   with the hardened runtime (`--options runtime`) + a secure timestamp, both required by

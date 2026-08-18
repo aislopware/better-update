@@ -2,11 +2,14 @@ import { toOptional } from "@better-update/type-guards";
 
 import type {
   AndroidUploadKeystore,
+  AppleCertificateType,
   AppleDistributionCertificate,
   ApplePushKey,
   AppleTeam,
   AscApiKey,
 } from "@better-update/api";
+
+import { isMacosCertificateType } from "./apple-certificate-type";
 
 /** A `promptSelect` option enriched with a secondary `hint` line. */
 export interface CredentialChoice {
@@ -74,6 +77,16 @@ export const ascApiKeyChoice = (
   value: key.id,
   label: `${key.name} (${key.keyId}, ${teamLabel === undefined ? "no team" : `team ${teamLabel}`})`,
 });
+
+/**
+ * Drop the macOS certificates (Developer ID, Mac App Store) from a certificate
+ * list. They live in the same list as the iOS ones — one endpoint, one table
+ * (mig 0101) — so every iOS picker and iOS binding has to narrow first, or it
+ * offers certificates no iOS build can sign with.
+ */
+export const iosCertificatesOnly = <T extends { readonly certificateType: AppleCertificateType }>(
+  items: readonly T[],
+): readonly T[] => items.filter((cert) => !isMacosCertificateType(cert.certificateType));
 
 /**
  * Surface the expiry so an expired certificate is obvious before it's picked.

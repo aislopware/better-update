@@ -81,6 +81,7 @@ export interface AndroidUploadKeystores {
 
 export interface AppleDistributionCertificates {
   apple_team_id: string;
+  certificate_type: Generated<string>;
   created_at: Generated<string>;
   developer_id_identifier: string | null;
   id: string | null;

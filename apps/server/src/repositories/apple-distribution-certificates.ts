@@ -9,7 +9,7 @@ import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 import type { AppleDistributionCertificates } from "../db/schema";
 import type { Conflict } from "../errors";
-import type { AppleDistributionCertificateModel } from "../models";
+import type { AppleCertificateType, AppleDistributionCertificateModel } from "../models";
 
 export interface AppleDistributionCertificateRepository {
   readonly insert: (params: {
@@ -17,6 +17,7 @@ export interface AppleDistributionCertificateRepository {
     readonly organizationId: string;
     readonly appleTeamId: string;
     readonly serialNumber: string;
+    readonly certificateType: AppleCertificateType;
     readonly developerIdIdentifier: string | null;
     readonly validFrom: string;
     readonly validUntil: string;
@@ -61,6 +62,7 @@ const COLUMNS = [
   "organization_id",
   "apple_team_id",
   "serial_number",
+  "certificate_type",
   "developer_id_identifier",
   "valid_from",
   "valid_until",
@@ -79,6 +81,7 @@ const toModel = (
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
   serialNumber: row.serial_number,
+  certificateType: row.certificate_type,
   developerIdIdentifier: row.developer_id_identifier,
   validFrom: row.valid_from,
   validUntil: row.valid_until,
@@ -105,6 +108,7 @@ export const AppleDistributionCertificateRepoLive = Layer.succeed(
                 organization_id: params.organizationId,
                 apple_team_id: params.appleTeamId,
                 serial_number: params.serialNumber,
+                certificate_type: params.certificateType,
                 developer_id_identifier: params.developerIdIdentifier,
                 valid_from: params.validFrom,
                 valid_until: params.validUntil,

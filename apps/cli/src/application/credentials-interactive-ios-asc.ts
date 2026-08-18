@@ -1,6 +1,10 @@
 import { Console, Effect, Ref } from "effect";
 
-import { distributionCertChoice, makeAppleTeamLabeler } from "../lib/credential-choices";
+import {
+  distributionCertChoice,
+  iosCertificatesOnly,
+  makeAppleTeamLabeler,
+} from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
   ascKeyRequestContext,
@@ -89,7 +93,8 @@ const generateDistributionCertInteractive = (api: ApiClient) =>
 
 const chooseIosCertificateId = (api: ApiClient) =>
   Effect.gen(function* () {
-    const certs = yield* api.appleDistributionCertificates.list();
+    const listing = yield* api.appleDistributionCertificates.list();
+    const certs = { items: iosCertificatesOnly(listing.items) };
     if (certs.items.length === 0) {
       yield* Console.log("No distribution certificate found in this organization.");
       const choice = yield* promptSelect<"generate" | "abort">("How would you like to proceed?", [
@@ -124,7 +129,7 @@ export const pickIosCertificate = (api: ApiClient) =>
   Effect.gen(function* () {
     const chosenId = yield* chooseIosCertificateId(api);
     const refreshed = yield* api.appleDistributionCertificates.list();
-    const cert = refreshed.items.find((entry) => entry.id === chosenId);
+    const cert = iosCertificatesOnly(refreshed.items).find((entry) => entry.id === chosenId);
     if (cert === undefined) {
       return yield* new MissingCredentialsError({
         message: "Selected certificate not found after generation.",

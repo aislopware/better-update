@@ -1,7 +1,8 @@
+import { isMacosCertificateType } from "@better-update/api";
 import { Effect } from "effect";
 
 import { CurrentActor } from "../auth/current-actor";
-import { NotFound } from "../errors";
+import { BadRequest, NotFound } from "../errors";
 import { AndroidUploadKeystoreRepo } from "../repositories/android-upload-keystores";
 import { AppleDistributionCertificateRepo } from "../repositories/apple-distribution-certificates";
 import { AppleProvisioningProfileRepo } from "../repositories/apple-provisioning-profiles";
@@ -39,6 +40,31 @@ const check = <Entity extends { readonly organizationId: string }, Deps>(
     }
   });
 
+/**
+ * A macOS certificate lives in the same table as the iOS ones (mig 0101), so an
+ * id that exists and belongs to the org can still be the wrong kind of
+ * certificate for an iOS config. Nothing downstream would sign with it — the
+ * build would fail at codesign time — so reject the binding at write.
+ */
+const checkIosCertificate = (id: Ref) =>
+  Effect.gen(function* () {
+    if (typeof id !== "string") {
+      return;
+    }
+    const repo = yield* AppleDistributionCertificateRepo;
+    const notFound = new NotFound({ message: "Distribution certificate not found" });
+    const ctx = yield* CurrentActor;
+    const cert = yield* repo.findById({ id }).pipe(Effect.mapError(() => notFound));
+    if (cert.organizationId !== ctx.organizationId) {
+      return yield* notFound;
+    }
+    if (isMacosCertificateType(cert.certificateType)) {
+      return yield* new BadRequest({
+        message: `Certificate ${id} is a macOS ${cert.certificateType} certificate and cannot sign an iOS build`,
+      });
+    }
+  });
+
 export const assertIosCredentialRefs = (params: {
   readonly appleTeamId?: Ref;
   readonly appleDistributionCertificateId?: Ref;
@@ -52,12 +78,7 @@ export const assertIosCredentialRefs = (params: {
       (id) => AppleTeamRepo.pipe(Effect.flatMap((repo) => repo.findById({ id }))),
       "Apple team",
     );
-    yield* check(
-      params.appleDistributionCertificateId,
-      (id) =>
-        AppleDistributionCertificateRepo.pipe(Effect.flatMap((repo) => repo.findById({ id }))),
-      "Distribution certificate",
-    );
+    yield* checkIosCertificate(params.appleDistributionCertificateId);
     yield* check(
       params.appleProvisioningProfileId,
       (id) => AppleProvisioningProfileRepo.pipe(Effect.flatMap((repo) => repo.findById({ id }))),

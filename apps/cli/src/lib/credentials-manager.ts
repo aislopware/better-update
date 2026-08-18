@@ -9,18 +9,21 @@ import {
   toUploadEnvelope,
 } from "../application/credential-cipher";
 import { extractKeystoreCertificate } from "./android-keystore";
+import { isMacosCertificateType } from "./apple-certificate-type";
 import { parseGoogleServiceAccountKey, validateAndroidKeystore } from "./credential-metadata";
+import { uploadAppleCertificate } from "./credentials-apple-certificate";
 import { uploadIosPassTypeCertificate } from "./credentials-pass-type-certificate";
 import { uploadIosPayCertificate } from "./credentials-pay-certificate";
 import { uploadIosPushCertificate } from "./credentials-push-certificate";
 import { CredentialValidationError } from "./exit-codes";
-import { inspectP12 } from "./pkcs12";
 import { autoBindProjectId } from "./project-link";
 
 import type { ApiClient } from "../services/api-client";
+import type { AppleCertificateType } from "./apple-certificate-type";
 
 export type CliCredentialType =
   | "distribution-certificate"
+  | "macos-certificate"
   | "push-key"
   | "push-certificate"
   | "apple-pay-certificate"
@@ -30,7 +33,13 @@ export type CliCredentialType =
   | "keystore"
   | "google-service-account-key";
 
-export type CliCredentialPlatform = "ios" | "android";
+/**
+ * `macos` is a credential platform, not a build platform: builds still target
+ * ios/android, but a Developer ID or Mac App Store certificate signs neither of
+ * them, and filing it under `ios` made `credentials list --platform ios` a list
+ * of certificates half of which no iOS build can use.
+ */
+export type CliCredentialPlatform = "ios" | "android" | "macos";
 
 export interface CliCredentialRow {
   readonly id: string;
@@ -41,6 +50,8 @@ export interface CliCredentialRow {
   readonly platform: CliCredentialPlatform;
   readonly type: CliCredentialType;
   readonly distribution: string | null;
+  /** The Apple certificate kind (`DEVELOPER_ID_APPLICATION`, …); `null` for non-certificates. */
+  readonly certificateType: AppleCertificateType | null;
   /** Keystore SHA-1 fingerprint for matching against Play Console; `null` when not applicable. */
   readonly sha1Fingerprint: string | null;
   readonly createdAt: string;
@@ -49,8 +60,16 @@ export interface CliCredentialRow {
 /** Build a list row, defaulting the optional columns most credential types lack. */
 const makeRow = (
   fields: Pick<CliCredentialRow, "id" | "identifier" | "platform" | "type" | "createdAt"> &
-    Partial<Pick<CliCredentialRow, "name" | "distribution" | "sha1Fingerprint">>,
-): CliCredentialRow => ({ name: null, distribution: null, sha1Fingerprint: null, ...fields });
+    Partial<
+      Pick<CliCredentialRow, "name" | "distribution" | "certificateType" | "sha1Fingerprint">
+    >,
+): CliCredentialRow => ({
+  name: null,
+  distribution: null,
+  certificateType: null,
+  sha1Fingerprint: null,
+  ...fields,
+});
 
 export const listAllCredentials = (api: ApiClient) =>
   Effect.gen(function* () {
@@ -80,15 +99,20 @@ export const listAllCredentials = (api: ApiClient) =>
     );
 
     const rows: CliCredentialRow[] = [
-      ...certs.items.map((cert) =>
-        makeRow({
+      // One table, two credential types: the certificate kind decides which
+      // (mig 0101). A Developer ID cert listed as an iOS distribution
+      // certificate was the single most misleading row in this output.
+      ...certs.items.map((cert) => {
+        const macos = isMacosCertificateType(cert.certificateType);
+        return makeRow({
           id: cert.id,
           identifier: cert.serialNumber,
-          platform: "ios",
-          type: "distribution-certificate",
+          platform: macos ? "macos" : "ios",
+          type: macos ? "macos-certificate" : "distribution-certificate",
+          certificateType: cert.certificateType,
           createdAt: cert.createdAt,
-        }),
-      ),
+        });
+      }),
       ...pushKeys.items.map((key) =>
         makeRow({
           id: key.id,
@@ -213,51 +237,6 @@ const toUtf8 = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
 const missing = (label: string) =>
   new CredentialValidationError({
     message: `Missing --${label} required for the selected credential type.`,
-  });
-
-const uploadIosDistributionCertificate = (
-  api: ApiClient,
-  input: UploadCredentialInput,
-  bytes: Uint8Array,
-) =>
-  Effect.gen(function* () {
-    if (input.password === undefined) {
-      return yield* missing("password");
-    }
-    const info = yield* inspectP12({ data: Buffer.from(bytes), password: input.password });
-    if (!info.teamId) {
-      return yield* new CredentialValidationError({
-        message:
-          "Could not derive Apple Team ID from certificate subject (expected OU=TEAMID or CN with (TEAMID)).",
-      });
-    }
-    if (!info.validFrom || !info.expiresAt) {
-      return yield* new CredentialValidationError({
-        message: "Certificate is missing notBefore/notAfter dates.",
-      });
-    }
-    const metadata = {
-      serialNumber: info.serialNumber,
-      appleTeamIdentifier: info.teamId,
-      validFrom: info.validFrom.toISOString(),
-      validUntil: info.expiresAt.toISOString(),
-    };
-    const session = yield* openVaultSessionInteractive(api);
-    const envelope = yield* sealForUpload({
-      session,
-      credentialType: "distribution-certificate",
-      metadata,
-      secret: { p12Base64: toBase64(bytes), p12Password: input.password },
-    });
-    const created = yield* api.appleDistributionCertificates.upload({
-      payload: { ...toUploadEnvelope(envelope), ...metadata, ...(yield* autoBindProjectId) },
-    });
-    return {
-      id: created.id,
-      name: input.name,
-      platform: "ios" as const,
-      type: "distribution-certificate" as const,
-    };
   });
 
 const uploadIosPushKey = (api: ApiClient, input: UploadCredentialInput, bytes: Uint8Array) =>
@@ -425,7 +404,8 @@ const uploadAndroidGoogleServiceAccountKey = (
   });
 
 const uploadHandlers = {
-  "ios:distribution-certificate": uploadIosDistributionCertificate,
+  "ios:distribution-certificate": uploadAppleCertificate("ios"),
+  "macos:macos-certificate": uploadAppleCertificate("macos"),
   "ios:push-key": uploadIosPushKey,
   "ios:push-certificate": uploadIosPushCertificate,
   "ios:apple-pay-certificate": uploadIosPayCertificate,
@@ -467,6 +447,9 @@ export const deleteCredential = (
   const path = { id: input.id };
   return Match.value({ platform: input.platform, type: input.type }).pipe(
     Match.when({ platform: "ios", type: "distribution-certificate" }, () =>
+      api.appleDistributionCertificates.delete({ path }),
+    ),
+    Match.when({ platform: "macos", type: "macos-certificate" }, () =>
       api.appleDistributionCertificates.delete({ path }),
     ),
     Match.when({ platform: "ios", type: "push-key" }, () => api.applePushKeys.delete({ path })),

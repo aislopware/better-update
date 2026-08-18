@@ -11,6 +11,7 @@ import {
   openVaultSessionInteractive,
 } from "../../../application/credential-cipher";
 import { runEffect } from "../../../lib/citty-effect";
+import { iosCertificatesOnly } from "../../../lib/credential-choices";
 import { requireSecretString } from "../../../lib/credential-secret";
 import { writeCredentialsJson } from "../../../lib/credentials-json";
 import { CredentialsJsonError } from "../../../lib/exit-codes";
@@ -95,7 +96,9 @@ const fetchIosListing = (api: ApiClient): Effect.Effect<IosListItems, Credential
       ),
     );
     return {
-      certFirst: certs.items.at(0),
+      // credentials.json is EAS's iOS/Android file — a macOS certificate has no
+      // slot in it, so it must not be the one that happens to sort first.
+      certFirst: iosCertificatesOnly(certs.items).at(0),
       profileFirst: profiles.items.at(0),
       pushFirst: pushKeys.items.at(0),
       ascFirst: ascKeys.items.at(0),

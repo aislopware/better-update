@@ -116,6 +116,7 @@ const distributionCert = AppleDistributionCertificate.make({
   organizationId: "org",
   appleTeamId: "team-uuid",
   serialNumber: "0123456789ABCDEF",
+  certificateType: "IOS_DISTRIBUTION",
   developerIdIdentifier: null,
   validFrom: "2025-01-01T00:00:00.000Z",
   validUntil: "2027-01-01T00:00:00.000Z",

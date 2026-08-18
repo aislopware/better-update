@@ -1,3 +1,4 @@
+import { APPLE_CERTIFICATE_TYPE_LABELS, isMacosCertificateType } from "@better-update/api";
 import {
   appleDistributionCertificatesQueryOptions,
   appleProvisioningProfilesQueryOptions,
@@ -45,11 +46,16 @@ const CertCard = ({
         <DetailStat label="Serial">
           <CopyableMono value={cert.serialNumber} label="Serial" />
         </DetailStat>
-        {/* Only a Developer ID certificate has one, and then it is the thing
-            that tells it apart from the App Store certificate beside it. */}
-        {cert.developerIdIdentifier ? (
-          <DetailStat label="Developer ID">
-            <span className="truncate font-mono text-xs">{cert.developerIdIdentifier}</span>
+        {/* An iOS build cannot be signed with a macOS certificate, and binding
+            one is rejected now — but a binding made before the certificate type
+            was recorded (mig 0101) can still be here, and silence about it would
+            leave a build failing at codesign with nothing on this page to
+            explain why. */}
+        {isMacosCertificateType(cert.certificateType) ? (
+          <DetailStat label="Certificate">
+            <span className="text-kumo-danger truncate text-xs">
+              {APPLE_CERTIFICATE_TYPE_LABELS[cert.certificateType]} — not valid for iOS
+            </span>
           </DetailStat>
         ) : null}
         {team ? (

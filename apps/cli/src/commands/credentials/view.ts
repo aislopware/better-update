@@ -1,6 +1,10 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import {
+  APPLE_CERTIFICATE_TYPE_LABELS,
+  isMacosCertificateType,
+} from "../../lib/apple-certificate-type";
 import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHumanKeyValue } from "../../lib/output";
@@ -10,6 +14,7 @@ import type { ApiClient } from "../../services/api-client";
 
 const CREDENTIAL_TYPES = [
   "distribution-certificate",
+  "macos-certificate",
   "provisioning-profile",
   "push-key",
   "push-certificate",
@@ -25,18 +30,26 @@ type CredentialType = (typeof CREDENTIAL_TYPES)[number];
 const notFound = (id: string, type: CredentialType) =>
   new CredentialValidationError({ message: `${type} with ID "${id}" not found.` });
 
-const viewDistributionCertificate = (api: ApiClient, id: string) =>
+/**
+ * iOS distribution certificates and macOS certificates share a row type, so
+ * both look up the same list and then reject an id of the other kind — asking
+ * for a `macos-certificate` and being shown an App Store certificate would be
+ * worse than a not-found.
+ */
+const viewAppleCertificate = (api: ApiClient, id: string, wantMacos: boolean) =>
   Effect.gen(function* () {
+    const kind = wantMacos ? ("macos-certificate" as const) : ("distribution-certificate" as const);
     const { items } = yield* api.appleDistributionCertificates.list();
     const item = items.find((entry) => entry.id === id);
-    if (!item) {
-      return yield* notFound(id, "distribution-certificate");
+    if (!item || isMacosCertificateType(item.certificateType) !== wantMacos) {
+      return yield* notFound(id, kind);
     }
     return {
-      kind: "distribution-certificate" as const,
+      kind,
       pairs: [
         ["ID", item.id],
-        ["Type", "Apple distribution certificate"],
+        ["Type", APPLE_CERTIFICATE_TYPE_LABELS[item.certificateType]],
+        ["Certificate type", item.certificateType],
         ["Apple team ID", item.appleTeamId],
         ["Serial number", item.serialNumber],
         ["Developer ID", item.developerIdIdentifier ?? "-"],
@@ -242,7 +255,10 @@ const viewGoogleServiceAccountKey = (api: ApiClient, id: string) =>
 const lookupByType = (api: ApiClient, id: string, type: CredentialType) => {
   switch (type) {
     case "distribution-certificate": {
-      return viewDistributionCertificate(api, id);
+      return viewAppleCertificate(api, id, false);
+    }
+    case "macos-certificate": {
+      return viewAppleCertificate(api, id, true);
     }
     case "provisioning-profile": {
       return viewProvisioningProfile(api, id);

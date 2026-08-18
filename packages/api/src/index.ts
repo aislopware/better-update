@@ -131,6 +131,12 @@ export {
 } from "./domain/device";
 export { AppleTeam, AppleTeamIdentifier, AppleTeamType } from "./domain/apple-team";
 export {
+  APPLE_CERTIFICATE_TYPE_LABELS,
+  AppleCertificateType,
+  isMacosCertificateType,
+  MACOS_CERTIFICATE_TYPES,
+} from "./domain/apple-certificate-type";
+export {
   AppleDistributionCertificate,
   DeleteAppleDistributionCertificateResult,
   UploadAppleDistributionCertificateBody,

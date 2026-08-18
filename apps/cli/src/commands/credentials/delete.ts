@@ -8,6 +8,7 @@ import { apiClient } from "../../services/api-client";
 
 const CREDENTIAL_TYPES = [
   "distribution-certificate",
+  "macos-certificate",
   "provisioning-profile",
   "push-key",
   "push-certificate",
@@ -22,7 +23,7 @@ export const deleteCommand = defineCommand({
   meta: { name: "delete", description: "Delete a credential" },
   args: {
     id: { type: "positional", required: true, description: "Credential ID" },
-    platform: { type: "enum", options: ["ios", "android"], required: true },
+    platform: { type: "enum", options: ["ios", "android", "macos"], required: true },
     type: { type: "enum", options: [...CREDENTIAL_TYPES], required: true },
   },
   run: async ({ args }) =>

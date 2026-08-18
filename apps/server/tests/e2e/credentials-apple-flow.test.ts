@@ -70,6 +70,9 @@ describe("Credentials Apple flow", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.serialNumber).toBe("AB12CD34EF56");
+    // No certificateType sent — a CLI predating the field, and no
+    // developerIdIdentifier either, so it reads as an iOS certificate.
+    expect(body.certificateType).toBe("IOS_DISTRIBUTION");
     certId = body.id;
 
     const teamsAfter = await get("/api/apple-teams", { cookie: cookies });
@@ -80,6 +83,39 @@ describe("Credentials Apple flow", () => {
     expect(team?.appleTeamId).toBe(TEAM_A);
     expect(team?.distributionCertificateCount).toBe(1);
     expect(team?.pushKeyCount).toBe(0);
+  });
+
+  // Both certificates are deleted again on the way out: the tests below count
+  // the team's certificates, and a macOS one left behind would make those
+  // counts about this test rather than about theirs.
+  it.each([
+    ["an explicit certificateType", "DEVID0000001", "DEVELOPER_ID_APPLICATION"],
+    // The pre-0101 compatibility path: an older CLI sends no certificateType
+    // but does send the UID, which is the signal the type replaced.
+    ["a developerIdIdentifier alone", "DEVID0000002", undefined],
+  ])("stores a macOS Developer ID certificate from %s", async (_label, serial, certificateType) => {
+    const res = await post(
+      "/api/apple/distribution-certificates",
+      {
+        ...credentialEnvelope(),
+        serialNumber: serial,
+        ...(certificateType === undefined ? {} : { certificateType }),
+        developerIdIdentifier: TEAM_A,
+        appleTeamIdentifier: TEAM_A,
+        validFrom: "2026-01-01T00:00:00Z",
+        validUntil: "2028-01-01T00:00:00Z",
+      },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.certificateType).toBe("DEVELOPER_ID_APPLICATION");
+    expect(body.developerIdIdentifier).toBe(TEAM_A);
+
+    const deleted = await del(`/api/apple/distribution-certificates/${body.id}`, {
+      cookie: cookies,
+    });
+    expect(deleted.status).toBe(200);
   });
 
   it("rejects an invalid apple team identifier", async () => {

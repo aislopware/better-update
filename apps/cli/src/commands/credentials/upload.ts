@@ -9,6 +9,7 @@ import { apiClient } from "../../services/api-client";
 
 const CREDENTIAL_TYPES = [
   "distribution-certificate",
+  "macos-certificate",
   "provisioning-profile",
   "push-key",
   "push-certificate",
@@ -22,7 +23,7 @@ const CREDENTIAL_TYPES = [
 export const uploadCommand = defineCommand({
   meta: { name: "upload", description: "Upload a credential" },
   args: {
-    platform: { type: "enum", options: ["ios", "android"], required: true },
+    platform: { type: "enum", options: ["ios", "android", "macos"], required: true },
     type: { type: "enum", options: [...CREDENTIAL_TYPES], required: true },
     name: { type: "string", required: true, description: "Display name" },
     file: { type: "string", required: true, description: "Path to credential file" },

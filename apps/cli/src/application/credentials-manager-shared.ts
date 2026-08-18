@@ -128,6 +128,7 @@ export const matchDistribution = (raw: string): IosDistribution => {
 
 const TYPE_LABELS: Record<string, string> = {
   "distribution-certificate": "iOS distribution certificate",
+  "macos-certificate": "macOS certificate",
   "provisioning-profile": "iOS provisioning profile",
   "push-key": "APNs push key",
   "push-certificate": "APNs push SSL certificate",
@@ -143,6 +144,7 @@ const formatRowLabel = (row: CliCredentialRow): string =>
 
 export type DeletableType =
   | "distribution-certificate"
+  | "macos-certificate"
   | "provisioning-profile"
   | "push-key"
   | "asc-api-key"

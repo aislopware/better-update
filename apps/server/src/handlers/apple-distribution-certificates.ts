@@ -27,11 +27,25 @@ import { withR2Compensation } from "../lib/r2-helpers";
 import { AppleDistributionCertificateRepo } from "../repositories/apple-distribution-certificates";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 
+import type { AppleCertificateType } from "../models";
+
 const decodeBase64 = (value: string) =>
   Effect.try({
     try: () => fromBase64(value),
     catch: () => new BadRequest({ message: "Distribution certificate must be valid base64" }),
   });
+
+/**
+ * A CLI predating `certificateType` (mig 0101) sends none, so fall back to the
+ * heuristic that field replaced: only a Developer ID certificate carries a UID
+ * in its subject, which the old CLI reported as `developerIdIdentifier`.
+ */
+const resolveCertificateType = (payload: {
+  readonly certificateType?: AppleCertificateType | undefined;
+  readonly developerIdIdentifier?: string | undefined;
+}): AppleCertificateType =>
+  payload.certificateType ??
+  (payload.developerIdIdentifier === undefined ? "IOS_DISTRIBUTION" : "DEVELOPER_ID_APPLICATION");
 
 // Toggle the per-row protected flag (GITLAB-RBAC-SPEC §3b) — org admin only,
 // idempotent, audit-logged. The row flag is the whole gate for this
@@ -120,6 +134,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
             yield* artifacts.put(r2Key, blob);
 
             const developerIdIdentifier = toDbNull(payload.developerIdIdentifier);
+            const certificateType = resolveCertificateType(payload);
             const now = new Date().toISOString();
             yield* withR2Compensation(
               artifacts.delete(r2Key),
@@ -128,6 +143,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
                 organizationId: ctx.organizationId,
                 appleTeamId: team.id,
                 serialNumber: payload.serialNumber,
+                certificateType,
                 developerIdIdentifier,
                 validFrom: payload.validFrom,
                 validUntil: payload.validUntil,
@@ -147,6 +163,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
               metadata: {
                 serialNumber: payload.serialNumber,
                 appleTeamId: payload.appleTeamIdentifier,
+                certificateType,
               },
             });
 
@@ -155,6 +172,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
               organizationId: ctx.organizationId,
               appleTeamId: team.id,
               serialNumber: payload.serialNumber,
+              certificateType,
               developerIdIdentifier,
               validFrom: payload.validFrom,
               validUntil: payload.validUntil,
@@ -225,6 +243,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
               wrappedDek: existing.wrappedDek,
               vaultVersion: existing.vaultVersion,
               serialNumber: existing.serialNumber,
+              certificateType: existing.certificateType,
               appleTeamIdentifier: team.appleTeamId,
               validFrom: existing.validFrom,
               validUntil: existing.validUntil,

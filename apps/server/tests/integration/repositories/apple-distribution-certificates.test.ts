@@ -113,6 +113,54 @@ describe("AppleDistributionCertificateRepo — D1 integration (Kysely + session)
     expect(cert.developerIdIdentifier).toBeNull();
   });
 
+  // The seed rows above write no certificate_type at all, which is the shape
+  // every row predating mig 0101 has: the column default is what keeps them
+  // readable as iOS certificates.
+  it("reads a row written without a certificate type as IOS_DISTRIBUTION", async () => {
+    const cert = await run(
+      Effect.gen(function* () {
+        const repo = yield* AppleDistributionCertificateRepo;
+        return yield* repo.findById({ id: "cert-b1" });
+      }),
+    );
+
+    expect(cert.certificateType).toBe("IOS_DISTRIBUTION");
+  });
+
+  it("round-trips a macOS certificate type", async () => {
+    await run(
+      Effect.gen(function* () {
+        const repo = yield* AppleDistributionCertificateRepo;
+        return yield* repo.insert({
+          id: "cert-macos-1",
+          organizationId: "org-dist-1",
+          appleTeamId: "TEAM0001",
+          serialNumber: "SN-DEVELOPER-ID",
+          certificateType: "DEVELOPER_ID_APPLICATION",
+          developerIdIdentifier: "A1B2C3D4E5",
+          validFrom: "2025-01-01T00:00:00Z",
+          validUntil: "2027-01-01T00:00:00Z",
+          r2Key: "r2/certs/cert-macos-1.p12",
+          wrappedDek: "wrappeddek==",
+          vaultVersion: 1,
+          isProtected: false,
+          createdAt: "2026-03-01T00:00:00Z",
+          updatedAt: "2026-03-01T00:00:00Z",
+        });
+      }),
+    );
+
+    const cert = await run(
+      Effect.gen(function* () {
+        const repo = yield* AppleDistributionCertificateRepo;
+        return yield* repo.findById({ id: "cert-macos-1" });
+      }),
+    );
+
+    expect(cert.certificateType).toBe("DEVELOPER_ID_APPLICATION");
+    expect(cert.developerIdIdentifier).toBe("A1B2C3D4E5");
+  });
+
   it("findById fails with NotFound for a missing id", async () => {
     const result = await runEither(
       Effect.gen(function* () {
@@ -133,12 +181,14 @@ describe("AppleDistributionCertificateRepo — D1 integration (Kysely + session)
       organizationId: "org-dist-1",
       appleTeamId: "TEAM0001",
       serialNumber: "SN-UNIQUE",
+      certificateType: "IOS_DISTRIBUTION" as const,
       developerIdIdentifier: null,
       validFrom: "2025-01-01T00:00:00Z",
       validUntil: "2027-01-01T00:00:00Z",
       r2Key: "r2/certs/cert-new-1.p12",
       wrappedDek: "wrappeddek==",
       vaultVersion: 1,
+      isProtected: false,
       createdAt: "2026-03-01T00:00:00Z",
       updatedAt: "2026-03-01T00:00:00Z",
     };

@@ -128,7 +128,16 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    // 0.72.0 and older cache the unlocked vault key in the OS keychain under the
+    // 0.75.0 and older mis-file every macOS signing certificate. They send no
+    // certificate kind at all and never read the `UID` subject attribute that
+    // identifies a Developer ID certificate (node-forge has no name for that
+    // OID, so the lookup silently found nothing), so a Developer ID or Mac App
+    // Store `.p12` is stored as an iOS distribution certificate: `macos sign`
+    // cannot find it again, and it can be bound to an iOS bundle configuration
+    // where the build only fails at codesign. The server cannot repair this
+    // afterwards — only the CLI ever sees the certificate bytes.
+    //
+    // (0.72.0 and older cache the unlocked vault key in the OS keychain under the
     // device's age public key alone. That key is USER-scoped and shared by every
     // org the user belongs to, while each org has its own vault key — so for up
     // to the 15-minute TTL a command run against org B can be handed org A's
@@ -139,7 +148,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // multi-org humans (CI robots are never cached), which is why it survived
     // this long — and why it has to be a hard block rather than a warning.
     //
-    // (0.71.7 and older never read the Android upload keystore's signing
+    // 0.71.7 and older never read the Android upload keystore's signing
     // certificate beyond its SHA-1/SHA-256: no expiry and no MD5, which the
     // server cannot recover because only the CLI ever sees keystore bytes.
     // Uploads from those versions are now rejected outright by the required
@@ -148,7 +157,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // org, reported as success. 0.71.4 and older never baked
     // `expo-channel-name` or a runtimeVersion into non-Expo builds, so their
     // updates published green and reached nobody. All covered by this bound.)
-    REQUIRE_CLI_VERSION_ABOVE: "0.72.0",
+    REQUIRE_CLI_VERSION_ABOVE: "0.75.0",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on

@@ -11,12 +11,12 @@ platform → category → action wizard — handy when you don't remember the ex
 ## Signing material
 
 ```bash
-better-update credentials list [--platform <ios|android>]
-# columns: ID | Name (the --name label) | Identifier (key alias / cert serial / …) | Platform | Type | Created | SHA-1
+better-update credentials list [--platform <ios|android|macos>] [--type <type>]
+# columns: ID | Name (the --name label) | Identifier (key alias / cert serial / …) | Platform | Type | Cert type | Created | SHA-1
 better-update credentials view <id> --type <type>            # metadata, no secret (keystore view shows all fingerprints + certificate expiry)
 better-update credentials download <id> --type <type> [--output <path>]   # decrypt via vault session → file (default ./<id>.<ext>)
-better-update credentials delete <id> --platform <ios|android> --type <type>
-better-update credentials remove [--platform <ios|android>] [--type <type>] [--yes]   # interactive picker
+better-update credentials delete <id> --platform <ios|android|macos> --type <type>
+better-update credentials remove [--platform <ios|android|macos>] [--type <type>] [--yes]   # interactive picker
 ```
 
 ### Upload
@@ -26,6 +26,9 @@ better-update credentials upload --platform ios --type distribution-certificate 
   --name "App Store distribution 2026" --file ./AppStore.p12 \
   --password "p12-password" --apple-team-identifier ABC123XYZ
 
+better-update credentials upload --platform macos --type macos-certificate \
+  --name "Developer ID Application" --file ./DeveloperID.p12 --password "p12-password"
+
 better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --issuer-id <id>
 ```
 
@@ -34,6 +37,7 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 | Platform | `--type`                     | Required extras                                                             |
 | -------- | ---------------------------- | --------------------------------------------------------------------------- |
 | iOS      | `distribution-certificate`   | `--password` (Apple Team ID is derived from the cert)                       |
+| macOS    | `macos-certificate`          | `--password` (Apple Team ID is derived from the cert)                       |
 | iOS      | `provisioning-profile`       | (none)                                                                      |
 | iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`                                       |
 | iOS      | `asc-api-key`                | `--key-id`, `--issuer-id` (or `upload-asc-key`, or `generate asc-key`)      |
@@ -47,6 +51,16 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 keystores and ASC API keys (separate from the key alias / internal identifier), so use a distinct
 `--name` to tell apart credentials that share an internal id — e.g. white-label Android keystores that
 all reuse a single shared key alias such as `upload`.
+
+**iOS vs macOS certificates**: both are `.p12` files stored in the same place, but a macOS
+certificate signs no iOS build and vice versa, so they are separate credential types. The CLI reads
+the kind off the certificate's own subject (`Certificate type` column of `credentials list`) and
+**rejects** an upload filed under the wrong one, naming the flags to use instead. The macOS kinds are
+`DEVELOPER_ID_APPLICATION`, `DEVELOPER_ID_INSTALLER`, `MAC_APP_DISTRIBUTION`,
+`MAC_INSTALLER_DISTRIBUTION` and `MAC_APP_DEVELOPMENT`; everything else is iOS. macOS certificates
+are org-scoped only — they bind to no bundle configuration, and the server refuses to bind one to an
+iOS bundle configuration. A stored `DEVELOPER_ID_APPLICATION` cert is what `macos sign` /
+`macos notarize` consume (see `references/cli.md#macos`).
 
 Uploading a keystore runs `keytool -list -rfc` locally and records the signing certificate's MD5 /
 SHA-1 / SHA-256 fingerprints and its **expiry** alongside the encrypted keystore — the server never
@@ -108,10 +122,14 @@ better-update credentials generate keystore \
 
 # Apple signing cert: builds the CSR locally, requests a fresh .p12 from the ASC API, uploads it.
 # --type distribution|development = iOS; developer-id = macOS Developer ID Application (signs apps
-# distributed outside the Mac App Store; Apple only lets the team's Account Holder create these).
+# distributed outside the Mac App Store; Apple only lets the team's Account Holder create these);
+# mac-app-store|mac-installer|mac-development = Mac App Store certificates.
 # A stored developer-id cert is what `macos sign` / `macos notarize` consume (see references/cli.md#macos).
+# Developer ID *Installer* has no ASC creation path — export it from Keychain Access and upload it
+# with `credentials upload --platform macos --type macos-certificate`.
 # At Apple's per-type cert limit, offers an interactive revoke + retry.
-better-update credentials generate distribution-certificate [--asc-key-id <id>] [--type distribution|development|developer-id]
+better-update credentials generate distribution-certificate [--asc-key-id <id>] \
+  [--type distribution|development|developer-id|mac-app-store|mac-installer|mac-development]
 
 # iOS provisioning profile via ASC API. Needs a distribution cert + ASC API key for the same team.
 # --asc-key-id omitted → interactive team-labeled picker over stored keys (+ create from Apple ID).

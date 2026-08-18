@@ -1,9 +1,10 @@
 /**
  * Developer ID Application certificate resolution for `macos sign`: pick the
  * stored cert (flag › lone match › interactive picker), then download + decrypt
- * its `.p12` locally. There is no stored certificate-type column — a Developer
- * ID cert is recognized by its non-null `developerIdIdentifier`, the X.509
- * `UID` subject field only that cert type carries.
+ * its `.p12` locally. Candidates are the rows whose stored `certificateType` is
+ * `DEVELOPER_ID_APPLICATION` (mig 0101) — before that column existed this had
+ * to guess from a non-null `developerIdIdentifier`, which missed every
+ * certificate uploaded rather than generated.
  */
 import { fromBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
@@ -18,21 +19,38 @@ import { openFromDownload, openVaultSessionInteractive } from "./credential-ciph
 import type { ApiClient } from "../services/api-client";
 
 const GENERATE_HINT =
-  "Create one with `better-update credentials generate distribution-certificate --type developer-id` (Apple only issues these to the team's Account Holder).";
+  "Create one with `better-update credentials generate distribution-certificate --type developer-id` (Apple only issues these to the team's Account Holder), or upload an exported .p12 with `better-update credentials upload --platform macos --type macos-certificate`.";
 
 /**
  * Resolve which stored Developer ID Application certificate to sign with:
  * `--certificate-id` wins; a lone stored cert is used with a printed note; more
  * than one opens a team-labeled picker (which fails with guidance when
  * non-interactive).
+ *
+ * The flag is checked against the same candidate set rather than trusted: an id
+ * copied out of `credentials list` can just as easily be an App Store
+ * certificate, and codesign's complaint about it names neither the flag nor the
+ * certificate kind.
  */
 export const resolveDeveloperIdCertificateId = (api: ApiClient, flagCertId: string | undefined) =>
   Effect.gen(function* () {
-    if (flagCertId !== undefined && flagCertId.length > 0) {
-      return flagCertId;
-    }
     const listing = yield* api.appleDistributionCertificates.list();
-    const candidates = listing.items.filter((cert) => cert.developerIdIdentifier !== null);
+    const candidates = listing.items.filter(
+      (cert) => cert.certificateType === "DEVELOPER_ID_APPLICATION",
+    );
+    if (flagCertId !== undefined && flagCertId.length > 0) {
+      const flagged = candidates.find((cert) => cert.id === flagCertId);
+      if (flagged === undefined) {
+        const stored = listing.items.find((cert) => cert.id === flagCertId);
+        return yield* new CredentialValidationError({
+          message:
+            stored === undefined
+              ? `Certificate ${flagCertId} is not stored for this organization.`
+              : `Certificate ${flagCertId} is a ${stored.certificateType} certificate; signing a macOS app needs a Developer ID Application certificate.`,
+        });
+      }
+      return flagged.id;
+    }
     if (candidates.length === 0) {
       return yield* new CredentialValidationError({
         message: `No Developer ID Application certificate stored for this organization. ${GENERATE_HINT}`,

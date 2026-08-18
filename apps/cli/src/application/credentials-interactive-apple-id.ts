@@ -4,7 +4,7 @@ import { Console, Effect, Ref } from "effect";
 import type { RequestContext } from "@expo/apple-utils";
 
 import { messageOf } from "../lib/apple-asc-connect";
-import { distributionCertChoice } from "../lib/credential-choices";
+import { distributionCertChoice, iosCertificatesOnly } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
   generateAndUploadApnsKeyViaAppleId,
@@ -163,7 +163,9 @@ const chooseDistributionCertViaAppleId = (
     );
     const team = teams.items.find((entry) => entry.appleTeamId === appleTeamIdentifier);
     const items =
-      team === undefined ? [] : all.items.filter((cert) => cert.appleTeamId === team.id);
+      team === undefined
+        ? []
+        : iosCertificatesOnly(all.items).filter((cert) => cert.appleTeamId === team.id);
     if (items.length === 0) {
       const created = yield* generateDistributionCertViaAppleIdInteractive(api, ctx);
       return { id: created.id, appleTeamId: created.appleTeamId };

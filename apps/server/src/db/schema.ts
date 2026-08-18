@@ -17,8 +17,11 @@
 // Pure type-only module: zero runtime, so it stays lint-clean (unlike the
 // generated `.d.ts`, which lint ignores by extension).
 
+import type { Generated } from "kysely";
+
 import type { DebugArtifactType } from "../debug-artifact-models";
 import type {
+  AppleCertificateType,
   ArtifactFormat,
   AppleTeamType,
   AuditLogResourceType,
@@ -62,7 +65,9 @@ export type AndroidBuildCredentials = WithNonNullId<Gen.AndroidBuildCredentials>
 export type AndroidUploadKeystores = WithNonNullId<
   Narrow<Gen.AndroidUploadKeystores, { keystore_type: "JKS" | "PKCS12" | null }>
 >;
-export type AppleDistributionCertificates = WithNonNullId<Gen.AppleDistributionCertificates>;
+export type AppleDistributionCertificates = WithNonNullId<
+  Narrow<Gen.AppleDistributionCertificates, { certificate_type: Generated<AppleCertificateType> }>
+>;
 export type AppleProvisioningProfiles = WithNonNullId<
   Narrow<Gen.AppleProvisioningProfiles, { distribution_type: DistributionType }>
 >;

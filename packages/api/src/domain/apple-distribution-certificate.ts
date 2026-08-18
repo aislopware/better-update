@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { AppleCertificateType } from "./apple-certificate-type";
 import { AppleTeamIdentifier, appleTeamMetadataFields } from "./apple-team";
 import { DateTimeString, DeletedResult, Id } from "./common";
 import { credentialCreateBindingField } from "./credential-binding";
@@ -12,6 +13,8 @@ export class AppleDistributionCertificate extends Schema.Class<AppleDistribution
   organizationId: Id,
   appleTeamId: Id,
   serialNumber: Schema.String,
+  /** Which kind of Apple signing certificate this is — iOS, Mac App Store or Developer ID. */
+  certificateType: AppleCertificateType,
   developerIdIdentifier: Schema.NullOr(Schema.String),
   validFrom: DateTimeString,
   validUntil: DateTimeString,
@@ -33,6 +36,12 @@ export const UploadAppleDistributionCertificateBody = Schema.Struct({
   serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
   ...appleTeamMetadataFields,
+  /**
+   * Optional so a CLI predating the field still uploads: the server then falls
+   * back to the old heuristic (a `developerIdIdentifier` means Developer ID
+   * Application, anything else iOS distribution).
+   */
+  certificateType: Schema.optional(AppleCertificateType),
   developerIdIdentifier: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   validFrom: DateTimeString,
   validUntil: DateTimeString,
@@ -45,6 +54,7 @@ export const DownloadAppleDistributionCertificateResult = Schema.Struct({
   id: Id,
   ...encryptedEnvelopeFields,
   serialNumber: Schema.String,
+  certificateType: AppleCertificateType,
   appleTeamIdentifier: AppleTeamIdentifier,
   validFrom: DateTimeString,
   validUntil: DateTimeString,

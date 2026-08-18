@@ -1,4 +1,7 @@
-import type { AuditLogResourceType as ApiAuditLogResourceType } from "@better-update/api";
+import type {
+  AppleCertificateType as ApiAppleCertificateType,
+  AuditLogResourceType as ApiAuditLogResourceType,
+} from "@better-update/api";
 
 import type { AuditLogSource } from "./authz-models";
 
@@ -17,6 +20,11 @@ export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
 
 export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
 export type AppleTeamType = "IN_HOUSE" | "COMPANY_ORGANIZATION" | "INDIVIDUAL";
+
+// Same single-source treatment as AuditLogResourceType below: the certificate
+// kinds live in the contract (packages/api/src/domain/apple-certificate-type.ts)
+// and the server re-exports the union so db/schema can narrow the column.
+export type AppleCertificateType = ApiAppleCertificateType;
 
 export type EnvVarVisibility = "plaintext" | "sensitive";
 export type EnvVarScope = "project" | "global";
@@ -193,6 +201,7 @@ export interface AppleDistributionCertificateModel {
   readonly organizationId: string;
   readonly appleTeamId: string;
   readonly serialNumber: string;
+  readonly certificateType: AppleCertificateType;
   readonly developerIdIdentifier: string | null;
   readonly validFrom: string;
   readonly validUntil: string;

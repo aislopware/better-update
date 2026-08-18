@@ -20,6 +20,7 @@ import type {
 
 const CREDENTIAL_TYPES = [
   "distribution-certificate",
+  "macos-certificate",
   "provisioning-profile",
   "push-key",
   "push-certificate",
@@ -31,7 +32,7 @@ const CREDENTIAL_TYPES = [
 ] as const;
 
 const isPlatform = (value: string): value is CliCredentialPlatform =>
-  value === "ios" || value === "android";
+  value === "ios" || value === "android" || value === "macos";
 
 const isType = (value: string): value is CliCredentialType =>
   (CREDENTIAL_TYPES as readonly string[]).includes(value);
@@ -52,7 +53,7 @@ export const removeCommand = defineCommand({
   args: {
     platform: {
       type: "enum",
-      options: ["ios", "android"],
+      options: ["ios", "android", "macos"],
       description: "Pre-filter by platform",
     },
     type: {
@@ -116,6 +117,7 @@ const resolvePlatform = (raw: string | undefined) =>
       return yield* promptSelect<CliCredentialPlatform>("Filter by platform", [
         { value: "ios", label: "iOS" },
         { value: "android", label: "Android" },
+        { value: "macos", label: "macOS" },
       ]);
     }
     if (!isPlatform(raw)) {

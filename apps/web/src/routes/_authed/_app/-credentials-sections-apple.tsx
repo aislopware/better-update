@@ -1,3 +1,4 @@
+import { isMacosCertificateType } from "@better-update/api";
 import {
   appleDistributionCertificatesQueryOptions,
   applePassTypeCertificatesQueryOptions,
@@ -25,6 +26,8 @@ import {
   PushKeysTable,
 } from "./-credentials-tables";
 import {
+  MACOS_CERTIFICATES_EMPTY_HINT,
+  MacosCertificatesTable,
   PASS_TYPE_CERTIFICATES_EMPTY_HINT,
   PAY_CERTIFICATES_EMPTY_HINT,
   PUSH_CERTIFICATES_EMPTY_HINT,
@@ -47,17 +50,53 @@ const useAppleChildSection = (orgId: string) => {
 export const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  // One endpoint, two panels: a Developer ID certificate signs no iOS build and
+  // an iOS certificate signs no macOS app, so listing them together made the
+  // count above each useless for deciding whether anything was missing.
+  const items = useMemo(
+    () => data.items.filter((cert) => !isMacosCertificateType(cert.certificateType)),
+    [data.items],
+  );
 
   return (
     <CredentialPanel
       title="Distribution Certificates"
       description=".p12 certs for signing iOS builds."
-      items={data.items}
+      items={items}
       noun="certificate"
       emptyHint={DISTRIBUTION_CERTIFICATES_EMPTY_HINT}
     >
       {(pageItems) => (
         <DistributionCertificatesTable
+          items={pageItems}
+          orgId={orgId}
+          teamsById={teamsById}
+          canManageProtection={canManageProtection}
+        />
+      )}
+    </CredentialPanel>
+  );
+};
+
+export const MacosCertificatesSection = ({ orgId }: { orgId: string }) => {
+  const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
+  const { teamsById, canManageProtection } = useAppleChildSection(orgId);
+  const items = useMemo(
+    () => data.items.filter((cert) => isMacosCertificateType(cert.certificateType)),
+    [data.items],
+  );
+
+  return (
+    <CredentialPanel
+      title="macOS Certificates"
+      description="Developer ID and Mac App Store .p12 certs for signing and notarizing macOS apps."
+      items={items}
+      noun="certificate"
+      emptyHint={MACOS_CERTIFICATES_EMPTY_HINT}
+      hideWhenEmpty
+    >
+      {(pageItems) => (
+        <MacosCertificatesTable
           items={pageItems}
           orgId={orgId}
           teamsById={teamsById}
@@ -183,8 +222,14 @@ export const UnusedCertificateTypesPanel = ({ orgId }: { orgId: string }) => {
   const { data: push } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
   const { data: pay } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
   const { data: passType } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
+  const { data: certs } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
 
   const unused = [
+    {
+      title: "macOS Certificates",
+      hint: MACOS_CERTIFICATES_EMPTY_HINT,
+      count: certs.items.filter((cert) => isMacosCertificateType(cert.certificateType)).length,
+    },
     { title: "Push Certificates", hint: PUSH_CERTIFICATES_EMPTY_HINT, count: push.items.length },
     { title: "Apple Pay Certificates", hint: PAY_CERTIFICATES_EMPTY_HINT, count: pay.items.length },
     {

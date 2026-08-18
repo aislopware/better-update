@@ -6,6 +6,7 @@ import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { androidMenu } from "./credentials-manager-android";
 import { iosMenu } from "./credentials-manager-ios";
+import { macosMenu } from "./credentials-manager-macos";
 import { announce, EXIT, safePrompt } from "./credentials-manager-shared";
 
 import type { MenuEffect, WizardContext } from "./credentials-manager-shared";
@@ -17,6 +18,7 @@ const mainMenu = (ctx: WizardContext): MenuEffect =>
       promptSelect<string>("Pick a platform", [
         { value: "ios", label: "iOS" },
         { value: "android", label: "Android" },
+        { value: "macos", label: "macOS" },
         { value: EXIT, label: "Exit" },
       ]),
     );
@@ -27,6 +29,8 @@ const mainMenu = (ctx: WizardContext): MenuEffect =>
       yield* iosMenu(ctx);
     } else if (choice === "android") {
       yield* androidMenu(ctx);
+    } else if (choice === "macos") {
+      yield* macosMenu(ctx);
     }
     yield* mainMenu(ctx);
   });

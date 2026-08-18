@@ -56,6 +56,7 @@ export const toApiAppleDistributionCertificate = (
     organizationId: model.organizationId,
     appleTeamId: model.appleTeamId,
     serialNumber: model.serialNumber,
+    certificateType: model.certificateType,
     developerIdIdentifier: model.developerIdIdentifier,
     validFrom: model.validFrom,
     validUntil: model.validUntil,

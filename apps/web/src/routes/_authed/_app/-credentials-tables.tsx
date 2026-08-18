@@ -52,18 +52,11 @@ export const DistributionCertificatesTable = ({
     <TableBody>
       {items.map((cert) => (
         <TableRow key={cert.id}>
-          {/* Developer ID sits under the serial rather than in a column of its
-              own: only a Developer ID certificate has one, so the column stood
-              empty on every row of an App Store team. */}
+          {/* No certificate-kind column: this table is the iOS certificates
+              only, and macOS ones have their own panel that leads with the
+              kind — see ./-credentials-tables-certs. */}
           <TableCell className={PRIMARY_COLUMN_CLASS}>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <CopyableMono value={cert.serialNumber} label="Serial" />
-              {cert.developerIdIdentifier === null ? null : (
-                <span className="text-kumo-subtle truncate text-xs">
-                  Developer ID · {cert.developerIdIdentifier}
-                </span>
-              )}
-            </div>
+            <CopyableMono value={cert.serialNumber} label="Serial" />
           </TableCell>
           <TableCell>
             <TeamCell team={teamsById.get(cert.appleTeamId)} />

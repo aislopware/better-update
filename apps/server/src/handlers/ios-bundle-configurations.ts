@@ -85,8 +85,10 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
+      // A write, not a plain CRUD update: rebinding can fail validation
+      // (assertIosCredentialRefs rejects a macOS certificate) as well as authz.
       .handle("update", ({ path, payload }) =>
-        toApiCrudEffect(
+        toApiWriteEffect(
           Effect.gen(function* () {
             const repo = yield* IosBundleConfigurationRepo;
             const existing = yield* repo.findById({ id: path.id });

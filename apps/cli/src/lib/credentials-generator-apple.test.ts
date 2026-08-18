@@ -504,6 +504,7 @@ describe(generateAndUploadDistributionCertificate, () => {
         appleTeamName: "Acme Inc.",
         developerIdIdentifier: null,
         commonName: "iPhone Distribution: Acme",
+        certificateType: "IOS_DISTRIBUTION",
       });
 
       const vault = yield* makeTestVault;

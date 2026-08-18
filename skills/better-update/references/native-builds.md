@@ -216,6 +216,9 @@ For apps distributed **outside** the Mac App Store (a `.app`, `.dmg`, `.pkg`, or
 ```bash
 # One-time: store a Developer ID Application cert in the vault (Account Holder only)
 better-update credentials generate distribution-certificate --type developer-id
+# …or upload one you already exported from Keychain Access (any macOS certificate kind)
+better-update credentials upload --platform macos --type macos-certificate \
+  --name "Developer ID Application" --file ./DeveloperID.p12 --password "..."
 
 # Sign (ephemeral keychain, inside-out nested signing, hardened runtime + timestamp)
 better-update macos sign ./dist/MyApp.app [--entitlements ./entitlements.plist]

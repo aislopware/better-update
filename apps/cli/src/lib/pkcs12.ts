@@ -3,7 +3,11 @@
 import { getFormattedSerialNumber, getX509Certificate, parsePKCS12 } from "@expo/pkcs12";
 import { Effect } from "effect";
 
+import { readDeveloperIdIdentifier } from "./apple-cert-subject";
+import { certificateTypeFromCommonName } from "./apple-certificate-type";
 import { CredentialValidationError } from "./exit-codes";
+
+import type { AppleCertificateType } from "./apple-certificate-type";
 
 export interface P12Info {
   readonly serialNumber: string;
@@ -13,6 +17,14 @@ export interface P12Info {
   readonly issuerCN: string | undefined;
   readonly signingIdentity: string;
   readonly teamId: string | undefined;
+  /** Which kind of Apple certificate this is, read off the common name. */
+  readonly certificateType: AppleCertificateType;
+  /**
+   * The `UID` subject field, which only a Developer ID certificate carries.
+   * Read here as well as in the generate path so an uploaded Developer ID
+   * `.p12` records the same identifier a generated one does.
+   */
+  readonly developerIdIdentifier: string | undefined;
 }
 
 const APPLE_TEAM_ID_RE = /^[A-Z0-9]{10}$/u;
@@ -49,6 +61,7 @@ export const inspectP12 = (params: {
       const attrs = cert.subject.attributes as readonly {
         shortName?: string | undefined;
         name?: string | undefined;
+        type?: string | undefined;
         value: unknown;
       }[];
       const subjectParts: string[] = attrs.map((attr) => {
@@ -72,7 +85,19 @@ export const inspectP12 = (params: {
 
       const teamId = extractTeamId({ signingIdentity, orgUnit });
 
-      return { serialNumber, validFrom, expiresAt, subject, issuerCN, signingIdentity, teamId };
+      const developerIdIdentifier = readDeveloperIdIdentifier(attrs);
+
+      return {
+        serialNumber,
+        validFrom,
+        expiresAt,
+        subject,
+        issuerCN,
+        signingIdentity,
+        teamId,
+        certificateType: certificateTypeFromCommonName(cn),
+        developerIdIdentifier,
+      };
     },
     catch: (error) =>
       new CredentialValidationError({

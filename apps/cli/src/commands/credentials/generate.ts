@@ -3,6 +3,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { pickOrCreateAscApiKey } from "../../application/asc-key-resolve";
+import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";
 import { runEffect } from "../../lib/citty-effect";
 import { CertificateLimitError, generateAndUploadKeystore } from "../../lib/credentials-generator";
 import {
@@ -21,7 +22,7 @@ import { ascKeyCommand } from "./generate-asc-key";
 import { merchantIdCommand } from "./generate-merchant-id";
 import { pushKeyCommand } from "./generate-push-key";
 
-import type { AppleCertificateType } from "../../lib/credentials-generator-apple";
+import type { GeneratableCertificateType } from "../../lib/credentials-generator-apple";
 import type { ApiClient } from "../../services/api-client";
 
 const GENERATE_EXIT_EXTRAS = {
@@ -161,17 +162,20 @@ const resolveAscKeyIdArg = (api: ApiClient, raw: string | undefined) =>
     return picked;
   });
 
-const CLI_TYPE_TO_CERTIFICATE_TYPE: Record<string, AppleCertificateType> = {
+const CLI_TYPE_TO_CERTIFICATE_TYPE: Record<string, GeneratableCertificateType> = {
   distribution: "IOS_DISTRIBUTION",
   development: "IOS_DEVELOPMENT",
   "developer-id": "DEVELOPER_ID_APPLICATION",
+  "mac-app-store": "MAC_APP_DISTRIBUTION",
+  "mac-installer": "MAC_INSTALLER_DISTRIBUTION",
+  "mac-development": "MAC_APP_DEVELOPMENT",
 };
 
 const distributionCertificateCommand = defineCommand({
   meta: {
     name: "distribution-certificate",
     description:
-      "Generate an Apple signing certificate via the App Store Connect API and store the resulting .p12 (iOS distribution/development, or Developer ID for macOS apps distributed outside the Mac App Store)",
+      "Generate an Apple signing certificate via the App Store Connect API and store the resulting .p12 (iOS distribution/development, Mac App Store, or Developer ID for macOS apps distributed outside the Mac App Store)",
   },
   args: {
     "asc-key-id": {
@@ -181,10 +185,17 @@ const distributionCertificateCommand = defineCommand({
     },
     type: {
       type: "enum",
-      options: ["distribution", "development", "developer-id"],
+      options: [
+        "distribution",
+        "development",
+        "developer-id",
+        "mac-app-store",
+        "mac-installer",
+        "mac-development",
+      ],
       default: "distribution",
       description:
-        "Certificate type to issue (developer-id = macOS Developer ID Application; Apple only lets the Account Holder create these)",
+        "Certificate type to issue: distribution/development (iOS), developer-id (macOS apps shipped outside the Mac App Store — Apple only lets the Account Holder create these), mac-app-store/mac-installer/mac-development (Mac App Store). A Developer ID Installer certificate has no ASC creation path — export it from Keychain and `credentials upload --platform macos --type macos-certificate`",
     },
   },
   run: async ({ args }) =>
@@ -198,7 +209,9 @@ const distributionCertificateCommand = defineCommand({
           );
         }
         const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
-        yield* printHuman("Requesting a distribution certificate from Apple...");
+        yield* printHuman(
+          `Requesting a ${APPLE_CERTIFICATE_TYPE_LABELS[certificateType]} certificate from Apple...`,
+        );
 
         const context = yield* ascKeyRequestContext(api, ascKeyId);
         const attempt = generateAndUploadDistributionCertificate(api, { context, certificateType });
@@ -211,9 +224,12 @@ const distributionCertificateCommand = defineCommand({
           ),
         );
 
-        yield* printHuman("Distribution certificate generated and stored.");
+        yield* printHuman(
+          `${APPLE_CERTIFICATE_TYPE_LABELS[created.certificateType]} certificate generated and stored.`,
+        );
         yield* printHumanKeyValue([
           ["ID", created.id],
+          ["Certificate type", created.certificateType],
           ["Serial", created.serialNumber],
           ["Apple team", created.appleTeamIdentifier],
           ["Apple cert", created.developerPortalIdentifier],
@@ -226,7 +242,7 @@ const distributionCertificateCommand = defineCommand({
 
 const handleCertLimitInteractive = (
   context: Parameters<typeof listDistributionCerts>[0],
-  certificateType: AppleCertificateType,
+  certificateType: GeneratableCertificateType,
 ) =>
   Effect.gen(function* () {
     yield* printHuman("");

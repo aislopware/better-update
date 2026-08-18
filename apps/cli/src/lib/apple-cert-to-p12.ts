@@ -1,6 +1,11 @@
 import { Data, Effect } from "effect";
 import forge from "node-forge";
 
+import { readDeveloperIdIdentifier } from "./apple-cert-subject";
+import { certificateTypeFromCommonName } from "./apple-certificate-type";
+
+import type { AppleCertificateType } from "./apple-certificate-type";
+
 export class CertParseError extends Data.TaggedError("CertParseError")<{
   readonly message: string;
 }> {}
@@ -13,6 +18,8 @@ export interface CertMetadata {
   readonly appleTeamName: string | null;
   readonly developerIdIdentifier: string | null;
   readonly commonName: string | null;
+  /** Derived from {@link commonName} — see ./apple-certificate-type. */
+  readonly certificateType: AppleCertificateType;
 }
 
 export interface P12Bundle {
@@ -80,14 +87,17 @@ const extractCertMetadata = (
         message: "Could not extract Apple team identifier from certificate subject",
       });
     }
+    const commonName = stringField(cert, "CN");
+    const developerId = readDeveloperIdIdentifier(cert.subject.attributes);
     return {
       serialNumber: cert.serialNumber.toUpperCase(),
       validFrom: cert.validity.notBefore.toISOString(),
       validUntil: cert.validity.notAfter.toISOString(),
       appleTeamId,
       appleTeamName: stringField(cert, "O"),
-      developerIdIdentifier: stringField(cert, "UID"),
-      commonName: stringField(cert, "CN"),
+      developerIdIdentifier: developerId === undefined ? null : developerId,
+      commonName,
+      certificateType: certificateTypeFromCommonName(commonName),
     };
   });
 

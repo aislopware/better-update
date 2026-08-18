@@ -2,6 +2,7 @@ import { Console, Effect } from "effect";
 
 import {
   distributionCertChoice,
+  iosCertificatesOnly,
   makeAppleTeamLabeler,
   pushKeyChoice,
 } from "../lib/credential-choices";
@@ -16,7 +17,10 @@ import type { WizardContext } from "./credentials-manager-shared";
 
 export const revokeIosDistributionCert = (ctx: WizardContext) =>
   Effect.gen(function* () {
-    const certs = yield* ctx.api.appleDistributionCertificates.list();
+    const listing = yield* ctx.api.appleDistributionCertificates.list();
+    // The iOS section of the wizard. macOS certificates are revoked from
+    // `credentials revoke --id <id>`, which takes any certificate kind.
+    const certs = { items: iosCertificatesOnly(listing.items) };
     if (certs.items.length === 0) {
       return yield* new MissingCredentialsError({
         message: "No distribution certificates in this account.",

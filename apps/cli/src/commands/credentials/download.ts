@@ -7,6 +7,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { openFromDownload, openVaultSessionInteractive } from "../../application/credential-cipher";
+import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";
 import { runEffect } from "../../lib/citty-effect";
 import { requireSecretString } from "../../lib/credential-secret";
 import { CredentialValidationError, IdentityError } from "../../lib/exit-codes";
@@ -18,6 +19,7 @@ import type { ApiClient } from "../../services/api-client";
 
 const DOWNLOAD_TYPES = [
   "distribution-certificate",
+  "macos-certificate",
   "provisioning-profile",
   "push-key",
   "push-certificate",
@@ -85,7 +87,7 @@ const downloadDistributionCertificate = ({ api, id, cwd, output }: DownloadCtx) 
       path: filePath,
       pairs: [
         ["Path", filePath],
-        ["Type", "Apple distribution certificate (.p12)"],
+        ["Type", `${APPLE_CERTIFICATE_TYPE_LABELS[data.certificateType]} certificate (.p12)`],
         ["Serial", data.serialNumber],
         ["Apple team", data.appleTeamIdentifier],
         ["Valid from", data.validFrom],
@@ -94,6 +96,7 @@ const downloadDistributionCertificate = ({ api, id, cwd, output }: DownloadCtx) 
       ] as const,
       metadata: {
         serialNumber: data.serialNumber,
+        certificateType: data.certificateType,
         appleTeamIdentifier: data.appleTeamIdentifier,
         validFrom: data.validFrom,
         validUntil: data.validUntil,
@@ -358,7 +361,11 @@ const downloadGoogleServiceAccountKey = ({ api, id, cwd, output }: DownloadCtx) 
 
 const dispatchDownload = (ctx: DownloadCtx, type: DownloadType) => {
   switch (type) {
-    case "distribution-certificate": {
+    // One row type, one endpoint (mig 0101): the certificate kind only changes
+    // the label printed beside the file, so both credential types download the
+    // same way.
+    case "distribution-certificate":
+    case "macos-certificate": {
       return downloadDistributionCertificate(ctx);
     }
     case "provisioning-profile": {

@@ -566,6 +566,9 @@ describe("cLI command journey", () => {
     expect(listAfterUpload.stdout).toContain(uploadedCredentialId!);
     expect(listAfterUpload.stdout).toContain("distribution-certificate");
     expect(listAfterUpload.stdout).toContain("ios");
+    // The certificate kind read off the subject, not the credential type the
+    // upload was filed under.
+    expect(listAfterUpload.stdout).toContain("Apple Distribution");
 
     const downloadDir = path.join(cli.getProjectDir(), "downloaded-cert.p12");
     const downloadResult = cli.runCli(
@@ -601,6 +604,93 @@ describe("cLI command journey", () => {
     expect(listAfterDelete.exitCode).toBe(0);
     expect(listAfterDelete.stderr).toBe("");
     expect(listAfterDelete.stdout).not.toContain(uploadedCredentialId!);
+  });
+
+  it("uploads a Developer ID certificate as a macOS credential and refuses it as an iOS one", () => {
+    const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-developer-id.p12");
+    const p12Password = "developer-id-password";
+    writeFileSync(
+      credentialFile,
+      generateSelfSignedP12(
+        p12Password,
+        "/OU=CLIE2ETEAM/CN=Developer ID Application: CLI E2E (CLIE2ETEAM)",
+      ),
+    );
+
+    // Filing a Developer ID cert under the iOS type is rejected from the
+    // certificate's own subject — it used to be stored as an iOS certificate,
+    // where `macos sign` could never find it again.
+    const wrongPlatform = cli.runCli(
+      "credentials",
+      "upload",
+      "--platform",
+      "ios",
+      "--type",
+      "distribution-certificate",
+      "--name",
+      "CLI Mis-Filed Certificate",
+      "--file",
+      credentialFile,
+      "--password",
+      p12Password,
+    );
+    expect(wrongPlatform.exitCode).not.toBe(0);
+    expect(wrongPlatform.stderr).toContain("--platform macos --type macos-certificate");
+
+    const uploadResult = cli.runCli(
+      "credentials",
+      "upload",
+      "--platform",
+      "macos",
+      "--type",
+      "macos-certificate",
+      "--name",
+      "CLI Developer ID Certificate",
+      "--file",
+      credentialFile,
+      "--password",
+      p12Password,
+    );
+    expect(uploadResult.exitCode).toBe(0);
+    expect(uploadResult.stderr).toBe("");
+    expect(uploadResult.stdout).toContain("Credential uploaded successfully.");
+    const uploadedCredentialId = /^ID\s+(?<id>[^\s]+)$/m.exec(uploadResult.stdout)?.[1];
+    expect(uploadedCredentialId).toBeDefined();
+
+    const macosList = cli.runCli("credentials", "list", "--type", "macos-certificate");
+    expect(macosList.exitCode).toBe(0);
+    expect(macosList.stderr).toBe("");
+    expect(macosList.stdout).toContain(uploadedCredentialId!);
+    expect(macosList.stdout).toContain("macos-certificate");
+    expect(macosList.stdout).toContain("Developer ID Application");
+
+    // The same certificate must not show up among the iOS ones.
+    const iosList = cli.runCli("credentials", "list", "--platform", "ios");
+    expect(iosList.exitCode).toBe(0);
+    expect(iosList.stdout).not.toContain(uploadedCredentialId!);
+
+    const viewResult = cli.runCli(
+      "credentials",
+      "view",
+      uploadedCredentialId!,
+      "--type",
+      "macos-certificate",
+    );
+    expect(viewResult.exitCode).toBe(0);
+    expect(viewResult.stdout).toContain("DEVELOPER_ID_APPLICATION");
+
+    const deleteResult = cli.runCli(
+      "credentials",
+      "delete",
+      uploadedCredentialId!,
+      "--platform",
+      "macos",
+      "--type",
+      "macos-certificate",
+    );
+    expect(deleteResult.exitCode).toBe(0);
+    expect(deleteResult.stderr).toBe("");
+    expect(deleteResult.stdout).toContain(`Credential ${uploadedCredentialId} deleted.`);
   });
 
   it("manages rollout state, promotes an update, and deletes the promoted group", async () => {
