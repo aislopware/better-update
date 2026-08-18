@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.77.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.76.0...%40better-update%2Fweb%400.77.0) (2026-08-18)
+
+### Features
+
+* manage macOS signing certificates as a first-class credential type ([1db1328](https://github.com/better-update/better-update/commit/1db132849d1bab9526cd343b1c4ededbc172979c))
+
 ## [0.76.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.75.1...%40better-update%2Fweb%400.76.0) (2026-08-18)
 
 ### Features
