@@ -1,7 +1,8 @@
 /**
  * Provisions the Cloudflare resources a deployment needs (D1 database, two KV
  * namespaces, three R2 buckets) on the account Wrangler is authenticated
- * against, then writes the resulting ids into `.env.deploy`.
+ * against, applies the browser CORS rule the assets bucket needs, then writes
+ * the resulting ids into `.env.deploy`.
  *
  * Safe to re-run: an existing resource is looked up instead of recreated, and
  * only the id keys are rewritten — every other line of `.env.deploy` is kept.
@@ -13,6 +14,7 @@
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import {
@@ -116,6 +118,49 @@ const createBucket = (name: string, accountId: string): void => {
   }
 };
 
+/**
+ * Logos and avatars are uploaded straight from the browser to a presigned R2
+ * PUT URL, so the assets bucket needs a CORS rule naming every origin the web
+ * app is served from — the dashboard host plus, when configured, the isolated
+ * vault host. This lives on the bucket, not in `wrangler.jsonc`: without it the
+ * preflight fails and every logo upload dies with a CORS error. Re-applied on
+ * every bootstrap so adding a hostname later is one `bun run bootstrap` away.
+ */
+const setAssetsCors = (bucket: string, origins: readonly string[], accountId: string): void => {
+  if (origins.length === 0) {
+    return;
+  }
+  const file = path.join(os.tmpdir(), `better-update-r2-cors-${bucket}.json`);
+  fs.writeFileSync(
+    file,
+    JSON.stringify(
+      {
+        rules: [
+          {
+            allowed: { headers: ["content-type"], methods: ["PUT"], origins },
+            maxAgeSeconds: 3600,
+          },
+        ],
+      },
+      undefined,
+      2,
+    ),
+  );
+  try {
+    const applied = tryWrangler(
+      ["r2", "bucket", "cors", "set", bucket, "--file", file, "--force"],
+      accountId,
+    );
+    if (!dryRun) {
+      console.log(
+        `  R2 ${bucket} CORS — ${applied === undefined ? "FAILED" : `allows ${origins.join(", ")}`}`,
+      );
+    }
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+};
+
 /** Rewrites only the given keys, preserving comments, order and other keys. */
 const updateOverrides = (updates: Record<string, string>): void => {
   if (!fs.existsSync(OVERRIDES_FILE)) {
@@ -156,11 +201,15 @@ const main = (): void => {
   const accountId = read("BU_CF_ACCOUNT_ID", "");
   const workerName = read("BU_SERVER_WORKER_NAME", "better-update-server");
   const d1Name = read("BU_D1_DATABASE_NAME", "better-update");
+  const assetsBucket = read("BU_R2_ASSETS_BUCKET", "better-update-assets");
   const buckets = [
-    read("BU_R2_ASSETS_BUCKET", "better-update-assets"),
+    assetsBucket,
     read("BU_R2_BUILDS_BUCKET", "better-update-builds"),
     read("BU_R2_CREDENTIALS_BUCKET", "better-update-credentials"),
   ];
+  const uploadOrigins = [read("BU_APP_HOST", ""), read("BU_VAULT_HOST", "")]
+    .filter((host) => host.length > 0)
+    .map((host) => `https://${host}`);
 
   console.log(
     `Provisioning on account ${accountId.length > 0 ? accountId : "(wrangler default)"}${
@@ -176,6 +225,7 @@ const main = (): void => {
     // Preview buckets back the R2 e2e suite; harmless to have, required to run it.
     createBucket(`${bucket}-e2e`, accountId);
   }
+  setAssetsCors(assetsBucket, uploadOrigins, accountId);
 
   if (dryRun) {
     return;

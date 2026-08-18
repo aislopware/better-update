@@ -61,6 +61,12 @@ the `-e2e` preview buckets the R2 test suite needs), then writes the resulting
 ids back into `.env.deploy`. It is safe to re-run: existing resources are looked
 up rather than recreated.
 
+It also sets the CORS rule on the assets bucket that lets the browser PUT logos
+and avatars to a presigned URL, allowing `BU_APP_HOST` and — when set —
+`BU_VAULT_HOST`. That rule lives on the bucket rather than in `wrangler.jsonc`,
+so re-run `bun run bootstrap` after changing either hostname or after recreating
+the bucket; otherwise logo uploads fail the preflight with a CORS error.
+
 ### 3. Render the config
 
 ```sh
