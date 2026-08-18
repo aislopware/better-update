@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.38.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.37.1...%40better-update%2Fapi-client%400.38.0) (2026-08-18)
+
+### Features
+
+* **web:** surface the OTA update sourcemap on the update detail page ([4e61987](https://gitlab.jmango360.com/mobile/better-update/commit/4e61987e70e22273fa00c1af559cce64b92f6c47))
+
 ## [0.37.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fapi-client%400.37.0...%40better-update%2Fapi-client%400.37.1) (2026-08-18)
 
 **Note:** Version bump only for package @better-update/api-client

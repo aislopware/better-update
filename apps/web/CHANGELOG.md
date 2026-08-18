@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.78.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.77.0...%40better-update%2Fweb%400.78.0) (2026-08-18)
+
+### Features
+
+* **web:** surface the OTA update sourcemap on the update detail page ([4e61987](https://github.com/better-update/better-update/commit/4e61987e70e22273fa00c1af559cce64b92f6c47))
+
 ## [0.77.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.76.0...%40better-update%2Fweb%400.77.0) (2026-08-18)
 
 ### Features
