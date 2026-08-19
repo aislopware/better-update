@@ -1,340 +1,194 @@
 import { useMountEffect } from "@better-update/react-hooks";
-import { useSpring } from "@react-spring/web";
-import createGlobe from "cobe";
 import { useRef } from "react";
 
-import type { Arc, COBEOptions, Globe, Marker } from "cobe";
-import type { CSSProperties } from "react";
-
 import { BrandBackdrop, BrandIcon } from "./brand-mark";
+import { EDGES } from "./hero-globe/network";
 
-interface Edge {
-  readonly id: string;
-  readonly location: [number, number];
-  readonly label: string;
-}
+import type { Caption } from "./hero-globe/network";
+import type { HeroGlobeHandle } from "./hero-globe/scene";
 
-const EDGES: readonly Edge[] = [
-  { id: "iad", location: [39.04, -77.49], label: "iad" },
-  { id: "sjc", location: [37.37, -121.92], label: "sjc" },
-  { id: "dfw", location: [32.9, -97.04], label: "dfw" },
-  { id: "mia", location: [25.79, -80.29], label: "mia" },
-  { id: "gru", location: [-23.55, -46.63], label: "gru" },
-  { id: "lhr", location: [51.47, -0.45], label: "lhr" },
-  { id: "cdg", location: [49.01, 2.55], label: "cdg" },
-  { id: "fra", location: [50.03, 8.56], label: "fra" },
-  { id: "ams", location: [52.31, 4.76], label: "ams" },
-  { id: "bom", location: [19.09, 72.87], label: "bom" },
-  { id: "sin", location: [1.35, 103.82], label: "sin" },
-  { id: "nrt", location: [35.76, 140.39], label: "nrt" },
-  { id: "syd", location: [-33.95, 151.18], label: "syd" },
-  { id: "jnb", location: [-26.14, 28.24], label: "jnb" },
+/** Land-point cloud, vendored into `public/`. ~94 KB, fetched once and cached. */
+const LAND_POINTS_URL = "/earth-land-points.bin";
+
+/** Pixels of horizontal drag per radian of rotation. */
+const DRAG_DAMPING = 260;
+/** Decay of the flick that follows a release, per 60 fps frame's worth of time. */
+const DRAG_FRICTION = 0.92;
+const FRICTION_REFERENCE_MS = 1000 / 60;
+/** Clamp long frame gaps (backgrounded tab) so the globe never jumps on return. */
+const MAX_FRAME_MS = 100;
+
+const noop = () => undefined;
+
+/**
+ * The four corner brackets drawn over the card's dashed border — two 2px bars
+ * per corner, pulled out by half a pixel so they sit on the border, not inside
+ * it. Written out rather than generated because Tailwind's scanner only sees
+ * class names that appear literally in the source.
+ */
+const CORNER_BRACKETS = [
+  "top-[-1.5px] left-[-1.5px] h-[2px] w-4",
+  "top-[-1.5px] left-[-1.5px] h-4 w-[2px]",
+  "top-[-1.5px] right-[-1.5px] h-[2px] w-4",
+  "top-[-1.5px] right-[-1.5px] h-4 w-[2px]",
+  "bottom-[-1.5px] left-[-1.5px] h-[2px] w-4",
+  "bottom-[-1.5px] left-[-1.5px] h-4 w-[2px]",
+  "bottom-[-1.5px] right-[-1.5px] h-[2px] w-4",
+  "bottom-[-1.5px] right-[-1.5px] h-4 w-[2px]",
 ];
 
-interface ArcLink {
-  readonly id: string;
-  readonly from: string;
-  readonly to: string;
-  readonly label: string;
-}
+/**
+ * Where a card sits relative to its marker, and when it is allowed to show.
+ * The scene writes `data-side` onto the marker root every frame; a card grows
+ * in only while its city is on the left of the globe, which is the half of the
+ * hero the sign-in panel does not cover.
+ */
+const CARD_PLACEMENT = {
+  above:
+    "origin-bottom-right translate-y-[calc(-100%-26px)] group-data-[side=left]:scale-100 group-data-[side=left]:opacity-100",
+  below:
+    "origin-top-right translate-y-[26px] group-data-[side=left]:scale-100 group-data-[side=left]:opacity-100",
+};
 
-const ARCS: readonly ArcLink[] = [
-  { id: "iad-lhr", from: "iad", to: "lhr", label: "2.4 TB/s" },
-  { id: "sjc-nrt", from: "sjc", to: "nrt", label: "1.8 TB/s" },
-  { id: "lhr-sin", from: "lhr", to: "sin", label: "1.2 TB/s" },
-  { id: "iad-gru", from: "iad", to: "gru", label: "890 GB/s" },
-  { id: "fra-bom", from: "fra", to: "bom", label: "720 GB/s" },
-  { id: "sin-syd", from: "sin", to: "syd", label: "540 GB/s" },
-];
-
-const EDGE_BY_ID: Readonly<Record<string, Edge>> = Object.fromEntries(
-  EDGES.map((edge) => [edge.id, edge]),
+const CaptionCard = ({ caption }: { readonly caption: Caption }) => (
+  <div
+    className={`text-kumo-subtle dark:text-kumo-default bg-kumo-canvas/80 absolute top-0 left-0 z-10 w-[200px] translate-x-[-240px] scale-0 border border-dashed border-current/60 p-3 opacity-0 backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out max-lg:hidden ${CARD_PLACEMENT[caption.place]}`}
+  >
+    <p className="text-kumo-strong text-sm leading-none font-medium">{caption.value}</p>
+    <p className="text-kumo-subtle mt-2 text-xs leading-snug">{caption.text}</p>
+    {CORNER_BRACKETS.map((bracket) => (
+      <span key={bracket} className={`pointer-events-none absolute bg-current ${bracket}`} />
+    ))}
+  </div>
 );
 
-const buildMarkers = (): Marker[] =>
-  EDGES.map((edge): Marker => ({
-    id: edge.id,
-    location: [edge.location[0], edge.location[1]],
-    size: 0,
-  }));
-
-const buildArcs = (): Arc[] =>
-  ARCS.flatMap((arc): Arc[] => {
-    const from = EDGE_BY_ID[arc.from];
-    const to = EDGE_BY_ID[arc.to];
-    if (!from || !to) {
-      return [];
-    }
-    return [
-      {
-        id: arc.id,
-        from: [from.location[0], from.location[1]],
-        to: [to.location[0], to.location[1]],
-      },
-    ];
-  });
-
-const buildConfig = (dark: boolean): COBEOptions => ({
-  // Cap at 2: the canvas already renders at the CSS size, so a higher ratio only
-  // multiplies fragment-shader work (pixels = width * dpr) with no visible gain.
-  devicePixelRatio: Math.min(globalThis.devicePixelRatio, 2),
-  width: 1000,
-  height: 1000,
-  phi: 0,
-  theta: 0.2,
-  dark: dark ? 1 : 0,
-  diffuse: dark ? 2.5 : 3,
-  mapSamples: 16_000,
-  mapBrightness: dark ? 2 : 1.5,
-  baseColor: dark ? [0.1, 0.1, 0.12] : [1, 1, 1],
-  markerColor: dark ? [0.9, 0.9, 0.9] : [0.1, 0.1, 0.1],
-  glowColor: dark ? [0.12, 0.12, 0.14] : [1, 1, 1],
-  arcColor: dark ? [0.9, 0.9, 0.9] : [0.1, 0.1, 0.1],
-  arcWidth: 0.35,
-  arcHeight: 0.3,
-  markerElevation: 0.02,
-  // Disable MSAA: the sphere edge is already shader-antialiased, and skipping it
-  // cuts GPU load noticeably on integrated GPUs (cobe#44). alpha stays on for glow.
-  context: { antialias: false },
-  markers: buildMarkers(),
-  arcs: buildArcs(),
-});
-
-const readDark = (): boolean => document.documentElement.classList.contains("dark");
-
-const POINTER_DAMPING = 300;
-
-// Cap the globe's render rate. Each rendered frame forces a full layout + style
-// recalc (cobe positions the HTML markers/labels via CSS anchors), so on a 120Hz
-// display the uncapped rAF loop ran ~120 layouts/s. 30fps stays smooth enough for
-// a decorative globe while cutting that per-frame work ~4x.
-const TARGET_FRAME_MS = 1000 / 30;
-// Auto-rotation speed in radians/ms (≈0.18 rad/s — was 0.003 rad/frame tuned at
-// 60Hz). Time-based so the speed is identical regardless of the display refresh
-// rate, instead of spinning twice as fast on a 120Hz screen.
-const ROTATION_PER_MS = 0.18 / 1000;
-
-interface GlobeHandle {
-  readonly globe: Globe;
-  readonly start: () => void;
-  readonly stop: () => void;
+interface Runtime {
+  handle: HeroGlobeHandle | null;
+  raf: number;
+  last: number;
+  velocity: number;
+  dragX: number | null;
+  disposed: boolean;
 }
 
-interface StartRuntime {
-  readonly canvas: HTMLCanvasElement;
-  readonly phiRef: { current: number };
-  readonly widthRef: { current: number };
-  readonly pointerRef: { current: number | null };
-  readonly getSpringR: () => number;
-  readonly reduce: boolean;
-  readonly dark: boolean;
-}
-
-const startGlobe = (runtime: StartRuntime): GlobeHandle => {
-  const globe = createGlobe(runtime.canvas, {
-    ...buildConfig(runtime.dark),
-    width: runtime.widthRef.current,
-    height: runtime.widthRef.current,
-  });
-
-  const rafRef = { current: 0 };
-  const timerRef = { current: undefined as ReturnType<typeof globalThis.setTimeout> | undefined };
-  const runningRef = { current: false };
-  const lastPhiRef = { current: Number.NaN };
-  const lastTsRef = { current: 0 };
-
-  const tick = (now: number) => {
-    // Time-based so rotation speed is identical at any refresh rate; clamp the
-    // delta so a long pause (backgrounded tab) doesn't jump the globe forward.
-    const elapsed = lastTsRef.current === 0 ? TARGET_FRAME_MS : now - lastTsRef.current;
-    const dt = Math.min(elapsed, TARGET_FRAME_MS * 4);
-    lastTsRef.current = now;
-
-    if (runtime.pointerRef.current === null && !runtime.reduce) {
-      runtime.phiRef.current += ROTATION_PER_MS * dt;
-    }
-    const phi = runtime.phiRef.current + runtime.getSpringR();
-    globe.update({
-      phi,
-      width: runtime.widthRef.current,
-      height: runtime.widthRef.current,
-    });
-
-    // Keep going only while something is still in motion: auto-rotation, an
-    // active drag, or a spring that has not settled. A static globe (e.g.
-    // prefers-reduced-motion, idle) renders its final frame and then stops.
-    const moving =
-      !runtime.reduce || runtime.pointerRef.current !== null || phi !== lastPhiRef.current;
-    lastPhiRef.current = phi;
-
-    if (!moving) {
-      runningRef.current = false;
-      return;
-    }
-    // Wake on a timer, *then* paint on the next vsync — so a rAF callback is not
-    // pending on every 120Hz refresh. A standing rAF makes Chrome recalc style
-    // every frame while CSS transitions are on the page (crbug.com/1252311), so
-    // gating keeps style-recalc + the anchor-driven layout at ~30/s, not ~120/s.
-    timerRef.current = globalThis.setTimeout(() => {
-      rafRef.current = globalThis.requestAnimationFrame(tick);
-    }, TARGET_FRAME_MS);
-  };
-
-  return {
-    globe,
-    start: () => {
-      if (runningRef.current) {
-        return;
-      }
-      runningRef.current = true;
-      rafRef.current = globalThis.requestAnimationFrame(tick);
-    },
-    stop: () => {
-      runningRef.current = false;
-      globalThis.cancelAnimationFrame(rafRef.current);
-      globalThis.clearTimeout(timerRef.current);
-    },
-  };
+const loadLandPoints = async (): Promise<Int16Array> => {
+  const response = await fetch(LAND_POINTS_URL);
+  return new Int16Array(await response.arrayBuffer());
 };
 
-interface PointerState {
-  readonly pointerRef: { current: number | null };
-  readonly canvasRef: { current: HTMLCanvasElement | null };
-  readonly springStart: (value: number) => void;
-  readonly currentR: () => number;
-  readonly wake: () => void;
-}
-
-const makePointerHandlers = (state: PointerState) => {
-  const onDown = (clientX: number) => {
-    state.pointerRef.current = clientX;
-    // Restart the loop in case it had idled (reduced motion / settled spring).
-    state.wake();
-    if (state.canvasRef.current) {
-      state.canvasRef.current.style.cursor = "grabbing";
-    }
-  };
-
-  const onUp = () => {
-    state.pointerRef.current = null;
-    if (state.canvasRef.current) {
-      state.canvasRef.current.style.cursor = "grab";
-    }
-  };
-
-  const onMove = (clientX: number) => {
-    if (state.pointerRef.current === null) {
-      return;
-    }
-    const delta = clientX - state.pointerRef.current;
-    state.pointerRef.current = clientX;
-    state.springStart(state.currentR() + delta / POINTER_DAMPING);
-  };
-
-  return { onDown, onUp, onMove };
-};
-
-const edgeMarkerStyle = (id: string): CSSProperties => ({
-  positionAnchor: `--cobe-${id}`,
-  top: "anchor(center)",
-  left: "anchor(center)",
-  transform: "translate(-50%, -50%)",
-  opacity: `var(--cobe-visible-${id}, 0)`,
-});
-
-const edgeLabelStyle = (id: string): CSSProperties => ({
-  positionAnchor: `--cobe-${id}`,
-  top: "anchor(bottom)",
-  left: "anchor(center)",
-  transform: "translate(-50%, 16px)",
-  opacity: `var(--cobe-visible-${id}, 0)`,
-});
-
-const arcLabelStyle = (id: string): CSSProperties => ({
-  positionAnchor: `--cobe-arc-${id}`,
-  top: "anchor(center)",
-  left: "anchor(center)",
-  transform: "translate(-50%, -50%)",
-  opacity: `var(--cobe-visible-arc-${id}, 0)`,
-});
-
+/**
+ * Decorative hero globe: a point cloud of the world's land mass with the edge
+ * network drawn over it, ported from the "Region: Earth" scene on
+ * cloudflare.com and recoloured onto Kumo's neutral foreground tokens.
+ *
+ * three.js is loaded on demand from inside the mount effect — it must not sit
+ * in the SSR bundle or the login route's initial payload for a decoration.
+ */
 export const HeroMotion = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const phiRef = useRef(0);
-  const widthRef = useRef(0);
-  const pointerRef = useRef<number | null>(null);
-  const wakeRef = useRef<() => void>(() => undefined);
-
-  const [{ rotation }, springApi] = useSpring(() => ({
-    rotation: 0,
-    config: { mass: 1, tension: 280, friction: 40, precision: 0.001 },
-  }));
+  const anchorsRef = useRef(new Map<string, HTMLElement>());
+  const runtimeRef = useRef<Runtime>({
+    handle: null,
+    raf: 0,
+    last: 0,
+    velocity: 0,
+    dragX: null,
+    disposed: false,
+  });
 
   useMountEffect(() => {
     const canvas = canvasRef.current;
-    const noop = () => undefined;
-    if (!canvas) {
+    const container = containerRef.current;
+    if (!canvas || !container) {
       return noop;
     }
+    const runtime = runtimeRef.current;
+    // The runtime object outlives the effect (it lives in a ref), so a remount —
+    // React 19 StrictMode mounts, tears down, then mounts again — would otherwise
+    // find `disposed` still set from the first teardown and abandon the boot.
+    runtime.disposed = false;
+    const reduceMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const onResize = () => {
-      widthRef.current = canvas.offsetWidth;
-    };
-    globalThis.addEventListener("resize", onResize);
-    onResize();
-
-    const reduce = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const makeHandle = (dark: boolean): GlobeHandle =>
-      startGlobe({
-        canvas,
-        phiRef,
-        widthRef,
-        pointerRef,
-        getSpringR: () => rotation.get(),
-        reduce,
-        dark,
-      });
-
-    const darkRef = { current: readDark() };
-    const visibleRef = { current: true };
-    const handleRef = { current: makeHandle(darkRef.current) };
-    handleRef.current.start();
-    wakeRef.current = () => {
-      handleRef.current.start();
-    };
-
-    // Pause the render loop while the globe is scrolled out of view so it stops
-    // burning frames off-screen, and resume it when it scrolls back in.
-    const visibilityObserver = new IntersectionObserver((entries) => {
-      const [entry] = entries;
-      if (!entry) {
+    // Every `requestAnimationFrame` callback draws — the globe is smoothest when
+    // it is in lockstep with the display, and dropping callbacks to halve the
+    // rate reads as judder on a drag. The frame's own cost is what was made
+    // cheap instead: one draw call for the wireframe, no per-frame allocation,
+    // DOM writes only when a marker actually moves, and no work at all once the
+    // scene has settled.
+    const tick = (now: number) => {
+      const { handle } = runtime;
+      if (!handle) {
         return;
       }
-      visibleRef.current = entry.isIntersecting;
-      if (entry.isIntersecting) {
-        handleRef.current.start();
+      runtime.raf = globalThis.requestAnimationFrame(tick);
+      const elapsed = runtime.last === 0 ? FRICTION_REFERENCE_MS : now - runtime.last;
+      runtime.last = now;
+      const delta = Math.min(elapsed, MAX_FRAME_MS);
+      if (runtime.dragX === null && runtime.velocity !== 0) {
+        handle.nudge(runtime.velocity);
+        runtime.velocity =
+          Math.abs(runtime.velocity) < 1e-5
+            ? 0
+            : runtime.velocity * DRAG_FRICTION ** (delta / FRICTION_REFERENCE_MS);
+      }
+      handle.frame(delta);
+    };
+
+    const start = () => {
+      if (runtime.raf !== 0 || !runtime.handle) {
+        return;
+      }
+      runtime.last = 0;
+      runtime.raf = globalThis.requestAnimationFrame(tick);
+    };
+
+    const stop = () => {
+      globalThis.cancelAnimationFrame(runtime.raf);
+      runtime.raf = 0;
+    };
+
+    const boot = async () => {
+      const [{ createHeroGlobe }, landPoints] = await Promise.all([
+        import("./hero-globe/scene"),
+        loadLandPoints(),
+      ]);
+      if (runtime.disposed) {
+        return;
+      }
+      runtime.handle = createHeroGlobe({
+        canvas,
+        landPoints,
+        anchors: anchorsRef.current,
+        reduceMotion,
+      });
+      runtime.handle.resize(container.offsetWidth, container.offsetHeight);
+      canvas.style.opacity = "1";
+      start();
+    };
+    // Fire-and-forget: a globe that fails to load must degrade to an empty
+    // backdrop, not an unhandled rejection.
+    boot().catch(noop);
+
+    const resizeObserver = new ResizeObserver(() => {
+      runtime.handle?.resize(container.offsetWidth, container.offsetHeight);
+    });
+    resizeObserver.observe(container);
+
+    // Off-screen frames are wasted GPU and battery — the globe only runs while
+    // some part of it is on screen.
+    const visibilityObserver = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      if (entry?.isIntersecting) {
+        start();
       } else {
-        handleRef.current.stop();
+        stop();
       }
     });
     visibilityObserver.observe(canvas);
 
     const themeObserver = new MutationObserver(() => {
-      const nextDark = readDark();
-      if (nextDark === darkRef.current) {
-        return;
-      }
-      darkRef.current = nextDark;
-      handleRef.current.globe.destroy();
-      handleRef.current.stop();
-      handleRef.current = makeHandle(darkRef.current);
-      wakeRef.current = () => {
-        handleRef.current.start();
-      };
-      if (visibleRef.current) {
-        handleRef.current.start();
-      }
+      runtime.handle?.retheme();
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
@@ -342,30 +196,58 @@ export const HeroMotion = () => {
     });
 
     return () => {
-      handleRef.current.globe.destroy();
-      handleRef.current.stop();
-      wakeRef.current = noop;
-      globalThis.removeEventListener("resize", onResize);
-      themeObserver.disconnect();
+      runtime.disposed = true;
+      stop();
+      resizeObserver.disconnect();
       visibilityObserver.disconnect();
+      themeObserver.disconnect();
+      runtime.handle?.dispose();
+      runtime.handle = null;
     };
   });
 
-  const { onDown, onUp, onMove } = makePointerHandlers({
-    pointerRef,
-    canvasRef,
-    springStart: (value) => springApi.start({ rotation: value }),
-    currentR: () => rotation.get(),
-    wake: () => {
-      wakeRef.current();
-    },
-  });
+  const registerAnchor = (id: string) => (element: HTMLDivElement | null) => {
+    if (element) {
+      anchorsRef.current.set(id, element);
+    } else {
+      anchorsRef.current.delete(id);
+    }
+  };
+
+  const onDown = (clientX: number) => {
+    runtimeRef.current.dragX = clientX;
+    runtimeRef.current.velocity = 0;
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = "grabbing";
+    }
+  };
+
+  const onUp = () => {
+    runtimeRef.current.dragX = null;
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = "grab";
+    }
+  };
+
+  const onMove = (clientX: number) => {
+    const runtime = runtimeRef.current;
+    if (runtime.dragX === null || !runtime.handle) {
+      return;
+    }
+    const delta = (clientX - runtime.dragX) / DRAG_DAMPING;
+    runtime.dragX = clientX;
+    runtime.velocity = delta;
+    runtime.handle.nudge(delta);
+  };
 
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none">
       <BrandBackdrop />
       <div className="absolute inset-0 flex items-center justify-center lg:justify-end">
-        <div className="pointer-events-auto relative aspect-square w-full max-w-[620px] translate-x-[18%] lg:max-w-[700px] lg:translate-x-[28%] xl:max-w-[780px] xl:translate-x-[30%] 2xl:max-w-[860px] 2xl:translate-x-[32%]">
+        <div
+          ref={containerRef}
+          className="pointer-events-auto relative aspect-square w-full max-w-[620px] translate-x-[18%] lg:max-w-[700px] lg:translate-x-[28%] xl:max-w-[780px] xl:translate-x-[30%] 2xl:max-w-[860px] 2xl:translate-x-[32%]"
+        >
           <canvas
             ref={canvasRef}
             aria-label="Decorative hero animation"
@@ -388,34 +270,20 @@ export const HeroMotion = () => {
                 onMove(event.touches[0].clientX);
               }
             }}
-            className="size-full cursor-grab opacity-100 transition-opacity duration-500 ease-out [contain:layout_paint_size] starting:opacity-0"
+            className="size-full cursor-grab opacity-0 transition-opacity duration-700 ease-out [contain:layout_paint_size]"
           />
           {EDGES.map((edge) => (
-            <span
-              key={`marker-${edge.id}`}
-              className="pointer-events-none absolute transition-opacity duration-300 ease-out"
-              style={edgeMarkerStyle(edge.id)}
+            <div
+              key={edge.id}
+              ref={registerAnchor(edge.id)}
+              data-side="right"
+              className="group pointer-events-none absolute top-0 left-0 opacity-0 transition-opacity duration-300 ease-out will-change-transform"
             >
-              <BrandIcon size={22} className="text-kumo-default" />
-            </span>
-          ))}
-          {EDGES.map((edge) => (
-            <span
-              key={`label-${edge.id}`}
-              className="bg-kumo-canvas text-kumo-default ring-kumo-line/60 pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm ring-1 transition-opacity duration-300 ease-out max-lg:hidden"
-              style={edgeLabelStyle(edge.id)}
-            >
-              {edge.label}
-            </span>
-          ))}
-          {ARCS.map((arc) => (
-            <span
-              key={arc.id}
-              className="bg-kumo-contrast text-kumo-inverse pointer-events-none absolute rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap shadow-sm transition-opacity duration-300 ease-out max-lg:hidden"
-              style={arcLabelStyle(arc.id)}
-            >
-              {arc.label}
-            </span>
+              <span className="text-kumo-subtle dark:text-kumo-default bg-kumo-canvas/50 absolute top-0 left-0 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-current/70 backdrop-blur-sm">
+                <BrandIcon size={15} />
+              </span>
+              {edge.caption ? <CaptionCard caption={edge.caption} /> : null}
+            </div>
           ))}
         </div>
       </div>
