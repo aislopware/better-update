@@ -1,5 +1,5 @@
 import { accountKeysQueryKey, registerAccountKey } from "@better-update/api-client/react";
-import { generateAccountKey, sealAccountKey } from "@better-update/credentials-crypto";
+import { generateAccountKey } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/button";
 import {
   Dialog,
@@ -20,6 +20,7 @@ import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { sealAccountKeyOffMainThread } from "../../../../lib/env-vault/account-key";
 import { getFieldError, passwordSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
@@ -58,12 +59,16 @@ const EnrollAccountKeyForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: 
 
   const enrollMutation = useApiMutation({
     // Generate the keypair and seal it under the user's OWN passphrase entirely in
-    // the browser (Argon2id ≈ 128 MiB — runs on the main thread for a few seconds),
-    // then register the opaque escrow. The server never sees the passphrase or the
-    // private key. Mirrors the CLI `credentials account create` field mapping.
+    // the browser (Argon2id ≈ 128 MiB — sealed in a worker so the few seconds of
+    // derivation do not freeze the dialog), then register the opaque escrow. The
+    // server never sees the passphrase or the private key. Mirrors the CLI
+    // `credentials account create` field mapping.
     mutationFn: async (input: { passphrase: string }) => {
       const material = await generateAccountKey();
-      const envelope = sealAccountKey({ material, passphrase: input.passphrase });
+      const envelope = await sealAccountKeyOffMainThread({
+        material,
+        passphrase: input.passphrase,
+      });
       return registerAccountKey({
         agePublicKey: envelope.agePublicKey,
         ed25519PublicKey: envelope.ed25519PublicKey,

@@ -1,8 +1,9 @@
 import { getTypedApiError } from "@better-update/api-client";
 import { getAccountKeyEscrow, getEnvVaultAccountWrap } from "@better-update/api-client/react";
-import { openAccountKey, unwrapVaultKey } from "@better-update/credentials-crypto";
+import { unwrapVaultKey } from "@better-update/credentials-crypto";
 import { fromBase64 } from "@better-update/encoding";
 
+import { openAccountKeyOffMainThread } from "./account-key";
 import { cacheEnvVaultKey, readCachedEnvVaultKey } from "./cache";
 import { escrowToEnvelope } from "./crypto";
 
@@ -56,7 +57,8 @@ const orDecryptHint = async <T>(promise: Promise<T>, hint: string): Promise<T> =
  * Unlock the org's env vault in the browser:
  *   1. download the caller's passphrase-sealed account-key escrow (server-gated on
  *      a fresh WebAuthn step-up — call `stepUpPasskey` first),
- *   2. open it locally with the passphrase → the account's age private key,
+ *   2. open it locally with the passphrase → the account's age private key (in a
+ *      worker — the Argon2id derivation would otherwise freeze the tab),
  *   3. download the env-vault key wrapped to that account key and unwrap it.
  * The unwrapped key is cached in sessionStorage for the rest of the session.
  * Every failure mode is remapped to an actionable message: a server `NotFound` at
@@ -71,7 +73,7 @@ export const unlockEnvVault = async (
 ): Promise<UnlockedEnvVault> => {
   const escrow = await orNotFoundHint(getAccountKeyEscrow(), ACCOUNT_KEY_MISSING_HINT);
   const material = await orDecryptHint(
-    openAccountKey({ envelope: escrowToEnvelope(escrow), passphrase }),
+    openAccountKeyOffMainThread({ envelope: escrowToEnvelope(escrow), passphrase }),
     WRONG_PASSPHRASE_HINT,
   );
   const wrap = await orNotFoundHint(getEnvVaultAccountWrap(escrow.id), ENV_WRAP_MISSING_HINT);
