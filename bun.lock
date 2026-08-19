@@ -41,7 +41,6 @@
       },
       "dependencies": {
         "@better-update/bsdiff": "workspace:*",
-        "@better-update/effect-extras": "workspace:*",
         "@clack/prompts": "^1.7.0",
         "@effect/platform-node": "4.0.0-rc.110",
         "@expo/apple-utils": "^2.1.22",
@@ -88,7 +87,6 @@
         "@better-auth/passkey": "^1.6.29",
         "@better-update/api": "workspace:*",
         "@better-update/dotenv": "workspace:*",
-        "@better-update/effect-extras": "workspace:*",
         "@better-update/encoding": "workspace:*",
         "@better-update/expo-codesign": "workspace:*",
         "@better-update/expo-protocol": "workspace:*",
@@ -251,17 +249,6 @@
     "packages/dotenv": {
       "name": "@better-update/dotenv",
       "version": "0.2.15",
-      "devDependencies": {
-        "@better-update/oxlint-config": "workspace:*",
-        "@better-update/typescript-config": "workspace:*",
-      },
-    },
-    "packages/effect-extras": {
-      "name": "@better-update/effect-extras",
-      "version": "0.0.0",
-      "dependencies": {
-        "effect": "4.0.0-rc.110",
-      },
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -458,8 +445,6 @@
     "@better-update/credentials-crypto": ["@better-update/credentials-crypto@workspace:packages/credentials-crypto"],
 
     "@better-update/dotenv": ["@better-update/dotenv@workspace:packages/dotenv"],
-
-    "@better-update/effect-extras": ["@better-update/effect-extras@workspace:packages/effect-extras"],
 
     "@better-update/encoding": ["@better-update/encoding@workspace:packages/encoding"],
 
