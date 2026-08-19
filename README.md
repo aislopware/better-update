@@ -82,6 +82,17 @@ See [docs/self-hosting.md](./docs/self-hosting.md) for secrets, migrations and d
 | `skills/*`    | Agent skills — `better-update` teaches an agent to drive the CLI end to end         |
 | `packages/*`  | Shared libraries: typed API client, Expo protocol, code signing, bsdiff, crypto, UI |
 
+## Agent skill
+
+`skills/better-update` teaches a coding agent to drive the CLI — every command,
+flag and the publish → branch → channel → device model. This repository is also
+a Claude Code plugin marketplace, so the skill installs in two commands:
+
+```sh
+/plugin marketplace add <owner>/better-update   # or a path to your clone
+/plugin install better-update@better-update
+```
+
 ## License
 
 [MIT](./LICENSE.md)

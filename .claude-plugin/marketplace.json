@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "better-update",
+  "description": "Agent skills for the better-update release platform",
+  "owner": { "name": "Công Trần" },
+  "plugins": [
+    {
+      "name": "better-update",
+      "source": "./skills/better-update",
+      "description": "Drive the better-update CLI: OTA updates, local iOS/Android builds, the encrypted credential vault, env vars, channels, rollouts and rollbacks.",
+      "version": "1.0.0",
+      "author": { "name": "Công Trần" },
+      "license": "MIT",
+      "category": "mobile",
+      "keywords": [
+        "better-update",
+        "expo",
+        "react-native",
+        "ota",
+        "eas",
+        "mobile",
+        "release",
+        "cli"
+      ]
+    }
+  ]
+}

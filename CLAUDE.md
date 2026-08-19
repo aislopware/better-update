@@ -7,6 +7,7 @@ Turborepo + bun workspaces (`apps/*`, `packages/*`). Run tasks from root — `bu
 - Use `bun`/`bunx` only — no `npm`/`npx`/`yarn`.
 - `bun run lint` = lint + typecheck (never run oxlint/tsc/tsgo directly). Format via `bun run format` (oxfmt, not prettier).
 - Deploy per app: `bun run deploy` inside `apps/server` / `apps/web`. Server dev runs behind portless proxy (`bun run dev:proxy` from root).
+- `skills/better-update/` ships as a Claude Code plugin via `.claude-plugin/marketplace.json`. Editing the skill ⇒ bump that entry's `version`; installs are pinned to it and never update otherwise. Validate with `claude plugin validate .claude-plugin/marketplace.json --strict`.
 
 ## Deployment config
 
