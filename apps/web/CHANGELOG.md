@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.79.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.79.1...%40better-update%2Fweb%400.79.2) (2026-08-19)
+
+### Bug Fixes
+
+* **web:** run the account-key ceremony off the main thread ([f2f6c61](https://github.com/better-update/better-update/commit/f2f6c61aa5822c679ad9a891b33570c87cb1bc0a))
+
 ## [0.79.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.79.0...%40better-update%2Fweb%400.79.1) (2026-08-19)
 
 ### Bug Fixes
