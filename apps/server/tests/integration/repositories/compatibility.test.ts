@@ -1,35 +1,35 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { buildBranchMapping } from "../../../src/domain/branch-mapping";
 import { CompatibilityRepo, CompatibilityRepoLive } from "../../../src/repositories/compatibility";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, CompatibilityRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, CompatibilityRepo>) =>
   runWithLayerAndEnv(effect, CompatibilityRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertBranch = (id: string, projectId: string, name: string) =>
+const insertBranch = async (id: string, projectId: string, name: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, projectId, name, "2024-01-02T00:00:00Z")
     .run();
 
-const insertChannel = (params: {
+const insertChannel = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly name: string;
@@ -52,7 +52,7 @@ const insertChannel = (params: {
     )
     .run();
 
-const insertBuild = (params: {
+const insertBuild = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly platform: "ios" | "android";
@@ -83,7 +83,7 @@ const insertBuild = (params: {
     )
     .run();
 
-const insertUpdate = (params: {
+const insertUpdate = async (params: {
   readonly id: string;
   readonly branchId: string;
   readonly runtimeVersion: string;
@@ -123,7 +123,7 @@ const identityRolloutMapping = (branchId: string) =>
   });
 
 describe("CompatibilityRepo -- D1 integration", () => {
-  test("returns build-to-channel compatibility with latest update metadata", async () => {
+  it("returns build-to-channel compatibility with latest update metadata", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `org-compat-${suffix}`;
     const projectId = `proj-compat-${suffix}`;
@@ -216,7 +216,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
       }),
     );
 
-    expect(Object.keys(result.channelStatusByKey)).toEqual(
+    expect(Object.keys(result.channelStatusByKey)).toStrictEqual(
       expect.arrayContaining(["ios:1.0.0", "android:1.0.0"]),
     );
     expect(result.channels).toHaveLength(3);
@@ -255,7 +255,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
     expect(lookup("android:1.0.0", "preview")?.updateCount).toBe(0);
   });
 
-  test("reports runtime versions that have updates but no matching builds", async () => {
+  it("reports runtime versions that have updates but no matching builds", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `org-gap-${suffix}`;
     const projectId = `proj-gap-${suffix}`;
@@ -329,7 +329,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
       }),
     );
 
-    expect(result.missingRuntimeVersions).toEqual(
+    expect(result.missingRuntimeVersions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           channelName: "preview",
@@ -352,7 +352,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
     );
   });
 
-  test("counts both canary and stable updates when a rollout is partially active", async () => {
+  it("counts both canary and stable updates when a rollout is partially active", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `org-partial-${suffix}`;
     const projectId = `proj-partial-${suffix}`;
@@ -416,7 +416,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
     });
   });
 
-  test("includes rollout target branches in compatibility summaries and missing builds", async () => {
+  it("includes rollout target branches in compatibility summaries and missing builds", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `org-rollout-${suffix}`;
     const projectId = `proj-rollout-${suffix}`;
@@ -498,7 +498,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
       latestUpdateMessage: "New branch release",
     });
 
-    expect(result.missingRuntimeVersions).toEqual(
+    expect(result.missingRuntimeVersions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           channelName: "production",
@@ -512,7 +512,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
     );
   });
 
-  test("resolves compatibility against servable fallback updates when latest is reverted", async () => {
+  it("resolves compatibility against servable fallback updates when latest is reverted", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `org-reverted-${suffix}`;
     const projectId = `proj-reverted-${suffix}`;
@@ -593,7 +593,7 @@ describe("CompatibilityRepo -- D1 integration", () => {
       latestUpdateId: `update-reverted-prev-${suffix}`,
     });
 
-    expect(result.missingRuntimeVersions).toEqual(
+    expect(result.missingRuntimeVersions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           channelName: "production",

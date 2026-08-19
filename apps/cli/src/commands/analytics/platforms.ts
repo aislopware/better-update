@@ -21,7 +21,7 @@ export const platformsCommand = defineCommand({
         const periodFilter = args.period ? { period: args.period } : {};
 
         const result = yield* api.analytics.platforms({
-          urlParams: { projectId, ...periodFilter },
+          query: { projectId, ...periodFilter },
         });
 
         yield* printList(

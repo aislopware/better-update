@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect, Layer } from "effect";
 
 import { CryptoServiceLive } from "../../../src/cloudflare/crypto-service";
@@ -13,10 +13,10 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 // the real local D1 (env.DB).
 const REPO = RobotAccountRepoLive.pipe(Layer.provide(CryptoServiceLive));
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, RobotAccountRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, RobotAccountRepo>) =>
   runWithLayerAndEnv(effect, REPO, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
@@ -25,7 +25,7 @@ const insertOrg = (id: string) =>
 
 // Robots are project-scoped (GITLAB-RBAC-SPEC §1b, v2): every robot row
 // carries its project + role, so each org gets a fixture project.
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at")
      VALUES (?, ?, ?, ?, '2026-01-01T00:00:00Z')`,
@@ -35,7 +35,7 @@ const insertProject = (id: string, organizationId: string) =>
 
 // `create` mints the machine-kind vault recipient itself (one atomic batch with
 // the robot row), so each call just needs a unique keypair fixture.
-const createRobot = (organizationId: string, name: string) =>
+const createRobot = async (organizationId: string, name: string) =>
   run(
     Effect.gen(function* () {
       const repo = yield* RobotAccountRepo;
@@ -152,30 +152,30 @@ describe("RobotAccountRepo — revoked_at tombstones are dead to every query", (
         const repo = yield* RobotAccountRepo;
         return yield* repo
           .findById({ id: created.model.id, organizationId: "org-robot-1" })
-          .pipe(Effect.either);
+          .pipe(Effect.result);
       }),
     );
-    expect(found._tag).toBe("Left");
+    expect(found._tag).toBe("Failure");
 
     const rotated = await run(
       Effect.gen(function* () {
         const repo = yield* RobotAccountRepo;
         return yield* repo
           .rotateBearer({ id: created.model.id, organizationId: "org-robot-1" })
-          .pipe(Effect.either);
+          .pipe(Effect.result);
       }),
     );
-    expect(rotated._tag).toBe("Left");
+    expect(rotated._tag).toBe("Failure");
 
     const updated = await run(
       Effect.gen(function* () {
         const repo = yield* RobotAccountRepo;
         return yield* repo
           .update({ id: created.model.id, organizationId: "org-robot-1", name: "renamed" })
-          .pipe(Effect.either);
+          .pipe(Effect.result);
       }),
     );
-    expect(updated._tag).toBe("Left");
+    expect(updated._tag).toBe("Failure");
   });
 });
 
@@ -256,10 +256,10 @@ describe("RobotAccountRepo — update (rename / role change in place)", () => {
         const repo = yield* RobotAccountRepo;
         return yield* repo
           .update({ id: created.model.id, organizationId: "org-robot-1", name: "stolen" })
-          .pipe(Effect.either);
+          .pipe(Effect.result);
       }),
     );
-    expect(crossOrg._tag).toBe("Left");
+    expect(crossOrg._tag).toBe("Failure");
 
     const found = await run(
       Effect.gen(function* () {
@@ -336,16 +336,13 @@ describe("RobotAccountRepo — list / rotateBearer / revoke (org-scoped)", () =>
       }),
     );
     expect(crossOrg).toBe(false);
-    expect(
-      (
-        await run(
-          Effect.gen(function* () {
-            const repo = yield* RobotAccountRepo;
-            return yield* repo.verifyBearer({ plaintext: created.bearerSecret });
-          }),
-        )
-      )?.id,
-    ).toBe(created.model.id);
+    const stillValid = await run(
+      Effect.gen(function* () {
+        const repo = yield* RobotAccountRepo;
+        return yield* repo.verifyBearer({ plaintext: created.bearerSecret });
+      }),
+    );
+    expect(stillValid?.id).toBe(created.model.id);
 
     const deleted = await run(
       Effect.gen(function* () {

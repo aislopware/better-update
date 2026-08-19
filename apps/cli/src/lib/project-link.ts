@@ -1,7 +1,7 @@
 import { compact } from "@better-update/type-guards";
 import { Effect, Option } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { BETTER_UPDATE_PROJECT_ID_ENV, readEasLinkedProjectId } from "./eas-json";
@@ -93,7 +93,7 @@ export const readExpoConfigOptional = (
     return readExpoConfig(projectRoot).pipe(
       Effect.map(Option.some),
       Effect.orElseSucceed(() => Option.none<ExpoConfig>()),
-      Effect.catchAllDefect(() => Effect.succeed(Option.none<ExpoConfig>())),
+      Effect.catchDefect(() => Effect.succeed(Option.none<ExpoConfig>())),
     );
   });
 
@@ -124,6 +124,6 @@ export const readAppMetaOptional = (
     return readExpoConfig(projectRoot).pipe(
       Effect.flatMap((config) => readAppMeta(config, platform)),
       Effect.orElseSucceed(() => EMPTY_APP_META),
-      Effect.catchAllDefect(() => Effect.succeed(EMPTY_APP_META)),
+      Effect.catchDefect(() => Effect.succeed(EMPTY_APP_META)),
     );
   });

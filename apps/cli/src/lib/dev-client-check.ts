@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { asRecord, compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { printWarn } from "./warning-style";
 
@@ -21,7 +20,7 @@ const readDeps = (filePath: string) =>
     // emitter that should never fail the build over its own probe.
     const text = yield* fs.readFileString(filePath).pipe(
       Effect.option,
-      Effect.catchAllDefect(() => Effect.succeedNone),
+      Effect.catchDefect(() => Effect.succeedNone),
     );
     if (text._tag === "None") {
       return undefined;

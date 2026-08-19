@@ -2,8 +2,7 @@ import path from "node:path";
 
 import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
 
 import type { Argon2Params, IdentityFile } from "@better-update/credentials-crypto";
 
@@ -33,7 +32,7 @@ const isIdentityFile = (value: unknown): value is IdentityFile =>
   value["cipher"] === "xchacha20poly1305" &&
   typeof value["ct"] === "string";
 
-export class IdentityStore extends Context.Tag("cli/IdentityStore")<
+export class IdentityStore extends Context.Service<
   IdentityStore,
   {
     /** Read the sealed device identity, or `null` when none is set up. */
@@ -43,7 +42,7 @@ export class IdentityStore extends Context.Tag("cli/IdentityStore")<
     /** Remove the on-disk identity (best-effort). */
     readonly clear: Effect.Effect<void>;
   }
->() {}
+>()("cli/IdentityStore") {}
 
 export const IdentityStoreLive = Layer.effect(
   IdentityStore,
@@ -83,7 +82,7 @@ export const IdentityStoreLive = Layer.effect(
           ),
         ),
 
-      clear: fs.remove(identityFile).pipe(Effect.catchAll(() => Effect.void)),
+      clear: fs.remove(identityFile).pipe(Effect.catch(() => Effect.void)),
     };
   }),
 );

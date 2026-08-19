@@ -90,13 +90,17 @@ export const createBrowserLoginSession = (
 ): BrowserLoginSession => {
   const tokenDeferred = Effect.runSync(Deferred.make<string, BrowserLoginSessionClosedError>());
   const waitForToken = Deferred.await(tokenDeferred).pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration:
         options.timeoutMs === undefined ? Duration.minutes(5) : Duration.millis(options.timeoutMs),
-      onTimeout: () =>
-        new BrowserLoginTimeoutError({
-          message: "Timed out waiting for browser login to complete.",
-        }),
+      // v4's `timeoutOrElse` takes a fallback EFFECT (`orElse`), not v3's
+      // error-producing `onTimeout`.
+      orElse: () =>
+        Effect.fail(
+          new BrowserLoginTimeoutError({
+            message: "Timed out waiting for browser login to complete.",
+          }),
+        ),
     }),
   );
 
@@ -209,7 +213,6 @@ export const createBrowserLoginServer = async (
 ): Promise<BrowserLoginServer> => {
   const session = createBrowserLoginSession(options);
   const server: Server = createServer((req, res) => {
-    // eslint-disable-next-line promise/prefer-await-to-then -- node createServer callback is sync; rejections already swallowed inside handleIncoming, so .catch here is a safety net, not a control-flow then()
     handleIncoming(req, res, session).catch(() => undefined);
   });
 

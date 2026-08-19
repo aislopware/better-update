@@ -19,14 +19,14 @@ import type { AndroidSetupInput, IosSetupContext, IosSetupInput } from "./creden
 const findAndroidGroup = (api: ApiClient, input: AndroidSetupInput) =>
   Effect.gen(function* () {
     const apps = yield* api.androidApplicationIdentifiers.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     const app = apps.items.find((entry) => entry.packageName === input.applicationIdentifier);
     if (app === undefined) {
       return { app: undefined, group: undefined } as const;
     }
     const groups = yield* api.androidBuildCredentials.list({
-      path: { applicationIdentifierId: app.id },
+      params: { applicationIdentifierId: app.id },
     });
     const group = groups.items.find((entry) => entry.isDefault) ?? groups.items.at(0);
     return { app, group } as const;
@@ -82,7 +82,7 @@ export const rebindAndroidKeystore = (api: ApiClient, input: AndroidSetupInput) 
     const keystoreId = yield* resolveAndroidKeystoreId(api, choice);
 
     yield* api.androidBuildCredentials.update({
-      path: { id: group.id },
+      params: { id: group.id },
       payload: { androidUploadKeystoreId: keystoreId },
     });
     yield* Console.log("Default Android keystore rebind complete.");
@@ -95,7 +95,7 @@ const fetchIosBinding = (api: ApiClient, input: IosSetupInput) =>
   Effect.gen(function* () {
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
     const configs = yield* api.iosBundleConfigurations.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     return configs.items.find(
       (entry) =>
@@ -121,7 +121,7 @@ const labelProvisioningProfile = (api: ApiClient, id: string | null) =>
     if (id === null) {
       return "-";
     }
-    const profiles = yield* api.appleProvisioningProfiles.list({ urlParams: {} });
+    const profiles = yield* api.appleProvisioningProfiles.list({ query: {} });
     const match = profiles.items.find((entry) => entry.id === id);
     if (match === undefined) {
       return id;
@@ -198,7 +198,7 @@ export const rebindIosBundle = (api: ApiClient, input: IosSetupInput) =>
     const profileId = yield* resolveIosProfileId(api, input, ctx);
 
     yield* api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: {
         appleDistributionCertificateId: certId,
         appleProvisioningProfileId: profileId,

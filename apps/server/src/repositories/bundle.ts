@@ -56,7 +56,7 @@ export interface BundleRepository {
   readonly deleteObjects: (params: { readonly keys: readonly string[] }) => Effect.Effect<void>;
 }
 
-export class BundleRepo extends Context.Tag("api/BundleRepo")<BundleRepo, BundleRepository>() {}
+export class BundleRepo extends Context.Service<BundleRepo, BundleRepository>()("api/BundleRepo") {}
 
 // -- R2 Adapter ------------------------------------------------------------
 

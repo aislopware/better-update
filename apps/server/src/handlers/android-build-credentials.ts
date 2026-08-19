@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertAndroidCredentialRefs } from "../application/validate-credential-refs";
@@ -19,11 +19,11 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
   "androidBuildCredentials",
   (handlers) =>
     handlers
-      .handle("list", ({ path }) =>
+      .handle("list", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const appIds = yield* AndroidApplicationIdentifierRepo;
-            const parent = yield* appIds.findById({ id: path.applicationIdentifierId });
+            const parent = yield* appIds.findById({ id: params.applicationIdentifierId });
             yield* assertOrgOwnership(parent.organizationId);
             yield* assertAccess("androidCredential", "read", {
               kind: "project",
@@ -31,18 +31,18 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
             });
             const repo = yield* AndroidBuildCredentialsRepo;
             const items = yield* repo.listByAppIdentifier({
-              androidApplicationIdentifierId: path.applicationIdentifierId,
+              androidApplicationIdentifierId: params.applicationIdentifierId,
             });
             return { items: items.map(toApiAndroidBuildCredentials) };
           }),
         ),
       )
-      .handle("create", ({ path, payload }) =>
+      .handle("create", ({ params, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
             const ctx = yield* CurrentActor;
             const appIds = yield* AndroidApplicationIdentifierRepo;
-            const parent = yield* appIds.findById({ id: path.applicationIdentifierId });
+            const parent = yield* appIds.findById({ id: params.applicationIdentifierId });
             yield* assertOrgOwnership(parent.organizationId);
             yield* assertAccess("androidCredential", "create", {
               kind: "project",
@@ -59,7 +59,7 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
             const model = {
               id,
               organizationId: ctx.organizationId,
-              androidApplicationIdentifierId: path.applicationIdentifierId,
+              androidApplicationIdentifierId: params.applicationIdentifierId,
               androidUploadKeystoreId: toDbNull(payload.androidUploadKeystoreId),
               googleServiceAccountKeyForSubmissionsId: toDbNull(
                 payload.googleServiceAccountKeyForSubmissionsId,
@@ -84,11 +84,11 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("update", ({ path, payload }) =>
+      .handle("update", ({ params, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const repo = yield* AndroidBuildCredentialsRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             const appIds = yield* AndroidApplicationIdentifierRepo;
             const parent = yield* appIds.findById({ id: existing.androidApplicationIdentifierId });
@@ -102,11 +102,11 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
             if (payload.isDefault === true) {
               yield* repo.clearDefault({
                 androidApplicationIdentifierId: existing.androidApplicationIdentifierId,
-                exceptId: path.id,
+                exceptId: params.id,
               });
             }
             yield* repo.update({
-              id: path.id,
+              id: params.id,
               androidUploadKeystoreId: payload.androidUploadKeystoreId,
               googleServiceAccountKeyForSubmissionsId:
                 payload.googleServiceAccountKeyForSubmissionsId,
@@ -117,19 +117,19 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "android.build-credentials.update",
               resourceType: "androidCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               metadata: {},
             });
-            const merged = yield* repo.findById({ id: path.id });
+            const merged = yield* repo.findById({ id: params.id });
             return toApiAndroidBuildCredentials(merged);
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const repo = yield* AndroidBuildCredentialsRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             const appIds = yield* AndroidApplicationIdentifierRepo;
             const parent = yield* appIds.findById({ id: existing.androidApplicationIdentifierId });
@@ -137,11 +137,11 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
               kind: "project",
               projectId: parent.projectId,
             });
-            yield* repo.delete({ id: path.id });
+            yield* repo.delete({ id: params.id });
             yield* logAudit({
               action: "android.build-credentials.delete",
               resourceType: "androidCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               metadata: { name: existing.name },
             });
             return { deleted: 1 };

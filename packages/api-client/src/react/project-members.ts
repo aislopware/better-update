@@ -18,7 +18,7 @@ export const projectMembersQueryOptions = (projectId: string) =>
     queryKey: projectMembersQueryKey(projectId),
     queryFn: async ({ signal }) => {
       const result = await runApi(
-        (api) => api["project-members"].list({ path: { id: projectId } }),
+        (api) => api["project-members"].list({ params: { id: projectId } }),
         signal,
       );
       return result.items;
@@ -30,7 +30,7 @@ export const projectMembersQueryOptions = (projectId: string) =>
 export const addProjectMember = async (
   projectId: string,
   body: typeof UpsertProjectMemberBody.Type,
-) => runApi((api) => api["project-members"].add({ path: { id: projectId }, payload: body }));
+) => runApi((api) => api["project-members"].add({ params: { id: projectId }, payload: body }));
 
 // Change an existing project member's role (Maintainer+).
 export const updateProjectMemberRole = async (
@@ -39,7 +39,7 @@ export const updateProjectMemberRole = async (
   body: { principalType: ProjectMemberPrincipalTypeValue; role: ProjectMemberRoleValue },
 ) =>
   runApi((api) =>
-    api["project-members"].updateRole({ path: { id: projectId, principalId }, payload: body }),
+    api["project-members"].updateRole({ params: { id: projectId, principalId }, payload: body }),
   );
 
 // Drop a principal's role on the project (Maintainer+).
@@ -50,7 +50,7 @@ export const removeProjectMember = async (
 ) =>
   runApi((api) =>
     api["project-members"].remove({
-      path: { id: projectId, principalId },
-      urlParams: { principalType },
+      params: { id: projectId, principalId },
+      query: { principalType },
     }),
   );

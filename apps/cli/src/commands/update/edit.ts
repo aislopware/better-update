@@ -16,13 +16,13 @@ import type { ApiClient } from "../../services/api-client";
 const promptGroupId = (api: ApiClient, projectId: string, branchName: string | undefined) =>
   Effect.gen(function* () {
     const branches = yield* drainPages((page) =>
-      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      api.branches.list({ query: { projectId, limit: 100, page } }),
     );
     const branchId = branchName
       ? yield* resolveNamedResourceId({ items: branches, kind: "Branch", name: branchName })
       : undefined;
     const { items } = yield* api.updates.list({
-      urlParams: {
+      query: {
         projectId,
         limit: 50,
         ...compact({ branchId: branchId ? [branchId] : undefined }),
@@ -77,7 +77,7 @@ export const editCommand = defineCommand({
         const percentage = yield* parseRolloutPercentage(rolloutRaw, "rollout-percentage");
 
         const allUpdates = yield* drainPages((page) =>
-          api.updates.list({ urlParams: { projectId, limit: 100, page } }),
+          api.updates.list({ query: { projectId, limit: 100, page } }),
         );
         const inGroup = allUpdates.filter((update) => update.groupId === groupId);
         if (inGroup.length === 0) {
@@ -90,7 +90,7 @@ export const editCommand = defineCommand({
           inGroup,
           (update) =>
             api.updates.editRollout({
-              path: { id: update.id },
+              params: { id: update.id },
               payload: { percentage },
             }),
           { concurrency: 2 },

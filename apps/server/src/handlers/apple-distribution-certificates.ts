@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
@@ -186,40 +186,40 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const artifacts = yield* CredentialArtifacts;
             const repo = yield* AppleDistributionCertificateRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAppleCredentialAccess({
               action: "delete",
               appleTeamRowId: existing.appleTeamId,
               credentialIsProtected: existing.isProtected,
             });
-            const { r2Key } = yield* repo.delete({ id: path.id });
+            const { r2Key } = yield* repo.delete({ id: params.id });
             if (r2Key !== null) {
               yield* artifacts.delete(r2Key);
             }
             yield* logAudit({
               action: "apple.distribution-certificate.delete",
               resourceType: "appleCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               metadata: { serialNumber: existing.serialNumber },
             });
             return { deleted: 1 };
           }),
         ),
       )
-      .handle("download", ({ path }) =>
+      .handle("download", ({ params }) =>
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
             const repo = yield* AppleDistributionCertificateRepo;
             const teams = yield* AppleTeamRepo;
             const artifacts = yield* CredentialArtifacts;
 
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             const team = yield* teams.findById({ id: existing.appleTeamId });
             yield* assertAppleCredentialAccess({
@@ -233,7 +233,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "apple.distribution-certificate.download",
               resourceType: "appleCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               metadata: { serialNumber: existing.serialNumber },
             });
 
@@ -251,6 +251,6 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
-      .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
+      .handle("protect", ({ params }) => setProtectionEffect(params.id, true))
+      .handle("unprotect", ({ params }) => setProtectionEffect(params.id, false)),
 );

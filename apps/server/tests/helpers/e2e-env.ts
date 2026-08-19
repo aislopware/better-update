@@ -1,3 +1,5 @@
+/* eslint-disable node/no-process-env -- resolves the e2e stack's config from the ambient
+   environment (E2E_* overrides, then the generic dev key) before workerd is booted. */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 

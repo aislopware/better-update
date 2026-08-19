@@ -1,9 +1,8 @@
 import path from "node:path";
 
 import { DebugArtifactType } from "@better-update/api";
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { UploadFailedError } from "../../lib/exit-codes";
@@ -59,7 +58,7 @@ export const downloadSymbolsCommand = defineCommand({
           });
         }
 
-        const { items } = yield* api.builds.listDebugArtifacts({ path: { id: args.id } });
+        const { items } = yield* api.builds.listDebugArtifacts({ params: { id: args.id } });
         const wanted = requestedType ? items.filter((item) => item.type === requestedType) : items;
         if (wanted.length === 0) {
           return yield* new UploadFailedError({
@@ -79,7 +78,7 @@ export const downloadSymbolsCommand = defineCommand({
           (item) =>
             Effect.gen(function* () {
               const download = yield* api.builds.getDebugArtifactDownload({
-                path: { id: args.id, type: item.type },
+                params: { id: args.id, type: item.type },
               });
               const bytes = yield* fetchBytes(download.url, "debug artifact");
               const outputPath = path.join(

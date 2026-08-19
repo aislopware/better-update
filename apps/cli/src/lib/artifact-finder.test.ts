@@ -1,6 +1,5 @@
-import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Option } from "effect";
+import { FileSystem, Effect, Exit, Option } from "effect";
 
 import { findAndroidArtifact, findIosArtifact, findNewestFileUnder } from "./artifact-finder";
 import { ArtifactNotFoundError } from "./exit-codes";

@@ -7,7 +7,7 @@ import { IdentityError } from "./exit-codes";
  * The `BETTER_UPDATE_ROBOT` CI env var: one bundled credential carrying both
  * halves of a robot account — the bearer secret (HTTP/API auth) and the age
  * private key (vault decrypt) — so a CI pipeline sets exactly one secret
- * instead of pairing two. Either half may be absent (e.g. a robot backfilled
+ * instead of pairing two. Result half may be absent (e.g. a robot backfilled
  * from a pre-existing machine key has no bearer until `credentials robot
  * rotate` is run).
  */

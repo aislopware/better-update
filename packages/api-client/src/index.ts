@@ -1,6 +1,7 @@
 import { ManagementApi } from "@better-update/api";
-import { FetchHttpClient, HttpApiClient } from "@effect/platform";
-import { Cause, Effect, Option, Ref, Runtime } from "effect";
+import { Effect, Ref } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
+import { HttpApiClient } from "effect/unstable/httpapi";
 
 const baseUrlRef = Effect.runSync(Ref.make<string>(""));
 
@@ -21,7 +22,7 @@ const getClient = Effect.flatMap(Ref.get(baseUrlRef), (baseUrl) =>
   HttpApiClient.make(ManagementApi, { baseUrl }),
 );
 
-export type ApiClient = Effect.Effect.Success<typeof getClient>;
+export type ApiClient = Effect.Success<typeof getClient>;
 
 export const runApi = async <Success, Failure>(
   fn: (api: ApiClient) => Effect.Effect<Success, Failure>,
@@ -40,9 +41,9 @@ export const runApi = async <Success, Failure>(
   )
     // Rejections must always be real Errors: a falsy reject (e.g. an aborted
     // fetch racing a route transition) slips past truthy `if (error)` checks
-    // in TanStack Router/Query and blanks the page. FiberFailure is an Error,
-    // so typed API failures pass through untouched for getTypedApiError.
-    // eslint-disable-next-line promise/prefer-await-to-then -- runApi is the Promise boundary for TanStack Query; .catch keeps the expression form
+    // in TanStack Router/Query and blanks the page. Effect v4 rejects with the
+    // squashed cause — the tagged API error itself, which extends Error — so
+    // typed failures pass through untouched for getTypedApiError.
     .catch((error: unknown) => {
       // eslint-disable-next-line functional/no-throw-statements -- rejection is TanStack Query's error channel; coerce non-Error rejects so CatchBoundary's truthy check renders
       throw error instanceof Error
@@ -51,34 +52,26 @@ export const runApi = async <Success, Failure>(
     });
 
 /**
- * Extracts a typed API error from an Effect FiberFailure.
- * Returns the error's `_tag` and `message` if the failure is a tagged error
- * (e.g., Conflict, NotFound, BadRequest), or null for non-Effect errors.
+ * Extracts a typed API error from a `runApi` rejection. Effect v4 rejects with
+ * the squashed cause — the tagged error value itself — so the rejection IS the
+ * `Conflict` / `NotFound` / `BadRequest` instance; no FiberFailure unwrapping.
+ * Returns its `_tag` and `message`, or null for anything untagged.
  *
- * `UnknownException` is intentionally skipped: it's the wrapper Effect uses
- * when a `tryPromise` lacks a `catch` mapper, and its `message` is the
- * generic "An unknown error occurred in Effect.tryPromise". The real error
- * lives in `cause` and is handled by `getApiError`.
+ * `UnknownError` is intentionally skipped: it's the wrapper Effect uses when a
+ * `tryPromise` lacks a `catch` mapper, and its `message` is generic. The real
+ * error lives in `cause` and is handled by `getApiError`.
  */
 export const getTypedApiError = (
   error: unknown,
 ): { readonly _tag: string; readonly message: string } | null => {
-  if (!Runtime.isFiberFailure(error)) {
-    return null;
-  }
-  const option = Cause.failureOption(error[Runtime.FiberFailureCauseId]);
-  if (Option.isNone(option)) {
-    return null;
-  }
-  const { value } = option;
   if (
-    typeof value === "object" &&
-    value !== null &&
-    "_tag" in value &&
-    "message" in value &&
-    value._tag !== "UnknownException"
+    typeof error === "object" &&
+    error !== null &&
+    "_tag" in error &&
+    "message" in error &&
+    error._tag !== "UnknownError"
   ) {
-    return { _tag: String(value._tag), message: String(value.message) };
+    return { _tag: String(error._tag), message: String(error.message) };
   }
   return null;
 };
@@ -99,24 +92,14 @@ export const getApiError = (error: unknown): string => {
   if (typed) {
     return typed.message;
   }
-  // FiberFailure with an UnknownException wrapper (e.g. unmapped tryPromise
-  // rejection) — dig into the cause for the real error message.
-  if (Runtime.isFiberFailure(error)) {
-    const option = Cause.failureOption(error[Runtime.FiberFailureCauseId]);
-    if (Option.isSome(option)) {
-      const { value } = option;
-      const fromCause =
-        typeof value === "object" && value !== null && "cause" in value
-          ? extractMessage(value.cause)
-          : null;
-      if (fromCause !== null) {
-        return fromCause;
-      }
-      const direct = extractMessage(value);
-      if (direct !== null) {
-        return direct;
-      }
-    }
+  // `Cause.UnknownError` wrapper (an unmapped tryPromise rejection) — dig into
+  // its cause for the real error message.
+  const fromCause =
+    typeof error === "object" && error !== null && "cause" in error
+      ? extractMessage(error.cause)
+      : null;
+  if (fromCause !== null) {
+    return fromCause;
   }
   const fromError = extractMessage(error);
   if (fromError !== null) {

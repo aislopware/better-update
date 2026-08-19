@@ -52,10 +52,10 @@ export interface ApplePayCertificateRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class ApplePayCertificateRepo extends Context.Tag("api/ApplePayCertificateRepo")<
+export class ApplePayCertificateRepo extends Context.Service<
   ApplePayCertificateRepo,
   ApplePayCertificateRepository
->() {}
+>()("api/ApplePayCertificateRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

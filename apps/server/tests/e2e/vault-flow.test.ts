@@ -1,8 +1,9 @@
 import { toBase64 } from "@better-update/encoding";
-import { env } from "cloudflare:test";
 
 import { credentialEnvelope } from "../helpers/credential-envelope";
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+
+import type { JsonResponse } from "../helpers/e2e-worker-pool";
 
 const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-vault");
 
@@ -38,7 +39,10 @@ const registerKey = async (
   label: string,
 ) => post("/api/encryption-keys", recipientBody(kind, label), { cookie });
 
-const idOf = async (res: Response): Promise<string> => (await res.json()).id;
+const idOf = async (res: JsonResponse): Promise<string> => {
+  const { id } = await res.json();
+  return id;
+};
 
 // ── Cross-flow: identities → bootstrap → grant/self-link → rotate → revoke ──
 
@@ -69,7 +73,7 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(orgRes.status).toBe(200);
-    organizationId = (await orgRes.json()).id;
+    ({ id: organizationId } = await orgRes.json());
     cookiesA = parseCookies(orgRes) || cookiesA;
 
     const active = await post(
@@ -110,7 +114,7 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(projectRes.status).toBe(201);
-    const fixtureProjectId = (await projectRes.json()).id as string;
+    const { id: fixtureProjectId } = await projectRes.json<{ id: string }>();
 
     const robotRes = await post(
       "/api/robot-accounts",
@@ -132,7 +136,8 @@ describe("Credential vault lifecycle", () => {
   it("lists the caller's own device key + the org-owned keys", async () => {
     const res = await get("/api/encryption-keys", { cookie: cookiesA });
     expect(res.status).toBe(200);
-    const ids = ((await res.json()).items as { id: string }[]).map((key) => key.id);
+    const resBody2 = await res.json();
+    const ids = (resBody2.items as { id: string }[]).map((key) => key.id);
     expect(ids).toContain(deviceA);
     expect(ids).toContain(recovery);
     expect(ids).toContain(machine);
@@ -205,7 +210,8 @@ describe("Credential vault lifecycle", () => {
   it("reads the current vault version and its recipients", async () => {
     const vault = await get("/api/vault", { cookie: cookiesA });
     expect(vault.status).toBe(200);
-    expect((await vault.json()).vaultVersion).toBe(1);
+    const vaultBody = await vault.json();
+    expect(vaultBody.vaultVersion).toBe(1);
 
     const wraps = await get("/api/vault/wraps", { cookie: cookiesA });
     expect(wraps.status).toBe(200);
@@ -214,7 +220,9 @@ describe("Credential vault lifecycle", () => {
     const ids = (body.recipients as { userEncryptionKeyId: string }[]).map(
       (recipient) => recipient.userEncryptionKeyId,
     );
-    expect(ids.sort()).toEqual([deviceA, recovery].sort());
+    expect(ids.toSorted((left, right) => left.localeCompare(right))).toStrictEqual(
+      [deviceA, recovery].toSorted((left, right) => left.localeCompare(right)),
+    );
   });
 
   it("exposes the born-forked env-vault recipients (device + recovery)", async () => {
@@ -225,7 +233,9 @@ describe("Credential vault lifecycle", () => {
     const ids = (body.recipients as { recipientId: string }[]).map(
       (recipient) => recipient.recipientId,
     );
-    expect(ids.sort()).toEqual([deviceA, recovery].sort());
+    expect(ids.toSorted((left, right) => left.localeCompare(right))).toStrictEqual(
+      [deviceA, recovery].toSorted((left, right) => left.localeCompare(right)),
+    );
   });
 
   // ── Section 4: self-link a device, grant a machine, fetch wraps ──
@@ -238,7 +248,8 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(res.status).toBe(201);
-    expect((await res.json()).userEncryptionKeyId).toBe(deviceA2);
+    const resBody3 = await res.json();
+    expect(resBody3.userEncryptionKeyId).toBe(deviceA2);
   });
 
   it("grants the org-owned machine recipient (admin path)", async () => {
@@ -255,7 +266,7 @@ describe("Credential vault lifecycle", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.vaultVersion).toBe(1);
-    expect(typeof body.wrappedKey).toBe("string");
+    expect(body.wrappedKey).toBeTypeOf("string");
   });
 
   it("rejects an addWrap carrying a stale vault version", async () => {
@@ -292,7 +303,7 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(res.status).toBe(201);
-    certId = (await res.json()).id;
+    ({ id: certId } = await res.json());
   });
 
   it("refuses a rotation that does not re-wrap every credential", async () => {
@@ -364,11 +375,15 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(res.status).toBe(200);
-    expect((await res.json()).vaultVersion).toBe(2);
+    const resBody4 = await res.json();
+    expect(resBody4.vaultVersion).toBe(2);
 
     // The vault row + recipient set moved to v2.
-    expect((await (await get("/api/vault", { cookie: cookiesA })).json()).vaultVersion).toBe(2);
-    const wraps = await (await get("/api/vault/wraps", { cookie: cookiesA })).json();
+    const valueResponse = await get("/api/vault", { cookie: cookiesA });
+    const value = await valueResponse.json();
+    expect(value.vaultVersion).toBe(2);
+    const getResult = await get("/api/vault/wraps", { cookie: cookiesA });
+    const wraps = await getResult.json();
     expect(wraps.vaultVersion).toBe(2);
     expect(wraps.recipients).toHaveLength(4);
 
@@ -402,24 +417,29 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(res.status).toBe(200);
-    expect((await res.json()).vaultVersion).toBe(3);
+    const resBody5 = await res.json();
+    expect(resBody5.vaultVersion).toBe(3);
 
     // The machine recipient is gone from the current recipient set …
-    const wraps = await (await get("/api/vault/wraps", { cookie: cookiesA })).json();
+    const getResult2 = await get("/api/vault/wraps", { cookie: cookiesA });
+    const wraps = await getResult2.json();
     const ids = (wraps.recipients as { userEncryptionKeyId: string }[]).map(
       (recipient) => recipient.userEncryptionKeyId,
     );
     expect(ids).not.toContain(machine);
-    expect(ids.sort()).toEqual([deviceA, deviceA2, recovery].sort());
+    expect(ids.toSorted((left, right) => left.localeCompare(right))).toStrictEqual(
+      [deviceA, deviceA2, recovery].toSorted((left, right) => left.localeCompare(right)),
+    );
 
     // … and its wrap can no longer be fetched (revoked).
     const gone = await get(`/api/vault/wraps/${machine}`, { cookie: cookiesA });
     expect(gone.status).toBe(404);
 
     // The credential rode the rotation to v3.
-    const cert = await (
-      await get(`/api/apple/distribution-certificates/${certId}/download`, { cookie: cookiesA })
-    ).json();
+    const certResponse = await get(`/api/apple/distribution-certificates/${certId}/download`, {
+      cookie: cookiesA,
+    });
+    const cert = await certResponse.json();
     expect(cert.vaultVersion).toBe(3);
     expect(cert.wrappedDek).toBe(nextDek);
   });
@@ -428,7 +448,8 @@ describe("Credential vault lifecycle", () => {
 
   it("isolates vault reads across organizations and rejects anonymous callers", async () => {
     // An anonymous caller gets no vault access at all.
-    expect((await get("/api/vault")).status).toBe(401);
+    const getResult3 = await get("/api/vault");
+    expect(getResult3.status).toBe(401);
 
     // A fresh org has no vault, and cannot see another org's recipient keys.
     const otherOrg = await post(
@@ -437,7 +458,7 @@ describe("Credential vault lifecycle", () => {
       { cookie: cookiesA },
     );
     expect(otherOrg.status).toBe(200);
-    const otherOrgId = (await otherOrg.json()).id;
+    const { id: otherOrgId } = await otherOrg.json();
     let cookiesOther = parseCookies(otherOrg) || cookiesA;
     const otherActive = await post(
       "/api/auth/organization/set-active",
@@ -447,8 +468,10 @@ describe("Credential vault lifecycle", () => {
     expect(otherActive.status).toBe(200);
     cookiesOther = parseCookies(otherActive) || cookiesOther;
 
-    expect((await get("/api/vault", { cookie: cookiesOther })).status).toBe(404);
+    const getResult4 = await get("/api/vault", { cookie: cookiesOther });
+    expect(getResult4.status).toBe(404);
     // `machine` is org A's org-owned key — invisible from the other org.
-    expect((await get(`/api/vault/wraps/${machine}`, { cookie: cookiesOther })).status).toBe(404);
+    const getResult5 = await get(`/api/vault/wraps/${machine}`, { cookie: cookiesOther });
+    expect(getResult5.status).toBe(404);
   });
 });

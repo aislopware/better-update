@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
@@ -184,12 +184,12 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const artifacts = yield* CredentialArtifacts;
             const repo = yield* GoogleServiceAccountKeyRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAndroidOrgCredentialAccess({
               action: "delete",
@@ -197,7 +197,7 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
               resourceId: existing.id,
               isProtected: existing.isProtected,
             });
-            const { r2Key } = yield* repo.delete({ id: path.id });
+            const { r2Key } = yield* repo.delete({ id: params.id });
             if (r2Key !== null) {
               yield* artifacts.delete(r2Key);
             }
@@ -214,22 +214,22 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "google.service-account-key.delete",
               resourceType: "androidCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               metadata: { privateKeyId: existing.privateKeyId },
             });
             return { deleted: 1 };
           }),
         ),
       )
-      .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
-      .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false))
-      .handle("download", ({ path }) =>
+      .handle("protect", ({ params }) => setProtectionEffect(params.id, true))
+      .handle("unprotect", ({ params }) => setProtectionEffect(params.id, false))
+      .handle("download", ({ params }) =>
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
             const repo = yield* GoogleServiceAccountKeyRepo;
             const artifacts = yield* CredentialArtifacts;
 
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAndroidOrgCredentialAccess({
               action: "download",
@@ -243,7 +243,7 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "google.service-account-key.download",
               resourceType: "androidCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               metadata: { privateKeyId: existing.privateKeyId },
             });
 

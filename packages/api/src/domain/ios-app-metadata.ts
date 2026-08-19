@@ -3,21 +3,21 @@ import { Schema } from "effect";
 import { BundleIdentifier } from "./apple-provisioning-profile";
 import { DateTimeString, DeletedResult, Id } from "./common";
 
-export const AscAppId = Schema.String.pipe(
-  Schema.pattern(/^[0-9]{1,30}$/u, {
-    message: () => "ASC App ID must be 1-30 digits",
+export const AscAppId = Schema.String.check(
+  Schema.isPattern(/^[0-9]{1,30}$/u, {
+    message: "ASC App ID must be 1-30 digits",
   }),
 );
 
-export const AppStoreLanguage = Schema.String.pipe(Schema.minLength(2), Schema.maxLength(10));
+export const AppStoreLanguage = Schema.String.check(Schema.isMinLength(2), Schema.isMaxLength(10));
 
-export const AppStoreSku = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100));
+export const AppStoreSku = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100));
 
-export const CompanyName = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200));
+export const CompanyName = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200));
 
-export const AppName = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200));
+export const AppName = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200));
 
-export class IosAppMetadata extends Schema.Class<IosAppMetadata>("IosAppMetadata")({
+export const IosAppMetadata = Schema.Struct({
   id: Id,
   organizationId: Id,
   projectId: Id,
@@ -29,7 +29,8 @@ export class IosAppMetadata extends Schema.Class<IosAppMetadata>("IosAppMetadata
   appName: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "IosAppMetadata" });
+export type IosAppMetadata = typeof IosAppMetadata.Type;
 
 export const CreateIosAppMetadataBody = Schema.Struct({
   bundleIdentifier: BundleIdentifier,

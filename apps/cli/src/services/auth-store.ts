@@ -1,22 +1,21 @@
 import path from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
 
 import { AuthRequiredError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
 import { parseRobotEnv } from "../lib/robot-env";
 import { CliRuntime } from "./cli-runtime";
 
-export class AuthStore extends Context.Tag("cli/AuthStore")<
+export class AuthStore extends Context.Service<
   AuthStore,
   {
     readonly getToken: Effect.Effect<string, AuthRequiredError>;
     readonly saveToken: (token: string) => Effect.Effect<void, AuthRequiredError>;
     readonly clearToken: Effect.Effect<void>;
   }
->() {}
+>()("cli/AuthStore") {}
 
 export const AuthStoreLive = Layer.effect(
   AuthStore,
@@ -85,7 +84,7 @@ export const AuthStoreLive = Layer.effect(
           ),
         ),
 
-      clearToken: fs.remove(authFile).pipe(Effect.catchAll(() => Effect.void)),
+      clearToken: fs.remove(authFile).pipe(Effect.catch(() => Effect.void)),
     };
   }),
 );

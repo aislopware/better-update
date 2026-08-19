@@ -51,9 +51,10 @@ export interface AppleDistributionCertificateRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class AppleDistributionCertificateRepo extends Context.Tag(
-  "api/AppleDistributionCertificateRepo",
-)<AppleDistributionCertificateRepo, AppleDistributionCertificateRepository>() {}
+export class AppleDistributionCertificateRepo extends Context.Service<
+  AppleDistributionCertificateRepo,
+  AppleDistributionCertificateRepository
+>()("api/AppleDistributionCertificateRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

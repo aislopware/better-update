@@ -53,10 +53,9 @@ export interface AscApiKeyRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class AscApiKeyRepo extends Context.Tag("api/AscApiKeyRepo")<
-  AscApiKeyRepo,
-  AscApiKeyRepository
->() {}
+export class AscApiKeyRepo extends Context.Service<AscApiKeyRepo, AscApiKeyRepository>()(
+  "api/AscApiKeyRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

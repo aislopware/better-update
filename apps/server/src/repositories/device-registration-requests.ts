@@ -39,10 +39,10 @@ export interface DeviceRegistrationRequestRepository {
   }) => Effect.Effect<void>;
 }
 
-export class DeviceRegistrationRequestRepo extends Context.Tag("api/DeviceRegistrationRequestRepo")<
+export class DeviceRegistrationRequestRepo extends Context.Service<
   DeviceRegistrationRequestRepo,
   DeviceRegistrationRequestRepository
->() {}
+>()("api/DeviceRegistrationRequestRepo") {}
 
 // ── D1 Adapter ────────────────────────────────────────────────────
 

@@ -181,12 +181,6 @@ export interface EnvVarListParams {
   readonly search?: string;
 }
 
-interface EnvVarPageState {
-  readonly page: number;
-  readonly items: readonly EnvVar[];
-  readonly done: boolean;
-}
-
 /**
  * Fetch the COMPLETE env-var list — the server pages (default limit 50), so a
  * single `.list` call silently truncates. `hasMore` (raw page full), not a short
@@ -195,23 +189,28 @@ interface EnvVarPageState {
  * re-run over the accumulated set (per-page resolution can miss cross-page
  * project/global pairs).
  */
-export const listAllEnvVars = (api: ApiClient, urlParams: EnvVarListParams) =>
-  Effect.map(
-    Effect.iterate({ page: 1, items: [], done: false } as EnvVarPageState, {
-      while: (state) => !state.done,
-      body: (state) =>
-        Effect.map(
-          api["env-vars"].list({
-            urlParams: { ...urlParams, page: state.page, limit: ENV_VARS_PAGE_LIMIT },
-          }),
-          (result) => ({
-            page: state.page + 1,
-            items: [...state.items, ...result.items],
-            done: !result.hasMore || state.page >= ENV_VARS_MAX_PAGES,
-          }),
-        ),
-    }),
-    (state) => resolveEnvVarOverrides(state.items),
+export const listAllEnvVars = (api: ApiClient, query: EnvVarListParams) =>
+  Effect.map(listEnvVarPage(api, query, 1, []), resolveEnvVarOverrides);
+
+// One page per round, recursing while the server reports more. v4 dropped
+// `Effect.iterate`; self-recursion is the idiomatic replacement and stays
+// stack-safe because `Effect.flatMap` is trampolined.
+type EnvVarListEffect = ReturnType<ApiClient["env-vars"]["list"]>;
+
+const listEnvVarPage = (
+  api: ApiClient,
+  query: EnvVarListParams,
+  page: number,
+  accumulated: readonly EnvVar[],
+): Effect.Effect<readonly EnvVar[], Effect.Error<EnvVarListEffect>> =>
+  Effect.flatMap(
+    api["env-vars"].list({ query: { ...query, page, limit: ENV_VARS_PAGE_LIMIT } }),
+    (result) => {
+      const items = [...accumulated, ...result.items];
+      return !result.hasMore || page >= ENV_VARS_MAX_PAGES
+        ? Effect.succeed(items)
+        : listEnvVarPage(api, query, page + 1, items);
+    },
   );
 
 /** Resolve a single project env var by (key, environment), or fail NotFound. */

@@ -1,32 +1,32 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { BuildRepo, BuildRepoLive } from "../../../src/repositories/builds";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo>) =>
   runWithLayerAndEnv(effect, BuildRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo>) =>
-  runEitherWithLayerAndEnv(effect, BuildRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo>) =>
+  runResultWithLayerAndEnv(effect, BuildRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const seedBuild = (params: {
+const seedBuild = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly createdAt: string;
@@ -54,7 +54,7 @@ const seedBuild = (params: {
     )
     .run();
 
-const seedArtifact = (buildId: string, r2Key: string) =>
+const seedArtifact = async (buildId: string, r2Key: string) =>
   env.DB.prepare(
     `INSERT INTO "build_artifacts" ("build_id", "r2_key", "format", "content_type", "byte_size", "sha256", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
@@ -143,11 +143,11 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
     );
 
     expect(page.total).toBe(2);
-    expect(page.items.map((b) => b.id)).toEqual(["bl-new", "bl-old"]);
+    expect(page.items.map((build) => build.id)).toStrictEqual(["bl-new", "bl-old"]);
   });
 
   it("lists builds matching a case-insensitive message/commit/ref search, totals respecting it", async () => {
-    const search = (query: string) =>
+    const search = async (query: string) =>
       run(
         Effect.gen(function* () {
           const repo = yield* BuildRepo;
@@ -165,15 +165,15 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
     // "login" hits bs-login twice (message + git ref) but must surface once.
     const byMessage = await search("LOGIN");
     expect(byMessage.total).toBe(1);
-    expect(byMessage.items.map((b) => b.id)).toEqual(["bs-login"]);
+    expect(byMessage.items.map((build) => build.id)).toStrictEqual(["bs-login"]);
 
     const byCommit = await search("a1b2c3");
     expect(byCommit.total).toBe(1);
-    expect(byCommit.items.map((b) => b.id)).toEqual(["bs-login"]);
+    expect(byCommit.items.map((build) => build.id)).toStrictEqual(["bs-login"]);
 
     const byRef = await search("main");
     expect(byRef.total).toBe(1);
-    expect(byRef.items.map((b) => b.id)).toEqual(["bs-deps"]);
+    expect(byRef.items.map((build) => build.id)).toStrictEqual(["bs-deps"]);
 
     const noMatch = await search("zzz-no-such");
     expect(noMatch.total).toBe(0);
@@ -206,7 +206,7 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
       }),
     );
 
-    expect(info).toEqual({
+    expect(info).toStrictEqual({
       distribution: "ad-hoc",
       bundleId: "com.example.app",
       appVersion: "1.2.3",
@@ -216,16 +216,16 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
   });
 
   it("findById fails with NotFound for a missing build", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* BuildRepo;
         return yield* repo.findById({ id: "does-not-exist" });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -263,17 +263,17 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
         return yield* repo.deleteById({ id: "b-del" });
       }),
     );
-    expect(deleted).toEqual({ r2Key: "builds/b-del.ipa" });
+    expect(deleted).toStrictEqual({ r2Key: "builds/b-del.ipa" });
 
-    const afterDelete = await runEither(
+    const afterDelete = await runResult(
       Effect.gen(function* () {
         const repo = yield* BuildRepo;
         return yield* repo.deleteById({ id: "b-del" });
       }),
     );
-    expect(Either.isLeft(afterDelete)).toBe(true);
-    if (Either.isLeft(afterDelete)) {
-      expect(afterDelete.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(afterDelete)).toBe(true);
+    if (Result.isFailure(afterDelete)) {
+      expect(afterDelete.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 });

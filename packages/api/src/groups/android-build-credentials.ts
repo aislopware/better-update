@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -12,62 +12,64 @@ import {
 import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 
-const applicationIdentifierIdParam = HttpApiSchema.param("applicationIdentifierId", Schema.String);
+const applicationIdentifierIdParam = { applicationIdentifierId: Schema.String };
 
-export class AndroidBuildCredentialsGroup extends HttpApiGroup.make("androidBuildCredentials")
+export const AndroidBuildCredentialsGroup = HttpApiGroup.make("androidBuildCredentials")
   .add(
     HttpApiEndpoint.get(
       "list",
-    )`/api/android-application-identifiers/${applicationIdentifierIdParam}/build-credentials`
-      .addSuccess(Schema.Struct({ items: Schema.Array(AndroidBuildCredentials) }))
-      .annotateContext(
-        OpenApi.annotations({
-          title: "List Android build credentials",
-          description: "List named build credential groups for an Android app identifier",
-        }),
-      ),
-  )
-  .add(
+      "/api/android-application-identifiers/:applicationIdentifierId/build-credentials",
+      {
+        params: { ...applicationIdentifierIdParam },
+        success: Schema.Struct({ items: Schema.Array(AndroidBuildCredentials) }),
+        error: [NotFound, Conflict, BadRequest, Forbidden],
+      },
+    ).annotateMerge(
+      OpenApi.annotations({
+        title: "List Android build credentials",
+        description: "List named build credential groups for an Android app identifier",
+      }),
+    ),
     HttpApiEndpoint.post(
       "create",
-    )`/api/android-application-identifiers/${applicationIdentifierIdParam}/build-credentials`
-      .setPayload(CreateAndroidBuildCredentialsBody)
-      .addSuccess(AndroidBuildCredentials, { status: 201 })
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Create Android build credentials group",
-          description: "Create a named build credentials group (Default or custom)",
-        }),
-      ),
+      "/api/android-application-identifiers/:applicationIdentifierId/build-credentials",
+      {
+        params: { ...applicationIdentifierIdParam },
+        payload: CreateAndroidBuildCredentialsBody,
+        success: AndroidBuildCredentials.pipe(HttpApiSchema.status(201)),
+        error: [NotFound, Conflict, BadRequest, Forbidden],
+      },
+    ).annotateMerge(
+      OpenApi.annotations({
+        title: "Create Android build credentials group",
+        description: "Create a named build credentials group (Default or custom)",
+      }),
+    ),
+    HttpApiEndpoint.put("update", "/api/android-build-credentials/:id", {
+      params: { ...idParam },
+      payload: UpdateAndroidBuildCredentialsBody,
+      success: AndroidBuildCredentials,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Update Android build credentials",
+        description: "Rename group, change default flag, or swap bound keystore/keys",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("delete", "/api/android-build-credentials/:id", {
+      params: { ...idParam },
+      success: DeleteAndroidBuildCredentialsResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Delete Android build credentials",
+        description: "Remove a build credentials group",
+      }),
+    ),
   )
-  .add(
-    HttpApiEndpoint.put("update")`/api/android-build-credentials/${idParam}`
-      .setPayload(UpdateAndroidBuildCredentialsBody)
-      .addSuccess(AndroidBuildCredentials)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Update Android build credentials",
-          description: "Rename group, change default flag, or swap bound keystore/keys",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("delete")`/api/android-build-credentials/${idParam}`
-      .addSuccess(DeleteAndroidBuildCredentialsResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Delete Android build credentials",
-          description: "Remove a build credentials group",
-        }),
-      ),
-  )
-  .addError(NotFound)
-  .addError(Conflict)
-  .addError(BadRequest)
-  .addError(Forbidden)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Android Build Credentials",
       description: "Named groups of build credentials per Android application identifier",
     }),
-  ) {}
+  );

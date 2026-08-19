@@ -1,7 +1,7 @@
+/* eslint-disable no-await-in-loop -- fixture rows are seeded serially so each update's launch asset exists before the next is linked. */
 import { isValidPatchKey, patchR2Key } from "@better-update/expo-protocol";
-import { env } from "cloudflare:test";
-import { Effect } from "effect";
-import { Layer } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Layer } from "effect";
 
 import { AssetStorage, AssetStorageLive } from "../../src/cloudflare/asset-storage";
 import { ChannelRepo, ChannelRepoLive } from "../../src/repositories/channels";
@@ -24,10 +24,10 @@ import { runWithLayerAndEnv } from "../helpers/runtime";
 // exercised by the e2e-pool suite (unstable_startWorker), which is too slow to
 // auto-run; here we assert the repository + key + storage behaviour directly.
 
-const runUpdates = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
+const runUpdates = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
   runWithLayerAndEnv(effect, UpdateRepoLive, env);
 
-const insertUpdate = (params: {
+const insertUpdate = async (params: {
   readonly id: string;
   readonly branchId: string;
   readonly runtimeVersion: string;
@@ -52,14 +52,14 @@ const insertUpdate = (params: {
     )
     .run();
 
-const insertAsset = (hash: string) =>
+const insertAsset = async (hash: string) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, 'application/javascript', 'js', 2048, ?, '2024-01-10T00:00:00.000Z')`,
   )
     .bind(hash, `assets/${hash}`)
     .run();
 
-const linkLaunchAsset = (updateId: string, hash: string) =>
+const linkLaunchAsset = async (updateId: string, hash: string) =>
   env.DB.prepare(
     `INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch") VALUES (?, 'bundle', ?, 1)`,
   )
@@ -338,7 +338,8 @@ describe("patch-upload key (shared pure builder) + ASSETS_BUCKET round-trip", ()
 
   it("a patch written at the server-built key is readable from ASSETS_BUCKET", async () => {
     const key = patchR2Key(keyParams);
-    const patchBytes = new Uint8Array([0x42, 0x53, 0x44, 0x49, 0x46, 0x46, 0x34, 0x30]); // BSDIFF40
+    // BSDIFF40
+    const patchBytes = new Uint8Array([0x42, 0x53, 0x44, 0x49, 0x46, 0x46, 0x34, 0x30]);
     await env.ASSETS_BUCKET.put(key, patchBytes);
 
     // The bundle route reads patches from ASSETS_BUCKET by this exact key.
@@ -346,6 +347,6 @@ describe("patch-upload key (shared pure builder) + ASSETS_BUCKET round-trip", ()
     expect(stored).not.toBeNull();
     const storedBytes =
       stored === null ? new Uint8Array() : new Uint8Array(await stored.arrayBuffer());
-    expect(storedBytes).toEqual(patchBytes);
+    expect(storedBytes).toStrictEqual(patchBytes);
   });
 });

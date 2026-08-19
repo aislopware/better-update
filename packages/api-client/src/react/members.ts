@@ -24,12 +24,12 @@ export const meQueryOptions = () =>
 // Remove a member from the active org by member id (IAM-gated by member:delete;
 // org-scoped — no cross-org removes; rejects removing the last owner with 409).
 export const removeMember = async (id: string) =>
-  runApi((api) => api.members.remove({ path: { id } }));
+  runApi((api) => api.members.remove({ params: { id } }));
 
 // Change a member's org role (GITLAB-RBAC-SPEC §2): admin ⇄ member. Gated by
 // member:update; granting/revoking admin is owner-only (server guard).
 export const updateMemberRole = async (id: string, role: "admin" | "member") =>
-  runApi((api) => api.members.updateRole({ path: { id }, payload: { role } }));
+  runApi((api) => api.members.updateRole({ params: { id }, payload: { role } }));
 
 // Per-member project memberships for the org Members screen: explicit
 // project_member rows (project names embedded server-side) plus the org-wide
@@ -54,8 +54,8 @@ export const memberProjectMembershipsQueryOptions = (orgId: string) =>
 // present and future, resolved at query time like org-wide credential
 // bindings. Gated by member:update; owners are rejected (implicit maintainers).
 export const setMemberAllProjectsRole = async (id: string, role: ProjectMemberRoleValue) =>
-  runApi((api) => api.members.setAllProjects({ path: { id }, payload: { role } }));
+  runApi((api) => api.members.setAllProjects({ params: { id }, payload: { role } }));
 
 // Revoke a member's org-wide role; explicit per-project memberships remain.
 export const removeMemberAllProjectsRole = async (id: string) =>
-  runApi((api) => api.members.removeAllProjects({ path: { id } }));
+  runApi((api) => api.members.removeAllProjects({ params: { id } }));

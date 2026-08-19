@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Cause, Effect, Exit, Option } from "effect";
 
 import { OrganizationRepo, OrganizationRepoLive } from "../../../src/repositories/organizations";
@@ -6,10 +6,12 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, OrganizationRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, OrganizationRepo>) =>
   runWithLayerAndEnv(effect, OrganizationRepoLive, env);
 
-const withRepo = <Ret, Err>(use: (repo: OrganizationRepo["Type"]) => Effect.Effect<Ret, Err>) =>
+const withRepo = async <Ret, Err>(
+  use: (repo: OrganizationRepo["Service"]) => Effect.Effect<Ret, Err>,
+) =>
   run(
     Effect.gen(function* () {
       const repo = yield* OrganizationRepo;
@@ -17,7 +19,7 @@ const withRepo = <Ret, Err>(use: (repo: OrganizationRepo["Type"]) => Effect.Effe
     }),
   );
 
-const insertOrg = (id: string, slug: string) =>
+const insertOrg = async (id: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
@@ -39,7 +41,7 @@ describe("OrganizationRepo — D1 integration", () => {
     const updated = await withRepo((repo) =>
       repo.update({ id: ORG_A, name: "Renamed A", slug: "renamed-a" }),
     );
-    expect(updated).toEqual({
+    expect(updated).toStrictEqual({
       id: ORG_A,
       name: "Renamed A",
       slug: "renamed-a",
@@ -62,7 +64,7 @@ describe("OrganizationRepo — D1 integration", () => {
     );
     expect(Exit.isFailure(exit)).toBe(true);
     const failure = Exit.isFailure(exit)
-      ? Option.getOrUndefined(Cause.failureOption(exit.cause))
+      ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
     expect(failure?._tag).toBe("Conflict");
   });

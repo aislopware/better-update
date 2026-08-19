@@ -52,7 +52,7 @@ const resolveArchive = (
       return { archiveSource: "url" as const, archiveUrl: args.url, buildId: undefined };
     }
     if (args.id !== undefined) {
-      const link = yield* api.builds.getInstallLink({ path: { id: args.id } });
+      const link = yield* api.builds.getInstallLink({ params: { id: args.id } });
       return {
         archiveSource: "build" as const,
         archiveUrl: link.artifactUrl,
@@ -61,14 +61,14 @@ const resolveArchive = (
     }
     if (args.latest) {
       const { items } = yield* api.builds.list({
-        urlParams: { projectId, limit: 1, platform, sort: "-createdAt" },
+        query: { projectId, limit: 1, platform, sort: "-createdAt" },
       });
       const [latest] = items;
       if (latest === undefined) {
         yield* printHuman(`No builds found for platform ${platform}`);
         return null;
       }
-      const link = yield* api.builds.getInstallLink({ path: { id: latest.id } });
+      const link = yield* api.builds.getInstallLink({ params: { id: latest.id } });
       return {
         archiveSource: "build" as const,
         archiveUrl: link.artifactUrl,
@@ -210,7 +210,7 @@ const submitIosBranch = (params: {
     if (resolvedAscAppId === undefined && ascCredentials !== null) {
       // Best-effort: the better-update project name pre-fills the create-app prompt
       // for non-Expo projects (no app.json `expo.name` to default from).
-      const defaultAppName = yield* api.projects.get({ path: { id: params.projectId } }).pipe(
+      const defaultAppName = yield* api.projects.get({ params: { id: params.projectId } }).pipe(
         Effect.map((project) => project.name),
         Effect.orElseSucceed(() => undefined),
       );

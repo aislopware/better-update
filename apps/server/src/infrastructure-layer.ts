@@ -61,122 +61,12 @@ import { MemberRepoLive } from "./repositories/member-repo";
 import { OrganizationRepoLive } from "./repositories/organizations";
 import { RobotAccountRepoLive } from "./repositories/robot-accounts";
 
-import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
-import type { AssetStorage } from "./cloudflare/asset-storage";
-import type { BuildRuntime } from "./cloudflare/build-runtime";
-import type { CredentialArtifacts } from "./cloudflare/credential-artifacts";
-import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
-import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
-import type { WorkersCache } from "./cloudflare/workers-cache";
-import type { CryptoService } from "./domain/crypto-service";
-import type { EmailService } from "./domain/email-service";
-import type {
-  AccountKeyRepo,
-  AdminUsersRepo,
-  AnalyticsRepo,
-  AndroidApplicationIdentifierRepo,
-  AndroidBuildCredentialsRepo,
-  AndroidUploadKeystoreRepo,
-  AppleDistributionCertificateRepo,
-  ApplePassTypeCertificateRepo,
-  ApplePayCertificateRepo,
-  AppleProvisioningProfileRepo,
-  ApplePushCertificateRepo,
-  ApplePushKeyRepo,
-  AppleTeamRepo,
-  AscApiKeyRepo,
-  AssetRepo,
-  AuditLogRepo,
-  AuthMetaRepo,
-  BranchRepo,
-  BuildRepo,
-  BuildStorageRepo,
-  BundleRepo,
-  ChannelRepo,
-  CompatibilityRepo,
-  DebugArtifactRepo,
-  DeviceRegistrationRequestRepo,
-  DeviceRepo,
-  EnvironmentRepo,
-  EnvVarRepo,
-  GoogleServiceAccountKeyRepo,
-  InvitationProjectGrantRepo,
-  IosAppMetadataRepo,
-  IosBundleConfigurationRepo,
-  OrgEnvVaultRepo,
-  OrgVaultRepo,
-  PasskeyStepUpRepo,
-  ProjectMemberRepo,
-  ProjectRepo,
-  ProtectedEnvironmentRepo,
-  RuntimeRepo,
-  SubmissionsRepo,
-  UpdateRepo,
-  UserEncryptionKeyRepo,
-  WebhookRepo,
-} from "./repositories";
-import type { InvitationRepo } from "./repositories/invitations";
-import type { MemberRepo } from "./repositories/member-repo";
-import type { OrganizationRepo } from "./repositories/organizations";
-import type { RobotAccountRepo } from "./repositories/robot-accounts";
-
-export type ServerInfrastructure =
-  | AccountKeyRepo
-  | AdminUsersRepo
-  | AnalyticsEngine
-  | AnalyticsRepo
-  | AndroidApplicationIdentifierRepo
-  | AndroidBuildCredentialsRepo
-  | AndroidUploadKeystoreRepo
-  | AppleDistributionCertificateRepo
-  | ApplePassTypeCertificateRepo
-  | ApplePayCertificateRepo
-  | AppleProvisioningProfileRepo
-  | ApplePushCertificateRepo
-  | ApplePushKeyRepo
-  | AppleTeamRepo
-  | AscApiKeyRepo
-  | AssetRepo
-  | AssetStorage
-  | AuditLogRepo
-  | AuthMetaRepo
-  | BranchRepo
-  | BuildRepo
-  | BuildRuntime
-  | BuildStorageRepo
-  | BundleRepo
-  | ChannelRepo
-  | CompatibilityRepo
-  | CredentialArtifacts
-  | CryptoService
-  | DebugArtifactRepo
-  | DeviceRegistrationRequestRepo
-  | DeviceRepo
-  | EmailService
-  | EnvironmentRepo
-  | EnvVarRepo
-  | GoogleServiceAccountKeyRepo
-  | InvitationProjectGrantRepo
-  | InvitationRepo
-  | IosAppMetadataRepo
-  | IosBundleConfigurationRepo
-  | ManifestCacheStorage
-  | MemberRepo
-  | OrganizationRepo
-  | ProjectMemberRepo
-  | OrgEnvVaultRepo
-  | OrgVaultRepo
-  | PasskeyStepUpRepo
-  | ProjectRepo
-  | ProtectedEnvironmentRepo
-  | RobotAccountRepo
-  | RuntimeRepo
-  | SubmissionsRepo
-  | UpdateCoordinator
-  | UpdateRepo
-  | UserEncryptionKeyRepo
-  | WebhookRepo
-  | WorkersCache;
+/**
+ * Every service the server's imperative shell can provide. Derived from the
+ * layer rather than hand-listed so the two can never drift — the union is what
+ * `ServerInfrastructureLayer` actually builds.
+ */
+export type ServerInfrastructure = Layer.Success<typeof ServerInfrastructureLayer>;
 
 export const RepositoryLayer = Layer.mergeAll(
   AccountKeyRepoLive,

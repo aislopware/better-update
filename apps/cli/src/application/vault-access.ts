@@ -153,7 +153,7 @@ const unlockVaultKeyWith = (api: ApiClient, privateKey: string) =>
       });
     }
     const wrap = yield* api.orgVault
-      .getWrap({ path: { keyId: own.id } })
+      .getWrap({ params: { keyId: own.id } })
       .pipe(Effect.catchTag("NotFound", () => vaultAccessError(api)));
     const vaultKey = yield* Effect.tryPromise({
       try: async () => unwrapVaultKey({ wrapped: fromBase64(wrap.wrappedKey), privateKey }),

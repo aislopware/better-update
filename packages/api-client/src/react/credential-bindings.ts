@@ -17,7 +17,7 @@ export const credentialBindingsQueryOptions = (orgId: string, projectId: string)
     queryKey: credentialBindingsQueryKey(orgId, projectId),
     queryFn: async ({ signal }) => {
       const result = await runApi(
-        (api) => api["credential-bindings"].list({ path: { id: projectId } }),
+        (api) => api["credential-bindings"].list({ params: { id: projectId } }),
         signal,
       );
       return result.items;
@@ -32,7 +32,7 @@ export const bindCredentialToProject = async (params: {
 }) =>
   runApi((api) =>
     api["credential-bindings"].bind({
-      path: {
+      params: {
         id: params.projectId,
         resourceType: params.resourceType,
         resourceId: params.resourceId,
@@ -47,7 +47,7 @@ export const unbindCredentialFromProject = async (params: {
 }) =>
   runApi((api) =>
     api["credential-bindings"].unbind({
-      path: {
+      params: {
         id: params.projectId,
         resourceType: params.resourceType,
         resourceId: params.resourceId,
@@ -63,7 +63,7 @@ export const bindCredentialToAllProjects = async (params: {
 }) =>
   runApi((api) =>
     api["credential-bindings"].bindAllProjects({
-      path: { resourceType: params.resourceType, resourceId: params.resourceId },
+      params: { resourceType: params.resourceType, resourceId: params.resourceId },
     }),
   );
 
@@ -73,6 +73,6 @@ export const unbindCredentialFromAllProjects = async (params: {
 }) =>
   runApi((api) =>
     api["credential-bindings"].unbindAllProjects({
-      path: { resourceType: params.resourceType, resourceId: params.resourceId },
+      params: { resourceType: params.resourceType, resourceId: params.resourceId },
     }),
   );

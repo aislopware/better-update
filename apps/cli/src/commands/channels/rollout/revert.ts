@@ -16,7 +16,7 @@ export const revertCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const channel = yield* api.channels.revertBranchRollout({
-          path: { id: args.channelId },
+          params: { id: args.channelId },
         });
         yield* printHuman(`Reverted rollout on channel "${channel.name}".`);
         return channel;

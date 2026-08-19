@@ -56,10 +56,9 @@ export interface AssetStorageService {
   }>;
 }
 
-export class AssetStorage extends Context.Tag("server/AssetStorage")<
-  AssetStorage,
-  AssetStorageService
->() {}
+export class AssetStorage extends Context.Service<AssetStorage, AssetStorageService>()(
+  "server/AssetStorage",
+) {}
 
 const toStoredBlob = (object: R2ObjectBody): StoredBlob => ({
   body: object.body,

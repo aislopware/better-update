@@ -1,6 +1,5 @@
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import {
   APP_STORE_EXIT_EXTRAS,

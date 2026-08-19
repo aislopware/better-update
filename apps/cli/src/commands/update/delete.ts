@@ -15,7 +15,7 @@ export const deleteCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const result = yield* api.updates.deleteGroup({ path: { groupId: args.groupId } });
+        const result = yield* api.updates.deleteGroup({ params: { groupId: args.groupId } });
         yield* printHuman(
           `Deleted ${String(result.deleted)} update(s) from group ${args.groupId}.`,
         );

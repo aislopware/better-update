@@ -22,7 +22,7 @@ export const insightsCommand = defineCommand({
 
         const periodFilter = args.period ? { period: args.period } : {};
         const result = yield* api.analytics.channels({
-          urlParams: { projectId, channel: args.name, ...periodFilter },
+          query: { projectId, channel: args.name, ...periodFilter },
         });
 
         yield* warnIfUnavailable(result.unavailable);

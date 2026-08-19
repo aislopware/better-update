@@ -54,10 +54,9 @@ export interface AppleTeamRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class AppleTeamRepo extends Context.Tag("api/AppleTeamRepo")<
-  AppleTeamRepo,
-  AppleTeamRepository
->() {}
+export class AppleTeamRepo extends Context.Service<AppleTeamRepo, AppleTeamRepository>()(
+  "api/AppleTeamRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

@@ -1,3 +1,5 @@
+import { Semaphore } from "effect";
+
 import type { Effect } from "effect";
 
 /**
@@ -8,6 +10,7 @@ import type { Effect } from "effect";
  * auto-submit).
  */
 export const withOptionalPermit =
-  (mutex: Effect.Semaphore | undefined) =>
+  (mutex: Semaphore.Semaphore | undefined) =>
   <Value, Err, Req>(self: Effect.Effect<Value, Err, Req>): Effect.Effect<Value, Err, Req> =>
-    mutex === undefined ? self : mutex.withPermits(1)(self);
+    // v4 moved the semaphore combinators off the value and into the module.
+    mutex === undefined ? self : Semaphore.withPermit(mutex)(self);

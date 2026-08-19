@@ -28,14 +28,14 @@ export interface UploadPatchResult {
 // finalize: the server discovers patches by R2 key probe (resolve-bundle.ts),
 // so there is no D1 row and no finalize step. The R2 key is built SERVER-SIDE
 // from the request tuple via the shared patchR2Key — never trusted from here.
-export class PatchUploader extends Context.Tag("cli/PatchUploader")<
+export class PatchUploader extends Context.Service<
   PatchUploader,
   {
     readonly uploadPatch: (
       input: UploadPatchInput,
     ) => Effect.Effect<UploadPatchResult, PatchUploadError>;
   }
->() {}
+>()("cli/PatchUploader") {}
 
 export const PatchUploaderLive = Layer.effect(
   PatchUploader,

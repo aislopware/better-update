@@ -22,7 +22,7 @@ export const createCommand = defineCommand({
 
         const branches = yield* drainPages((page) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, page },
+            query: { projectId, limit: 100, page },
           }),
         );
         const branchId = yield* resolveNamedResourceId({

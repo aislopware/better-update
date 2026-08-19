@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { FileSystem, Console, Effect } from "effect";
 
 import { drainPages } from "../lib/drain-cursor";
 import { UpdatePublishError } from "../lib/exit-codes";
@@ -23,13 +22,13 @@ export interface PublishedPlatformMetadata {
 }
 
 export const resolveChannelToBranch = (
-  client: Effect.Effect.Success<typeof apiClient>,
+  client: Effect.Success<typeof apiClient>,
   projectId: string,
   channelName: string,
 ) =>
   Effect.gen(function* () {
     const channels = yield* drainPages((page) =>
-      client.channels.list({ urlParams: { projectId, limit: 100, page } }),
+      client.channels.list({ query: { projectId, limit: 100, page } }),
     ).pipe(
       Effect.mapError(
         (cause) =>
@@ -49,7 +48,7 @@ export const resolveChannelToBranch = (
       return channelName;
     }
     const branches = yield* drainPages((page) =>
-      client.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      client.branches.list({ query: { projectId, limit: 100, page } }),
     ).pipe(
       Effect.mapError(
         (cause) =>
@@ -85,13 +84,10 @@ const promptBranchName = Effect.gen(function* () {
  * Sentinel option. When the user picks the sentinel (or there are no
  * Existing branches), prompts for a new branch name.
  */
-export const promptForBranch = (
-  client: Effect.Effect.Success<typeof apiClient>,
-  projectId: string,
-) =>
+export const promptForBranch = (client: Effect.Success<typeof apiClient>, projectId: string) =>
   Effect.gen(function* () {
     const branches = yield* drainPages((page) =>
-      client.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      client.branches.list({ query: { projectId, limit: 100, page } }),
     ).pipe(
       Effect.mapError(
         (cause) =>
@@ -133,7 +129,7 @@ export const promptForMessage = (commitMessage: string | undefined) =>
   });
 
 export interface ResolveBranchAndMessageInput {
-  readonly client: Effect.Effect.Success<typeof apiClient>;
+  readonly client: Effect.Success<typeof apiClient>;
   readonly projectId: string;
   readonly branchArg: string | undefined;
   readonly messageArg: string | undefined;
@@ -210,10 +206,10 @@ export interface PublishTarget {
  * aborting.
  */
 export const describePublishTarget = (
-  client: Effect.Effect.Success<typeof apiClient>,
+  client: Effect.Success<typeof apiClient>,
   projectId: string,
 ): Effect.Effect<PublishTarget> =>
-  client.projects.get({ path: { id: projectId } }).pipe(
+  client.projects.get({ params: { id: projectId } }).pipe(
     Effect.map(
       (project) =>
         ({ projectId, name: project.name, slug: project.slug }) as const satisfies PublishTarget,

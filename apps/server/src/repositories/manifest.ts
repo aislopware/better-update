@@ -86,10 +86,9 @@ export interface LaunchAssetRow {
   runtime_version: string;
 }
 
-export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
-  ManifestRepo,
-  ManifestRepository
->() {}
+export class ManifestRepo extends Context.Service<ManifestRepo, ManifestRepository>()(
+  "api/ManifestRepo",
+) {}
 
 // -- D1 Adapter --------------------------------------------------------------
 

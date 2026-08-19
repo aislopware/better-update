@@ -17,9 +17,9 @@ export const statusCommand = defineCommand({
 
         const { project, credentials, builds } = yield* Effect.all(
           {
-            project: api.projects.get({ path: { id: projectId } }),
+            project: api.projects.get({ params: { id: projectId } }),
             credentials: listAllCredentials(api),
-            builds: api.builds.list({ urlParams: { projectId } }),
+            builds: api.builds.list({ query: { projectId } }),
           },
           { concurrency: "unbounded" },
         );

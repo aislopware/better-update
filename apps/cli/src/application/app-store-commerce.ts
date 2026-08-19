@@ -103,7 +103,7 @@ export interface SetAvailabilityResult {
 }
 
 /**
- * Set the app's territory availability via `App.updateAsync({ territories })`. Either
+ * Set the app's territory availability via `App.updateAsync({ territories })`. Result
  * replace the whole set (`replace`) or read-modify-write the current set (`add`/
  * `remove`). Refuses an empty result (which would delist the app worldwide).
  */

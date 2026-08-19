@@ -18,7 +18,7 @@ type RevertChoice = "published" | "embedded";
 const promptBranchName = (api: ApiClient, projectId: string) =>
   Effect.gen(function* () {
     const branches = yield* drainPages((page) =>
-      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      api.branches.list({ query: { projectId, limit: 100, page } }),
     );
     if (branches.length === 0) {
       return yield* new UpdateCommandError({
@@ -39,7 +39,7 @@ const findPreviousGroupOnBranch = (
 ) =>
   Effect.gen(function* () {
     const updates = yield* drainPages((page) =>
-      api.updates.list({ urlParams: { projectId, branchId: [branchId], limit: 100, page } }),
+      api.updates.list({ query: { projectId, branchId: [branchId], limit: 100, page } }),
     );
     const filtered =
       platform === "all" ? updates : updates.filter((entry) => entry.platform === platform);
@@ -95,7 +95,7 @@ const revertToPublished = (
 ) =>
   Effect.gen(function* () {
     const branches = yield* drainPages((page) =>
-      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      api.branches.list({ query: { projectId, limit: 100, page } }),
     );
     const branchId = yield* resolveNamedResourceId({
       items: branches,
@@ -157,7 +157,7 @@ const revertByGroup = (options: {
 }) =>
   Effect.gen(function* () {
     const { api, projectId, groupId, platform, environment, message } = options;
-    const group = yield* api.updates.getGroup({ path: { groupId } });
+    const group = yield* api.updates.getGroup({ params: { groupId } });
     const [sample] = group.items;
     if (!sample) {
       return yield* new UpdateCommandError({
@@ -165,7 +165,7 @@ const revertByGroup = (options: {
       });
     }
     const branches = yield* drainPages((page) =>
-      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      api.branches.list({ query: { projectId, limit: 100, page } }),
     );
     const branch = branches.find((entry) => entry.id === sample.branchId);
     if (!branch) {
@@ -175,7 +175,7 @@ const revertByGroup = (options: {
     }
     const updates = yield* drainPages((page) =>
       api.updates.list({
-        urlParams: {
+        query: {
           projectId,
           branchId: [branch.id],
           runtimeVersion: sample.runtimeVersion,

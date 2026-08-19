@@ -2,14 +2,15 @@ import { Schema } from "effect";
 
 import { DateTimeString, Id, Platform, UploadHeaders } from "./common";
 
-export class Asset extends Schema.Class<Asset>("Asset")({
+export const Asset = Schema.Struct({
   hash: Schema.String,
   contentType: Schema.String,
   fileExt: Schema.String,
   byteSize: Schema.Number,
   r2Key: Schema.String,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Asset" });
+export type Asset = typeof Asset.Type;
 
 export const AssetUploadBody = Schema.Struct({
   projectId: Id,
@@ -43,7 +44,7 @@ export const AssetUploadResult = Schema.Struct({
  */
 export const PatchUploadBody = Schema.Struct({
   projectId: Id,
-  runtimeVersion: Schema.String.pipe(Schema.minLength(1)),
+  runtimeVersion: Schema.String.check(Schema.isMinLength(1)),
   platform: Platform,
   fromUpdateId: Id,
   toUpdateId: Id,

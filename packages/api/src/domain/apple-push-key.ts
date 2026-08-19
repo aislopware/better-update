@@ -7,7 +7,7 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const ApplePushKeyId = tenCharPortalId("Push Key ID");
 
-export class ApplePushKey extends Schema.Class<ApplePushKey>("ApplePushKey")({
+export const ApplePushKey = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Id,
@@ -16,7 +16,8 @@ export class ApplePushKey extends Schema.Class<ApplePushKey>("ApplePushKey")({
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "ApplePushKey" });
+export type ApplePushKey = typeof ApplePushKey.Type;
 
 /** Client-encrypted upload: the `.p8` PEM is sealed into `ciphertext`. */
 export const UploadApplePushKeyBody = Schema.Struct({

@@ -33,7 +33,7 @@ export const sha256HexToBase64 = (sha256: string, label: string) =>
  */
 export const parseReservation = <Decoded, Encoded>(
   json: string,
-  schema: Schema.Schema<Decoded, Encoded>,
+  schema: Schema.Codec<Decoded, Encoded>,
   label: string,
 ): Effect.Effect<Decoded, BadRequest> =>
   Effect.gen(function* () {
@@ -41,7 +41,7 @@ export const parseReservation = <Decoded, Encoded>(
       try: () => JSON.parse(json) as unknown,
       catch: () => new BadRequest({ message: `${label} is not valid JSON` }),
     });
-    return yield* Schema.decodeUnknown(schema)(raw).pipe(
+    return yield* Schema.decodeUnknownEffect(schema)(raw).pipe(
       Effect.mapError(() => new BadRequest({ message: `${label} failed schema decode` })),
     );
   });

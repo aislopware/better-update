@@ -38,7 +38,7 @@ describe("Apple device sync (App Store Connect reconcile)", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -64,7 +64,7 @@ describe("Apple device sync (App Store Connect reconcile)", () => {
       { cookie: cookies },
     );
     expect(cert.status).toBe(201);
-    teamId = (await cert.json()).appleTeamId;
+    ({ appleTeamId: teamId } = await cert.json());
 
     const device = await post(
       "/api/devices",
@@ -77,7 +77,8 @@ describe("Apple device sync (App Store Connect reconcile)", () => {
       { cookie: cookies },
     );
     expect(device.status).toBe(201);
-    expect((await device.json()).appleDevicePortalId).toBeNull();
+    const deviceBody = await device.json();
+    expect(deviceBody.appleDevicePortalId).toBeNull();
   });
 
   it("links the existing device and imports the Apple-only device", async () => {
@@ -103,14 +104,14 @@ describe("Apple device sync (App Store Connect reconcile)", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as SyncResult;
-    expect(body).toEqual({ created: 1, linked: 1, unchanged: 0 });
+    const body = await res.json<SyncResult>();
+    expect(body).toStrictEqual({ created: 1, linked: 1, unchanged: 0 });
   });
 
   it("reflects the portal ids on the device list", async () => {
     const res = await get(`/api/devices?appleTeamId=${teamId}`, { cookie: cookies });
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as DeviceItem[];
+    const { items } = await res.json<{ items: DeviceItem[] }>();
     expect(items).toHaveLength(2);
     const existing = items.find((item) => item.identifier === EXISTING_UDID);
     const imported = items.find((item) => item.identifier === IMPORTED_UDID);
@@ -142,7 +143,7 @@ describe("Apple device sync (App Store Connect reconcile)", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(200);
-    expect((await res.json()) as SyncResult).toEqual({ created: 0, linked: 0, unchanged: 2 });
+    await expect(res.json()).resolves.toStrictEqual({ created: 0, linked: 0, unchanged: 2 });
   });
 
   it("translates an Apple Team Identifier passed as appleTeamId to 404, not a FK 500", async () => {
@@ -162,6 +163,7 @@ describe("Apple device sync (App Store Connect reconcile)", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(404);
-    expect(((await res.json()) as { message: string }).message).toContain("Apple team");
+    const body = await res.json();
+    expect(body.message).toContain("Apple team");
   });
 });

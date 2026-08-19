@@ -46,7 +46,7 @@ export const uploadAppleDistributionCertificate = async (
 ) => runApi((api) => api.appleDistributionCertificates.upload({ payload: body }));
 
 export const deleteAppleDistributionCertificate = async (id: string) =>
-  runApi((api) => api.appleDistributionCertificates.delete({ path: { id } }));
+  runApi((api) => api.appleDistributionCertificates.delete({ params: { id } }));
 
 export const applePushKeysQueryKey = (orgId: string) => ["org", orgId, "apple-push-keys"] as const;
 
@@ -61,7 +61,7 @@ export const uploadApplePushKey = async (body: typeof UploadApplePushKeyBody.Typ
   runApi((api) => api.applePushKeys.upload({ payload: body }));
 
 export const deleteApplePushKey = async (id: string) =>
-  runApi((api) => api.applePushKeys.delete({ path: { id } }));
+  runApi((api) => api.applePushKeys.delete({ params: { id } }));
 
 export const applePushCertificatesQueryKey = (orgId: string) =>
   ["org", orgId, "apple-push-certificates"] as const;
@@ -78,7 +78,7 @@ export const uploadApplePushCertificate = async (
 ) => runApi((api) => api.applePushCertificates.upload({ payload: body }));
 
 export const deleteApplePushCertificate = async (id: string) =>
-  runApi((api) => api.applePushCertificates.delete({ path: { id } }));
+  runApi((api) => api.applePushCertificates.delete({ params: { id } }));
 
 export const applePayCertificatesQueryKey = (orgId: string) =>
   ["org", orgId, "apple-pay-certificates"] as const;
@@ -94,7 +94,7 @@ export const uploadApplePayCertificate = async (body: typeof UploadApplePayCerti
   runApi((api) => api.applePayCertificates.upload({ payload: body }));
 
 export const deleteApplePayCertificate = async (id: string) =>
-  runApi((api) => api.applePayCertificates.delete({ path: { id } }));
+  runApi((api) => api.applePayCertificates.delete({ params: { id } }));
 
 export const applePassTypeCertificatesQueryKey = (orgId: string) =>
   ["org", orgId, "apple-pass-type-certificates"] as const;
@@ -111,7 +111,7 @@ export const uploadApplePassTypeCertificate = async (
 ) => runApi((api) => api.applePassTypeCertificates.upload({ payload: body }));
 
 export const deleteApplePassTypeCertificate = async (id: string) =>
-  runApi((api) => api.applePassTypeCertificates.delete({ path: { id } }));
+  runApi((api) => api.applePassTypeCertificates.delete({ params: { id } }));
 
 export const ascApiKeysQueryKey = (orgId: string) => ["org", orgId, "asc-api-keys"] as const;
 
@@ -126,7 +126,7 @@ export const uploadAscApiKey = async (body: typeof UploadAscApiKeyBody.Type) =>
   runApi((api) => api.ascApiKeys.upload({ payload: body }));
 
 export const deleteAscApiKey = async (id: string) =>
-  runApi((api) => api.ascApiKeys.delete({ path: { id } }));
+  runApi((api) => api.ascApiKeys.delete({ params: { id } }));
 
 export const appleProvisioningProfilesQueryKey = (
   orgId: string,
@@ -151,7 +151,7 @@ export const appleProvisioningProfilesQueryOptions = (
       runApi(
         (api) =>
           api.appleProvisioningProfiles.list({
-            urlParams: {
+            query: {
               ...(filters?.bundleIdentifier ? { bundleIdentifier: filters.bundleIdentifier } : {}),
               ...(filters?.distributionType ? { distributionType: filters.distributionType } : {}),
               ...(filters?.appleTeamId ? { appleTeamId: filters.appleTeamId } : {}),
@@ -167,7 +167,7 @@ export const uploadAppleProvisioningProfile = async (
 ) => runApi((api) => api.appleProvisioningProfiles.upload({ payload: body }));
 
 export const deleteAppleProvisioningProfile = async (id: string) =>
-  runApi((api) => api.appleProvisioningProfiles.delete({ path: { id } }));
+  runApi((api) => api.appleProvisioningProfiles.delete({ params: { id } }));
 
 export const googleServiceAccountKeysQueryKey = (orgId: string) =>
   ["org", orgId, "google-service-account-keys"] as const;
@@ -184,7 +184,7 @@ export const uploadGoogleServiceAccountKey = async (
 ) => runApi((api) => api.googleServiceAccountKeys.upload({ payload: body }));
 
 export const deleteGoogleServiceAccountKey = async (id: string) =>
-  runApi((api) => api.googleServiceAccountKeys.delete({ path: { id } }));
+  runApi((api) => api.googleServiceAccountKeys.delete({ params: { id } }));
 
 export const iosBundleConfigurationsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "ios-bundle-configurations"] as const;
@@ -193,22 +193,22 @@ export const iosBundleConfigurationsQueryOptions = (orgId: string, projectId: st
   queryOptions({
     queryKey: iosBundleConfigurationsQueryKey(orgId, projectId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.iosBundleConfigurations.list({ path: { projectId } }), signal),
+      runApi((api) => api.iosBundleConfigurations.list({ params: { projectId } }), signal),
     staleTime: 30_000,
   });
 
 export const createIosBundleConfiguration = async (
   projectId: string,
   body: typeof CreateIosBundleConfigurationBody.Type,
-) => runApi((api) => api.iosBundleConfigurations.create({ path: { projectId }, payload: body }));
+) => runApi((api) => api.iosBundleConfigurations.create({ params: { projectId }, payload: body }));
 
 export const updateIosBundleConfiguration = async (
   id: string,
   body: typeof UpdateIosBundleConfigurationBody.Type,
-) => runApi((api) => api.iosBundleConfigurations.update({ path: { id }, payload: body }));
+) => runApi((api) => api.iosBundleConfigurations.update({ params: { id }, payload: body }));
 
 export const deleteIosBundleConfiguration = async (id: string) =>
-  runApi((api) => api.iosBundleConfigurations.delete({ path: { id } }));
+  runApi((api) => api.iosBundleConfigurations.delete({ params: { id } }));
 
 export const iosAppMetadataQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "ios-app-metadata"] as const;
@@ -217,22 +217,22 @@ export const iosAppMetadataQueryOptions = (orgId: string, projectId: string) =>
   queryOptions({
     queryKey: iosAppMetadataQueryKey(orgId, projectId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.iosAppMetadata.list({ path: { projectId } }), signal),
+      runApi((api) => api.iosAppMetadata.list({ params: { projectId } }), signal),
     staleTime: 30_000,
   });
 
 export const createIosAppMetadata = async (
   projectId: string,
   body: typeof CreateIosAppMetadataBody.Type,
-) => runApi((api) => api.iosAppMetadata.create({ path: { projectId }, payload: body }));
+) => runApi((api) => api.iosAppMetadata.create({ params: { projectId }, payload: body }));
 
 export const updateIosAppMetadata = async (
   id: string,
   body: typeof UpdateIosAppMetadataBody.Type,
-) => runApi((api) => api.iosAppMetadata.update({ path: { id }, payload: body }));
+) => runApi((api) => api.iosAppMetadata.update({ params: { id }, payload: body }));
 
 export const deleteIosAppMetadata = async (id: string) =>
-  runApi((api) => api.iosAppMetadata.delete({ path: { id } }));
+  runApi((api) => api.iosAppMetadata.delete({ params: { id } }));
 
 export const androidApplicationIdentifiersQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "android-application-identifiers"] as const;
@@ -241,7 +241,7 @@ export const androidApplicationIdentifiersQueryOptions = (orgId: string, project
   queryOptions({
     queryKey: androidApplicationIdentifiersQueryKey(orgId, projectId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.androidApplicationIdentifiers.list({ path: { projectId } }), signal),
+      runApi((api) => api.androidApplicationIdentifiers.list({ params: { projectId } }), signal),
     staleTime: 30_000,
   });
 
@@ -249,10 +249,12 @@ export const createAndroidApplicationIdentifier = async (
   projectId: string,
   body: typeof CreateAndroidApplicationIdentifierBody.Type,
 ) =>
-  runApi((api) => api.androidApplicationIdentifiers.create({ path: { projectId }, payload: body }));
+  runApi((api) =>
+    api.androidApplicationIdentifiers.create({ params: { projectId }, payload: body }),
+  );
 
 export const deleteAndroidApplicationIdentifier = async (id: string) =>
-  runApi((api) => api.androidApplicationIdentifiers.delete({ path: { id } }));
+  runApi((api) => api.androidApplicationIdentifiers.delete({ params: { id } }));
 
 export const androidUploadKeystoresQueryKey = (orgId: string) =>
   ["org", orgId, "android-upload-keystores"] as const;
@@ -269,7 +271,7 @@ export const uploadAndroidUploadKeystore = async (
 ) => runApi((api) => api.androidUploadKeystores.upload({ payload: body }));
 
 export const deleteAndroidUploadKeystore = async (id: string) =>
-  runApi((api) => api.androidUploadKeystores.delete({ path: { id } }));
+  runApi((api) => api.androidUploadKeystores.delete({ params: { id } }));
 
 export const androidBuildCredentialsQueryKey = (orgId: string, applicationIdentifierId: string) =>
   [
@@ -288,7 +290,7 @@ export const androidBuildCredentialsQueryOptions = (
     queryKey: androidBuildCredentialsQueryKey(orgId, applicationIdentifierId),
     queryFn: async ({ signal }) =>
       runApi(
-        (api) => api.androidBuildCredentials.list({ path: { applicationIdentifierId } }),
+        (api) => api.androidBuildCredentials.list({ params: { applicationIdentifierId } }),
         signal,
       ),
     staleTime: 30_000,
@@ -299,69 +301,69 @@ export const createAndroidBuildCredentials = async (
   body: typeof CreateAndroidBuildCredentialsBody.Type,
 ) =>
   runApi((api) =>
-    api.androidBuildCredentials.create({ path: { applicationIdentifierId }, payload: body }),
+    api.androidBuildCredentials.create({ params: { applicationIdentifierId }, payload: body }),
   );
 
 export const updateAndroidBuildCredentials = async (
   id: string,
   body: typeof UpdateAndroidBuildCredentialsBody.Type,
-) => runApi((api) => api.androidBuildCredentials.update({ path: { id }, payload: body }));
+) => runApi((api) => api.androidBuildCredentials.update({ params: { id }, payload: body }));
 
 export const deleteAndroidBuildCredentials = async (id: string) =>
-  runApi((api) => api.androidBuildCredentials.delete({ path: { id } }));
+  runApi((api) => api.androidBuildCredentials.delete({ params: { id } }));
 
 // Protection toggles (GITLAB-RBAC-SPEC §3b) — org admin only, idempotent.
 // The team flag gates team-level interactions and seeds new child rows;
 // each Apple child credential is gated by its own per-row flag.
 export const setAppleTeamProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.appleTeams.protect({ path: { id } }))
-    : runApi((api) => api.appleTeams.unprotect({ path: { id } }));
+    ? runApi((api) => api.appleTeams.protect({ params: { id } }))
+    : runApi((api) => api.appleTeams.unprotect({ params: { id } }));
 
 export const setAppleDistributionCertificateProtection = async (
   id: string,
   isProtected: boolean,
 ) =>
   isProtected
-    ? runApi((api) => api.appleDistributionCertificates.protect({ path: { id } }))
-    : runApi((api) => api.appleDistributionCertificates.unprotect({ path: { id } }));
+    ? runApi((api) => api.appleDistributionCertificates.protect({ params: { id } }))
+    : runApi((api) => api.appleDistributionCertificates.unprotect({ params: { id } }));
 
 export const setApplePushKeyProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.applePushKeys.protect({ path: { id } }))
-    : runApi((api) => api.applePushKeys.unprotect({ path: { id } }));
+    ? runApi((api) => api.applePushKeys.protect({ params: { id } }))
+    : runApi((api) => api.applePushKeys.unprotect({ params: { id } }));
 
 export const setApplePushCertificateProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.applePushCertificates.protect({ path: { id } }))
-    : runApi((api) => api.applePushCertificates.unprotect({ path: { id } }));
+    ? runApi((api) => api.applePushCertificates.protect({ params: { id } }))
+    : runApi((api) => api.applePushCertificates.unprotect({ params: { id } }));
 
 export const setApplePayCertificateProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.applePayCertificates.protect({ path: { id } }))
-    : runApi((api) => api.applePayCertificates.unprotect({ path: { id } }));
+    ? runApi((api) => api.applePayCertificates.protect({ params: { id } }))
+    : runApi((api) => api.applePayCertificates.unprotect({ params: { id } }));
 
 export const setApplePassTypeCertificateProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.applePassTypeCertificates.protect({ path: { id } }))
-    : runApi((api) => api.applePassTypeCertificates.unprotect({ path: { id } }));
+    ? runApi((api) => api.applePassTypeCertificates.protect({ params: { id } }))
+    : runApi((api) => api.applePassTypeCertificates.unprotect({ params: { id } }));
 
 export const setAppleProvisioningProfileProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.appleProvisioningProfiles.protect({ path: { id } }))
-    : runApi((api) => api.appleProvisioningProfiles.unprotect({ path: { id } }));
+    ? runApi((api) => api.appleProvisioningProfiles.protect({ params: { id } }))
+    : runApi((api) => api.appleProvisioningProfiles.unprotect({ params: { id } }));
 
 export const setAscApiKeyProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.ascApiKeys.protect({ path: { id } }))
-    : runApi((api) => api.ascApiKeys.unprotect({ path: { id } }));
+    ? runApi((api) => api.ascApiKeys.protect({ params: { id } }))
+    : runApi((api) => api.ascApiKeys.unprotect({ params: { id } }));
 
 export const setGoogleServiceAccountKeyProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.googleServiceAccountKeys.protect({ path: { id } }))
-    : runApi((api) => api.googleServiceAccountKeys.unprotect({ path: { id } }));
+    ? runApi((api) => api.googleServiceAccountKeys.protect({ params: { id } }))
+    : runApi((api) => api.googleServiceAccountKeys.unprotect({ params: { id } }));
 
 export const setAndroidUploadKeystoreProtection = async (id: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.androidUploadKeystores.protect({ path: { id } }))
-    : runApi((api) => api.androidUploadKeystores.unprotect({ path: { id } }));
+    ? runApi((api) => api.androidUploadKeystores.protect({ params: { id } }))
+    : runApi((api) => api.androidUploadKeystores.unprotect({ params: { id } }));

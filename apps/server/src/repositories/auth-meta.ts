@@ -20,10 +20,9 @@ export interface AuthMetaRepository {
   readonly findOrganizationById: (id: string) => Effect.Effect<AuthMetaOrganization | null>;
 }
 
-export class AuthMetaRepo extends Context.Tag("server/AuthMetaRepo")<
-  AuthMetaRepo,
-  AuthMetaRepository
->() {}
+export class AuthMetaRepo extends Context.Service<AuthMetaRepo, AuthMetaRepository>()(
+  "server/AuthMetaRepo",
+) {}
 
 export const AuthMetaRepoLive = Layer.succeed(AuthMetaRepo, {
   findUserById: (id: string) =>

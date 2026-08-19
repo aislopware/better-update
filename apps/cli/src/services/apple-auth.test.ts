@@ -318,12 +318,8 @@ describe("AppleAuth.ensureLoggedIn", () => {
   it.effect("fails when interactive disabled and no cached session", () =>
     Effect.gen(function* () {
       const auth = yield* AppleAuth;
-      const exit = yield* Effect.exit(auth.ensureLoggedIn());
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
-        expect(err).toBeInstanceOf(InteractiveProhibitedError);
-      }
+      const error = yield* Effect.flip(auth.ensureLoggedIn());
+      expect(error).toBeInstanceOf(InteractiveProhibitedError);
     }).pipe(
       Effect.provide(
         (() => {
@@ -418,13 +414,9 @@ describe("AppleAuth.ensureLoggedIn", () => {
     });
     return Effect.gen(function* () {
       const auth = yield* AppleAuth;
-      const exit = yield* Effect.exit(auth.ensureLoggedIn({ username: "new@example.com" }));
+      const error = yield* Effect.flip(auth.ensureLoggedIn({ username: "new@example.com" }));
       // The active account must NOT be silently returned for a different target.
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
-        expect(err).toBeInstanceOf(InteractiveProhibitedError);
-      }
+      expect(error).toBeInstanceOf(InteractiveProhibitedError);
     }).pipe(
       Effect.provide(
         Layer.mergeAll(

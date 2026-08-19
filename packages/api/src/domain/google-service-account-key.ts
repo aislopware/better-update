@@ -4,9 +4,7 @@ import { DateTimeString, DeletedResult, Id } from "./common";
 import { boundProjectIdsField, credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
-export class GoogleServiceAccountKey extends Schema.Class<GoogleServiceAccountKey>(
-  "GoogleServiceAccountKey",
-)({
+export const GoogleServiceAccountKey = Schema.Struct({
   ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
@@ -18,7 +16,8 @@ export class GoogleServiceAccountKey extends Schema.Class<GoogleServiceAccountKe
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "GoogleServiceAccountKey" });
+export type GoogleServiceAccountKey = typeof GoogleServiceAccountKey.Type;
 
 /**
  * Client-encrypted upload: the service-account JSON is sealed into `ciphertext`.
@@ -29,10 +28,10 @@ export const UploadGoogleServiceAccountKeyBody = Schema.Struct({
   ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
-  clientEmail: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(320)),
-  privateKeyId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  googleProjectId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  clientId: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.maxLength(200)))),
+  clientEmail: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(320)),
+  privateKeyId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  googleProjectId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  clientId: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(200)))),
 });
 
 export const DeleteGoogleServiceAccountKeyResult = DeletedResult;

@@ -50,10 +50,10 @@ export interface AndroidUploadKeystoreRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class AndroidUploadKeystoreRepo extends Context.Tag("api/AndroidUploadKeystoreRepo")<
+export class AndroidUploadKeystoreRepo extends Context.Service<
   AndroidUploadKeystoreRepo,
   AndroidUploadKeystoreRepository
->() {}
+>()("api/AndroidUploadKeystoreRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

@@ -53,7 +53,7 @@ const bindAndroidFcmGsa = (
 ) =>
   Effect.gen(function* () {
     const apps = yield* api.androidApplicationIdentifiers.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     const app = apps.items.find((entry) => entry.packageName === input.applicationIdentifier);
     if (app === undefined) {
@@ -63,7 +63,7 @@ const bindAndroidFcmGsa = (
       });
     }
     const groups = yield* api.androidBuildCredentials.list({
-      path: { applicationIdentifierId: app.id },
+      params: { applicationIdentifierId: app.id },
     });
     const group = groups.items.find((entry) => entry.isDefault) ?? groups.items.at(0);
     if (group === undefined) {
@@ -73,7 +73,7 @@ const bindAndroidFcmGsa = (
       });
     }
     yield* api.androidBuildCredentials.update({
-      path: { id: group.id },
+      params: { id: group.id },
       payload: { googleServiceAccountKeyForFcmV1Id: input.gsaKeyId },
     });
     yield* printHuman(`Bound FCM V1 GSA key ${input.gsaKeyId} to ${input.applicationIdentifier}.`);
@@ -92,7 +92,7 @@ const bindBundleResource = (
   Effect.gen(function* () {
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
     const list = yield* api.iosBundleConfigurations.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     const match = list.items.find(
       (item) =>
@@ -106,7 +106,7 @@ const bindBundleResource = (
       });
     }
     yield* api.iosBundleConfigurations.update({
-      path: { id: match.id },
+      params: { id: match.id },
       payload,
     });
     yield* printHuman(

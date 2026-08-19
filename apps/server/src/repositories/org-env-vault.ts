@@ -86,10 +86,9 @@ export interface OrgEnvVaultRepository {
   }) => Effect.Effect<OrgVaultModel, Conflict>;
 }
 
-export class OrgEnvVaultRepo extends Context.Tag("api/OrgEnvVaultRepo")<
-  OrgEnvVaultRepo,
-  OrgEnvVaultRepository
->() {}
+export class OrgEnvVaultRepo extends Context.Service<OrgEnvVaultRepo, OrgEnvVaultRepository>()(
+  "api/OrgEnvVaultRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

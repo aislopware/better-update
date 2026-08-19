@@ -1,12 +1,12 @@
 import { Context, Layer } from "effect";
 
-export class InteractiveMode extends Context.Tag("cli/InteractiveMode")<
+export class InteractiveMode extends Context.Service<
   InteractiveMode,
   {
     /** True when the CLI may show interactive prompts; false in CI / `--non-interactive` / `--json`. */
     readonly allow: boolean;
   }
->() {}
+>()("cli/InteractiveMode") {}
 
 export const makeInteractiveModeLayer = (allow: boolean): Layer.Layer<InteractiveMode> =>
   Layer.succeed(InteractiveMode, { allow });

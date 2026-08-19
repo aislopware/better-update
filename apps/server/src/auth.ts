@@ -320,7 +320,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
             });
           }).pipe(
             Effect.provide(EmailServiceLive),
-            Effect.catchAll((error) =>
+            Effect.catch((error) =>
               Effect.sync(() => {
                 structuredLog("error", "sendInvitationEmail failed", {
                   invitationId: data.id,

@@ -2,9 +2,8 @@ import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import {
   openFromDownload,
@@ -82,7 +81,7 @@ const fetchIosListing = (api: ApiClient): Effect.Effect<IosListItems, Credential
     const [certs, profiles, pushKeys, ascKeys] = yield* Effect.all(
       [
         api.appleDistributionCertificates.list(),
-        api.appleProvisioningProfiles.list({ urlParams: {} }),
+        api.appleProvisioningProfiles.list({ query: {} }),
         api.applePushKeys.list(),
         api.ascApiKeys.list(),
       ],
@@ -107,7 +106,7 @@ const fetchIosListing = (api: ApiClient): Effect.Effect<IosListItems, Credential
 
 const downloadIosDistCert = (ctx: PullCtx, id: string) =>
   Effect.gen(function* () {
-    const data = yield* ctx.api.appleDistributionCertificates.download({ path: { id } }).pipe(
+    const data = yield* ctx.api.appleDistributionCertificates.download({ params: { id } }).pipe(
       Effect.mapError(
         (cause) =>
           new CredentialsJsonError({
@@ -130,7 +129,7 @@ const downloadIosDistCert = (ctx: PullCtx, id: string) =>
 
 const downloadProvisioningProfile = (ctx: PullCtx, id: string) =>
   Effect.gen(function* () {
-    const data = yield* ctx.api.appleProvisioningProfiles.download({ path: { id } }).pipe(
+    const data = yield* ctx.api.appleProvisioningProfiles.download({ params: { id } }).pipe(
       Effect.mapError(
         (cause) =>
           new CredentialsJsonError({
@@ -145,7 +144,7 @@ const downloadProvisioningProfile = (ctx: PullCtx, id: string) =>
 
 const downloadIosPushKey = (ctx: PullCtx, id: string) =>
   Effect.gen(function* () {
-    const data = yield* ctx.api.applePushKeys.download({ path: { id } }).pipe(
+    const data = yield* ctx.api.applePushKeys.download({ params: { id } }).pipe(
       Effect.mapError(
         (cause) =>
           new CredentialsJsonError({
@@ -167,7 +166,7 @@ const downloadIosPushKey = (ctx: PullCtx, id: string) =>
 
 const downloadAscApiKey = (ctx: PullCtx, id: string) =>
   Effect.gen(function* () {
-    const data = yield* ctx.api.ascApiKeys.getCredentials({ path: { id } }).pipe(
+    const data = yield* ctx.api.ascApiKeys.getCredentials({ params: { id } }).pipe(
       Effect.mapError(
         (cause) =>
           new CredentialsJsonError({
@@ -284,7 +283,7 @@ const pullAndroid = (
       return { entry: undefined, rows: [] } as const;
     }
     const keystoreData = yield* ctx.api.androidUploadKeystores
-      .download({ path: { id: keystoreFirst.id } })
+      .download({ params: { id: keystoreFirst.id } })
       .pipe(
         Effect.mapError(
           (cause) =>
@@ -318,7 +317,7 @@ const pullAndroid = (
     const gsaFirst = gsaKeys.items.at(0);
     if (gsaFirst) {
       const gsaData = yield* ctx.api.googleServiceAccountKeys
-        .download({ path: { id: gsaFirst.id } })
+        .download({ params: { id: gsaFirst.id } })
         .pipe(
           Effect.mapError(
             (cause) =>

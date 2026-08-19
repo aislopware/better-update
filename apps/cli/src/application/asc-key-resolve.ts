@@ -171,7 +171,7 @@ export const resolveSubmitProfileAscApiKeyId = (params: {
       params.api,
       "No ASC API key configured for this submit profile. Pick one to use, or create a new one:",
     ).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         printHuman(`Could not resolve an App Store Connect API key: ${messageOf(error)}`).pipe(
           Effect.as(null),
         ),
@@ -183,7 +183,7 @@ export const resolveSubmitProfileAscApiKeyId = (params: {
         Effect.flatMap((path) =>
           printHuman(`Saved ascApiKeyId to ${path} (submit profile "${params.profileName}").`),
         ),
-        Effect.catchAll(() => Effect.void),
+        Effect.catch(() => Effect.void),
       );
       return picked;
     }

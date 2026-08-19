@@ -1,8 +1,8 @@
-import { HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
-import { Schema } from "effect";
+import { HttpApiMiddleware, HttpApiSecurity } from "effect/unstable/httpapi";
 
-import { AuthContext } from "./context";
 import { Forbidden, Unauthorized } from "./errors";
+
+import type { AuthContext } from "./context";
 
 const bearerSecurity = HttpApiSecurity.bearer;
 const cookieSecurity = HttpApiSecurity.apiKey({
@@ -11,10 +11,12 @@ const cookieSecurity = HttpApiSecurity.apiKey({
 });
 
 /** @effect-expect-leaking HttpServerRequest | ParsedSearchParams | RouteContext */
-export class Authentication extends HttpApiMiddleware.Tag<Authentication>()("api/Authentication", {
+export class Authentication extends HttpApiMiddleware.Service<
+  Authentication,
+  { provides: AuthContext }
+>()("api/Authentication", {
   // `Unauthorized` (401): no/invalid credential. `Forbidden` (403): a valid
   // session whose user is not yet approved by a superadmin (the dev-phase gate).
-  failure: Schema.Union(Unauthorized, Forbidden),
-  provides: AuthContext,
+  error: [Unauthorized, Forbidden],
   security: { bearer: bearerSecurity, cookie: cookieSecurity },
 }) {}

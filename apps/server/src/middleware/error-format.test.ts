@@ -1,5 +1,5 @@
-import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpServerResponse } from "effect/unstable/http";
 
 import { pascalToUpperSnake, rewriteErrorResponse } from "./error-format";
 
@@ -34,14 +34,14 @@ const parseBody = (response: HttpServerResponse.HttpServerResponse) => {
 
 describe(rewriteErrorResponse, () => {
   it("passes through success responses untouched", async () => {
-    const original = HttpServerResponse.unsafeJson({ data: "ok" }, { status: 200 });
+    const original = HttpServerResponse.jsonUnsafe({ data: "ok" }, { status: 200 });
     const result = await run(original);
     expect(result.status).toBe(200);
     expect(parseBody(result)).toStrictEqual({ data: "ok" });
   });
 
   it("transforms TaggedError to { code, message }", async () => {
-    const original = HttpServerResponse.unsafeJson(
+    const original = HttpServerResponse.jsonUnsafe(
       { _tag: "Unauthorized", message: "Invalid session" },
       { status: 401 },
     );
@@ -51,7 +51,7 @@ describe(rewriteErrorResponse, () => {
   });
 
   it("transforms multi-word PascalCase tag", async () => {
-    const original = HttpServerResponse.unsafeJson(
+    const original = HttpServerResponse.jsonUnsafe(
       { _tag: "OrgRequired", message: "No active organization" },
       { status: 400 },
     );
@@ -64,7 +64,7 @@ describe(rewriteErrorResponse, () => {
 
   it("transforms HttpApiDecodeError to VALIDATION_ERROR with issues", async () => {
     const issues = [{ _tag: "Missing", path: ["name"], message: "is required" }];
-    const original = HttpServerResponse.unsafeJson(
+    const original = HttpServerResponse.jsonUnsafe(
       { _tag: "HttpApiDecodeError", message: "Validation failed", issues },
       { status: 400 },
     );
@@ -77,7 +77,7 @@ describe(rewriteErrorResponse, () => {
   });
 
   it("passes through error responses without _tag", async () => {
-    const original = HttpServerResponse.unsafeJson(
+    const original = HttpServerResponse.jsonUnsafe(
       { error: "something went wrong" },
       { status: 500 },
     );
@@ -86,7 +86,7 @@ describe(rewriteErrorResponse, () => {
   });
 
   it("provides default message when missing", async () => {
-    const original = HttpServerResponse.unsafeJson({ _tag: "NotFound" }, { status: 404 });
+    const original = HttpServerResponse.jsonUnsafe({ _tag: "NotFound" }, { status: 404 });
     const result = await run(original);
     expect(parseBody(result)).toStrictEqual({ code: "NOT_FOUND", message: "An error occurred" });
   });

@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import {
@@ -11,16 +11,16 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 // @cloudflare/vitest-pool-workers. Proves full-replace semantics, per-scope
 // isolation, and the (project_id, scope_key) single-row guarantee.
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectProtocolMetadataRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectProtocolMetadataRepo>) =>
   runWithLayerAndEnv(effect, ProjectProtocolMetadataRepoLive, env);
 
-const insertProject = (id: string) =>
+const insertProject = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, 'PPM Org', ?, '2026-01-01T00:00:00Z')`,
   )
     .bind(`org-${id}`, `org-${id}`)
     .run()
-    .then(() =>
+    .then(async () =>
       env.DB.prepare(
         `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, 'PPM Project', ?, '2026-01-01T00:00:00Z')`,
       )
@@ -76,25 +76,25 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
         yield* repo.upsertServerDefinedHeaders({
           projectId,
           scopeKey,
-          serverDefinedHeadersJson: JSON.stringify({ a: 1 }),
+          serverDefinedHeadersJson: JSON.stringify({ "x-first": 1 }),
         });
         yield* repo.upsertServerDefinedHeaders({
           projectId,
           scopeKey,
-          serverDefinedHeadersJson: JSON.stringify({ b: 2 }),
+          serverDefinedHeadersJson: JSON.stringify({ "x-second": 2 }),
         });
         return yield* repo.get({ projectId, scopeKey });
       }),
     );
 
-    expect(row?.server_defined_headers_json).toBe(JSON.stringify({ b: 2 }));
+    expect(row?.server_defined_headers_json).toBe(JSON.stringify({ "x-second": 2 }));
 
     const count = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM "project_protocol_metadata" WHERE "project_id" = ?`,
+      `SELECT COUNT(*) AS total FROM "project_protocol_metadata" WHERE "project_id" = ?`,
     )
       .bind(projectId)
-      .first<{ n: number }>();
-    expect(count?.n).toBe(1);
+      .first<{ total: number }>();
+    expect(count?.total).toBe(1);
   });
 
   it("can clear the stored headers by upserting NULL (clear semantics)", async () => {
@@ -108,7 +108,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
         yield* repo.upsertServerDefinedHeaders({
           projectId,
           scopeKey,
-          serverDefinedHeadersJson: JSON.stringify({ a: 1 }),
+          serverDefinedHeadersJson: JSON.stringify({ "x-first": 1 }),
         });
         yield* repo.upsertServerDefinedHeaders({
           projectId,
@@ -134,15 +134,15 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
           scopeKey: "https://a.example",
           serverDefinedHeadersJson: JSON.stringify({ scope: "a" }),
         });
-        const a = yield* repo.get({ projectId, scopeKey: "https://a.example" });
-        const b = yield* repo.get({ projectId, scopeKey: "https://b.example" });
-        return { a, b };
+        const scopeA = yield* repo.get({ projectId, scopeKey: "https://a.example" });
+        const scopeB = yield* repo.get({ projectId, scopeKey: "https://b.example" });
+        return { scopeA, scopeB };
       }),
     );
 
-    expect(result.a?.server_defined_headers_json).toBe(JSON.stringify({ scope: "a" }));
+    expect(result.scopeA?.server_defined_headers_json).toBe(JSON.stringify({ scope: "a" }));
     // A different scopeKey on the SAME project never reads A's state.
-    expect(result.b).toBeNull();
+    expect(result.scopeB).toBeNull();
   });
 
   it("upsertManifestFilters writes the filters column without clobbering headers (P1 sibling)", async () => {
@@ -156,7 +156,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
         yield* repo.upsertServerDefinedHeaders({
           projectId,
           scopeKey,
-          serverDefinedHeadersJson: JSON.stringify({ a: 1 }),
+          serverDefinedHeadersJson: JSON.stringify({ "x-first": 1 }),
         });
         yield* repo.upsertManifestFilters({
           projectId,
@@ -167,7 +167,7 @@ describe("ProjectProtocolMetadataRepo — D1 integration", () => {
       }),
     );
 
-    expect(row?.server_defined_headers_json).toBe(JSON.stringify({ a: 1 }));
+    expect(row?.server_defined_headers_json).toBe(JSON.stringify({ "x-first": 1 }));
     expect(row?.manifest_filters_json).toBe(JSON.stringify({ branchname: "rollout" }));
   });
 });

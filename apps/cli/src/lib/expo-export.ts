@@ -1,12 +1,13 @@
 import path from "node:path";
 
 import { asRecord } from "@better-update/type-guards";
-import { Command, FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { CliRuntime } from "../services/cli-runtime";
+import { runExitCode, runText } from "./child-process";
 import { BuildFailedError, UpdatePublishError } from "./exit-codes";
 import { printWarn } from "./warning-style";
 
@@ -102,14 +103,19 @@ const inferContentType = (fileExt: string, isLaunch: boolean): string => {
   }
 };
 
-const makeBunxCommand = (...args: readonly string[]): Command.Command =>
-  Command.make("bunx", ...args);
+const makeBunxCommand = (...args: readonly string[]): ChildProcess.Command =>
+  ChildProcess.make("bunx", args);
+
+// v4 takes stdio configuration at construction time (there is no `Command.stdout`
+// setter), so a streamed-to-the-terminal command is built by its own maker.
+const makeStreamingBunxCommand = (...args: readonly string[]): ChildProcess.Command =>
+  ChildProcess.make("bunx", args, { stdout: "inherit", stderr: "inherit" });
 
 const runCommand = (
-  cmd: Command.Command,
+  cmd: ChildProcess.Command,
   step: string,
-): Effect.Effect<void, BuildFailedError, CommandExecutor.CommandExecutor> =>
-  Command.exitCode(cmd.pipe(Command.stdout("inherit"), Command.stderr("inherit"))).pipe(
+): Effect.Effect<void, BuildFailedError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runExitCode(cmd).pipe(
     Effect.mapError(
       (cause) =>
         new BuildFailedError({
@@ -137,15 +143,15 @@ export const readExpoPublicConfig = ({
 }: ReadExpoPublicConfigOptions): Effect.Effect<
   Record<string, unknown>,
   UpdatePublishError,
-  CliRuntime | CommandExecutor.CommandExecutor
+  CliRuntime | ChildProcessSpawner.ChildProcessSpawner
 > =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
-    const stdout = yield* Command.string(
+    const stdout = yield* runText(
       makeBunxCommand("expo", "config", "--type", "public", "--json").pipe(
-        Command.workingDirectory(projectRoot),
-        Command.env(commandEnv),
+        ChildProcess.setCwd(projectRoot),
+        ChildProcess.setEnv(commandEnv),
       ),
     ).pipe(
       Effect.mapError(
@@ -185,7 +191,7 @@ export const runExpoExport = ({
 }: RunExpoExportOptions): Effect.Effect<
   void,
   BuildFailedError,
-  CliRuntime | CommandExecutor.CommandExecutor
+  CliRuntime | ChildProcessSpawner.ChildProcessSpawner
 > =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
@@ -210,7 +216,10 @@ export const runExpoExport = ({
     }
 
     return yield* runCommand(
-      makeBunxCommand(...args).pipe(Command.workingDirectory(projectRoot), Command.env(commandEnv)),
+      makeStreamingBunxCommand(...args).pipe(
+        ChildProcess.setCwd(projectRoot),
+        ChildProcess.setEnv(commandEnv),
+      ),
       `expo export ${platform}`,
     );
   });
@@ -229,15 +238,15 @@ const detectExpoExportSourceMapSupport = ({
 }: ReadExpoPublicConfigOptions): Effect.Effect<
   boolean,
   never,
-  CliRuntime | CommandExecutor.CommandExecutor
+  CliRuntime | ChildProcessSpawner.ChildProcessSpawner
 > =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
-    const helpText = yield* Command.string(
+    const helpText = yield* runText(
       makeBunxCommand("expo", "export", "--help").pipe(
-        Command.workingDirectory(projectRoot),
-        Command.env(commandEnv),
+        ChildProcess.setCwd(projectRoot),
+        ChildProcess.setEnv(commandEnv),
       ),
     ).pipe(Effect.orElseSucceed(() => null));
     return helpText === null || helpText.includes("--source-maps");
@@ -254,7 +263,7 @@ export const runExpoExportWithSourcemapProbe = (
 ): Effect.Effect<
   void,
   BuildFailedError,
-  CliRuntime | CommandExecutor.CommandExecutor | OutputMode
+  CliRuntime | ChildProcessSpawner.ChildProcessSpawner | OutputMode
 > =>
   Effect.gen(function* () {
     const sourceMaps =

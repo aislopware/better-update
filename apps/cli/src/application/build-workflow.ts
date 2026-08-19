@@ -1,8 +1,9 @@
 import path from "node:path";
 
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect, Either } from "effect";
+import { FileSystem, Effect, Result } from "effect";
+
+import type { Semaphore } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { runStep } from "../commands/build/run-step";
@@ -59,7 +60,7 @@ export interface RunBuildWorkflowOptions {
    * parallel platform-build fibers must not enter together (app.json
    * autoIncrement writes, interactive credential setup, auto-submit).
    */
-  readonly mutex?: Effect.Semaphore;
+  readonly mutex?: Semaphore.Semaphore;
 }
 
 const dirExists = (root: string, name: string) =>
@@ -89,10 +90,10 @@ const runBuildLifecycleHooks = (params: {
       return;
     }
     yield* hook("eas-build-on-error").pipe(
-      Effect.catchAll((error) => printWarn(`eas-build-on-error hook: ${formatCause(error)}`)),
+      Effect.catch((error) => printWarn(`eas-build-on-error hook: ${formatCause(error)}`)),
     );
     yield* hook("eas-build-on-complete").pipe(
-      Effect.catchAll((error) => printWarn(`eas-build-on-complete hook: ${formatCause(error)}`)),
+      Effect.catch((error) => printWarn(`eas-build-on-complete hook: ${formatCause(error)}`)),
     );
   });
 
@@ -127,7 +128,7 @@ const runExpoDoctor = (params: {
     "expo-doctor",
   ).pipe(
     Effect.timeout("30 seconds"),
-    Effect.catchAll(() =>
+    Effect.catch(() =>
       printWarn("expo-doctor reported issues or timed out — continuing (warning only)."),
     ),
   );
@@ -318,7 +319,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         updateChannel,
       });
 
-      const buildOutcome = yield* Effect.either(
+      const buildOutcome = yield* Effect.result(
         runPlatformBuild({
           api,
           platform,
@@ -341,9 +342,9 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         }),
       );
 
-      const lifecycleStatus = Either.isRight(buildOutcome) ? "finished" : "errored";
+      const lifecycleStatus = Result.isSuccess(buildOutcome) ? "finished" : "errored";
       yield* runBuildLifecycleHooks({
-        succeeded: Either.isRight(buildOutcome),
+        succeeded: Result.isSuccess(buildOutcome),
         projectRoot: staging.projectRoot,
         packageManager: staging.packageManager,
         env: yield* runtime.commandEnvironment({
@@ -352,10 +353,10 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           EAS_BUILD_STATUS: lifecycleStatus,
         }),
       });
-      if (Either.isLeft(buildOutcome)) {
-        return yield* Effect.fail(buildOutcome.left);
+      if (Result.isFailure(buildOutcome)) {
+        return yield* Effect.fail(buildOutcome.failure);
       }
-      const { build, target, bundleId } = buildOutcome.right;
+      const { build, target, bundleId } = buildOutcome.success;
 
       yield* printHuman(`Artifact produced: ${build.artifactPath}`);
 

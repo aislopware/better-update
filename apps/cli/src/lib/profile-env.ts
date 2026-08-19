@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { readBuildProfile } from "./build-profile";
 import { readEasJson } from "./eas-config";

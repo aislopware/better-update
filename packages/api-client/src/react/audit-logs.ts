@@ -24,7 +24,7 @@ export const auditLogsInfiniteQueryOptions = (orgId: string, filters?: AuditLogs
       runApi(
         (api) =>
           api["audit-logs"].list({
-            urlParams: {
+            query: {
               ...filters,
               cursor: pageParam,
             },

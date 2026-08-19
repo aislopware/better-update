@@ -1,5 +1,6 @@
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { TestConsole } from "effect/testing";
 
 import { InteractiveProhibitedError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
@@ -30,20 +31,16 @@ const exitCodeStub = () => {
   };
 };
 
+// `it.effect` installs `TestConsole`, so `Console.log`/`Console.error` never
+// reach the real console and are read back off the service instead of a spy.
 describe("exitWith (OutputMode-aware error emission)", () => {
   const originalArgv = process.argv;
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     process.argv = ["node", "cli.js", "update", "publish"];
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
-    logSpy.mockRestore();
-    errorSpy.mockRestore();
     process.argv = originalArgv;
   });
 
@@ -54,9 +51,10 @@ describe("exitWith (OutputMode-aware error emission)", () => {
         tag: "InteractiveProhibitedError",
         message: "Provide the value via a flag, run with --interactive, or unset CI.",
       });
-      expect(errorSpy).not.toHaveBeenCalled();
-      expect(logSpy).toHaveBeenCalledTimes(1);
-      const printed = String(logSpy.mock.calls[0]?.[0]);
+      expect(yield* TestConsole.errorLines).toStrictEqual([]);
+      const logLines = yield* TestConsole.logLines;
+      expect(logLines).toHaveLength(1);
+      const printed = String(logLines[0]);
       expect(printed).not.toContain("\n");
       const parsed = JSON.parse(printed) as Record<string, unknown>;
       expect(parsed).toMatchObject({
@@ -81,7 +79,8 @@ describe("exitWith (OutputMode-aware error emission)", () => {
         message: "No credentials configured.",
         hint: "Run `better-update credentials configure`.",
       });
-      const parsed = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+      const logLines = yield* TestConsole.logLines;
+      const parsed = JSON.parse(String(logLines[0])) as {
         error: { hint?: string };
       };
       expect(parsed.error.hint).toBe("Run `better-update credentials configure`.");
@@ -92,8 +91,8 @@ describe("exitWith (OutputMode-aware error emission)", () => {
     const runtime = exitCodeStub();
     return Effect.gen(function* () {
       yield* exitWith(3, { tag: "AuthRequiredError", message: "Not authenticated." });
-      expect(logSpy).not.toHaveBeenCalled();
-      expect(errorSpy).toHaveBeenCalledWith("Not authenticated.");
+      expect(yield* TestConsole.logLines).toStrictEqual([]);
+      expect(yield* TestConsole.errorLines).toStrictEqual(["Not authenticated."]);
       expect(runtime.codes).toStrictEqual([3]);
     }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(false), runtime.layer)));
   });
@@ -104,9 +103,9 @@ describe("prompt gating under InteractiveMode { allow: false }", () => {
     Effect.gen(function* () {
       const error = yield* promptText("Project name").pipe(
         // Tight timeout proves it FAILS rather than blocking on @clack.
-        Effect.timeoutFail({
+        Effect.timeoutOrElse({
           duration: "1 second",
-          onTimeout: () => new InteractiveProhibitedError({ message: "hung" }),
+          orElse: () => Effect.fail(new InteractiveProhibitedError({ message: "hung" })),
         }),
         Effect.flip,
       );

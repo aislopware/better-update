@@ -49,7 +49,7 @@ export interface BranchRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void, NotFound | Conflict>;
 }
 
-export class BranchRepo extends Context.Tag("api/BranchRepo")<BranchRepo, BranchRepository>() {}
+export class BranchRepo extends Context.Service<BranchRepo, BranchRepository>()("api/BranchRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

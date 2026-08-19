@@ -1,7 +1,8 @@
-import { Command } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
+import { runExitCode } from "../../lib/child-process";
 import { runEffect } from "../../lib/citty-effect";
 import { pullEnvVars } from "../../lib/env-exporter";
 import { getExecTrailingArgv } from "../../lib/exec-trailing-argv";
@@ -77,13 +78,14 @@ export const execCommand = defineCommand({
         const baseEnv = yield* runtime.commandEnvironment();
         const pulled = overlayProfileEnv(yield* pullForExec(api, projectId, environment), profile);
 
-        const cmd = Command.make(bin, ...rest).pipe(
-          Command.env({ ...baseEnv, ...pulled }),
-          Command.stdin("inherit"),
-          Command.stdout("inherit"),
-          Command.stderr("inherit"),
-        );
-        const code = yield* Command.exitCode(cmd).pipe(Effect.orDie);
+        // Stdio has to be configured at construction time in v4 — the child
+        // takes over this terminal, so all three streams are inherited.
+        const cmd = ChildProcess.make(bin, rest, {
+          stdin: "inherit",
+          stdout: "inherit",
+          stderr: "inherit",
+        }).pipe(ChildProcess.setEnv({ ...baseEnv, ...pulled }));
+        const code = yield* runExitCode(cmd).pipe(Effect.orDie);
         yield* runtime.setExitCode(code);
       }),
       { ...envErrorExtras, BuildProfileError: 2 },

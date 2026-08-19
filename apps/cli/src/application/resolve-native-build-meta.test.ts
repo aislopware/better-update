@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -10,7 +10,7 @@ import { fromGenericProfile } from "../lib/build-profile";
 import { makeOutputModeLayer } from "../lib/output-mode";
 import { resolveNativeBuildMeta } from "./resolve-native-build-meta";
 
-const TestLayer = Layer.mergeAll(NodeContext.layer, makeOutputModeLayer(false));
+const TestLayer = Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false));
 
 /**
  * A non-Expo project tree. `expoUpdates` and `appJson` vary independently

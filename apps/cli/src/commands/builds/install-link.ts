@@ -14,7 +14,7 @@ export const installLinkCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const result = yield* api.builds.getInstallLink({ path: { id: args.id } });
+        const result = yield* api.builds.getInstallLink({ params: { id: args.id } });
         yield* printKeyValue([
           ["Artifact URL", result.artifactUrl],
           ["Install URL", result.installUrl ?? "-"],

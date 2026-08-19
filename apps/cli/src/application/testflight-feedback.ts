@@ -20,7 +20,7 @@
  * fetched by a list command.
  */
 import { toDbNull, toOptional } from "@better-update/type-guards";
-import { Effect, Schema } from "effect";
+import { Effect, Schema, SchemaGetter } from "effect";
 
 import type AppleUtils from "@expo/apple-utils";
 
@@ -90,10 +90,10 @@ export interface FeedbackView {
 // ── Response schemas ─────────────────────────────────────────────────────────
 
 const ScreenshotImage = Schema.Struct({
-  url: Schema.optionalWith(Schema.String, { default: () => "" }),
-  width: Schema.optionalWith(Schema.Number, { default: () => 0 }),
-  height: Schema.optionalWith(Schema.Number, { default: () => 0 }),
-  expirationDate: Schema.optionalWith(Schema.String, { default: () => "" }),
+  url: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  width: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  height: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  expirationDate: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
 });
 
 /**
@@ -101,9 +101,22 @@ const ScreenshotImage = Schema.Struct({
  * so every field carries its own default and the projection below reads them
  * straight through.
  */
-const textAttribute = Schema.optionalWith(Schema.String, { default: () => "", nullable: true });
-const nullableText = Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null });
-const nullableNumber = Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null });
+// v4's decoding defaults only cover a MISSING key — v3's `nullable: true` option
+// is gone — so an explicitly-null attribute is folded into the fallback by an
+// extra decode step before the default applies.
+const textAttribute = Schema.NullOr(Schema.String).pipe(
+  Schema.decodeTo(Schema.String, {
+    decode: SchemaGetter.transform((value: string | null) => (value === null ? "" : value)),
+    encode: SchemaGetter.passthroughSubtype(),
+  }),
+  Schema.withDecodingDefaultType(Effect.succeed("")),
+);
+const nullableText = Schema.NullOr(Schema.String).pipe(
+  Schema.withDecodingDefaultType(Effect.succeed(null)),
+);
+const nullableNumber = Schema.NullOr(Schema.Number).pipe(
+  Schema.withDecodingDefaultType(Effect.succeed(null)),
+);
 
 const FeedbackAttributes = Schema.Struct({
   createdDate: textAttribute,
@@ -121,10 +134,9 @@ const FeedbackAttributes = Schema.Struct({
   batteryPercentage: nullableNumber,
   appUptimeInMilliseconds: nullableNumber,
   buildBundleId: nullableText,
-  screenshots: Schema.optionalWith(Schema.Array(ScreenshotImage), {
-    default: () => [],
-    nullable: true,
-  }),
+  screenshots: Schema.NullOr(Schema.Array(ScreenshotImage)).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed([])),
+  ),
 });
 
 /** Stand-in for a resource that arrived without an `attributes` object at all. */
@@ -186,7 +198,7 @@ const toView = (
     id: resource.id,
     kind,
     build: buildId === undefined ? null : { id: buildId, version: toDbNull(builds.get(buildId)) },
-    screenshots: kind === "crash" ? [] : toScreenshots(attributes.screenshots),
+    screenshots: kind === "crash" ? [] : toScreenshots(attributes.screenshots ?? []),
   };
 };
 
@@ -233,7 +245,7 @@ const getJson = <Decoded, Encoded>(params: {
   readonly fetchFn: FetchFn;
   readonly step: string;
   readonly url: string;
-  readonly schema: Schema.Schema<Decoded, Encoded>;
+  readonly schema: Schema.Codec<Decoded, Encoded>;
 }): Effect.Effect<Decoded, AppleConnectError> =>
   jwtOf(params.ctx, params.step).pipe(
     Effect.flatMap((jwt) =>

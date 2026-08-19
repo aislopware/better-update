@@ -49,7 +49,7 @@ const ensureSingleSource = (args: SourceArgs) => {
 const resolveChannelToBranchName = (api: ApiClient, projectId: string, channelName: string) =>
   Effect.gen(function* () {
     const channels = yield* drainPages((page) =>
-      api.channels.list({ urlParams: { projectId, limit: 100, page } }),
+      api.channels.list({ query: { projectId, limit: 100, page } }),
     );
     const channel = channels.find((entry) => entry.name === channelName);
     if (!channel) {
@@ -58,7 +58,7 @@ const resolveChannelToBranchName = (api: ApiClient, projectId: string, channelNa
       });
     }
     const branches = yield* drainPages((page) =>
-      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      api.branches.list({ query: { projectId, limit: 100, page } }),
     );
     const branch = branches.find((entry) => entry.id === channel.branchId);
     if (!branch) {
@@ -95,7 +95,7 @@ const resolveLatestGroupOnBranch = (api: ApiClient, args: SourceArgs) =>
     const branchName = args.branch;
     const projectId = yield* readProjectId;
     const branches = yield* drainPages((page) =>
-      api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+      api.branches.list({ query: { projectId, limit: 100, page } }),
     );
     const branch = branches.find((entry) => entry.name === branchName);
     if (!branch) {
@@ -104,7 +104,7 @@ const resolveLatestGroupOnBranch = (api: ApiClient, args: SourceArgs) =>
       });
     }
     const { items } = yield* api.updates.list({
-      urlParams: { projectId, branchId: [branch.id], limit: 20 },
+      query: { projectId, branchId: [branch.id], limit: 20 },
     });
     const candidates =
       args.platform === undefined ? items : items.filter((item) => item.platform === args.platform);
@@ -234,7 +234,7 @@ export const republishCommand = defineCommand({
             result.updates,
             (update) =>
               api.updates.editRollout({
-                path: { id: update.id },
+                params: { id: update.id },
                 payload: { percentage },
               }),
             { concurrency: 2 },
@@ -264,7 +264,7 @@ const applyPlatformFilter = (api: ApiClient, source: ResolvedSource, args: Sourc
   return Effect.gen(function* () {
     const projectId = yield* readProjectId;
     const all = yield* drainPages((page) =>
-      api.updates.list({ urlParams: { projectId, limit: 100, page } }),
+      api.updates.list({ query: { projectId, limit: 100, page } }),
     );
     const target = all.find(
       (entry) => entry.groupId === source.sourceGroupId && entry.platform === args.platform,

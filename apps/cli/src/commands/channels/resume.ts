@@ -15,7 +15,7 @@ export const resumeCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const channel = yield* api.channels.resume({ path: { id: args.id } });
+        const channel = yield* api.channels.resume({ params: { id: args.id } });
         yield* printHuman(`Channel "${channel.name}" resumed.`);
         return channel;
       }),

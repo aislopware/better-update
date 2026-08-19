@@ -114,7 +114,9 @@ export interface ProjectRepository {
   }) => Effect.Effect<void>;
 }
 
-export class ProjectRepo extends Context.Tag("api/ProjectRepo")<ProjectRepo, ProjectRepository>() {}
+export class ProjectRepo extends Context.Service<ProjectRepo, ProjectRepository>()(
+  "api/ProjectRepo",
+) {}
 
 // ── D1 Adapter ────────────────────────────────────────────────────
 

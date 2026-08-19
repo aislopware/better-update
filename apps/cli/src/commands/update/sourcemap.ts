@@ -1,8 +1,7 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { UploadFailedError } from "../../lib/exit-codes";
@@ -36,7 +35,7 @@ export const sourcemapCommand = defineCommand({
         // The download endpoint's NotFound already covers both "no such
         // update" and "update has no sourcemap" — no need for a separate
         // existence pre-check round trip.
-        const download = yield* api.updates.getSourcemapDownload({ path: { id: args.id } }).pipe(
+        const download = yield* api.updates.getSourcemapDownload({ params: { id: args.id } }).pipe(
           Effect.catchTag(
             "NotFound",
             () =>

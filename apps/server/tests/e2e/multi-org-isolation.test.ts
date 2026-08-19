@@ -30,7 +30,7 @@ describe("Multi-org data isolation", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    orgAId = (await orgRes.json()).id;
+    ({ id: orgAId } = await orgRes.json());
     cookies = parseCookies(orgRes) || cookies;
 
     const setActiveRes = await post(
@@ -49,7 +49,7 @@ describe("Multi-org data isolation", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    orgBId = (await orgRes.json()).id;
+    ({ id: orgBId } = await orgRes.json());
     cookies = parseCookies(orgRes) || cookies;
 
     // org create auto-activates the new org — switch back to A
@@ -206,7 +206,8 @@ describe("Multi-org data isolation", () => {
     const orgARes = await get("/api/projects", {
       authorization: `Bearer ${apiKeyA}`,
     });
-    expect((await orgARes.json()).items).toHaveLength(1);
+    const orgAResBody = await orgARes.json();
+    expect(orgAResBody.items).toHaveLength(1);
 
     // org B robot untouched — no leakage
     const orgBRes = await get("/api/projects", {

@@ -9,7 +9,7 @@ import {
   UploadHeaders,
 } from "./common";
 
-export class Project extends Schema.Class<Project>("Project")({
+export const Project = Schema.Struct({
   id: Id,
   organizationId: Id,
   name: Schema.String,
@@ -23,15 +23,16 @@ export class Project extends Schema.Class<Project>("Project")({
   branchCount: Schema.Number,
   channelCount: Schema.Number,
   updateCount: Schema.Number,
-}) {}
+}).annotate({ identifier: "Project" });
+export type Project = typeof Project.Type;
 
 /** Image MIME types accepted for a project logo. */
-export const ProjectLogoContentType = Schema.Literal(
+export const ProjectLogoContentType = Schema.Literals([
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/svg+xml",
-);
+]);
 
 /**
  * Request a presigned PUT to upload a project logo. The server builds the R2 key
@@ -50,14 +51,14 @@ export const ProjectLogoUploadResult = Schema.Struct({
   uploadHeaders: UploadHeaders,
 });
 
-export const ProjectSortColumn = Schema.Literal(
+export const ProjectSortColumn = Schema.Literals([
   "lastActivityAt",
   "name",
   "createdAt",
   "branchCount",
   "channelCount",
   "updateCount",
-);
+]);
 
 export const ProjectSort = sortParam(ProjectSortColumn);
 
@@ -68,16 +69,16 @@ export const ListProjectsParams = Schema.Struct({
   // Archival filter. Omitted (or "active") lists only active projects; "archived"
   // lists only archived ones; "all" lists both. String literals because url params
   // decode from strings.
-  status: Schema.optional(Schema.Literal("active", "archived", "all")),
+  status: Schema.optional(Schema.Literals(["active", "archived", "all"])),
 });
 
 export const CreateProjectBody = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1)),
-  slug: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
+  slug: Schema.String.check(Schema.isMinLength(1)),
 });
 
 export const UpdateProjectBody = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
 });
 
 export const DeleteProjectResult = DeletedResult;

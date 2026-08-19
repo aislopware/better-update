@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { DateTimeString, Id } from "./common";
 
@@ -8,15 +8,15 @@ import { DateTimeString, Id } from "./common";
  * devices; `ascApiKey` binds ONLY team-less keys; the android kinds bind
  * per-row.
  */
-export const CredentialBindingType = Schema.Literal(
+export const CredentialBindingType = Schema.Literals([
   "appleTeam",
   "ascApiKey",
   "googleServiceAccountKey",
   "androidUploadKeystore",
-);
+]);
 export type CredentialBindingTypeValue = typeof CredentialBindingType.Type;
 
-export class CredentialBinding extends Schema.Class<CredentialBinding>("CredentialBinding")({
+export const CredentialBinding = Schema.Struct({
   id: Id,
   organizationId: Id,
   projectId: Id,
@@ -28,8 +28,9 @@ export class CredentialBinding extends Schema.Class<CredentialBinding>("Credenti
    * every project, present and future) rather than an explicit per-project
    * row. Remove it with the all-projects unbind route, not the per-project one.
    */
-  allProjects: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-}) {}
+  allProjects: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+}).annotate({ identifier: "CredentialBinding" });
+export type CredentialBinding = typeof CredentialBinding.Type;
 
 export const CredentialBindingList = Schema.Struct({
   items: Schema.Array(CredentialBinding),
@@ -41,15 +42,14 @@ export const CredentialBindingList = Schema.Struct({
  * fan-out. `appleTeam` rows cascade to every child credential and the team's
  * devices, exactly like per-project bindings.
  */
-export class OrgCredentialBinding extends Schema.Class<OrgCredentialBinding>(
-  "OrgCredentialBinding",
-)({
+export const OrgCredentialBinding = Schema.Struct({
   id: Id,
   organizationId: Id,
   resourceType: CredentialBindingType,
   resourceId: Id,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "OrgCredentialBinding" });
+export type OrgCredentialBinding = typeof OrgCredentialBinding.Type;
 
 /**
  * One binding an existing project config relies on (derived from iOS bundle
@@ -57,9 +57,7 @@ export class OrgCredentialBinding extends Schema.Class<OrgCredentialBinding>(
  * bind so that config keeps resolving under the v2 binding gate (§1a). Backs
  * `credentials bindings plan [--apply]` for post-migration bulk re-binding.
  */
-export class CredentialBindingPlanItem extends Schema.Class<CredentialBindingPlanItem>(
-  "CredentialBindingPlanItem",
-)({
+export const CredentialBindingPlanItem = Schema.Struct({
   projectId: Id,
   projectName: Schema.String,
   resourceType: CredentialBindingType,
@@ -67,7 +65,8 @@ export class CredentialBindingPlanItem extends Schema.Class<CredentialBindingPla
   /** Human-readable resource identity (team id/name, key name, client email…). */
   resourceLabel: Schema.String,
   alreadyBound: Schema.Boolean,
-}) {}
+}).annotate({ identifier: "CredentialBindingPlanItem" });
+export type CredentialBindingPlanItem = typeof CredentialBindingPlanItem.Type;
 
 export const CredentialBindingPlan = Schema.Struct({
   items: Schema.Array(CredentialBindingPlanItem),
@@ -84,7 +83,7 @@ export const boundProjectIdsField = {
    * bound org-wide — `boundProjectIds` then already contains every project id,
    * and projects created later are covered automatically.
    */
-  boundToAllProjects: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  boundToAllProjects: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
 } as const;
 
 /**

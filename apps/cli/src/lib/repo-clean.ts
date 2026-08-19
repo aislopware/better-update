@@ -1,8 +1,9 @@
-import { Command } from "@effect/platform";
 import { Console, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
+import { runText } from "./child-process";
 import { DirtyRepoError } from "./exit-codes";
 import { InteractiveMode } from "./interactive-mode";
 import { promptConfirm } from "./prompts";
@@ -13,10 +14,10 @@ const MAX_FILES_SHOWN = 10;
 
 const readPorcelain = (
   projectRoot: string,
-): Effect.Effect<readonly string[], never, CommandExecutor.CommandExecutor> =>
-  Command.make("git", "status", "--porcelain").pipe(
-    Command.workingDirectory(projectRoot),
-    Command.string,
+): Effect.Effect<readonly string[], never, ChildProcessSpawner.ChildProcessSpawner> =>
+  ChildProcess.make("git", ["status", "--porcelain"]).pipe(
+    ChildProcess.setCwd(projectRoot),
+    runText,
     Effect.map((output) =>
       output
         .split(/\r?\n/u)
@@ -45,7 +46,7 @@ export const ensureRepoClean = ({
 }: EnsureRepoCleanOptions): Effect.Effect<
   void,
   DirtyRepoError | InteractiveProhibitedError,
-  CommandExecutor.CommandExecutor | InteractiveMode
+  ChildProcessSpawner.ChildProcessSpawner | InteractiveMode
 > =>
   Effect.gen(function* () {
     if (allowDirty) {

@@ -92,4 +92,6 @@ export interface AuthContextShape {
   readonly robotId: string | null;
 }
 
-export class AuthContext extends Context.Tag("api/AuthContext")<AuthContext, AuthContextShape>() {}
+export class AuthContext extends Context.Service<AuthContext, AuthContextShape>()(
+  "api/AuthContext",
+) {}

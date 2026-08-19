@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { toApiUpdate } from "../../../src/http/to-api";
@@ -14,10 +14,10 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 // the repository directly (the HTTP/auth path is e2e-covered) to assert the
 // column binding + the default-when-absent behaviour the migration guarantees.
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
   runWithLayerAndEnv(effect, UpdateRepoLive, env);
 
-const insertAsset = (hash: string) =>
+const insertAsset = async (hash: string) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, 'application/javascript', 'js', 2048, ?, '2024-01-10T00:00:00.000Z')`,
   )

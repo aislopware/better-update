@@ -34,7 +34,7 @@ export const rollbackCommand = defineCommand({
         const api = yield* apiClient;
 
         const match = yield* findProjectEnvVar(api, projectId, args.key, environment);
-        const { items } = yield* api["env-vars"].revisions({ path: { id: match.id } });
+        const { items } = yield* api["env-vars"].revisions({ params: { id: match.id } });
         const target = items.find(
           (revision) => revision.id === args.to || String(revision.revisionNumber) === args.to,
         );
@@ -45,7 +45,7 @@ export const rollbackCommand = defineCommand({
         }
 
         const result = yield* api["env-vars"].rollback({
-          path: { id: match.id },
+          params: { id: match.id },
           payload: { toRevisionId: target.id },
         });
         yield* printHuman(

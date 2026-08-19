@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { runStep } from "../commands/build/run-step";
 import { printHuman } from "./output";

@@ -1,4 +1,4 @@
-import { HttpApi, OpenApi } from "@effect/platform";
+import { HttpApi, OpenApi } from "effect/unstable/httpapi";
 
 import { ManifestGroup } from "./groups/manifest";
 
@@ -9,7 +9,7 @@ import { ManifestGroup } from "./groups/manifest";
  */
 export class ProtocolApi extends HttpApi.make("protocol-api")
   .add(ManifestGroup)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Better Update Protocol API",
       version: "1.0.0",

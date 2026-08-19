@@ -73,7 +73,7 @@ interface EnsureLoggedInOptions {
   readonly freshLogin?: boolean;
 }
 
-export class AppleAuth extends Context.Tag("cli/AppleAuth")<
+export class AppleAuth extends Context.Service<
   AppleAuth,
   {
     readonly ensureLoggedIn: (
@@ -90,7 +90,7 @@ export class AppleAuth extends Context.Tag("cli/AppleAuth")<
     readonly whoami: Effect.Effect<AppleAuthSession | null>;
     readonly buildRequestContext: (session: AppleAuthSession) => RequestContext;
   }
->() {}
+>()("cli/AppleAuth") {}
 
 const sessionFromAuthState = (state: Session.AuthState): AppleAuthSession => ({
   username: state.username,
@@ -256,7 +256,7 @@ const interactiveLogin = (
 
 const tryRestore = (
   appleUtils: AppleUtilsContract,
-  store: Context.Tag.Service<AppleSessionStore>,
+  store: Context.Service.Shape<typeof AppleSessionStore>,
   username: string | undefined,
 ): Effect.Effect<
   AppleAuthSession | null,
@@ -307,7 +307,7 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
             Effect.tryPromise({
               try: async () => appleUtils.Auth.logoutAsync(),
               catch: (cause) => new AppleAuthError({ message: formatCause(cause) }),
-            }).pipe(Effect.catchAll(() => Effect.void)),
+            }).pipe(Effect.catch(() => Effect.void)),
           ),
         ),
         logoutAll: store.clearAllSessions.pipe(
@@ -315,7 +315,7 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
             Effect.tryPromise({
               try: async () => appleUtils.Auth.logoutAsync(),
               catch: (cause) => new AppleAuthError({ message: formatCause(cause) }),
-            }).pipe(Effect.catchAll(() => Effect.void)),
+            }).pipe(Effect.catch(() => Effect.void)),
           ),
         ),
         whoami: Effect.gen(function* () {

@@ -3,10 +3,9 @@ import path from "node:path";
 
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
@@ -317,7 +316,7 @@ export const runUpdateRollback = (
   | UpdateRollbackError,
   | ApiClientService
   | CliRuntime
-  | CommandExecutor.CommandExecutor
+  | ChildProcessSpawner.ChildProcessSpawner
   | FileSystem.FileSystem
   | DeviceUnlockMemo
   | IdentityStore

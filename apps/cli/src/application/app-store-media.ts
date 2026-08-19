@@ -13,9 +13,8 @@ import path from "node:path";
  * `set.attributes.appScreenshots` / `appPreviews` are populated for counts + clear.
  */
 import { compact, toDbNull } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 import AppleUtils from "@expo/apple-utils";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { wrapConnect } from "../lib/apple-asc-connect";
 import { resolveScreenshotDisplayType } from "../lib/asc-display-types";
@@ -104,7 +103,7 @@ const deleteScreenshotsOf = (ctx: AppleUtils.RequestContext, set: AppleUtils.App
         wrapConnect("apple-delete-screenshot", async () =>
           AppleUtils.AppScreenshot.deleteAsync(ctx, { id: shot.id }),
         ),
-      { concurrency: "inherit" },
+      { concurrency: "unbounded" },
     );
     return shots.length;
   });

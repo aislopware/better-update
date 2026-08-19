@@ -47,10 +47,10 @@ export interface GoogleServiceAccountKeyRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class GoogleServiceAccountKeyRepo extends Context.Tag("api/GoogleServiceAccountKeyRepo")<
+export class GoogleServiceAccountKeyRepo extends Context.Service<
   GoogleServiceAccountKeyRepo,
   GoogleServiceAccountKeyRepository
->() {}
+>()("api/GoogleServiceAccountKeyRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

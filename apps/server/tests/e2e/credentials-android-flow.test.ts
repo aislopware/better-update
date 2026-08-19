@@ -34,7 +34,7 @@ describe("Credentials Android flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -51,7 +51,7 @@ describe("Credentials Android flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    projectId = (await projRes.json()).id;
+    ({ id: projectId } = await projRes.json());
   });
 
   it("creates an Android application identifier with an auto-default credential group", async () => {
@@ -69,7 +69,7 @@ describe("Credentials Android flow", () => {
       `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
       { cookie: cookies },
     );
-    const items = (await listRes.json()).items as BuildCredsItem[];
+    const { items } = await listRes.json<{ items: BuildCredsItem[] }>();
     expect(items).toHaveLength(1);
     expect(items[0]?.isDefault).toBe(true);
     expect(items[0]?.name).toBe("Default");
@@ -160,7 +160,7 @@ describe("Credentials Android flow", () => {
       { cookie: cookies },
     );
     expect(fcmRes.status).toBe(201);
-    saFcmId = (await fcmRes.json()).id;
+    ({ id: saFcmId } = await fcmRes.json());
   });
 
   it("binds keystore + service accounts to the auto-default group", async () => {
@@ -168,7 +168,7 @@ describe("Credentials Android flow", () => {
       `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
       { cookie: cookies },
     );
-    const items = (await listRes.json()).items as BuildCredsItem[];
+    const { items } = await listRes.json<{ items: BuildCredsItem[] }>();
     defaultCredsId = items[0]?.id ?? "";
     expect(defaultCredsId).not.toBe("");
 
@@ -205,7 +205,7 @@ describe("Credentials Android flow", () => {
       `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
       { cookie: cookies },
     );
-    const items = (await listRes.json()).items as BuildCredsItem[];
+    const { items } = await listRes.json<{ items: BuildCredsItem[] }>();
     expect(items).toHaveLength(2);
     expect(items.filter((item) => item.isDefault)).toHaveLength(1);
   });
@@ -224,7 +224,7 @@ describe("Credentials Android flow", () => {
       `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
       { cookie: cookies },
     );
-    const items = (await listRes.json()).items as BuildCredsItem[];
+    const { items } = await listRes.json<{ items: BuildCredsItem[] }>();
     const defaults = items.filter((item) => item.isDefault);
     expect(defaults).toHaveLength(1);
     expect(defaults[0]?.id).toBe(secondCredsId);

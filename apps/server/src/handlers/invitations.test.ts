@@ -1,6 +1,6 @@
 import { CreateInvitationBody } from "@better-update/api";
 import { it } from "@effect/vitest";
-import { Effect, Either, Exit, Schema } from "effect";
+import { Effect, Exit, Schema } from "effect";
 
 import { AuthContext } from "../auth/context";
 import { assertAccess } from "../auth/policy";
@@ -95,10 +95,10 @@ describe("invitations authz gate — assertAccess('invitation', …)", () => {
 });
 
 describe("CreateInvitationBody payload", () => {
-  const decode = Schema.decodeUnknownEither(CreateInvitationBody);
+  const decode = Schema.decodeUnknownExit(CreateInvitationBody);
 
   it("accepts an email-only payload (role defaults server-side)", () => {
-    expect(Either.isRight(decode({ email: "new@example.com" }))).toBe(true);
+    expect(Exit.isSuccess(decode({ email: "new@example.com" }))).toBe(true);
   });
 
   it("accepts member/admin roles and project grants", () => {
@@ -107,7 +107,7 @@ describe("CreateInvitationBody payload", () => {
       role: "admin",
       projects: [{ projectId: "p1", role: "developer" }],
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Exit.isSuccess(result)).toBe(true);
   });
 
   it("accepts an org-wide all-projects grant", () => {
@@ -116,22 +116,22 @@ describe("CreateInvitationBody payload", () => {
       allProjectsRole: "developer",
       projects: [{ projectId: "p1", role: "maintainer" }],
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Exit.isSuccess(result)).toBe(true);
   });
 
   it("rejects owner as an invitable role and unknown project roles", () => {
-    expect(Either.isLeft(decode({ email: "new@example.com", role: "owner" }))).toBe(true);
+    expect(Exit.isFailure(decode({ email: "new@example.com", role: "owner" }))).toBe(true);
     expect(
-      Either.isLeft(
+      Exit.isFailure(
         decode({ email: "new@example.com", projects: [{ projectId: "p1", role: "admin" }] }),
       ),
     ).toBe(true);
-    expect(Either.isLeft(decode({ email: "new@example.com", allProjectsRole: "admin" }))).toBe(
+    expect(Exit.isFailure(decode({ email: "new@example.com", allProjectsRole: "admin" }))).toBe(
       true,
     );
   });
 
   it("rejects malformed emails", () => {
-    expect(Either.isLeft(decode({ email: "not-an-email" }))).toBe(true);
+    expect(Exit.isFailure(decode({ email: "not-an-email" }))).toBe(true);
   });
 });

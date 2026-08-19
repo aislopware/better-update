@@ -1,7 +1,6 @@
-import { HttpApiSchema } from "@effect/platform";
-import { Schema } from "effect";
+import { Schema, SchemaGetter } from "effect";
 
-export const Id = Schema.String.annotations({
+export const Id = Schema.String.annotate({
   description: "UUIDv7 identifier",
 });
 
@@ -15,34 +14,41 @@ export const Id = Schema.String.annotations({
  * permissive for server-minted ids of every shape) to avoid collateral contract
  * changes.
  */
-export const UuidLower = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u, {
-    message: () => "embedded update id must be a lowercase UUID",
+export const UuidLower = Schema.String.check(
+  Schema.isPattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u, {
+    message: "embedded update id must be a lowercase UUID",
   }),
 );
 
 /** Shared `:id` path parameter for resource endpoints. */
-export const idParam = HttpApiSchema.param("id", Schema.String);
+export const idParam = { id: Schema.String };
 
 /** Standard "rows affected" response for delete endpoints. */
 export const DeletedResult = Schema.Struct({ deleted: Schema.Number });
 
-export const DateTimeString = Schema.String.annotations({
+export const DateTimeString = Schema.String.annotate({
   description: "ISO 8601 datetime",
 });
 
-export const Platform = Schema.Literal("ios", "android");
+export const Platform = Schema.Literals(["ios", "android"]);
 
 /** Non-empty, user-facing resource name capped at 120 chars. */
-export const Name120 = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120));
+export const Name120 = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(120));
 
 /**
  * Comma-separated multi-value filter param (e.g. `?platform=ios,android`).
  * Decodes the CSV wire string into a validated array of `item`; a single bare
  * value stays wire-compatible with the scalar params these filters replaced.
  */
-export const csvList = <Value extends string>(item: Schema.Schema<Value, Value>) =>
-  Schema.compose(Schema.split(","), Schema.Array(item), { strict: false });
+export const csvList = <Value extends string>(item: Schema.Codec<Value, string>) =>
+  Schema.String.pipe(
+    Schema.decodeTo(Schema.Array(item), {
+      // The split is unvalidated on purpose: `Schema.Array(item)` narrows each
+      // element to `Value` right after this getter runs.
+      decode: SchemaGetter.split(),
+      encode: SchemaGetter.transform((values: readonly string[]) => values.join(",")),
+    }),
+  );
 
 export const PaginationParams = Schema.Struct({
   page: Schema.optional(Schema.NumberFromString),
@@ -54,13 +60,13 @@ export const CursorPaginationParams = Schema.Struct({
   limit: Schema.optional(Schema.NumberFromString),
 });
 
-export const cursorPageResult = <T, Encoded, R>(itemSchema: Schema.Schema<T, Encoded, R>) =>
+export const cursorPageResult = <T, Encoded>(itemSchema: Schema.Codec<T, Encoded>) =>
   Schema.Struct({
     items: Schema.Array(itemSchema),
     nextCursor: Schema.NullOr(Schema.String),
   });
 
-export const pageResult = <T, Encoded, R>(itemSchema: Schema.Schema<T, Encoded, R>) =>
+export const pageResult = <T, Encoded>(itemSchema: Schema.Codec<T, Encoded>) =>
   Schema.Struct({
     items: Schema.Array(itemSchema),
     total: Schema.Number,
@@ -72,11 +78,33 @@ export const pageResult = <T, Encoded, R>(itemSchema: Schema.Schema<T, Encoded, 
  * Sort param: a column name optionally prefixed with `-` for descending.
  * Example: `name` (asc), `-lastActivityAt` (desc).
  */
-export const sortParam = <Column extends Schema.Schema.AnyNoContext>(column: Column) =>
-  Schema.Union(column, Schema.TemplateLiteral("-", column));
+// Built one member at a time rather than as `TemplateLiteral(["-", column])`
+// over the whole `Literals`: v4's JSON-schema compiler can only turn `Literal`,
+// `String`, `Number`, `TemplateLiteral` and `Union` parts into a pattern, and a
+// `Literals` part makes the whole OpenAPI document fail to render.
+export const sortParam = <const Columns extends readonly string[]>(
+  column: Schema.Literals<Columns>,
+) =>
+  Schema.Union([
+    ...column.members,
+    ...column.members.map((member) => Schema.TemplateLiteral(["-", member])),
+  ]);
 
 export const UpdateRolloutBody = Schema.Struct({
-  percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
+  percentage: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 })),
 });
 
-export const UploadHeaders = Schema.Record({ key: Schema.String, value: Schema.String });
+export const UploadHeaders = Schema.Record(Schema.String, Schema.String);
+
+/**
+ * `"true"`/`"false"` query-string flag decoded to a boolean. v4 dropped
+ * `Schema.BooleanFromString`, so the codec is spelled out here and shared.
+ */
+export const BooleanFromString = Schema.Literals(["true", "false"]).pipe(
+  Schema.decodeTo(Schema.Boolean, {
+    decode: SchemaGetter.transform((value: "true" | "false") => value === "true"),
+    encode: SchemaGetter.transform((value: boolean) =>
+      value ? ("true" as const) : ("false" as const),
+    ),
+  }),
+);

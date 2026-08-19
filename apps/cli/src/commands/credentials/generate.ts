@@ -263,7 +263,7 @@ const handleCertLimitInteractive = (
       { required: true },
     );
     yield* Effect.forEach(toRevoke, (id) => revokeDistributionCert(context, id), {
-      concurrency: "inherit",
+      concurrency: "unbounded",
     });
     yield* printHuman(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
     return undefined;

@@ -119,10 +119,9 @@ const EMPTY_DELIVERY: DeliveryAnalyticsModel = {
 
 const UNAVAILABLE_DELIVERY: DeliveryAnalyticsModel = { ...EMPTY_DELIVERY, unavailable: true };
 
-export class AnalyticsRepo extends Context.Tag("api/AnalyticsRepo")<
-  AnalyticsRepo,
-  AnalyticsRepository
->() {}
+export class AnalyticsRepo extends Context.Service<AnalyticsRepo, AnalyticsRepository>()(
+  "api/AnalyticsRepo",
+) {}
 
 const requireBlob = (value: string | undefined, source: string, field: string) =>
   value === undefined || value === ""

@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import type { CommandExecutor, FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { runEffect } from "../../../lib/citty-effect";
 import { readCredentialsJson, resolveCredentialPath } from "../../../lib/credentials-json";
@@ -23,7 +24,7 @@ import type { SyncRow } from "./helpers";
 /** Services the credential-sealing upload path pulls in beyond the filesystem. */
 type PushRequirements =
   | FileSystem.FileSystem
-  | CommandExecutor.CommandExecutor
+  | ChildProcessSpawner.ChildProcessSpawner
   | CliRuntime
   | DeviceUnlockMemo
   | IdentityStore

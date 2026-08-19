@@ -2,7 +2,7 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { fromGenericProfile } from "../lib/build-profile";
 import { BuildProfileError } from "../lib/exit-codes";
@@ -56,11 +56,11 @@ describe(resolveAppMeta, () => {
           platform: "android",
           projectRoot: "/nonexistent-root",
           profile,
-        }).pipe(Effect.either);
-        expect(result._tag).toBe("Left");
-        if (result._tag === "Left") {
-          expect(result.left).toBeInstanceOf(BuildProfileError);
-          expect(result.left.message).toContain("android.applicationId");
+        }).pipe(Effect.result);
+        expect(result._tag).toBe("Failure");
+        if (result._tag === "Failure") {
+          expect(result.failure).toBeInstanceOf(BuildProfileError);
+          expect(result.failure.message).toContain("android.applicationId");
         }
       }),
     ),

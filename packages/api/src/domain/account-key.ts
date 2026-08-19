@@ -9,14 +9,14 @@ import { AgeRecipient, KeyFingerprint } from "./user-encryption-key";
  * (an enrollment can use heavier params without a format change).
  */
 export const AccountKeyKdfParams = Schema.Struct({
-  time: Schema.Number.pipe(Schema.int(), Schema.positive()),
-  memory: Schema.Number.pipe(Schema.int(), Schema.positive()),
-  parallelism: Schema.Number.pipe(Schema.int(), Schema.positive()),
+  time: Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)),
+  memory: Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)),
+  parallelism: Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)),
 });
 export type AccountKeyKdfParams = typeof AccountKeyKdfParams.Type;
 
 /** A base64 Ed25519 public key — reserved for the deferred signed-roster integrity layer. */
-export const Ed25519PublicKey = Schema.String.pipe(Schema.minLength(1)).annotations({
+export const Ed25519PublicKey = Schema.String.check(Schema.isMinLength(1)).annotate({
   description: "base64-encoded Ed25519 public key (reserved for signed-roster integrity)",
 });
 
@@ -25,7 +25,7 @@ export const Ed25519PublicKey = Schema.String.pipe(Schema.minLength(1)).annotati
  * is the env-vault recipient the browser unwraps with; the escrow that holds the
  * private halves is served only by the gated {@link AccountKeyEscrow} endpoint.
  */
-export class AccountKey extends Schema.Class<AccountKey>("AccountKey")({
+export const AccountKey = Schema.Struct({
   id: Id,
   userId: Id,
   agePublicKey: AgeRecipient,
@@ -34,7 +34,8 @@ export class AccountKey extends Schema.Class<AccountKey>("AccountKey")({
   createdAt: DateTimeString,
   lastUsedAt: Schema.NullOr(DateTimeString),
   revokedAt: Schema.NullOr(DateTimeString),
-}) {}
+}).annotate({ identifier: "AccountKey" });
+export type AccountKey = typeof AccountKey.Type;
 
 /**
  * The full passphrase-sealed escrow for the caller — everything the browser needs
@@ -45,7 +46,7 @@ export class AccountKey extends Schema.Class<AccountKey>("AccountKey")({
  * passphrase-sealed regardless. `version`/`kdf`/`cipher` are the fixed v1 envelope
  * constants, echoed so the browser can rebuild the crypto envelope.
  */
-export class AccountKeyEscrow extends Schema.Class<AccountKeyEscrow>("AccountKeyEscrow")({
+export const AccountKeyEscrow = Schema.Struct({
   id: Id,
   version: Schema.Literal(1),
   agePublicKey: AgeRecipient,
@@ -53,11 +54,12 @@ export class AccountKeyEscrow extends Schema.Class<AccountKeyEscrow>("AccountKey
   fingerprint: KeyFingerprint,
   kdf: Schema.Literal("argon2id"),
   kdfParams: AccountKeyKdfParams,
-  salt: Schema.String.pipe(Schema.minLength(1)),
+  salt: Schema.String.check(Schema.isMinLength(1)),
   cipher: Schema.Literal("xchacha20poly1305"),
-  escrowCt: Schema.String.pipe(Schema.minLength(1)),
+  escrowCt: Schema.String.check(Schema.isMinLength(1)),
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AccountKeyEscrow" });
+export type AccountKeyEscrow = typeof AccountKeyEscrow.Type;
 
 /**
  * Register the caller's account key. The CLI generates the keypair and seals the
@@ -69,8 +71,8 @@ export const RegisterAccountKeyBody = Schema.Struct({
   ed25519PublicKey: Ed25519PublicKey,
   fingerprint: KeyFingerprint,
   kdfParams: AccountKeyKdfParams,
-  salt: Schema.String.pipe(Schema.minLength(1)),
-  escrowCt: Schema.String.pipe(Schema.minLength(1)),
+  salt: Schema.String.check(Schema.isMinLength(1)),
+  escrowCt: Schema.String.check(Schema.isMinLength(1)),
 });
 
 /**
@@ -87,6 +89,6 @@ export const AccountKeyList = Schema.Struct({ items: Schema.Array(AccountKey) })
  */
 export const ResealAccountKeyBody = Schema.Struct({
   kdfParams: AccountKeyKdfParams,
-  salt: Schema.String.pipe(Schema.minLength(1)),
-  escrowCt: Schema.String.pipe(Schema.minLength(1)),
+  salt: Schema.String.check(Schema.isMinLength(1)),
+  escrowCt: Schema.String.check(Schema.isMinLength(1)),
 });

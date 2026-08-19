@@ -101,7 +101,9 @@ export interface ChannelRepository {
   }) => Effect.Effect<readonly string[]>;
 }
 
-export class ChannelRepo extends Context.Tag("api/ChannelRepo")<ChannelRepo, ChannelRepository>() {}
+export class ChannelRepo extends Context.Service<ChannelRepo, ChannelRepository>()(
+  "api/ChannelRepo",
+) {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

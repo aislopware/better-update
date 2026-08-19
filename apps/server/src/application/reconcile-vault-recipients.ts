@@ -37,13 +37,13 @@ const envRecipientUserIds = (params: {
           if (wrap.recipientKind === "account") {
             const accountKey = yield* accountRepo
               .findById({ id: wrap.recipientId })
-              .pipe(Effect.catchAll(() => Effect.succeed(null)));
+              .pipe(Effect.catch(() => Effect.succeed(null)));
             return accountKey === null ? null : accountKey.userId;
           }
           if (wrap.recipientKind === "device") {
             const key = yield* keyRepo
               .findById({ id: wrap.recipientId })
-              .pipe(Effect.catchAll(() => Effect.succeed(null)));
+              .pipe(Effect.catch(() => Effect.succeed(null)));
             return key === null ? null : key.userId;
           }
           return null;

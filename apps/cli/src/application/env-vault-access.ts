@@ -81,7 +81,7 @@ const unlockEnvVaultKeyWith = (api: ApiClient, privateKey: string) =>
     }
     const wrap = yield* api.envVault
       .getWrap({
-        path: { recipientKind: recipientKind(recipient.source), recipientId: own.id },
+        params: { recipientKind: recipientKind(recipient.source), recipientId: own.id },
       })
       .pipe(
         Effect.catchTag(
@@ -141,7 +141,7 @@ export const forgetCachedEnvVaultKey = (
 ): Effect.Effect<
   void,
   IdentityError,
-  Effect.Effect.Context<ReturnType<typeof unlockEnvVaultKeyInteractive>>
+  Effect.Services<ReturnType<typeof unlockEnvVaultKeyInteractive>>
 > =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;

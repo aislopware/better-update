@@ -67,7 +67,7 @@ const regenerateOne = (
 
 const regenerateAllForProject = (api: ApiClient, projectId: string) =>
   Effect.gen(function* () {
-    const configs = yield* api.iosBundleConfigurations.list({ path: { projectId } });
+    const configs = yield* api.iosBundleConfigurations.list({ params: { projectId } });
     if (configs.items.length === 0) {
       return yield* new MissingCredentialsError({
         message: "No iOS bundle configurations found for this project.",
@@ -81,7 +81,7 @@ const regenerateAllForProject = (api: ApiClient, projectId: string) =>
     // ask once and apply to every configuration on that team instead of
     // re-prompting per bundle.
     const memo = yield* makeAscBindingMemo;
-    type RegenerationResult = Effect.Effect.Success<ReturnType<typeof regenerateOne>>;
+    type RegenerationResult = Effect.Success<ReturnType<typeof regenerateOne>>;
     const regenerated: RegenerationResult[] = [];
     for (const config of configs.items) {
       const distribution = distributionTypeToDistribution(config.distributionType);

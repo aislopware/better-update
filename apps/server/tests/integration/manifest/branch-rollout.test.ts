@@ -1,6 +1,8 @@
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import worker from "../../../src";
+import { incomingRequest } from "../../helpers/incoming-request";
 
 // RTV-constrained branch-rollout routing + manifest-cache isolation, dispatched
 // straight into worker.fetch (full route + branch-mapping evaluator + repo +
@@ -27,7 +29,7 @@ const fetchManifest = async (
 ): Promise<Response> => {
   const ctx = createExecutionContext();
   const response = await worker.fetch(
-    new Request(`${BASE}/manifest/${projectId}`, {
+    incomingRequest(`${BASE}/manifest/${projectId}`, {
       headers: {
         "expo-protocol-version": "1",
         "expo-platform": "ios",
@@ -47,8 +49,8 @@ const fetchManifest = async (
 
 const manifestIdOf = async (response: Response): Promise<string> => {
   const text = await response.text();
-  const match = /"id"\s*:\s*"([^"]+)"/u.exec(text);
-  return match?.[1] ?? "";
+  const match = /"id"\s*:\s*"(?<id>[^"]+)"/u.exec(text);
+  return match?.groups?.["id"] ?? "";
 };
 
 const manifestBody = (updateId: string, runtimeVersion: string) =>
@@ -143,25 +145,25 @@ describe("manifest serving — RTV-constrained branch rollout routing + cache is
   it("routes RTV_A clients to branch X and other RTVs to the default branch Y", async () => {
     const responseA = await fetchManifest(projectId, RTV_A);
     expect(responseA.status).toBe(200);
-    expect(await manifestIdOf(responseA)).toBe(updateX);
+    await expect(manifestIdOf(responseA)).resolves.toBe(updateX);
 
     const responseB = await fetchManifest(projectId, RTV_B);
     expect(responseB.status).toBe(200);
-    expect(await manifestIdOf(responseB)).toBe(updateY);
+    await expect(manifestIdOf(responseB)).resolves.toBe(updateY);
   });
 
   it("keeps RTV_A and RTV_B cache buckets separate (never cross-serves a cached manifest)", async () => {
     // Prime both buckets.
     const primeA = await fetchManifest(projectId, RTV_A);
-    expect(await manifestIdOf(primeA)).toBe(updateX);
+    await expect(manifestIdOf(primeA)).resolves.toBe(updateX);
     const primeB = await fetchManifest(projectId, RTV_B);
-    expect(await manifestIdOf(primeB)).toBe(updateY);
+    await expect(manifestIdOf(primeB)).resolves.toBe(updateY);
 
     // Re-request each: a hit must come from its OWN bucket, never the other's.
     const secondA = await fetchManifest(projectId, RTV_A);
-    expect(await manifestIdOf(secondA)).toBe(updateX);
+    await expect(manifestIdOf(secondA)).resolves.toBe(updateX);
     const secondB = await fetchManifest(projectId, RTV_B);
-    expect(await manifestIdOf(secondB)).toBe(updateY);
+    await expect(manifestIdOf(secondB)).resolves.toBe(updateY);
   });
 });
 
@@ -224,10 +226,10 @@ describe("manifest serving — legacy hash_lt string percentage rollout still bu
   it("routes a hashed client into the 100% legacy hash_lt bucket (new branch)", async () => {
     const response = await fetchManifest(projectId, RTV);
     expect(response.status).toBe(200);
-    expect(await manifestIdOf(response)).toBe(updateNew);
+    await expect(manifestIdOf(response)).resolves.toBe(updateNew);
 
     // Deterministic across repeats (also exercises the cache hit path).
     const repeat = await fetchManifest(projectId, RTV);
-    expect(await manifestIdOf(repeat)).toBe(updateNew);
+    await expect(manifestIdOf(repeat)).resolves.toBe(updateNew);
   });
 });

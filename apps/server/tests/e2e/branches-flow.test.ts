@@ -21,7 +21,7 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -89,7 +89,7 @@ describe("Branches API flow", () => {
     expect(body).toHaveProperty("page");
     expect(body).toHaveProperty("limit");
     expect(body.total).toBe(4);
-    expect(body.items.map((b: { name: string }) => b.name)).toContain("main");
+    expect(body.items.map((branch: { name: string }) => branch.name)).toContain("main");
   });
 
   it("renames the branch", async () => {
@@ -112,7 +112,7 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    const names = body.items.map((b: { name: string }) => b.name);
+    const names = body.items.map((branch: { name: string }) => branch.name);
     expect(names).toContain("release");
     expect(names).not.toContain("main");
   });
@@ -124,7 +124,8 @@ describe("Branches API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    expect((await response.json()).name).toBe("hotfix");
+    const responseBody = await response.json();
+    expect(responseBody.name).toBe("hotfix");
   });
 
   // ── Section 3.5: Page pagination + sort ─────────────────────────
@@ -147,8 +148,8 @@ describe("Branches API flow", () => {
     const secondBody = await secondRes.json();
     expect(secondBody.items).toHaveLength(2);
     expect(secondBody.page).toBe(2);
-    expect(secondBody.items.map((b: { id: string }) => b.id)).not.toEqual(
-      firstBody.items.map((b: { id: string }) => b.id),
+    expect(secondBody.items.map((branch: { id: string }) => branch.id)).not.toStrictEqual(
+      firstBody.items.map((branch: { id: string }) => branch.id),
     );
   });
 
@@ -158,8 +159,10 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    const names = body.items.map((b: { name: string }) => b.name);
-    expect(names).toStrictEqual([...names].sort((a, b) => a.localeCompare(b)));
+    const names = body.items.map((branch: { name: string }) => branch.name);
+    expect(names).toStrictEqual(
+      names.toSorted((left: string, right: string) => left.localeCompare(right)),
+    );
   });
 
   // ── Section 4: Error cases ─────────────────────────────────────
@@ -228,7 +231,8 @@ describe("Branches API flow", () => {
       { authorization: `Bearer ${apiKeyValue}` },
     );
     expect(response.status).toBe(201);
-    expect((await response.json()).name).toBe("api-key-branch");
+    const responseBody2 = await response.json();
+    expect(responseBody2.name).toBe("api-key-branch");
   });
 
   // ── Section 6: Cross-org isolation ─────────────────────────────
@@ -242,7 +246,7 @@ describe("Branches API flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const orgBId = (await orgRes.json()).id;
+    const { id: orgBId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -261,7 +265,7 @@ describe("Branches API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    projectIdB = (await response.json()).id;
+    ({ id: projectIdB } = await response.json());
   });
 
   it("org B cannot list branches for org A project (404)", async () => {
@@ -296,7 +300,9 @@ describe("Branches API flow", () => {
     const body = await response.json();
     // 3 seeded + release + hotfix + api-key-branch
     expect(body.items).toHaveLength(6);
-    expect(body.items.some((b: { name: string }) => b.name === "b-branch")).toBe(false);
+    expect(body.items.some((branch: { name: string }) => branch.name === "branch-branch")).toBe(
+      false,
+    );
   });
 
   // ── Section 7: Branch deletion ──────────────────────────────────
@@ -310,7 +316,7 @@ describe("Branches API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    channelOnBranch = (await response.json()).id;
+    ({ id: channelOnBranch } = await response.json());
   });
 
   it("rejects branch delete while channels are linked (409)", async () => {
@@ -323,7 +329,9 @@ describe("Branches API flow", () => {
     // branch, so the 409 proves the rollout-target guard (not the built-in guard).
     const listRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     const listBody = await listRes.json();
-    const targetBranch = listBody.items.find((b: { name: string }) => b.name === "hotfix");
+    const targetBranch = listBody.items.find(
+      (branch: { name: string }) => branch.name === "hotfix",
+    );
     expect(targetBranch).toBeDefined();
 
     const rolloutRes = await post(
@@ -366,7 +374,7 @@ describe("Branches API flow", () => {
     const body = await response.json();
     // 3 seeded + hotfix + api-key-branch (release branch was just deleted)
     expect(body.items).toHaveLength(5);
-    expect(body.items.some((b: { id: string }) => b.id === branchId)).toBe(false);
+    expect(body.items.some((branch: { id: string }) => branch.id === branchId)).toBe(false);
   });
 
   it("rejects deleting non-existent branch (404)", async () => {
@@ -380,7 +388,7 @@ describe("Branches API flow", () => {
     const listRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     const listBody = await listRes.json();
     const builtin = listBody.items.find(
-      (b: { name: string; isBuiltin: boolean }) => b.name === "production",
+      (branch: { name: string; isBuiltin: boolean }) => branch.name === "production",
     );
     expect(builtin).toBeDefined();
     expect(builtin.isBuiltin).toBe(true);

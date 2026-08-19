@@ -10,10 +10,10 @@ export interface ManifestCacheStorageService {
   readonly put: (cacheKey: string, response: Response) => Effect.Effect<void>;
 }
 
-export class ManifestCacheStorage extends Context.Tag("server/ManifestCacheStorage")<
+export class ManifestCacheStorage extends Context.Service<
   ManifestCacheStorage,
   ManifestCacheStorageService
->() {}
+>()("server/ManifestCacheStorage") {}
 
 export const ManifestCacheStorageLive = Layer.succeed(ManifestCacheStorage, {
   match: (cacheKey) =>

@@ -9,10 +9,10 @@ import { DateTimeString, Id } from "./common";
 // the only principal kind here is "member" (the literal stays on the wire
 // for forward compatibility).
 
-export const ProjectMemberRole = Schema.Literal("maintainer", "developer", "reporter");
+export const ProjectMemberRole = Schema.Literals(["maintainer", "developer", "reporter"]);
 export const ProjectMemberPrincipalType = Schema.Literal("member");
 
-export class ProjectMember extends Schema.Class<ProjectMember>("ProjectMember")({
+export const ProjectMember = Schema.Struct({
   id: Id,
   projectId: Id,
   principalType: ProjectMemberPrincipalType,
@@ -33,7 +33,8 @@ export class ProjectMember extends Schema.Class<ProjectMember>("ProjectMember")(
   email: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
   updatedAt: Schema.NullOr(DateTimeString),
-}) {}
+}).annotate({ identifier: "ProjectMember" });
+export type ProjectMember = typeof ProjectMember.Type;
 
 export const ProjectMemberList = Schema.Struct({ items: Schema.Array(ProjectMember) });
 
@@ -61,23 +62,21 @@ export const RemoveProjectMemberParams = Schema.Struct({
 // effective role per project is the max of the two.
 
 /** One explicit project membership of an org member, name embedded for the UI. */
-export class MemberProjectMembership extends Schema.Class<MemberProjectMembership>(
-  "MemberProjectMembership",
-)({
+export const MemberProjectMembership = Schema.Struct({
   projectId: Id,
   projectName: Schema.String,
   role: ProjectMemberRole,
-}) {}
+}).annotate({ identifier: "MemberProjectMembership" });
+export type MemberProjectMembership = typeof MemberProjectMembership.Type;
 
 /** Per-member membership summary keyed by the org `member.id`. */
-export class MemberProjectMemberships extends Schema.Class<MemberProjectMemberships>(
-  "MemberProjectMemberships",
-)({
+export const MemberProjectMemberships = Schema.Struct({
   principalId: Id,
   /** The org-wide ("all projects") role, or null when no org-wide grant exists. */
   allProjectsRole: Schema.NullOr(ProjectMemberRole),
   projects: Schema.Array(MemberProjectMembership),
-}) {}
+}).annotate({ identifier: "MemberProjectMemberships" });
+export type MemberProjectMemberships = typeof MemberProjectMemberships.Type;
 
 export const MemberProjectMembershipsList = Schema.Struct({
   items: Schema.Array(MemberProjectMemberships),

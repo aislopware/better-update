@@ -1,27 +1,26 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi";
 
 import { NotFound } from "../auth/ownership";
 import { BadRequest, NotAcceptable } from "../domain/errors";
 
-const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
+const projectIdParam = { projectId: Schema.String };
 
-export class ManifestGroup extends HttpApiGroup.make("manifest")
+export const ManifestGroup = HttpApiGroup.make("manifest")
   .add(
-    HttpApiEndpoint.get("serve")`/manifest/${projectIdParam}`
-      .addError(BadRequest)
-      .addError(NotFound)
-      .addError(NotAcceptable)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Serve manifest",
-          description: "Expo Updates protocol v1 manifest endpoint",
-        }),
-      ),
+    HttpApiEndpoint.get("serve", "/manifest/:projectId", {
+      params: { ...projectIdParam },
+      error: [BadRequest, NotFound, NotAcceptable],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Serve manifest",
+        description: "Expo Updates protocol v1 manifest endpoint",
+      }),
+    ),
   )
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Protocol",
       description: "Expo Updates protocol endpoints",
     }),
-  ) {}
+  );

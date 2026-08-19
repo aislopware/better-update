@@ -19,7 +19,7 @@ export const setCommand = defineCommand({
         const percentage = yield* parseRolloutPercentage(args.percentage, "percentage");
         const api = yield* apiClient;
         const result = yield* api.updates.editRollout({
-          path: { id: args.updateId },
+          params: { id: args.updateId },
           payload: { percentage },
         });
 

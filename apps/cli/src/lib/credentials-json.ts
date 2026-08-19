@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { asRecord, compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { CredentialsJsonError } from "./exit-codes";
 

@@ -28,7 +28,7 @@ import type { ArchiveRef } from "./submit-flow";
 
 const fetchServiceAccountKeyById = (api: ApiClient, id: string) =>
   Effect.gen(function* () {
-    const data = yield* api.googleServiceAccountKeys.download({ path: { id } }).pipe(
+    const data = yield* api.googleServiceAccountKeys.download({ params: { id } }).pipe(
       Effect.mapError(
         () =>
           new CliSubmitError({

@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CliRuntime } from "./cli-runtime";
 
@@ -18,7 +18,7 @@ interface VersionCacheEntry {
   readonly checkedAt: number;
 }
 
-export class VersionCheck extends Context.Tag("cli/VersionCheck")<
+export class VersionCheck extends Context.Service<
   VersionCheck,
   {
     readonly cachedLatest: Effect.Effect<string | undefined>;
@@ -26,7 +26,7 @@ export class VersionCheck extends Context.Tag("cli/VersionCheck")<
     readonly fetchLatest: Effect.Effect<string | undefined>;
     readonly refreshCache: Effect.Effect<void>;
   }
->() {}
+>()("cli/VersionCheck") {}
 
 export const VersionCheckLive = Layer.effect(
   VersionCheck,
@@ -82,7 +82,7 @@ export const VersionCheckLive = Layer.effect(
         return latest;
       }).pipe(
         Effect.timeout(timeoutMs),
-        Effect.catchAll(() => Effect.succeed(undefined)),
+        Effect.catch(() => Effect.succeed(undefined)),
       );
 
     return {

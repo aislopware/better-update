@@ -1,6 +1,6 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../tests/helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../tests/helpers/runtime";
 import { AnalyticsEngine, AnalyticsEngineLive, queryAnalyticsEngine } from "./analytics-engine";
 
 const mockEnv = {
@@ -22,12 +22,12 @@ const runQuery = async (sql: string) =>
 
 /** Every failure mode is the same tagged error; the reason is what differs. */
 const runQueryReason = async (sql: string): Promise<string> => {
-  const result = await runEitherWithLayerAndEnv(
+  const result = await runResultWithLayerAndEnv(
     queryAnalyticsEngine(sql),
     AnalyticsEngineLive,
     mockEnv,
   );
-  return Either.isLeft(result) ? result.left.reason : "<succeeded>";
+  return Result.isFailure(result) ? result.failure.reason : "<succeeded>";
 };
 
 const runDatasets = async (env: Env) =>

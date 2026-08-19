@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id, PaginationParams, sortParam } from "./common";
 
-export class Branch extends Schema.Class<Branch>("Branch")({
+export const Branch = Schema.Struct({
   id: Id,
   projectId: Id,
   name: Schema.String,
@@ -14,9 +14,10 @@ export class Branch extends Schema.Class<Branch>("Branch")({
   // reader is looking for, and neither fact can be derived from the count.
   channelNames: Schema.Array(Schema.String),
   latestUpdateAt: Schema.NullOr(DateTimeString),
-}) {}
+}).annotate({ identifier: "Branch" });
+export type Branch = typeof Branch.Type;
 
-export const BranchSortColumn = Schema.Literal("name", "createdAt", "updateCount");
+export const BranchSortColumn = Schema.Literals(["name", "createdAt", "updateCount"]);
 
 export const BranchSort = sortParam(BranchSortColumn);
 
@@ -29,11 +30,11 @@ export const ListBranchesParams = Schema.Struct({
 
 export const CreateBranchBody = Schema.Struct({
   projectId: Id,
-  name: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
 });
 
 export const UpdateBranchBody = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
 });
 
 export const DeleteBranchResult = DeletedResult;

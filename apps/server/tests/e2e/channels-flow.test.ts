@@ -23,7 +23,7 @@ describe("Channels API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -111,7 +111,7 @@ describe("Channels API flow", () => {
     // 3 seeded + stable
     expect(body.total).toBe(4);
     expect(body.items).toHaveLength(4);
-    expect(body.items.map((c: { name: string }) => c.name)).toContain("stable");
+    expect(body.items.map((channel: { name: string }) => channel.name)).toContain("stable");
   });
 
   it("paginates channels via page (creates 2nd channel + walks pages, then deletes it)", async () => {
@@ -122,7 +122,7 @@ describe("Channels API flow", () => {
       { cookie: cookies },
     );
     expect(ch2Res.status).toBe(201);
-    const ch2Id = (await ch2Res.json()).id;
+    const { id: ch2Id } = await ch2Res.json();
 
     const firstRes = await get(`/api/channels?projectId=${projectId}&limit=2&page=1`, {
       cookie: cookies,
@@ -141,8 +141,8 @@ describe("Channels API flow", () => {
     const secondBody = await secondRes.json();
     expect(secondBody.items).toHaveLength(2);
     expect(secondBody.page).toBe(2);
-    expect(secondBody.items.map((c: { id: string }) => c.id)).not.toEqual(
-      firstBody.items.map((c: { id: string }) => c.id),
+    expect(secondBody.items.map((channel: { id: string }) => channel.id)).not.toStrictEqual(
+      firstBody.items.map((channel: { id: string }) => channel.id),
     );
 
     // Restore prior state for downstream tests that count channels.
@@ -210,7 +210,7 @@ describe("Channels API flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    const otherProjectId = (await projRes.json()).id;
+    const { id: otherProjectId } = await projRes.json();
 
     const branchRes = await post(
       "/api/branches",
@@ -218,7 +218,7 @@ describe("Channels API flow", () => {
       { cookie: cookies },
     );
     expect(branchRes.status).toBe(201);
-    const otherBranchId = (await branchRes.json()).id;
+    const { id: otherBranchId } = await branchRes.json();
 
     // Try to create a channel in the first project with a branch from the other project
     const response = await post(
@@ -266,7 +266,8 @@ describe("Channels API flow", () => {
       { authorization: `Bearer ${apiKeyValue}` },
     );
     expect(response.status).toBe(201);
-    expect((await response.json()).name).toBe("api-key-channel");
+    const responseBody = await response.json();
+    expect(responseBody.name).toBe("api-key-channel");
   });
 
   // ── Section 6: Cross-org isolation ─────────────────────────────
@@ -281,7 +282,7 @@ describe("Channels API flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const orgBId = (await orgRes.json()).id;
+    const { id: orgBId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -300,7 +301,7 @@ describe("Channels API flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    projectIdB = (await projRes.json()).id;
+    ({ id: projectIdB } = await projRes.json());
 
     const branchRes = await post(
       "/api/branches",
@@ -308,7 +309,7 @@ describe("Channels API flow", () => {
       { cookie: cookies },
     );
     expect(branchRes.status).toBe(201);
-    branchIdB = (await branchRes.json()).id;
+    ({ id: branchIdB } = await branchRes.json());
   });
 
   it("creates a channel in org B", async () => {
@@ -343,7 +344,9 @@ describe("Channels API flow", () => {
     const body = await response.json();
     // 3 seeded + stable + api-key-channel
     expect(body.items).toHaveLength(5);
-    expect(body.items.some((c: { name: string }) => c.name === "b-channel")).toBe(false);
+    expect(body.items.some((channel: { name: string }) => channel.name === "b-channel")).toBe(
+      false,
+    );
   });
 
   // ── Section 7: Branch rollout ─────────────────────────────────
@@ -370,7 +373,7 @@ describe("Channels API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.id).toBe(channelId);
-    expect(body.branchMappingJson).toBeTruthy();
+    expect(body.branchMappingJson).toMatch(/./u);
     const mapping = JSON.parse(body.branchMappingJson);
     expect(mapping.data).toHaveLength(2);
     expect(mapping.data[0].branchId).toBe(thirdBranchId);
@@ -507,7 +510,7 @@ describe("Channels API flow", () => {
     );
     expect(createRes.status).toBe(200);
     const createBody = await createRes.json();
-    expect(createBody.branchMappingJson).toBeTruthy();
+    expect(createBody.branchMappingJson).toMatch(/./u);
 
     const response = await post(
       `/api/channels/${channelId}/rollout/revert`,
@@ -535,7 +538,7 @@ describe("Channels API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items.some((c: { id: string }) => c.id === channelId)).toBe(false);
+    expect(body.items.some((channel: { id: string }) => channel.id === channelId)).toBe(false);
   });
 
   it("rejects deleting non-existent channel (404)", async () => {
@@ -548,7 +551,7 @@ describe("Channels API flow", () => {
     const listRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
     const listBody = await listRes.json();
     const apiKeyChannel = listBody.items.find(
-      (c: { name: string }) => c.name === "api-key-channel",
+      (channel: { name: string }) => channel.name === "api-key-channel",
     );
     expect(apiKeyChannel).toBeDefined();
 
@@ -556,7 +559,8 @@ describe("Channels API flow", () => {
       authorization: `Bearer ${apiKeyValue}`,
     });
     expect(response.status).toBe(200);
-    expect((await response.json()).deleted).toBe(1);
+    const responseBody2 = await response.json();
+    expect(responseBody2.deleted).toBe(1);
   });
 
   // ── Section 9: Built-in channel lock ────────────────────────────
@@ -565,7 +569,7 @@ describe("Channels API flow", () => {
     const listRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
     const listBody = await listRes.json();
     const builtin = listBody.items.find(
-      (c: { name: string; isBuiltin: boolean }) => c.name === "production",
+      (channel: { name: string; isBuiltin: boolean }) => channel.name === "production",
     );
     expect(builtin).toBeDefined();
     expect(builtin.isBuiltin).toBe(true);

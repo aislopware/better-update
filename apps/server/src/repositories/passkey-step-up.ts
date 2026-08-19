@@ -26,10 +26,10 @@ export interface PasskeyStepUpRepository {
   }) => Effect.Effect<{ readonly verifiedAt: string } | null>;
 }
 
-export class PasskeyStepUpRepo extends Context.Tag("api/PasskeyStepUpRepo")<
+export class PasskeyStepUpRepo extends Context.Service<
   PasskeyStepUpRepo,
   PasskeyStepUpRepository
->() {}
+>()("api/PasskeyStepUpRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

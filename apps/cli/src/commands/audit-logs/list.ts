@@ -9,7 +9,7 @@ import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 const parseResourceTypes = (raw: string) =>
-  Schema.decodeUnknown(csvList(AuditLogResourceType))(raw).pipe(
+  Schema.decodeUnknownEffect(csvList(AuditLogResourceType))(raw).pipe(
     Effect.mapError(
       () =>
         new InvalidArgumentError({
@@ -40,7 +40,7 @@ export const listCommand = defineCommand({
           : undefined;
 
         const { items } = yield* api["audit-logs"].list({
-          urlParams: {
+          query: {
             ...(resourceType ? { resourceType } : {}),
             ...(args.from ? { from: args.from } : {}),
             ...(args.to ? { to: args.to } : {}),

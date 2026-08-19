@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi";
 
 import { Forbidden } from "../auth/errors";
 import { BadRequest } from "../domain/errors";
@@ -14,24 +14,23 @@ import { PasskeyStepUpBody, PasskeyStepUpResult } from "../domain/web-vault";
  * (assert-web-env-step-up) consults that record. CLI/CI (bearer) callers never
  * need this — they are exempt from the gate.
  */
-export class WebVaultGroup extends HttpApiGroup.make("webVault")
+export const WebVaultGroup = HttpApiGroup.make("webVault")
   .add(
-    HttpApiEndpoint.post("stepUp", "/api/web-vault/step-up")
-      .setPayload(PasskeyStepUpBody)
-      .addSuccess(PasskeyStepUpResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "WebAuthn step-up",
-          description:
-            "Verify a fresh passkey assertion for the current browser session and record the step-up. Required before browser env-value reads/writes; cookie transport only.",
-        }),
-      ),
+    HttpApiEndpoint.post("stepUp", "/api/web-vault/step-up", {
+      payload: PasskeyStepUpBody,
+      success: PasskeyStepUpResult,
+      error: [BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "WebAuthn step-up",
+        description:
+          "Verify a fresh passkey assertion for the current browser session and record the step-up. Required before browser env-value reads/writes; cookie transport only.",
+      }),
+    ),
   )
-  .addError(BadRequest)
-  .addError(Forbidden)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Web Vault",
       description: "WebAuthn step-up for browser env-vault access",
     }),
-  ) {}
+  );

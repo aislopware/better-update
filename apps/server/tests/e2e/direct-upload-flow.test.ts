@@ -29,7 +29,7 @@ describe("Direct R2 upload contract (real R2)", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -39,7 +39,7 @@ describe("Direct R2 upload contract (real R2)", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(200);
-    organizationId = (await response.json()).id;
+    ({ id: organizationId } = await response.json());
     cookies = parseCookies(response) || cookies;
   });
 
@@ -60,7 +60,8 @@ describe("Direct R2 upload contract (real R2)", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    projectId = (await response.json()).id as string;
+    const responseBody = await response.json();
+    projectId = responseBody.id as string;
   });
 
   // ── Asset: presigned PUT → finalize-reads-real-checksum → mismatch 400 ──
@@ -83,7 +84,7 @@ describe("Direct R2 upload contract (real R2)", () => {
       );
       expect(response.status).toBe(201);
       const body = await response.json();
-      expect(body.uploaded).toEqual([
+      expect(body.uploaded).toStrictEqual([
         expect.objectContaining({
           hash: assetHash,
           uploadMode: "single",
@@ -110,7 +111,7 @@ describe("Direct R2 upload contract (real R2)", () => {
     it("finalizes asset upload from the real R2 checksum", async () => {
       const response = await postNoBody(`/api/assets/${assetHash}/finalize`, { cookie: cookies });
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual(
+      await expect(response.json()).resolves.toStrictEqual(
         expect.objectContaining({
           hash: assetHash,
           contentType: assetContentType,
@@ -183,11 +184,11 @@ describe("Direct R2 upload contract (real R2)", () => {
       expect(response.status).toBe(201);
       const body = await response.json();
       buildId = body.id;
-      uploadUrl = body.uploadUrl;
+      ({ uploadUrl } = body);
       uploadHeaders = body.uploadHeaders as Record<string, string>;
-      uploadExpiresAt = body.uploadExpiresAt;
+      ({ uploadExpiresAt } = body);
       expect(body.uploadMode).toBe("single");
-      expect(body.uploadHeaders).toEqual(
+      expect(body.uploadHeaders).toStrictEqual(
         expect.objectContaining({
           "content-type": "application/octet-stream",
           "x-amz-checksum-sha256": expect.any(String),
@@ -215,7 +216,7 @@ describe("Direct R2 upload contract (real R2)", () => {
           `Expected build completion to succeed, got ${response.status}: ${bodyText}`,
         );
       }
-      expect(JSON.parse(bodyText)).toEqual(
+      expect(JSON.parse(bodyText)).toStrictEqual(
         expect.objectContaining({
           id: buildId,
           artifact: expect.objectContaining({ sha256: artifactSha256, format: "ipa" }),
@@ -229,7 +230,7 @@ describe("Direct R2 upload contract (real R2)", () => {
       const links = await linkResponse.json();
       expect(links.artifactUrl).toContain(`/api/builds/${buildId}/artifact?token=`);
       expect(links.installUrl).toContain("itms-services://?action=download-manifest");
-      expect(uploadExpiresAt).toBeTruthy();
+      expect(uploadExpiresAt).toMatch(/./u);
 
       // The signed artifact route 302-redirects to a presigned R2 GET. worker.fetch
       // doesn't auto-follow, so run the worker hop through the pool, then fetch the
@@ -239,7 +240,9 @@ describe("Direct R2 upload contract (real R2)", () => {
       expect(redirect.status).toBe(302);
       const artifactResponse = await fetch(redirect.headers.get("location") ?? "");
       expect(artifactResponse.status).toBe(200);
-      expect([...new Uint8Array(await artifactResponse.arrayBuffer())]).toEqual([...artifactBytes]);
+      expect([...new Uint8Array(await artifactResponse.arrayBuffer())]).toStrictEqual([
+        ...artifactBytes,
+      ]);
 
       const plistResponse = await get(
         `/api/builds/${buildId}/install?token=${String(links.token)}&expires=${String(links.expires)}`,

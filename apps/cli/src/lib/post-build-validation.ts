@@ -1,10 +1,11 @@
 import path from "node:path";
 
-import { Command, FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
+import { runText } from "./child-process";
 import { parsePlist, parsePlistXml } from "./plist";
 import { printWarn } from "./warning-style";
 
@@ -47,7 +48,7 @@ const validateOneBundle = (
 ): Effect.Effect<
   BundleValidationResult,
   never,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
     const bundleId = yield* readBundleId(bundleDir).pipe(Effect.orElseSucceed(() => undefined));
@@ -177,14 +178,14 @@ const validateEmbeddedProfile = (
 ): Effect.Effect<
   readonly string[],
   unknown,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
     const warnings: string[] = [];
     const profilePath = path.join(bundleDir, "embedded.mobileprovision");
 
-    const plistXml = yield* Command.string(
-      Command.make("security", "cms", "-D", "-i", profilePath),
+    const plistXml = yield* runText(
+      ChildProcess.make("security", ["cms", "-D", "-i", profilePath]),
     );
 
     const parsed = parsePlistXml(plistXml);

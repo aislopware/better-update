@@ -4,9 +4,7 @@ import { DateTimeString, DeletedResult, Id } from "./common";
 import { boundProjectIdsField, credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
-export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
-  "AndroidUploadKeystore",
-)({
+export const AndroidUploadKeystore = Schema.Struct({
   ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
@@ -16,14 +14,15 @@ export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   md5Fingerprint: Schema.NullOr(Schema.String),
   sha1Fingerprint: Schema.NullOr(Schema.String),
   sha256Fingerprint: Schema.NullOr(Schema.String),
-  keystoreType: Schema.NullOr(Schema.Literal("JKS", "PKCS12")),
+  keystoreType: Schema.NullOr(Schema.Literals(["JKS", "PKCS12"])),
   /** notAfter of the keystore's signing certificate, read by the CLI at upload time. */
   validUntil: DateTimeString,
   /** Protected-credential flag (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+ when set. */
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AndroidUploadKeystore" });
+export type AndroidUploadKeystore = typeof AndroidUploadKeystore.Type;
 
 /**
  * Client-encrypted upload: the keystore bytes + store/key passwords are sealed
@@ -34,12 +33,12 @@ export const UploadAndroidUploadKeystoreBody = Schema.Struct({
   ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
-  name: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  keyAlias: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  md5Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  sha1Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  sha256Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  keystoreType: Schema.optional(Schema.Literal("JKS", "PKCS12")),
+  name: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
+  keyAlias: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  md5Fingerprint: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
+  sha1Fingerprint: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
+  sha256Fingerprint: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
+  keystoreType: Schema.optional(Schema.Literals(["JKS", "PKCS12"])),
   /**
    * Required: the certificate's notAfter, which only the client can read out of
    * the keystore. Rejecting an upload without it keeps "when does this stop

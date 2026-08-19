@@ -24,5 +24,5 @@ export const reconcileVaultAccess = (params: {
             metadata: { reason: params.reason, droppedUserIds, rotationPending: true },
           }),
     ),
-    Effect.catchAll(() => Effect.void),
+    Effect.catch(() => Effect.void),
   );

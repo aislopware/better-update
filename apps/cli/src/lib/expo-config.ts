@@ -3,8 +3,7 @@ import process from "node:process";
 
 import { CODE_SIGNING_ALG } from "@better-update/expo-codesign";
 import { asRecord, asVersionSlot, compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect, Option } from "effect";
+import { FileSystem, Effect, Option } from "effect";
 
 import { BETTER_UPDATE_PROJECT_ID_ENV } from "./eas-json";
 import { BuildProfileError, ProjectNotLinkedError, UpdatePublishError } from "./exit-codes";

@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -76,17 +76,17 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
         }),
       ),
     )
-    .handle("list", ({ urlParams }) =>
+    .handle("list", ({ query }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertProjectOwnership(query.projectId);
           const repo = yield* BranchRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
-          const { sort, order } = parseBranchSort(urlParams.sort);
+          const { page, limit, offset } = parsePagination(query);
+          const { sort, order } = parseBranchSort(query.sort);
 
           const { items, total } = yield* repo.findByProject({
-            projectId: urlParams.projectId,
-            ...(urlParams.query ? { query: urlParams.query } : {}),
+            projectId: query.projectId,
+            ...(query.query ? { query: query.query } : {}),
             sort,
             order,
             limit,
@@ -107,11 +107,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* BranchRepo;
-          const branch = yield* repo.findById({ id: path.id });
+          const branch = yield* repo.findById({ id: params.id });
           yield* assertProjectOwnership(branch.projectId);
           yield* assertAccess("branch", "read", {
             kind: "environment",
@@ -122,11 +122,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
         }),
       ),
     )
-    .handle("rename", ({ path, payload }) =>
+    .handle("rename", ({ params, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* BranchRepo;
-          const branch = yield* repo.findById({ id: path.id });
+          const branch = yield* repo.findById({ id: params.id });
           yield* assertProjectOwnership(branch.projectId);
           yield* assertAccess("branch", "update", {
             kind: "environment",
@@ -138,12 +138,12 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
               message: `Built-in branch "${branch.name}" cannot be renamed`,
             });
           }
-          yield* repo.updateName({ id: path.id, name: payload.name });
+          yield* repo.updateName({ id: params.id, name: payload.name });
 
           yield* logAudit({
             action: "branch.rename",
             resourceType: "branch",
-            resourceId: path.id,
+            resourceId: params.id,
             projectId: branch.projectId,
             metadata: { name: payload.name },
           });
@@ -152,11 +152,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
         }),
       ),
     )
-    .handle("delete", ({ path }) =>
+    .handle("delete", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const branchRepo = yield* BranchRepo;
-          const branch = yield* branchRepo.findById({ id: path.id });
+          const branch = yield* branchRepo.findById({ id: params.id });
           yield* assertProjectOwnership(branch.projectId);
           yield* assertAccess("branch", "delete", {
             kind: "environment",
@@ -168,7 +168,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
               message: `Built-in branch "${branch.name}" cannot be deleted`,
             });
           }
-          yield* branchRepo.delete({ id: path.id });
+          yield* branchRepo.delete({ id: params.id });
 
           // The repo delete cascades the branch's update rows away, so their
           // per-update cache tags can no longer be enumerated (and a large
@@ -181,7 +181,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           yield* logAudit({
             action: "branch.delete",
             resourceType: "branch",
-            resourceId: path.id,
+            resourceId: params.id,
             projectId: branch.projectId,
           });
 

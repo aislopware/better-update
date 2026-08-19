@@ -19,12 +19,12 @@ export const listCommand = defineCommand({
         const [items, branches] = yield* Effect.all([
           drainPages((page) =>
             api.channels.list({
-              urlParams: { projectId, limit: 100, page },
+              query: { projectId, limit: 100, page },
             }),
           ),
           drainPages((page) =>
             api.branches.list({
-              urlParams: { projectId, limit: 100, page },
+              query: { projectId, limit: 100, page },
             }),
           ),
         ]);

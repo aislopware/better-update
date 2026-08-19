@@ -89,7 +89,7 @@ export const projectsQueryOptions = (orgId: string, filters?: ProjectsFilters) =
       runApi(
         (api) =>
           api.projects.list({
-            urlParams: compact({
+            query: compact({
               page: filters?.page,
               limit: filters?.limit,
               query: filters?.query,
@@ -106,7 +106,7 @@ export const projectQueryOptions = (orgId: string, projectId: string) =>
   queryOptions({
     queryKey: projectQueryKey(orgId, projectId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.projects.get({ path: { id: projectId } }), signal),
+      runApi((api) => api.projects.get({ params: { id: projectId } }), signal),
     staleTime: 30_000,
   });
 
@@ -114,7 +114,7 @@ export const projectBySlugQueryOptions = (orgId: string, slug: string) =>
   queryOptions({
     queryKey: projectBySlugQueryKey(orgId, slug),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.projects.getBySlug({ path: { slug } }), signal),
+      runApi((api) => api.projects.getBySlug({ params: { slug } }), signal),
     staleTime: 30_000,
   });
 
@@ -135,7 +135,7 @@ export const branchesQueryOptions = (orgId: string, projectId: string, filters?:
       runApi(
         (api) =>
           api.branches.list({
-            urlParams: compact({
+            query: compact({
               projectId,
               page: filters?.page,
               limit: filters?.limit,
@@ -167,7 +167,7 @@ export const channelsQueryOptions = (orgId: string, projectId: string, filters?:
       runApi(
         (api) =>
           api.channels.list({
-            urlParams: compact({
+            query: compact({
               projectId,
               page: filters?.page,
               limit: filters?.limit,
@@ -185,7 +185,7 @@ export const channelQueryOptions = (orgId: string, projectId: string, channelId:
   queryOptions({
     queryKey: channelQueryKey(orgId, projectId, channelId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.channels.get({ path: { id: channelId } }), signal),
+      runApi((api) => api.channels.get({ params: { id: channelId } }), signal),
     staleTime: 30_000,
   });
 
@@ -215,8 +215,8 @@ export const channelCompatibleBuildsQueryOptions = (
       runApi(
         (api) =>
           api.channels.listCompatibleBuilds({
-            path: { id: channelId },
-            urlParams: compact({ page: filters?.page, limit: filters?.limit }),
+            params: { id: channelId },
+            query: compact({ page: filters?.page, limit: filters?.limit }),
           }),
         signal,
       ),
@@ -235,7 +235,7 @@ export const runtimesQueryOptions = (orgId: string, projectId: string, filters?:
       runApi(
         (api) =>
           api.runtimes.list({
-            urlParams: compact({
+            query: compact({
               projectId,
               page: filters?.page,
               limit: filters?.limit,
@@ -266,7 +266,7 @@ export const updatesQueryOptions = (orgId: string, projectId: string, filters?: 
       runApi(
         (api) =>
           api.updates.list({
-            urlParams: compact({
+            query: compact({
               projectId,
               branchId: filters?.branchId,
               platform: filters?.platform,
@@ -286,7 +286,7 @@ export const updateAssetsQueryOptions = (orgId: string, projectId: string, updat
   queryOptions({
     queryKey: updateAssetsQueryKey(orgId, projectId, updateId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.updates.listAssets({ path: { id: updateId } }), signal),
+      runApi((api) => api.updates.listAssets({ params: { id: updateId } }), signal),
     staleTime: 60_000,
   });
 
@@ -295,19 +295,19 @@ export const updateSourcemapQueryOptions = (orgId: string, projectId: string, up
   queryOptions({
     queryKey: updateSourcemapQueryKey(orgId, projectId, updateId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.updates.getSourcemap({ path: { id: updateId } }), signal),
+      runApi((api) => api.updates.getSourcemap({ params: { id: updateId } }), signal),
     staleTime: 60_000,
   });
 
 /** Short-lived presigned download URL for an update's stored sourcemap. */
 export const fetchUpdateSourcemapDownload = async (updateId: string) =>
-  runApi((api) => api.updates.getSourcemapDownload({ path: { id: updateId } }));
+  runApi((api) => api.updates.getSourcemapDownload({ params: { id: updateId } }));
 
 export const updateQueryOptions = (orgId: string, projectId: string, updateId: string) =>
   queryOptions({
     queryKey: updateQueryKey(orgId, projectId, updateId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.updates.get({ path: { id: updateId } }), signal),
+      runApi((api) => api.updates.get({ params: { id: updateId } }), signal),
     staleTime: 30_000,
   });
 
@@ -315,7 +315,7 @@ export const updateGroupQueryOptions = (orgId: string, projectId: string, groupI
   queryOptions({
     queryKey: updateGroupQueryKey(orgId, projectId, groupId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.updates.getGroup({ path: { groupId } }), signal),
+      runApi((api) => api.updates.getGroup({ params: { groupId } }), signal),
     staleTime: 30_000,
   });
 
@@ -323,7 +323,7 @@ export const fingerprintDetailQueryOptions = (orgId: string, projectId: string, 
   queryOptions({
     queryKey: fingerprintDetailQueryKey(orgId, projectId, hash),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.fingerprints.get({ path: { projectId, hash } }), signal),
+      runApi((api) => api.fingerprints.get({ params: { projectId, hash } }), signal),
     staleTime: 60_000,
   });
 
@@ -331,16 +331,16 @@ export const createProject = async (body: typeof CreateProjectBody.Type) =>
   runApi((api) => api.projects.create({ payload: body }));
 
 export const renameProject = async (id: string, body: typeof UpdateProjectBody.Type) =>
-  runApi((api) => api.projects.rename({ path: { id }, payload: body }));
+  runApi((api) => api.projects.rename({ params: { id }, payload: body }));
 
 export const archiveProject = async (id: string) =>
-  runApi((api) => api.projects.archive({ path: { id } }));
+  runApi((api) => api.projects.archive({ params: { id } }));
 
 export const unarchiveProject = async (id: string) =>
-  runApi((api) => api.projects.unarchive({ path: { id } }));
+  runApi((api) => api.projects.unarchive({ params: { id } }));
 
 export const deleteProject = async (id: string) =>
-  runApi((api) => api.projects.delete({ path: { id } }));
+  runApi((api) => api.projects.delete({ params: { id } }));
 
 /** MIME types the project logo upload accepts (mirrors the server schema). */
 export type ProjectLogoContentTypeValue = typeof ProjectLogoContentType.Type;
@@ -366,7 +366,7 @@ export const uploadProjectLogo = async (id: string, file: File) => {
   const contentType = file.type;
 
   const { uploadUrl, uploadHeaders } = await runApi((api) =>
-    api.projects.createLogoUploadUrl({ path: { id }, payload: { contentType } }),
+    api.projects.createLogoUploadUrl({ params: { id }, payload: { contentType } }),
   );
 
   const response = await fetch(uploadUrl, { method: "PUT", headers: uploadHeaders, body: file });
@@ -374,64 +374,65 @@ export const uploadProjectLogo = async (id: string, file: File) => {
     return failMutation(`Logo upload failed (${response.status})`);
   }
 
-  return runApi((api) => api.projects.setLogo({ path: { id } }));
+  return runApi((api) => api.projects.setLogo({ params: { id } }));
 };
 
 export const removeProjectLogo = async (id: string) =>
-  runApi((api) => api.projects.removeLogo({ path: { id } }));
+  runApi((api) => api.projects.removeLogo({ params: { id } }));
 
 export const createBranch = async (body: typeof CreateBranchBody.Type) =>
   runApi((api) => api.branches.create({ payload: body }));
 
 export const renameBranch = async (id: string, body: typeof UpdateBranchBody.Type) =>
-  runApi((api) => api.branches.rename({ path: { id }, payload: body }));
+  runApi((api) => api.branches.rename({ params: { id }, payload: body }));
 
 export const deleteBranch = async (id: string) =>
-  runApi((api) => api.branches.delete({ path: { id } }));
+  runApi((api) => api.branches.delete({ params: { id } }));
 
 export const createChannel = async (body: typeof CreateChannelBody.Type) =>
   runApi((api) => api.channels.create({ payload: body }));
 
 export const updateChannel = async (id: string, body: typeof UpdateChannelBody.Type) =>
-  runApi((api) => api.channels.update({ path: { id }, payload: body }));
+  runApi((api) => api.channels.update({ params: { id }, payload: body }));
 
 export const pauseChannel = async (id: string) =>
-  runApi((api) => api.channels.pause({ path: { id } }));
+  runApi((api) => api.channels.pause({ params: { id } }));
 
 export const resumeChannel = async (id: string) =>
-  runApi((api) => api.channels.resume({ path: { id } }));
+  runApi((api) => api.channels.resume({ params: { id } }));
 
 export const deleteChannel = async (id: string) =>
-  runApi((api) => api.channels.delete({ path: { id } }));
+  runApi((api) => api.channels.delete({ params: { id } }));
 
 export const createBranchRollout = async (
   channelId: string,
   body: typeof CreateBranchRolloutBody.Type,
-) => runApi((api) => api.channels.createBranchRollout({ path: { id: channelId }, payload: body }));
+) =>
+  runApi((api) => api.channels.createBranchRollout({ params: { id: channelId }, payload: body }));
 
 export const updateBranchRollout = async (channelId: string, body: { percentage: number }) =>
-  runApi((api) => api.channels.updateBranchRollout({ path: { id: channelId }, payload: body }));
+  runApi((api) => api.channels.updateBranchRollout({ params: { id: channelId }, payload: body }));
 
 export const completeBranchRollout = async (channelId: string) =>
-  runApi((api) => api.channels.completeBranchRollout({ path: { id: channelId } }));
+  runApi((api) => api.channels.completeBranchRollout({ params: { id: channelId } }));
 
 export const revertBranchRollout = async (channelId: string) =>
-  runApi((api) => api.channels.revertBranchRollout({ path: { id: channelId } }));
+  runApi((api) => api.channels.revertBranchRollout({ params: { id: channelId } }));
 
 export const createUpdate = async (body: typeof CreateUpdateBody.Type) =>
   runApi((api) => api.updates.create({ payload: body }));
 
 export const deleteUpdateGroup = async (groupId: string) =>
-  runApi((api) => api.updates.deleteGroup({ path: { groupId } }));
+  runApi((api) => api.updates.deleteGroup({ params: { groupId } }));
 
 export const republishUpdate = async (body: typeof RepublishBody.Type) =>
   runApi((api) => api.updates.republish({ payload: body }));
 
 export const editUpdateRollout = async (id: string, body: { percentage: number }) =>
-  runApi((api) => api.updates.editRollout({ path: { id }, payload: body }));
+  runApi((api) => api.updates.editRollout({ params: { id }, payload: body }));
 
 export const completeUpdateRollout = async (id: string) =>
-  runApi((api) => api.updates.completeRollout({ path: { id } }));
+  runApi((api) => api.updates.completeRollout({ params: { id } }));
 
 export const revertUpdateRollout = async (id: string) =>
-  runApi((api) => api.updates.revertRollout({ path: { id } }));
+  runApi((api) => api.updates.revertRollout({ params: { id } }));

@@ -80,7 +80,7 @@ rollback. Disable or delete it when the re-signed build is verified.
 
 const downloadProfileToTmp = (api: ApiClient, profileId: string) =>
   Effect.gen(function* () {
-    const data = yield* api.appleProvisioningProfiles.download({ path: { id: profileId } });
+    const data = yield* api.appleProvisioningProfiles.download({ params: { id: profileId } });
     const target = path.join(tmpdir(), `better-update-resign-${data.id}.mobileprovision`);
     yield* Effect.promise(async () => writeFile(target, fromBase64(data.profileBase64)));
     return {
@@ -92,7 +92,7 @@ const downloadProfileToTmp = (api: ApiClient, profileId: string) =>
 
 const resolveSigningIdentity = (api: ApiClient, certId: string) =>
   Effect.gen(function* () {
-    const cert = yield* api.appleDistributionCertificates.download({ path: { id: certId } });
+    const cert = yield* api.appleDistributionCertificates.download({ params: { id: certId } });
     return `iPhone Distribution: ${cert.appleTeamIdentifier}`;
   });
 
@@ -118,7 +118,7 @@ export const resignCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const build = yield* api.builds.get({ path: { id: args.build } });
+        const build = yield* api.builds.get({ params: { id: args.build } });
         if (build.platform !== "ios") {
           yield* printHuman(
             `Build ${args.build} is ${build.platform}. Re-signing this command currently covers iOS only.`,
@@ -126,7 +126,7 @@ export const resignCommand = defineCommand({
           process.exitCode = 2;
           return undefined;
         }
-        const link = yield* api.builds.getInstallLink({ path: { id: args.build } });
+        const link = yield* api.builds.getInstallLink({ params: { id: args.build } });
 
         // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with downloadProfileToTmp's result to {...} | undefined); Effect.void breaks the === undefined / ?.profilePath downstream
         const profilePromise =

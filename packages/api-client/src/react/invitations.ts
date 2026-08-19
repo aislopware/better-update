@@ -28,4 +28,4 @@ export const createInvitation = async (body: typeof CreateInvitationBody.Type) =
 
 // Cancel a pending invitation (IAM-gated by invitation:cancel).
 export const cancelInvitation = async (id: string) =>
-  runApi((api) => api.invitations.cancel({ path: { id } }));
+  runApi((api) => api.invitations.cancel({ params: { id } }));

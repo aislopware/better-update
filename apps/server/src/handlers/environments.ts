@@ -1,6 +1,6 @@
-import { BUILTIN_ENVIRONMENTS, Environment } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
+import { BUILTIN_ENVIRONMENTS } from "@better-update/api";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -22,15 +22,14 @@ const toApiBuiltinEnvironment = (
   organizationId: string,
   name: string,
   protectedSet: ReadonlySet<string>,
-) =>
-  new Environment({
-    id: `builtin:${name}`,
-    organizationId,
-    name,
-    isBuiltin: true,
-    protected: protectedSet.has(name),
-    createdAt: BUILTIN_CREATED_AT,
-  });
+) => ({
+  id: `builtin:${name}`,
+  organizationId,
+  name,
+  isBuiltin: true,
+  protected: protectedSet.has(name),
+  createdAt: BUILTIN_CREATED_AT,
+});
 
 // Resolve a name to its Environment wire shape (built-in or stored row) so the
 // protection endpoints can echo the updated entity. NotFound for unknown names.
@@ -157,14 +156,14 @@ export const EnvironmentsGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("rename", ({ path, payload }) =>
+      .handle("rename", ({ params, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertPermission("environment", "update");
             const ctx = yield* CurrentActor;
-            if (BUILTIN_NAMES.has(path.name)) {
+            if (BUILTIN_NAMES.has(params.name)) {
               return yield* new Conflict({
-                message: `Built-in environment "${path.name}" cannot be renamed`,
+                message: `Built-in environment "${params.name}" cannot be renamed`,
               });
             }
             if (BUILTIN_NAMES.has(payload.name)) {
@@ -175,11 +174,11 @@ export const EnvironmentsGroupLive = HttpApiBuilder.group(
             const repo = yield* EnvironmentRepo;
             const existing = yield* repo.findByName({
               organizationId: ctx.organizationId,
-              name: path.name,
+              name: params.name,
             });
             yield* repo.rename({
               organizationId: ctx.organizationId,
-              oldName: path.name,
+              oldName: params.name,
               newName: payload.name,
             });
             // Protection follows the name: a protected environment stays
@@ -188,11 +187,11 @@ export const EnvironmentsGroupLive = HttpApiBuilder.group(
             const protectedSet = yield* protectedRepo.listByOrg({
               organizationId: ctx.organizationId,
             });
-            const wasProtected = protectedSet.has(path.name);
+            const wasProtected = protectedSet.has(params.name);
             if (wasProtected) {
               yield* protectedRepo.unprotect({
                 organizationId: ctx.organizationId,
-                environment: path.name,
+                environment: params.name,
               });
               yield* protectedRepo.protect({
                 organizationId: ctx.organizationId,
@@ -204,54 +203,54 @@ export const EnvironmentsGroupLive = HttpApiBuilder.group(
               action: "environment.rename",
               resourceType: "environment",
               resourceId: existing.id,
-              metadata: { from: path.name, to: payload.name },
+              metadata: { from: params.name, to: payload.name },
             });
             return toApiEnvironment({ ...existing, name: payload.name }, wasProtected);
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertPermission("environment", "delete");
             const ctx = yield* CurrentActor;
-            if (BUILTIN_NAMES.has(path.name)) {
+            if (BUILTIN_NAMES.has(params.name)) {
               return yield* new Conflict({
-                message: `Built-in environment "${path.name}" cannot be deleted`,
+                message: `Built-in environment "${params.name}" cannot be deleted`,
               });
             }
             const repo = yield* EnvironmentRepo;
             const existing = yield* repo.findByName({
               organizationId: ctx.organizationId,
-              name: path.name,
+              name: params.name,
             });
             const usage = yield* repo.countEnvVarsUsing({
               organizationId: ctx.organizationId,
-              name: path.name,
+              name: params.name,
             });
             if (usage > 0) {
               return yield* new Conflict({
-                message: `Cannot delete environment "${path.name}" while ${usage} variable(s) reference it`,
+                message: `Cannot delete environment "${params.name}" while ${usage} variable(s) reference it`,
               });
             }
-            yield* repo.deleteByName({ organizationId: ctx.organizationId, name: path.name });
+            yield* repo.deleteByName({ organizationId: ctx.organizationId, name: params.name });
             // Deleting an environment drops its protection row too — a future
             // environment reusing the name must opt back in explicitly.
             const protectedRepo = yield* ProtectedEnvironmentRepo;
             yield* protectedRepo.unprotect({
               organizationId: ctx.organizationId,
-              environment: path.name,
+              environment: params.name,
             });
             yield* logAudit({
               action: "environment.delete",
               resourceType: "environment",
               resourceId: existing.id,
-              metadata: { name: path.name },
+              metadata: { name: params.name },
             });
             return { deleted: 1 };
           }),
         ),
       )
-      .handle("protect", ({ path }) => setProtection(path.name, true))
-      .handle("unprotect", ({ path }) => setProtection(path.name, false)),
+      .handle("protect", ({ params }) => setProtection(params.name, true))
+      .handle("unprotect", ({ params }) => setProtection(params.name, false)),
 );

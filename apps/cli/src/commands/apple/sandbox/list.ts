@@ -35,10 +35,10 @@ const listViaToken = (ascApiKeyId: string) =>
     const credentials = yield* fetchAscCredentials(api, ascApiKeyId);
     return yield* listSandboxTestersV2({ credentials });
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       printHuman(
         `Could not list sandbox testers with the ASC API key (${messageOf(error)}); falling back to Apple ID login.`,
-      ).pipe(Effect.zipRight(listViaCookie)),
+      ).pipe(Effect.andThen(listViaCookie)),
     ),
   );
 

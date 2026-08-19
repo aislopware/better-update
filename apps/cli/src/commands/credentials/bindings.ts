@@ -85,7 +85,7 @@ const listCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const projectId = yield* resolveProjectId(args.project);
-        const { items } = yield* api["credential-bindings"].list({ path: { id: projectId } });
+        const { items } = yield* api["credential-bindings"].list({ params: { id: projectId } });
         yield* printHumanList(
           ["Resource type", "Resource id", "Scope", "Bound at"],
           items.map((binding) => [
@@ -120,7 +120,7 @@ const addCommand = defineCommand({
             : "";
         if (args["all-projects"]) {
           const binding = yield* api["credential-bindings"].bindAllProjects({
-            path: { resourceType, resourceId: args.resourceId },
+            params: { resourceType, resourceId: args.resourceId },
           });
           yield* printHuman(
             `✓ Bound ${resourceType} ${args.resourceId} to ALL projects — including projects created later.${teamHint}`,
@@ -129,7 +129,7 @@ const addCommand = defineCommand({
         }
         const projectId = yield* resolveProjectId(args.project);
         const binding = yield* api["credential-bindings"].bind({
-          path: { id: projectId, resourceType, resourceId: args.resourceId },
+          params: { id: projectId, resourceType, resourceId: args.resourceId },
         });
         yield* printHuman(
           `✓ Bound ${resourceType} ${args.resourceId} to project ${projectId}.${teamHint}`,
@@ -179,14 +179,14 @@ const planCommand = defineCommand({
         yield* Effect.forEach(missing, (item) =>
           api["credential-bindings"]
             .bind({
-              path: {
+              params: {
                 id: item.projectId,
                 resourceType: item.resourceType,
                 resourceId: item.resourceId,
               },
             })
             .pipe(
-              Effect.zipRight(printHuman(`✓ Bound ${item.resourceLabel} → ${item.projectName}`)),
+              Effect.andThen(printHuman(`✓ Bound ${item.resourceLabel} → ${item.projectName}`)),
             ),
         );
         yield* printHuman(
@@ -214,7 +214,7 @@ const removeCommand = defineCommand({
         const resourceType = yield* parseBindingType(args.resourceType);
         if (args["all-projects"]) {
           yield* api["credential-bindings"].unbindAllProjects({
-            path: { resourceType, resourceId: args.resourceId },
+            params: { resourceType, resourceId: args.resourceId },
           });
           yield* printHuman(
             `✓ Removed the all-projects binding of ${resourceType} ${args.resourceId} — explicit per-project bindings still apply.`,
@@ -223,7 +223,7 @@ const removeCommand = defineCommand({
         }
         const projectId = yield* resolveProjectId(args.project);
         yield* api["credential-bindings"].unbind({
-          path: { id: projectId, resourceType, resourceId: args.resourceId },
+          params: { id: projectId, resourceType, resourceId: args.resourceId },
         });
         yield* printHuman(
           `✓ Unbound ${resourceType} ${args.resourceId} from project ${projectId}.`,

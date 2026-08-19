@@ -3,7 +3,7 @@ import { Schema } from "effect";
 import { DateTimeString, Id } from "./common";
 
 /** Monotonic per-org vault key version; bumped on every rotation. */
-export const VaultVersion = Schema.Number.pipe(Schema.int(), Schema.positive()).annotations({
+export const VaultVersion = Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)).annotate({
   description: "Monotonic org vault key version (incremented on each rotation)",
 });
 
@@ -12,7 +12,7 @@ export const VaultVersion = Schema.Number.pipe(Schema.int(), Schema.positive()).
  * rotation both carry the version they read; the server accepts a write only if
  * it still matches (compare-and-swap).
  */
-export class OrgVault extends Schema.Class<OrgVault>("OrgVault")({
+export const OrgVault = Schema.Struct({
   organizationId: Id,
   vaultVersion: VaultVersion,
   createdAt: DateTimeString,
@@ -35,19 +35,21 @@ export class OrgVault extends Schema.Class<OrgVault>("OrgVault")({
   envRotationPendingSince: Schema.NullOr(DateTimeString),
   envRotationPendingReason: Schema.NullOr(Schema.String),
   envVaultCutoverAt: Schema.NullOr(DateTimeString),
-}) {}
+}).annotate({ identifier: "OrgVault" });
+export type OrgVault = typeof OrgVault.Type;
 
 /**
  * One wrap of the org vault key to a recipient's public key — an `age` blob the
  * server stores opaque (it can never unwrap it). One row per recipient.
  */
-export class OrgVaultKeyWrap extends Schema.Class<OrgVaultKeyWrap>("OrgVaultKeyWrap")({
+export const OrgVaultKeyWrap = Schema.Struct({
   organizationId: Id,
   vaultVersion: VaultVersion,
   userEncryptionKeyId: Id,
   wrappedKey: Schema.String,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "OrgVaultKeyWrap" });
+export type OrgVaultKeyWrap = typeof OrgVaultKeyWrap.Type;
 
 /** The wrapped vault key for the calling recipient — fetched, then unwrapped client-side. */
 export const RecipientVaultKey = Schema.Struct({
@@ -75,7 +77,7 @@ export const VaultRecipients = Schema.Struct({
 /** One recipient's wrap row in a bootstrap / grant / rotate submission (age blob, base64). */
 export const VaultWrapInput = Schema.Struct({
   userEncryptionKeyId: Id,
-  wrappedKey: Schema.String.pipe(Schema.minLength(1)),
+  wrappedKey: Schema.String.check(Schema.isMinLength(1)),
 });
 
 /**
@@ -86,14 +88,14 @@ export const VaultWrapInput = Schema.Struct({
  * (alongside `VaultWrapInput`) rather than in `env-vault.ts` so `BootstrapVaultBody`
  * can carry env wraps without a circular import (`env-vault.ts` → `org-vault.ts`).
  */
-export const EnvVaultRecipientKind = Schema.Literal("device", "recovery", "machine", "account");
+export const EnvVaultRecipientKind = Schema.Literals(["device", "recovery", "machine", "account"]);
 export type EnvVaultRecipientKind = typeof EnvVaultRecipientKind.Type;
 
 /** One recipient's env-vault wrap row in a bootstrap / cutover / grant / rotate submission (age blob, base64). */
 export const EnvVaultWrapInput = Schema.Struct({
   recipientKind: EnvVaultRecipientKind,
   recipientId: Id,
-  wrappedKey: Schema.String.pipe(Schema.minLength(1)),
+  wrappedKey: Schema.String.check(Schema.isMinLength(1)),
 });
 
 /**
@@ -105,8 +107,8 @@ export const EnvVaultWrapInput = Schema.Struct({
  * cannot produce them is too old to bootstrap.
  */
 export const BootstrapVaultBody = Schema.Struct({
-  wraps: Schema.Array(VaultWrapInput).pipe(Schema.minItems(1)),
-  envWraps: Schema.Array(EnvVaultWrapInput).pipe(Schema.minItems(1)),
+  wraps: Schema.Array(VaultWrapInput).check(Schema.isMinLength(1)),
+  envWraps: Schema.Array(EnvVaultWrapInput).check(Schema.isMinLength(1)),
 });
 
 /**

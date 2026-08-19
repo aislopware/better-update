@@ -2,8 +2,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { fromBase64 } from "@better-update/encoding";
-import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { FileSystem, Console, Effect } from "effect";
 
 import { keystoreChoice } from "../lib/credential-choices";
 import { requireSecretString } from "../lib/credential-secret";
@@ -112,7 +111,7 @@ const downloadAndroidKeystoreInteractive = (ctx: WizardContext) =>
       "Select a keystore to download",
       list.items.map(keystoreChoice),
     );
-    const data = yield* ctx.api.androidUploadKeystores.download({ path: { id } });
+    const data = yield* ctx.api.androidUploadKeystores.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(ctx.api);
     const secret = yield* openFromDownload({
       session,
@@ -168,7 +167,7 @@ const findDefaultAndroidGroup = (ctx: WizardContext) =>
     const projectId = ctx.projectId.length > 0 ? ctx.projectId : yield* readProjectId;
     const applicationIdentifier = yield* resolveAndroidPackageForBinding(ctx);
     const apps = yield* ctx.api.androidApplicationIdentifiers.list({
-      path: { projectId },
+      params: { projectId },
     });
     const app = apps.items.find((entry) => entry.packageName === applicationIdentifier);
     if (app === undefined) {
@@ -178,7 +177,7 @@ const findDefaultAndroidGroup = (ctx: WizardContext) =>
       });
     }
     const groups = yield* ctx.api.androidBuildCredentials.list({
-      path: { applicationIdentifierId: app.id },
+      params: { applicationIdentifierId: app.id },
     });
     const group = groups.items.find((entry) => entry.isDefault) ?? groups.items.at(0);
     if (group === undefined) {
@@ -208,7 +207,7 @@ const bindFcmV1Gsa = (ctx: WizardContext) =>
       })),
     );
     yield* ctx.api.androidBuildCredentials.update({
-      path: { id: group.id },
+      params: { id: group.id },
       payload: { googleServiceAccountKeyForFcmV1Id: gsaKeyId },
     });
     yield* Console.log(
@@ -229,7 +228,7 @@ const unbindFcmV1Gsa = (ctx: WizardContext) =>
       return yield* Console.log(`No FCM V1 GSA key bound to ${applicationIdentifier}.`);
     }
     yield* ctx.api.androidBuildCredentials.update({
-      path: { id: group.id },
+      params: { id: group.id },
       payload: { googleServiceAccountKeyForFcmV1Id: null },
     });
     yield* Console.log(`Unbound FCM V1 GSA key from ${applicationIdentifier}.`);

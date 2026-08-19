@@ -10,7 +10,10 @@ export const toChecksumSha256Base64 = (checksums: unknown): string | null => {
   return sha256 instanceof Uint8Array || sha256 instanceof ArrayBuffer ? toBase64(sha256) : null;
 };
 
-const R2_RETRY_POLICY = Schedule.spaced("500 millis").pipe(Schedule.compose(Schedule.recurs(4)));
+// v4 replaced `Schedule.compose` with `Schedule.max`, which recurs only while
+// EVERY schedule still recurs and waits the longest of their delays: at most 4
+// retries, 500 ms apart (`recurs` itself has no delay).
+const R2_RETRY_POLICY = Schedule.max([Schedule.spaced("500 millis"), Schedule.recurs(4)]);
 
 export const r2Operation = <Success>(operation: () => Promise<Success>): Effect.Effect<Success> =>
   Effect.tryPromise(operation).pipe(Effect.retry(R2_RETRY_POLICY), Effect.orDie);
@@ -22,4 +25,4 @@ export const withR2Compensation = <Success, Failure, Requirements>(
   compensate: Effect.Effect<void>,
   effect: Effect.Effect<Success, Failure, Requirements>,
 ): Effect.Effect<Success, Failure, Requirements> =>
-  effect.pipe(Effect.tapErrorCause(() => compensate.pipe(Effect.ignore)));
+  effect.pipe(Effect.tapCause(() => compensate.pipe(Effect.ignore)));

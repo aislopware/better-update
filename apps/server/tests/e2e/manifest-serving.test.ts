@@ -149,7 +149,7 @@ beforeAll(async () => {
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-const manifestGet = (projectId: string, headers: Record<string, string>) =>
+const manifestGet = async (projectId: string, headers: Record<string, string>) =>
   get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (overrides?: Record<string, string>) => ({
@@ -167,8 +167,8 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): MultipartPart[] => {
-  const boundaryMatch = /boundary=([^\s;]+)/.exec(contentType);
-  const boundary = boundaryMatch?.[1] ?? "";
+  const boundaryMatch = /boundary=(?<boundary>[^\s;]+)/u.exec(contentType);
+  const boundary = boundaryMatch?.groups?.["boundary"] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)
@@ -252,7 +252,8 @@ describe("Manifest serving protocol", () => {
     expect(manifest.launchAsset.key).toBe("bundle");
     expect(manifest.launchAsset.contentType).toBe("application/javascript");
     expect(manifest.launchAsset.url).toBe(
-      `${process.env["PUBLIC_API_URL"]}/manifest/proj-1/bundle/update-ios/abc123hash`,
+      // eslint-disable-next-line node/no-process-env -- asserts the URL the worker built from the same var
+      `${process.env.PUBLIC_API_URL}/manifest/proj-1/bundle/update-ios/abc123hash`,
     );
 
     // Regular assets (non-launch)
@@ -260,7 +261,8 @@ describe("Manifest serving protocol", () => {
     expect(manifest.assets[0].hash).toBe("img456hash");
     expect(manifest.assets[0].key).toBe("logo.png");
     expect(manifest.assets[0].fileExtension).toBe(".png");
-    expect(manifest.assets[0].url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/img456hash`);
+    // eslint-disable-next-line node/no-process-env -- asserts the URL the worker built from the same var
+    expect(manifest.assets[0].url).toBe(`${process.env.ASSET_CDN_URL}/assets/img456hash`);
 
     // Server serves extra verbatim and NEVER injects scopeKey itself — extra.scopeKey
     // is added by the CLI at publish time. This test publishes via the API with a
@@ -565,15 +567,15 @@ describe("Manifest caching", () => {
     expect(unsigned.status).toBe(200);
     const unsignedBody = await unsigned.text();
     const unsignedParts = parseMultipart(unsigned.headers.get("content-type")!, unsignedBody);
-    const unsignedManifest = unsignedParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
+    const unsignedManifest = unsignedParts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
     );
     expect(unsignedManifest).toBeDefined();
     // Unsigned response should NOT have expo-signature on the manifest part
     expect(unsignedManifest!.headers["expo-signature"]).toBeUndefined();
     // Unsigned response should NOT have certificate_chain part
-    const unsignedCert = unsignedParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="certificate_chain"'),
+    const unsignedCert = unsignedParts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="certificate_chain"'),
     );
     expect(unsignedCert).toBeUndefined();
 
@@ -588,15 +590,15 @@ describe("Manifest caching", () => {
     expect(signed.status).toBe(200);
     const signedBody = await signed.text();
     const signedParts = parseMultipart(signed.headers.get("content-type")!, signedBody);
-    const signedManifest = signedParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
+    const signedManifest = signedParts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
     );
     expect(signedManifest).toBeDefined();
     // Signed response MUST have expo-signature on the manifest part
     expect(signedManifest!.headers["expo-signature"]).toBe("sig=test-signature");
     // Signed response MUST have certificate_chain part
-    const signedCert = signedParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="certificate_chain"'),
+    const signedCert = signedParts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="certificate_chain"'),
     );
     expect(signedCert).toBeDefined();
     expect(signedCert!.body).toContain("BEGIN CERTIFICATE");

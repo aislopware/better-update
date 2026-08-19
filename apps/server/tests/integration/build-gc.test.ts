@@ -1,4 +1,5 @@
-import { env } from "cloudflare:test";
+/* eslint-disable no-await-in-loop -- fixture rows are seeded serially so the build → artifact → blob chain exists before the next iteration writes. */
+import { env } from "cloudflare:workers";
 
 import { handleBuildGc } from "../../src/handlers/build-gc";
 
@@ -19,21 +20,21 @@ import { handleBuildGc } from "../../src/handlers/build-gc";
 // the build_artifacts row. The `builds` row is NEVER deleted — only the
 // build_artifacts row + the R2 blob.
 
-const insertProject = (id: string, orgId: string, slug: string) =>
+const insertProject = async (id: string, orgId: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, 'GC Project', ?, '2020-01-01T00:00:00.000Z')`,
   )
     .bind(id, orgId, slug)
     .run();
 
-const insertOrg = (id: string, slug: string) =>
+const insertOrg = async (id: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, 'GC Org', ?, '2020-01-01')`,
   )
     .bind(id, slug)
     .run();
 
-const insertBuild = (params: {
+const insertBuild = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly profile: string;
@@ -54,21 +55,26 @@ const insertBuild = (params: {
     )
     .run();
 
-const insertArtifact = (buildId: string, r2Key: string, createdAt: string, format = "tar.gz") =>
+const insertArtifact = async (
+  buildId: string,
+  r2Key: string,
+  createdAt: string,
+  format = "tar.gz",
+) =>
   env.DB.prepare(
     `INSERT INTO "build_artifacts" ("build_id", "r2_key", "format", "content_type", "byte_size", "sha256", "created_at") VALUES (?, ?, ?, 'application/octet-stream', 1024, ?, ?)`,
   )
     .bind(buildId, r2Key, format, `sha-${buildId}`, createdAt)
     .run();
 
-const putBlob = (r2Key: string) => env.BUILD_BUCKET.put(r2Key, new Uint8Array([1]));
+const putBlob = async (r2Key: string) => env.BUILD_BUCKET.put(r2Key, new Uint8Array([1]));
 
-const artifactRow = (buildId: string) =>
+const artifactRow = async (buildId: string) =>
   env.DB.prepare(`SELECT "build_id" FROM "build_artifacts" WHERE "build_id" = ?`)
     .bind(buildId)
     .first();
 
-const buildRow = (buildId: string) =>
+const buildRow = async (buildId: string) =>
   env.DB.prepare(`SELECT "id" FROM "builds" WHERE "id" = ?`).bind(buildId).first();
 
 // Beyond every cutoff (prod 90 / preview 30 / dev 7); within every cutoff.
@@ -142,55 +148,40 @@ describe("build-gc reaper (real D1 + R2)", () => {
     await handleBuildGc(env);
 
     // R2 blob deleted from BUILD_BUCKET.
-    expect(await env.BUILD_BUCKET.get(keyProdOld)).toBeNull();
+    await expect(env.BUILD_BUCKET.get(keyProdOld)).resolves.toBeNull();
     // build_artifacts row deleted.
-    expect(await artifactRow(bProdOld)).toBeNull();
+    await expect(artifactRow(bProdOld)).resolves.toBeNull();
     // The builds row itself is NEVER deleted by the reaper — only the artifact + blob.
-    expect(await buildRow(bProdOld), "builds row must survive the reaper").not.toBeNull();
+    await expect(buildRow(bProdOld)).resolves.not.toBeNull();
   });
 
   it("keeps a recent production build (<90d) within retention", async () => {
-    expect(await env.BUILD_BUCKET.get(keyProdRecent)).not.toBeNull();
-    expect(await artifactRow(bProdRecent), "recent build artifact must survive").not.toBeNull();
+    await expect(env.BUILD_BUCKET.get(keyProdRecent)).resolves.not.toBeNull();
+    await expect(artifactRow(bProdRecent)).resolves.not.toBeNull();
   });
 
   it("applies a per-profile cutoff: preview keeps a 14-day-old, development reaps it", async () => {
     // preview retention=30d, so 14d < cutoff is FALSE => kept.
-    expect(await env.BUILD_BUCKET.get(keyPrev14)).not.toBeNull();
-    expect(
-      await artifactRow(bPrev14),
-      "14d-old preview within 30d TTL must survive",
-    ).not.toBeNull();
+    await expect(env.BUILD_BUCKET.get(keyPrev14)).resolves.not.toBeNull();
+    await expect(artifactRow(bPrev14)).resolves.not.toBeNull();
 
     // development retention=7d, so 14d IS beyond cutoff => reaped.
-    expect(await env.BUILD_BUCKET.get(keyDev14)).toBeNull();
-    expect(
-      await artifactRow(bDev14),
-      "14d-old development beyond 7d TTL must be reaped",
-    ).toBeNull();
+    await expect(env.BUILD_BUCKET.get(keyDev14)).resolves.toBeNull();
+    await expect(artifactRow(bDev14)).resolves.toBeNull();
   });
 
   it("never reaps a build with an unrecognized profile, even if ancient", async () => {
     // The handler only iterates ['production','preview','development']; 'staging'
     // is never queried regardless of age.
-    expect(await env.BUILD_BUCKET.get(keyOther)).not.toBeNull();
-    expect(
-      await artifactRow(bOther),
-      "unrecognized-profile build must be untouched",
-    ).not.toBeNull();
+    await expect(env.BUILD_BUCKET.get(keyOther)).resolves.not.toBeNull();
+    await expect(artifactRow(bOther)).resolves.not.toBeNull();
   });
 
   it("batch-reaps many old builds in one profile (covers the iterate batch loop)", async () => {
     // All five old development builds reaped: artifact rows + R2 blobs gone.
     for (let index = 0; index < bDevBatch.length; index += 1) {
-      expect(
-        await env.BUILD_BUCKET.get(keyDevBatch[index]!),
-        `batch blob ${index} must be deleted`,
-      ).toBeNull();
-      expect(
-        await artifactRow(bDevBatch[index]!),
-        `batch artifact row ${index} must be deleted`,
-      ).toBeNull();
+      await expect(env.BUILD_BUCKET.get(keyDevBatch[index]!)).resolves.toBeNull();
+      await expect(artifactRow(bDevBatch[index]!)).resolves.toBeNull();
     }
   });
 
@@ -198,11 +189,11 @@ describe("build-gc reaper (real D1 + R2)", () => {
     await expect(handleBuildGc(env)).resolves.toBeUndefined();
 
     // Already-reaped rows stay gone.
-    expect(await artifactRow(bProdOld)).toBeNull();
-    expect(await artifactRow(bDev14)).toBeNull();
+    await expect(artifactRow(bProdOld)).resolves.toBeNull();
+    await expect(artifactRow(bDev14)).resolves.toBeNull();
     // Within-TTL / kept rows stay present.
-    expect(await artifactRow(bProdRecent)).not.toBeNull();
-    expect(await artifactRow(bPrev14)).not.toBeNull();
-    expect(await artifactRow(bOther)).not.toBeNull();
+    await expect(artifactRow(bProdRecent)).resolves.not.toBeNull();
+    await expect(artifactRow(bPrev14)).resolves.not.toBeNull();
+    await expect(artifactRow(bOther)).resolves.not.toBeNull();
   });
 });

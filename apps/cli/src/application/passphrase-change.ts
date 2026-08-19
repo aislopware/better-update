@@ -4,7 +4,7 @@ import {
   sealAccountKey,
   sealIdentity,
 } from "@better-update/credentials-crypto";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import type { AccountKeyEnvelope } from "@better-update/credentials-crypto";
 
@@ -59,21 +59,24 @@ export const resealAccountKey = (
   newPassphrase: string,
 ): Effect.Effect<AccountResealOutcome> =>
   Effect.gen(function* () {
-    const escrowResult = yield* api.accountKeys.getMe().pipe(Effect.either);
-    if (Either.isLeft(escrowResult)) {
-      return escrowResult.left._tag === "NotFound" ? "absent" : "error";
+    const escrowResult = yield* api.accountKeys.getMe().pipe(Effect.result);
+    if (Result.isFailure(escrowResult)) {
+      return escrowResult.failure._tag === "NotFound" ? "absent" : "error";
     }
     const materialResult = yield* Effect.tryPromise(async () =>
-      openAccountKey({ envelope: escrowToEnvelope(escrowResult.right), passphrase: oldPassphrase }),
-    ).pipe(Effect.either);
-    if (Either.isLeft(materialResult)) {
+      openAccountKey({
+        envelope: escrowToEnvelope(escrowResult.success),
+        passphrase: oldPassphrase,
+      }),
+    ).pipe(Effect.result);
+    if (Result.isFailure(materialResult)) {
       return "passphrase-mismatch";
     }
-    const next = sealAccountKey({ material: materialResult.right, passphrase: newPassphrase });
+    const next = sealAccountKey({ material: materialResult.success, passphrase: newPassphrase });
     const resealResult = yield* api.accountKeys
       .reseal({ payload: { kdfParams: next.kdfParams, salt: next.salt, escrowCt: next.ct } })
-      .pipe(Effect.either);
-    return Either.isLeft(resealResult) ? "error" : "resealed";
+      .pipe(Effect.result);
+    return Result.isFailure(resealResult) ? "error" : "resealed";
   });
 
 /**

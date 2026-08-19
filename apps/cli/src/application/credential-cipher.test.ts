@@ -5,7 +5,7 @@ import {
 } from "@better-update/credentials-crypto";
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { it } from "@effect/vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 
 import type { Identity } from "@better-update/credentials-crypto";
 
@@ -135,7 +135,7 @@ describe("credential cipher", () => {
       // Flip the final byte without bitwise ops (lint bans them in this repo).
       tampered[lastIndex] = 255 - (tampered[lastIndex] ?? 0);
 
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         openFromDownload({
           session,
           credentialType: "push-key",
@@ -149,9 +149,9 @@ describe("credential cipher", () => {
         }),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );
@@ -169,7 +169,7 @@ describe("credential cipher", () => {
         secret: { keystoreBase64: "AAAA", keystorePassword: "p", keyPassword: "k" },
       });
 
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         openFromDownload({
           session,
           credentialType: "keystore",
@@ -183,9 +183,9 @@ describe("credential cipher", () => {
         }),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );

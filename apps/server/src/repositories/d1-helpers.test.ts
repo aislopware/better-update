@@ -1,4 +1,4 @@
-import { Cause, Effect } from "effect";
+import { Cause, Effect, Result } from "effect";
 
 import { Conflict } from "../errors";
 import { D1StatementError, d1RunWithUniqueCheck } from "./d1-helpers";
@@ -34,7 +34,9 @@ describe(d1RunWithUniqueCheck, () => {
       ),
     );
 
-    const [defect] = [...Cause.defects(cause)];
+    // v4 flattened `Cause`: `findDefect` returns the first defect as a `Result`
+    // (success = found) instead of v3's `Cause.defects` iterable.
+    const defect = Result.getOrUndefined(Cause.findDefect(cause));
     expect(defect).toBeInstanceOf(D1StatementError);
     expect((defect as D1StatementError)._tag).toBe("D1StatementError");
   });

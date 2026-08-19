@@ -1,4 +1,3 @@
-import { BuildDebugArtifact } from "@better-update/api";
 import { Effect, Schema } from "effect";
 
 import type {
@@ -63,15 +62,14 @@ const DebugReservationSchema = Schema.Struct({
   checksumSha256Base64: Schema.String,
 });
 
-const toApiDebugArtifact = (model: BuildDebugArtifactModel) =>
-  new BuildDebugArtifact({
-    buildId: model.buildId,
-    type: model.type,
-    contentType: model.contentType,
-    byteSize: model.byteSize,
-    sha256: model.sha256,
-    createdAt: model.createdAt,
-  });
+const toApiDebugArtifact = (model: BuildDebugArtifactModel) => ({
+  buildId: model.buildId,
+  type: model.type,
+  contentType: model.contentType,
+  byteSize: model.byteSize,
+  sha256: model.sha256,
+  createdAt: model.createdAt,
+});
 
 /** Load the build and gate the caller (`build` action on the owning project). */
 const assertBuildAccess = (buildId: string, action: "create" | "read") =>
@@ -88,22 +86,22 @@ const assertBuildAccess = (buildId: string, action: "create" | "read") =>
   });
 
 export const handleReserveDebugArtifact = ({
-  path,
+  params,
   payload,
 }: {
-  readonly path: { readonly id: string };
+  readonly params: { readonly id: string };
   readonly payload: typeof ReserveDebugArtifactBody.Type;
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      const build = yield* assertBuildAccess(path.id, "create");
+      const build = yield* assertBuildAccess(params.id, "create");
       const ctx = yield* CurrentActor;
       const runtime = yield* BuildRuntime;
 
       const r2Key = debugArtifactKey({
         organizationId: ctx.organizationId,
         projectId: build.projectId,
-        buildId: path.id,
+        buildId: params.id,
         type: payload.type,
       });
       const contentType = debugArtifactContentType(payload.type);
@@ -116,7 +114,7 @@ export const handleReserveDebugArtifact = ({
       });
 
       yield* runtime.putReservation({
-        id: debugReservationId(path.id, payload.type),
+        id: debugReservationId(params.id, payload.type),
         value: JSON.stringify({
           r2Key,
           contentType,
@@ -136,18 +134,18 @@ export const handleReserveDebugArtifact = ({
   );
 
 export const handleCompleteDebugArtifact = ({
-  path,
+  params,
   payload,
 }: {
-  readonly path: { readonly id: string };
+  readonly params: { readonly id: string };
   readonly payload: typeof CompleteDebugArtifactBody.Type;
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      const build = yield* assertBuildAccess(path.id, "create");
+      const build = yield* assertBuildAccess(params.id, "create");
       const runtime = yield* BuildRuntime;
 
-      const reservationId = debugReservationId(path.id, payload.type);
+      const reservationId = debugReservationId(params.id, payload.type);
       const reservationJson = yield* runtime.getReservation({ id: reservationId });
       if (!reservationJson) {
         return yield* new NotFound({
@@ -168,7 +166,7 @@ export const handleCompleteDebugArtifact = ({
 
       const repo = yield* DebugArtifactRepo;
       const artifact = yield* repo.upsertBuildArtifact({
-        buildId: path.id,
+        buildId: params.id,
         type: payload.type,
         r2Key: reservation.r2Key,
         contentType: reservation.contentType,
@@ -181,7 +179,7 @@ export const handleCompleteDebugArtifact = ({
       yield* logAudit({
         action: "build.debug_artifact.upload",
         resourceType: "build",
-        resourceId: path.id,
+        resourceId: params.id,
         projectId: build.projectId,
         metadata: { type: payload.type },
       });
@@ -190,29 +188,33 @@ export const handleCompleteDebugArtifact = ({
     }),
   );
 
-export const handleListDebugArtifacts = ({ path }: { readonly path: { readonly id: string } }) =>
+export const handleListDebugArtifacts = ({
+  params,
+}: {
+  readonly params: { readonly id: string };
+}) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertBuildAccess(path.id, "read");
+      yield* assertBuildAccess(params.id, "read");
       const repo = yield* DebugArtifactRepo;
-      const items = yield* repo.listByBuildId({ buildId: path.id });
+      const items = yield* repo.listByBuildId({ buildId: params.id });
       return { items: items.map(toApiDebugArtifact) };
     }),
   );
 
 export const handleGetDebugArtifactDownload = ({
-  path,
+  params,
 }: {
-  readonly path: { readonly id: string; readonly type: typeof ApiDebugArtifactType.Type };
+  readonly params: { readonly id: string; readonly type: typeof ApiDebugArtifactType.Type };
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertBuildAccess(path.id, "read");
+      yield* assertBuildAccess(params.id, "read");
       const repo = yield* DebugArtifactRepo;
-      const artifact = yield* repo.findByBuildIdAndType({ buildId: path.id, type: path.type });
+      const artifact = yield* repo.findByBuildIdAndType({ buildId: params.id, type: params.type });
       if (!artifact) {
         return yield* new NotFound({
-          message: `Build ${path.id} has no ${path.type} debug artifact`,
+          message: `Build ${params.id} has no ${params.type} debug artifact`,
         });
       }
       const runtime = yield* BuildRuntime;
@@ -221,7 +223,7 @@ export const handleGetDebugArtifactDownload = ({
         expiresIn: DOWNLOAD_EXPIRY_SECONDS,
         // Force a save dialog: without this, sourcemaps/mappings render as raw
         // text when the presigned URL is opened in a browser tab.
-        contentDisposition: `attachment; filename="${path.id}-${path.type}.${DEBUG_ARTIFACT_FILE[path.type].ext}"`,
+        contentDisposition: `attachment; filename="${params.id}-${params.type}.${DEBUG_ARTIFACT_FILE[params.type].ext}"`,
       });
       return { url, expiresAt: downloadExpiresAtIso() };
     }),

@@ -1,6 +1,5 @@
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readBuildProfile } from "../lib/build-profile";
@@ -103,7 +102,7 @@ const resolveAndroidTarget = (profile: BuildProfile, appMeta: AppMeta, projectRo
  * will not parse has no app metadata to upload at all.
  */
 const resolveUploadMeta = (params: {
-  readonly projectType: Effect.Effect.Success<ReturnType<typeof detectProjectType>>;
+  readonly projectType: Effect.Success<ReturnType<typeof detectProjectType>>;
   readonly platform: Platform;
   readonly projectRoot: string;
   readonly profile: BuildProfile;

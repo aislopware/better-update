@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import type { CommandExecutor, FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { runEffect } from "../../lib/citty-effect";
 import { FingerprintMismatchError } from "../../lib/exit-codes";
@@ -89,7 +90,7 @@ const fetchBuildRef = (
 ): Effect.Effect<FingerprintRef, FingerprintError> =>
   Effect.gen(function* () {
     const build = yield* api.builds
-      .get({ path: { id } })
+      .get({ params: { id } })
       .pipe(
         Effect.mapError(
           (cause) =>
@@ -110,7 +111,7 @@ const fetchUpdateRef = (
 ): Effect.Effect<FingerprintRef, FingerprintError> =>
   Effect.gen(function* () {
     const update = yield* api.updates
-      .get({ path: { id } })
+      .get({ params: { id } })
       .pipe(
         Effect.mapError(
           (cause) =>
@@ -131,7 +132,7 @@ const localRef = (
 ): Effect.Effect<
   FingerprintRef,
   FingerprintError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   (platform === undefined
     ? runFingerprintFull(projectRoot)
@@ -345,7 +346,7 @@ const resolveSides = ({
 }: ResolveSidesParams): Effect.Effect<
   ResolvedSides,
   FingerprintError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
     const [firstRef, secondRef] = idRefs;

@@ -31,11 +31,11 @@ const CredentialPayloadSchema = Schema.Struct({
   orgId: Schema.String,
   credentialId: Schema.String,
   credentialType: Schema.String,
-  metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-  secret: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  metadata: Schema.Record(Schema.String, Schema.Unknown),
+  secret: Schema.Record(Schema.String, Schema.Unknown),
 });
 
-const decodePayload = Schema.decodeUnknown(CredentialPayloadSchema);
+const decodePayload = Schema.decodeUnknownEffect(CredentialPayloadSchema);
 
 /** The opaque client-encrypted fields the server stores and relays verbatim. */
 export interface EnvelopeFields {

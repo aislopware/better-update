@@ -18,32 +18,32 @@ const provideGcLayer = <Success, Failure>(
     provideCloudflareEnv(program, env),
   );
 
-const processProfileRetention = (profile: string, cutoff: string) =>
-  Effect.iterate(
-    { hasMore: true, totalDeleted: 0 },
-    {
-      while: (state) => state.hasMore,
-      body: (state) =>
-        Effect.gen(function* () {
-          const repo = yield* BuildRepo;
-          const batch = yield* repo.findExpiredArtifactBatch({
-            profile,
-            cutoff,
-            limit: GC_BATCH_SIZE,
-          });
+// One retention batch per round, recursing while rows remain. v4 dropped
+// `Effect.iterate`; self-recursion is the idiomatic replacement and stays
+// stack-safe because `Effect.gen` is trampolined.
+const processProfileRetention = (
+  profile: string,
+  cutoff: string,
+  totalDeleted = 0,
+): Effect.Effect<number, never, BuildRepo | BuildRuntime> =>
+  Effect.gen(function* () {
+    const repo = yield* BuildRepo;
+    const batch = yield* repo.findExpiredArtifactBatch({
+      profile,
+      cutoff,
+      limit: GC_BATCH_SIZE,
+    });
 
-          if (batch.length === 0) {
-            return { hasMore: false, totalDeleted: state.totalDeleted };
-          }
+    if (batch.length === 0) {
+      return totalDeleted;
+    }
 
-          const runtime = yield* BuildRuntime;
-          yield* runtime.deleteObjects({ keys: batch.map((row) => row.r2Key) });
-          yield* repo.deleteArtifactMetadataBatch({ buildIds: batch.map((row) => row.id) });
+    const runtime = yield* BuildRuntime;
+    yield* runtime.deleteObjects({ keys: batch.map((row) => row.r2Key) });
+    yield* repo.deleteArtifactMetadataBatch({ buildIds: batch.map((row) => row.id) });
 
-          return { hasMore: true, totalDeleted: state.totalDeleted + batch.length };
-        }),
-    },
-  ).pipe(Effect.map((state) => state.totalDeleted));
+    return yield* processProfileRetention(profile, cutoff, totalDeleted + batch.length);
+  });
 
 export const handleBuildGc = async (env: Env): Promise<void> => {
   const profiles = [

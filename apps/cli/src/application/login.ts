@@ -1,9 +1,10 @@
-import { Command } from "@effect/platform";
 import { Console, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { createBrowserLoginServer } from "../lib/browser-login";
+import { runExitCode } from "../lib/child-process";
 import { promptPassword } from "../lib/prompts";
 import { ApiClientService } from "../services/api-client";
 import { AuthStore } from "../services/auth-store";
@@ -12,22 +13,22 @@ import { ConfigStore } from "../services/config-store";
 
 const buildOpenBrowserCommand = (platform: NodeJS.Platform, url: string) => {
   if (platform === "darwin") {
-    return Command.make("open", url);
+    return ChildProcess.make("open", [url]);
   }
   if (platform === "win32") {
-    return Command.make("cmd", "/c", "start", "", url);
+    return ChildProcess.make("cmd", ["/c", "start", "", url]);
   }
-  return Command.make("xdg-open", url);
+  return ChildProcess.make("xdg-open", [url]);
 };
 
 const openBrowser = (
   url: string,
-): Effect.Effect<void, never, CliRuntime | CommandExecutor.CommandExecutor> =>
+): Effect.Effect<void, never, CliRuntime | ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
     const command = buildOpenBrowserCommand(runtime.platform, url);
 
-    const opened = yield* Command.exitCode(command).pipe(
+    const opened = yield* runExitCode(command).pipe(
       Effect.map((code) => code === 0),
       Effect.orElseSucceed(() => false),
     );

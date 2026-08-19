@@ -1,5 +1,3 @@
-import type { Context } from "effect";
-
 import { makeManagementWebHandler } from "./app-layer";
 import { createAuth, isGithubEnabled, isGoogleEnabled } from "./auth";
 import { makeCloudflareRequestContext, makeD1Session } from "./cloudflare/context";
@@ -90,12 +88,7 @@ const routeRequest = async (
   // so management-API reads can be served by replicas while staying consistent
   // with this client's own prior writes.
   const session = makeD1Session(env, readD1Bookmark(request));
-  const requestContext = makeCloudflareRequestContext(
-    env,
-    ctx,
-    request,
-    session,
-  ) as Context.Context<never>;
+  const requestContext = makeCloudflareRequestContext(env, ctx, request, session);
 
   // Better Auth handles its own auth routes
   if (url.pathname.startsWith("/api/auth")) {

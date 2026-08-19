@@ -32,7 +32,7 @@ describe("Apple Devices multi-team flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -58,7 +58,7 @@ describe("Apple Devices multi-team flow", () => {
       { cookie: cookies },
     );
     expect(certA.status).toBe(201);
-    teamA = (await certA.json()).appleTeamId;
+    ({ appleTeamId: teamA } = await certA.json());
 
     const certB = await post(
       "/api/apple/distribution-certificates",
@@ -73,11 +73,12 @@ describe("Apple Devices multi-team flow", () => {
       { cookie: cookies },
     );
     expect(certB.status).toBe(201);
-    teamB = (await certB.json()).appleTeamId;
+    ({ appleTeamId: teamB } = await certB.json());
 
     expect(teamA).not.toBe(teamB);
 
-    const teams = await (await get("/api/apple-teams", { cookie: cookies })).json();
+    const getResult = await get("/api/apple-teams", { cookie: cookies });
+    const teams = await getResult.json();
     expect(teams.items).toHaveLength(2);
   });
 
@@ -132,21 +133,21 @@ describe("Apple Devices multi-team flow", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(404);
-    const body = (await res.json()) as { message: string };
+    const body = await res.json<{ message: string }>();
     expect(body.message).toContain("Apple team");
   });
 
   it("lists all devices without a team filter", async () => {
     const res = await get("/api/devices", { cookie: cookies });
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as DeviceItem[];
+    const { items } = await res.json<{ items: DeviceItem[] }>();
     expect(items).toHaveLength(3);
   });
 
   it("filters devices by appleTeamId=A (excludes B + orphan)", async () => {
     const res = await get(`/api/devices?appleTeamId=${teamA}`, { cookie: cookies });
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as DeviceItem[];
+    const { items } = await res.json<{ items: DeviceItem[] }>();
     expect(items).toHaveLength(1);
     expect(items[0]?.appleTeamId).toBe(teamA);
     expect(items[0]?.identifier).toBe("00008030-001c45663c90802e");
@@ -155,7 +156,7 @@ describe("Apple Devices multi-team flow", () => {
   it("filters devices by appleTeamId=B (excludes A + orphan)", async () => {
     const res = await get(`/api/devices?appleTeamId=${teamB}`, { cookie: cookies });
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as DeviceItem[];
+    const { items } = await res.json<{ items: DeviceItem[] }>();
     expect(items).toHaveLength(1);
     expect(items[0]?.appleTeamId).toBe(teamB);
   });
@@ -163,11 +164,13 @@ describe("Apple Devices multi-team flow", () => {
   it("reports device counts per team on /api/apple-teams", async () => {
     const res = await get("/api/apple-teams", { cookie: cookies });
     expect(res.status).toBe(200);
-    const teams = (await res.json()).items as Array<{
-      id: string;
-      appleTeamId: string;
-      deviceCount: number;
-    }>;
+    const { items: teams } = await res.json<{
+      items: {
+        id: string;
+        appleTeamId: string;
+        deviceCount: number;
+      }[];
+    }>();
     const alpha = teams.find((team) => team.id === teamA);
     const bravo = teams.find((team) => team.id === teamB);
     expect(alpha?.deviceCount).toBe(1);

@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect, Layer } from "effect";
 
 import { reconcileVaultRecipients } from "../../../src/application/reconcile-vault-recipients";
@@ -23,54 +23,54 @@ const REPOS = Layer.mergeAll(
   ProjectMemberRepoLive,
 );
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, never>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, Layer.Success<typeof REPOS>>) =>
   runWithLayerAndEnv(effect, REPOS, env);
 
 const ORG = "rec-org";
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2026-01-01T00:00:00Z")
     .run();
 
-const insertUser = (id: string) =>
+const insertUser = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "user" ("id", "name", "email", "email_verified", "created_at", "updated_at") VALUES (?, ?, ?, 1, ?, ?)`,
   )
     .bind(id, `User ${id}`, `${id}@example.com`, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
     .run();
 
-const insertMember = (id: string, userId: string, role: string) =>
+const insertMember = async (id: string, userId: string, role: string) =>
   env.DB.prepare(
     `INSERT INTO "member" ("id", "organization_id", "user_id", "role", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, ORG, userId, role, "2026-01-01T00:00:00Z")
     .run();
 
-const insertDeviceKey = (id: string, userId: string) =>
+const insertDeviceKey = async (id: string, userId: string) =>
   env.DB.prepare(
     `INSERT INTO "user_encryption_keys" ("id", "user_id", "organization_id", "kind", "public_key", "label", "fingerprint", "created_at") VALUES (?, ?, NULL, 'device', ?, ?, ?, ?)`,
   )
     .bind(id, userId, `age1${id}`, `Key ${id}`, `SHA256:${id}`, "2026-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string) =>
+const insertProject = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, '2026-01-01T00:00:00Z')`,
   )
     .bind(id, ORG, `Project ${id}`, `${id}-slug`)
     .run();
 
-const insertProjectMember = (projectId: string, memberId: string, role: string) =>
+const insertProjectMember = async (projectId: string, memberId: string, role: string) =>
   env.DB.prepare(
     `INSERT INTO "project_member" ("id", "organization_id", "project_id", "principal_type", "principal_id", "role", "created_at") VALUES (?, ?, ?, 'member', ?, ?, '2026-01-01T00:00:00Z')`,
   )
     .bind(`pm-${projectId}-${memberId}`, ORG, projectId, memberId, role)
     .run();
 
-const insertOrgKey = (id: string) =>
+const insertOrgKey = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "user_encryption_keys" ("id", "user_id", "organization_id", "kind", "public_key", "label", "fingerprint", "created_at") VALUES (?, NULL, ?, 'recovery', ?, ?, ?, ?)`,
   )
@@ -79,11 +79,11 @@ const insertOrgKey = (id: string) =>
 
 const countWraps = async (userEncryptionKeyId: string) => {
   const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "user_encryption_key_id" = ?`,
+    `SELECT COUNT(*) AS total FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "user_encryption_key_id" = ?`,
   )
     .bind(ORG, userEncryptionKeyId)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .first<{ total: number }>();
+  return row?.total ?? 0;
 };
 
 beforeAll(async () => {
@@ -150,19 +150,23 @@ describe("reconcileVaultRecipients — D1 integration", () => {
 
     // Dropped: the reporter-only member, the row-less member, and the
     // no-longer-a-member user.
-    expect([...dropped].sort()).toEqual(["rec-u-gone", "rec-u-reporter", "rec-u-viewer"]);
+    expect([...dropped].toSorted((left, right) => left.localeCompare(right))).toStrictEqual([
+      "rec-u-gone",
+      "rec-u-reporter",
+      "rec-u-viewer",
+    ]);
 
     // Their wraps are gone.
-    expect(await countWraps("rec-dk-reporter")).toBe(0);
-    expect(await countWraps("rec-dk-viewer")).toBe(0);
-    expect(await countWraps("rec-dk-gone")).toBe(0);
+    await expect(countWraps("rec-dk-reporter")).resolves.toBe(0);
+    await expect(countWraps("rec-dk-viewer")).resolves.toBe(0);
+    await expect(countWraps("rec-dk-gone")).resolves.toBe(0);
 
     // Kept: owner (root bypass), org admin, the developer-on-a-project member
     // (vault participant), and the org recovery key.
-    expect(await countWraps("rec-dk-owner")).toBe(1);
-    expect(await countWraps("rec-dk-dev")).toBe(1);
-    expect(await countWraps("rec-dk-projdev")).toBe(1);
-    expect(await countWraps("rec-r")).toBe(1);
+    await expect(countWraps("rec-dk-owner")).resolves.toBe(1);
+    await expect(countWraps("rec-dk-dev")).resolves.toBe(1);
+    await expect(countWraps("rec-dk-projdev")).resolves.toBe(1);
+    await expect(countWraps("rec-r")).resolves.toBe(1);
 
     // A recipient was dropped → the vault is flagged for rotation.
     const vault = await run(
@@ -179,6 +183,6 @@ describe("reconcileVaultRecipients — D1 integration", () => {
     const dropped = await run(
       reconcileVaultRecipients({ organizationId: ORG, reason: "downgrade-test-2" }),
     );
-    expect(dropped).toEqual([]);
+    expect(dropped).toStrictEqual([]);
   });
 });

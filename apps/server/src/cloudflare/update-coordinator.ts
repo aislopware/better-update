@@ -29,10 +29,10 @@ export interface UpdateCoordinatorService {
   }) => Effect.Effect<PublishUpdateResult<readonly SerializedUpdate[]>>;
 }
 
-export class UpdateCoordinator extends Context.Tag("server/UpdateCoordinator")<
+export class UpdateCoordinator extends Context.Service<
   UpdateCoordinator,
   UpdateCoordinatorService
->() {}
+>()("server/UpdateCoordinator") {}
 
 export const UpdateCoordinatorLive = Layer.succeed(UpdateCoordinator, {
   ensureBranchChannel: (params) =>

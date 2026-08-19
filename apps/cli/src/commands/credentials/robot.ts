@@ -94,7 +94,7 @@ const resolveProjectId = (flag: string | undefined) => {
  * beyond the first 100 projects) simply fall back to the raw project id.
  */
 const projectNamesById = (api: ApiClient) =>
-  api.projects.list({ urlParams: { page: 1, limit: 100, sort: "lastActivityAt" } }).pipe(
+  api.projects.list({ query: { page: 1, limit: 100, sort: "lastActivityAt" } }).pipe(
     Effect.map((result) => new Map(result.items.map((project) => [project.id, project.name]))),
     Effect.orElseSucceed(() => new Map<string, string>()),
   );
@@ -189,7 +189,7 @@ const createCommand = defineCommand({
                 }),
               ),
               Effect.as(true),
-              Effect.catchAll((error) =>
+              Effect.catch((error) =>
                 printHuman(
                   `⚠ Registered but not granted: ${formatCause(error)}\n` +
                     `  An org admin can grant it later: better-update credentials access grant ${robot.account.id}`,
@@ -217,7 +217,7 @@ const createCommand = defineCommand({
                 // consumer only receives the one-time bundle from the return
                 // value. Any failure (missing key, stale env version, API
                 // error) degrades to a warning + the grant-env hand-off.
-                Effect.catchAll((error) =>
+                Effect.catch((error) =>
                   printHuman(
                     `⚠ Env vault not granted: ${formatCause(error)}\n` +
                       `  An admin can grant it later: better-update credentials robot grant-env ${robot.account.id}`,
@@ -252,7 +252,7 @@ const listCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list({ urlParams: {} });
+        const { items } = yield* api["robot-accounts"].list({ query: {} });
         const projectNames = yield* projectNamesById(api);
         // "Vault identity" (not "access"): a registered identity may not have
         // been GRANTED the vault yet — actual membership is `credentials access list`.
@@ -384,7 +384,7 @@ const revokeCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list({ urlParams: {} });
+        const { items } = yield* api["robot-accounts"].list({ query: {} });
         const robot = items.find((item) => item.id === args.id);
         if (robot === undefined) {
           return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
@@ -423,7 +423,7 @@ const revokeCommand = defineCommand({
             ? yield* revokeRobotEnvAccess(api, robot.userEncryptionKeyId)
             : false;
 
-        yield* api["robot-accounts"].revoke({ path: { id: args.id } });
+        yield* api["robot-accounts"].revoke({ params: { id: args.id } });
         yield* printHuman(`Revoked robot account ${robot.name} (${robot.id}).`);
         return { revoked: true, id: robot.id, vaultRevoked, envRevoked };
       }),
@@ -444,7 +444,7 @@ const grantEnvCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list({ urlParams: {} });
+        const { items } = yield* api["robot-accounts"].list({ query: {} });
         const robot = items.find((item) => item.id === args.id);
         if (robot === undefined) {
           return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });

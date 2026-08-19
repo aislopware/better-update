@@ -1,7 +1,6 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { FileSystem, Console, Effect } from "effect";
 
 /**
  * Project-scoped build cache directories to remove when --clear-cache is passed.

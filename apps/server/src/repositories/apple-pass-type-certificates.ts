@@ -52,10 +52,10 @@ export interface ApplePassTypeCertificateRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class ApplePassTypeCertificateRepo extends Context.Tag("api/ApplePassTypeCertificateRepo")<
+export class ApplePassTypeCertificateRepo extends Context.Service<
   ApplePassTypeCertificateRepo,
   ApplePassTypeCertificateRepository
->() {}
+>()("api/ApplePassTypeCertificateRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

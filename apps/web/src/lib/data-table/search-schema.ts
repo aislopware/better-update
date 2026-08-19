@@ -1,4 +1,3 @@
-/* eslint-disable promise/prefer-await-to-then -- zod's .catch() is a sync schema fallback, not a Promise handler */
 import { z } from "zod";
 
 export const pageParam = () => z.coerce.number().int().min(1).catch(1).default(1);

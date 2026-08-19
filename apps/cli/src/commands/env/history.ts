@@ -28,7 +28,7 @@ export const historyCommand = defineCommand({
         const api = yield* apiClient;
 
         const match = yield* findProjectEnvVar(api, projectId, args.key, environment);
-        const { items } = yield* api["env-vars"].revisions({ path: { id: match.id } });
+        const { items } = yield* api["env-vars"].revisions({ params: { id: match.id } });
 
         yield* printList(
           ["Revision", "Active", "Vault", "Created", "By"],

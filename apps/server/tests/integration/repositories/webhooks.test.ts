@@ -1,18 +1,22 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { WebhookRepo, WebhookRepoLive } from "../../../src/repositories/webhooks";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, WebhookRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, WebhookRepo>) =>
   runWithLayerAndEnv(effect, WebhookRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, WebhookRepo>) =>
-  runEitherWithLayerAndEnv(effect, WebhookRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, WebhookRepo>) =>
+  runResultWithLayerAndEnv(effect, WebhookRepoLive, env);
 
-const insertWebhook = (id: string, orgId: string, opts?: { enabled?: number; events?: string }) =>
+const insertWebhook = async (
+  id: string,
+  orgId: string,
+  opts?: { enabled?: number; events?: string },
+) =>
   env.DB.prepare(
     `INSERT INTO "webhooks" ("id", "organization_id", "project_id", "name", "url", "secret", "events", "enabled", "created_at", "updated_at") VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
   )
@@ -76,7 +80,7 @@ describe("WebhookRepo — D1 integration (Kysely + session)", () => {
       }),
     );
     expect(list.length).toBeGreaterThanOrEqual(2);
-    expect(list.every((w) => w.organizationId === "wh-org")).toBe(true);
+    expect(list.every((webhook) => webhook.organizationId === "wh-org")).toBe(true);
   });
 
   it("findById returns the mapped model", async () => {
@@ -95,15 +99,15 @@ describe("WebhookRepo — D1 integration (Kysely + session)", () => {
   });
 
   it("findById fails with NotFound for an unknown id", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* WebhookRepo;
         return yield* repo.findById({ id: "wh-missing" });
       }),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -129,7 +133,7 @@ describe("WebhookRepo — D1 integration (Kysely + session)", () => {
         return yield* repo.delete({ id: "wh-2", organizationId: "wh-org" });
       }),
     );
-    expect(result).toEqual({ deleted: 1 });
+    expect(result).toStrictEqual({ deleted: 1 });
     const row = await env.DB.prepare(`SELECT "id" FROM "webhooks" WHERE "id" = ?`)
       .bind("wh-2")
       .first();

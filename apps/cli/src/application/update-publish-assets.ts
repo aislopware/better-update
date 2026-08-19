@@ -2,7 +2,7 @@ import { fromHex, toBase64Url } from "@better-update/encoding";
 import { Effect } from "effect";
 import { uniqBy } from "es-toolkit";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { readExpoExportAssets } from "../lib/expo-export";
 import { sha256File, sha256Namespaced } from "../lib/sha256";

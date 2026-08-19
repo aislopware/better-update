@@ -24,7 +24,7 @@ export const insightsCommand = defineCommand({
         const api = yield* apiClient;
 
         const allUpdates = yield* drainPages((page) =>
-          api.updates.list({ urlParams: { projectId, limit: 100, page } }),
+          api.updates.list({ query: { projectId, limit: 100, page } }),
         );
         const inGroup = allUpdates.filter((update) => update.groupId === args.groupId);
         if (inGroup.length === 0) {
@@ -39,7 +39,7 @@ export const insightsCommand = defineCommand({
           (update) =>
             api.analytics
               .updates({
-                urlParams: { projectId, updateId: update.id, ...periodFilter },
+                query: { projectId, updateId: update.id, ...periodFilter },
               })
               .pipe(Effect.map((result) => ({ update, result }))),
           { concurrency: 4 },

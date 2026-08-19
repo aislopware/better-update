@@ -1,6 +1,6 @@
 import { fromBase64, fromBase64Url, toBase64, toBase64Url } from "@better-update/encoding";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { uniq } from "es-toolkit";
 
 import { ManagementApi } from "../api";
@@ -260,7 +260,7 @@ const handlePatchUpload = ({
     }),
   );
 
-const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) =>
+const handleFinalize = ({ params }: { readonly params: { readonly hash: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
       // Assets are content-addressed (no project on the row), so finalize has no
@@ -272,7 +272,7 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
 
       const repo = yield* AssetRepo;
       const storage = yield* AssetStorage;
-      const asset = yield* repo.findByHash({ hash: path.hash });
+      const asset = yield* repo.findByHash({ hash: params.hash });
 
       if (!asset) {
         return yield* new NotFound({ message: "Asset not registered" });

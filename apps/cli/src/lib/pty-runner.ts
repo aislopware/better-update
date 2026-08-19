@@ -166,7 +166,7 @@ const runInPtyWithStream = (
   input: PtyRunInput,
   logStream: NodeJS.WriteStream,
 ): Effect.Effect<number> =>
-  Effect.async<number>((resume) => {
+  Effect.callback<number>((resume) => {
     const spawned = trySpawn(input);
     if (spawned instanceof Error) {
       process.stderr.write(`Failed to spawn "${input.command}" in pty: ${spawned.message}\n`);

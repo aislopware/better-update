@@ -1,6 +1,6 @@
-import { FetchHttpClient } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { Layer } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 
 import { makeInteractiveModeLayer } from "./lib/interactive-mode";
 import { makeOutputModeLayer } from "./lib/output-mode";
@@ -21,7 +21,7 @@ import { UpdateAssetUploaderLive } from "./services/update-asset-uploader";
 import { VaultCacheLive } from "./services/vault-cache";
 import { VersionCheckLive } from "./services/version-check";
 
-const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, NodeContext.layer, FetchHttpClient.layer);
+const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, NodeServices.layer, FetchHttpClient.layer);
 const CliStoreLayer = Layer.mergeAll(
   AuthStoreLive,
   ConfigStoreLive,

@@ -55,23 +55,23 @@ const buildApi = (existing: readonly ExistingConfig[], captured: Captured[]): Ap
           })),
         }),
       create: ({
-        path,
+        params,
         payload,
       }: {
-        readonly path: { readonly projectId: string };
+        readonly params: { readonly projectId: string };
         readonly payload: CapturedPayload;
       }) => {
-        captured.push({ type: "create", projectId: path.projectId, payload });
+        captured.push({ type: "create", projectId: params.projectId, payload });
         return Effect.succeed({});
       },
       update: ({
-        path,
+        params,
         payload,
       }: {
-        readonly path: { readonly id: string };
+        readonly params: { readonly id: string };
         readonly payload: CapturedPayload;
       }) => {
-        captured.push({ type: "update", id: path.id, payload });
+        captured.push({ type: "update", id: params.id, payload });
         return Effect.succeed({});
       },
     },

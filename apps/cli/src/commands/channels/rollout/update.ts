@@ -19,7 +19,7 @@ export const updateCommand = defineCommand({
         const percentage = yield* parseRolloutPercentage(args.percentage, "percentage");
         const api = yield* apiClient;
         const channel = yield* api.channels.updateBranchRollout({
-          path: { id: args.channelId },
+          params: { id: args.channelId },
           payload: { percentage },
         });
 

@@ -113,8 +113,8 @@ const makeLineReporter = (
     return {
       start: (totalBytes) =>
         Ref.set(counter, { uploaded: 0, total: totalBytes }).pipe(
-          Effect.zipRight(Ref.set(lastStep, 0)),
-          Effect.zipRight(provideMode(printHuman(formatUploadProgressLine(label, 0, totalBytes)))),
+          Effect.andThen(Ref.set(lastStep, 0)),
+          Effect.andThen(provideMode(printHuman(formatUploadProgressLine(label, 0, totalBytes)))),
         ),
       advance: (deltaBytes) =>
         Effect.gen(function* () {

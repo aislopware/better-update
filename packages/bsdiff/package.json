@@ -33,7 +33,7 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@napi-rs/cli": "^3.8.2"
+    "@napi-rs/cli": "^3.8.6"
   },
   "optionalDependencies": {
     "@better-update/bsdiff-darwin-arm64": "0.2.25",

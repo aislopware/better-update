@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop -- entries are created serially so the audit log's cursor order is deterministic. */
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-audit-logs");
@@ -57,7 +58,7 @@ describe("Audit Logs API flow", () => {
     expect(Array.isArray(body.items)).toBe(true);
     expect(body.items.length).toBeGreaterThanOrEqual(1);
 
-    const item = body.items[0];
+    const [item] = body.items;
     expect(item).toHaveProperty("id");
     expect(item).toHaveProperty("organizationId");
     expect(item).toHaveProperty("actorEmail");
@@ -102,10 +103,10 @@ describe("Audit Logs API flow", () => {
 
   it("paginates via cursor across multiple pages without overlap", async () => {
     // Generate enough rows to span 2 pages: create extra projects (each emits an audit log).
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       const created = await post(
         "/api/projects",
-        { name: `Audit Extra ${i}`, slug: `audit-extra-${i}` },
+        { name: `Audit Extra ${index}`, slug: `audit-extra-${index}` },
         { cookie: cookies },
       );
       expect(created.status).toBe(201);
@@ -115,7 +116,7 @@ describe("Audit Logs API flow", () => {
     expect(firstResponse.status).toBe(200);
     const firstBody = await firstResponse.json();
     expect(firstBody.items).toHaveLength(2);
-    expect(firstBody.nextCursor).toBeTruthy();
+    expect(firstBody.nextCursor).toMatch(/./u);
 
     const secondResponse = await get(
       `/api/audit-logs?limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
@@ -126,7 +127,7 @@ describe("Audit Logs API flow", () => {
     expect(secondBody.items.length).toBeGreaterThanOrEqual(1);
 
     // No id overlap between pages
-    const firstIds = new Set(firstBody.items.map((i: { id: string }) => i.id));
+    const firstIds = new Set(firstBody.items.map((item: { id: string }) => item.id));
     for (const item of secondBody.items) {
       expect(firstIds.has(item.id)).toBe(false);
     }
@@ -134,7 +135,10 @@ describe("Audit Logs API flow", () => {
     // Stable order: every second-page createdAt should be ≤ last item of first page
     const lastFirstAt = firstBody.items.at(-1).createdAt;
     for (const item of secondBody.items) {
-      expect(item.createdAt <= lastFirstAt).toBe(true);
+      // ISO-8601 sorts lexicographically, so a plain string compare is the
+      // chronological one — the numeric matchers reject a string subject.
+      const notNewerThanPreviousPage = item.createdAt <= lastFirstAt;
+      expect(notNewerThanPreviousPage).toBe(true);
     }
   });
 
@@ -173,9 +177,10 @@ describe("Audit Logs API flow", () => {
     expect(orgResponse.status).toBe(200);
     attackerCookies = parseCookies(orgResponse) || attackerCookies;
 
+    const { id: attackerOrgId } = await orgResponse.json();
     const setActive = await post(
       "/api/auth/organization/set-active",
-      { organizationId: (await orgResponse.json()).id },
+      { organizationId: attackerOrgId },
       { cookie: attackerCookies },
     );
     expect(setActive.status).toBe(200);

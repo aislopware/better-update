@@ -71,65 +71,67 @@ export const pollFileDelivery = (params: {
   readonly token: AppleUtils.Token;
   readonly fetchFn: FetchFn;
   readonly fileId: string;
-}) =>
+}) => pollFileDeliveryRound(params, Date.now() + FILE_POLL_TIMEOUT_MS, 0);
+
+// One delivery-state probe, recursing until the file lands or the deadline
+// passes. v4 dropped `Effect.iterate`; self-recursion is the idiomatic
+// replacement and stays stack-safe because `Effect.gen` is trampolined.
+const pollFileDeliveryRound = (
+  params: {
+    readonly token: AppleUtils.Token;
+    readonly fetchFn: FetchFn;
+    readonly fileId: string;
+  },
+  deadline: number,
+  attempt: number,
+): Effect.Effect<void, AscBuildUploadError> =>
   Effect.gen(function* () {
-    const deadline = Date.now() + FILE_POLL_TIMEOUT_MS;
-    yield* Effect.iterate(
-      { done: false, attempt: 0 },
-      {
-        while: (state) => !state.done,
-        body: (state) =>
-          Effect.gen(function* () {
-            if (state.attempt > 0) {
-              yield* Effect.sleep(Duration.millis(FILE_POLL_INTERVAL_MS));
-            }
-            // The bytes are already delivered — a transient network/proxy blip
-            // (or an HTML error body) must not fail the submit. Keep polling
-            // until the deadline instead.
-            const polled = yield* Effect.either(
-              requestJson({
-                token: params.token,
-                fetchFn: params.fetchFn,
-                method: "GET",
-                path: `/buildUploadFiles/${params.fileId}?fields[buildUploadFiles]=assetDeliveryState`,
-                step: "Build upload file poll",
-              }).pipe(
-                Effect.flatMap((response) =>
-                  decodeOr(BuildUploadFileResource, response.body, "Build upload file poll"),
-                ),
-              ),
-            );
-            if (polled._tag === "Left") {
-              if (Date.now() > deadline) {
-                return yield* new AscBuildUploadError({
-                  code: "ASC_BUILD_UPLOAD_DELIVERY_TIMEOUT",
-                  message: `Timed out waiting for App Store Connect to acknowledge the uploaded file (${polled.left.message}).`,
-                });
-              }
-              return { done: false, attempt: state.attempt + 1 };
-            }
-            const delivery = polled.right.data.attributes?.assetDeliveryState;
-            const deliveryState = delivery === null ? undefined : delivery?.state;
-            if (deliveryState === "FAILED") {
-              return yield* new AscBuildUploadError({
-                code: "ASC_BUILD_UPLOAD_DELIVERY_FAILED",
-                message: `App Store Connect rejected the uploaded file: ${explainBuildUploadFailure((delivery === null ? undefined : delivery?.errors) ?? [])}`,
-              });
-            }
-            if (isDeliveredFileState(deliveryState)) {
-              return { done: true, attempt: state.attempt + 1 };
-            }
-            if (Date.now() > deadline) {
-              return yield* new AscBuildUploadError({
-                code: "ASC_BUILD_UPLOAD_DELIVERY_TIMEOUT",
-                message:
-                  "Timed out waiting for App Store Connect to acknowledge the uploaded file.",
-              });
-            }
-            return { done: false, attempt: state.attempt + 1 };
-          }),
-      },
+    if (attempt > 0) {
+      yield* Effect.sleep(Duration.millis(FILE_POLL_INTERVAL_MS));
+    }
+    // The bytes are already delivered — a transient network/proxy blip (or an
+    // HTML error body) must not fail the submit. Keep polling until the
+    // deadline instead.
+    const polled = yield* Effect.result(
+      requestJson({
+        token: params.token,
+        fetchFn: params.fetchFn,
+        method: "GET",
+        path: `/buildUploadFiles/${params.fileId}?fields[buildUploadFiles]=assetDeliveryState`,
+        step: "Build upload file poll",
+      }).pipe(
+        Effect.flatMap((response) =>
+          decodeOr(BuildUploadFileResource, response.body, "Build upload file poll"),
+        ),
+      ),
     );
+    if (polled._tag === "Failure") {
+      if (Date.now() > deadline) {
+        return yield* new AscBuildUploadError({
+          code: "ASC_BUILD_UPLOAD_DELIVERY_TIMEOUT",
+          message: `Timed out waiting for App Store Connect to acknowledge the uploaded file (${polled.failure.message}).`,
+        });
+      }
+      return yield* pollFileDeliveryRound(params, deadline, attempt + 1);
+    }
+    const delivery = polled.success.data.attributes?.assetDeliveryState;
+    const deliveryState = delivery === null ? undefined : delivery?.state;
+    if (deliveryState === "FAILED") {
+      return yield* new AscBuildUploadError({
+        code: "ASC_BUILD_UPLOAD_DELIVERY_FAILED",
+        message: `App Store Connect rejected the uploaded file: ${explainBuildUploadFailure((delivery === null ? undefined : delivery?.errors) ?? [])}`,
+      });
+    }
+    if (isDeliveredFileState(deliveryState)) {
+      return;
+    }
+    if (Date.now() > deadline) {
+      return yield* new AscBuildUploadError({
+        code: "ASC_BUILD_UPLOAD_DELIVERY_TIMEOUT",
+        message: "Timed out waiting for App Store Connect to acknowledge the uploaded file.",
+      });
+    }
+    return yield* pollFileDeliveryRound(params, deadline, attempt + 1);
   });
 
 /**
@@ -143,54 +145,56 @@ export const pollBuildUploadState = (params: {
   readonly fetchFn: FetchFn;
   readonly buildUploadId: string;
 }): Effect.Effect<void, AscBuildUploadError, OutputMode> =>
+  pollBuildUploadStateRound(params, Date.now() + BUILD_POLL_TIMEOUT_MS, 0);
+
+// One processing-state probe, recursing (rather than looping via v3's
+// `Effect.iterate`) until the build resolves or the fast-fail window closes.
+const pollBuildUploadStateRound = (
+  params: {
+    readonly token: AppleUtils.Token;
+    readonly fetchFn: FetchFn;
+    readonly buildUploadId: string;
+  },
+  deadline: number,
+  attempt: number,
+): Effect.Effect<void, AscBuildUploadError, OutputMode> =>
   Effect.gen(function* () {
-    const deadline = Date.now() + BUILD_POLL_TIMEOUT_MS;
-    yield* Effect.iterate(
-      { done: false, attempt: 0 },
-      {
-        while: (state) => !state.done,
-        body: (state) =>
-          Effect.gen(function* () {
-            if (state.attempt > 0) {
-              yield* Effect.sleep(Duration.millis(BUILD_POLL_INTERVAL_MS));
-            }
-            // This watch is best-effort fast-fail only — a transient request
-            // failure just keeps polling until the benign deadline branch.
-            const polled = yield* Effect.either(
-              requestJson({
-                token: params.token,
-                fetchFn: params.fetchFn,
-                method: "GET",
-                path: `/buildUploads/${params.buildUploadId}?fields[buildUploads]=state`,
-                step: "Build upload state poll",
-              }).pipe(
-                Effect.flatMap((response) =>
-                  decodeOr(BuildUploadResource, response.body, "Build upload state poll"),
-                ),
-              ),
-            );
-            if (polled._tag === "Left" && Date.now() <= deadline) {
-              return { done: false, attempt: state.attempt + 1 };
-            }
-            const uploadState =
-              polled._tag === "Left" ? undefined : polled.right.data.attributes?.state;
-            if (uploadState?.state === "FAILED") {
-              return yield* new AscBuildUploadError({
-                code: "ASC_BUILD_UPLOAD_PROCESSING_FAILED",
-                message: `App Store Connect rejected the build: ${explainBuildUploadFailure(uploadState.errors ?? [])}`,
-              });
-            }
-            if (uploadState?.state === "COMPLETE") {
-              return { done: true, attempt: state.attempt + 1 };
-            }
-            if (Date.now() > deadline) {
-              yield* printHuman(
-                "App Store Connect is still processing the build (this can take a while; failures are also emailed by Apple).",
-              );
-              return { done: true, attempt: state.attempt + 1 };
-            }
-            return { done: false, attempt: state.attempt + 1 };
-          }),
-      },
+    if (attempt > 0) {
+      yield* Effect.sleep(Duration.millis(BUILD_POLL_INTERVAL_MS));
+    }
+    // This watch is best-effort fast-fail only — a transient request failure
+    // just keeps polling until the benign deadline branch.
+    const polled = yield* Effect.result(
+      requestJson({
+        token: params.token,
+        fetchFn: params.fetchFn,
+        method: "GET",
+        path: `/buildUploads/${params.buildUploadId}?fields[buildUploads]=state`,
+        step: "Build upload state poll",
+      }).pipe(
+        Effect.flatMap((response) =>
+          decodeOr(BuildUploadResource, response.body, "Build upload state poll"),
+        ),
+      ),
     );
+    if (polled._tag === "Failure" && Date.now() <= deadline) {
+      return yield* pollBuildUploadStateRound(params, deadline, attempt + 1);
+    }
+    const uploadState =
+      polled._tag === "Failure" ? undefined : polled.success.data.attributes?.state;
+    if (uploadState?.state === "FAILED") {
+      return yield* new AscBuildUploadError({
+        code: "ASC_BUILD_UPLOAD_PROCESSING_FAILED",
+        message: `App Store Connect rejected the build: ${explainBuildUploadFailure(uploadState.errors ?? [])}`,
+      });
+    }
+    if (uploadState?.state === "COMPLETE") {
+      return;
+    }
+    if (Date.now() > deadline) {
+      return yield* printHuman(
+        "App Store Connect is still processing the build (this can take a while; failures are also emailed by Apple).",
+      );
+    }
+    return yield* pollBuildUploadStateRound(params, deadline, attempt + 1);
   });

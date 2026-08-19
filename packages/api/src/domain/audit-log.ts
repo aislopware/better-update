@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { DateTimeString, Id } from "./common";
 
-export const AuditLogResourceType = Schema.Literal(
+export const AuditLogResourceType = Schema.Literals([
   "project",
   "branch",
   "channel",
@@ -26,13 +26,13 @@ export const AuditLogResourceType = Schema.Literal(
   "invitation",
   "member",
   "organization",
-);
+]);
 
-export type AuditLogResourceType = Schema.Schema.Type<typeof AuditLogResourceType>;
+export type AuditLogResourceType = typeof AuditLogResourceType.Type;
 
-export const AuditLogSource = Schema.Literal("session", "robot");
+export const AuditLogSource = Schema.Literals(["session", "robot"]);
 
-export class AuditLog extends Schema.Class<AuditLog>("AuditLog")({
+export const AuditLog = Schema.Struct({
   id: Id,
   organizationId: Id,
   actorId: Schema.NullOr(Schema.String),
@@ -43,4 +43,5 @@ export class AuditLog extends Schema.Class<AuditLog>("AuditLog")({
   metadata: Schema.NullOr(Schema.String),
   source: AuditLogSource,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AuditLog" });
+export type AuditLog = typeof AuditLog.Type;

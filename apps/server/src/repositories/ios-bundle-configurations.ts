@@ -62,10 +62,10 @@ export interface IosBundleConfigurationRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class IosBundleConfigurationRepo extends Context.Tag("api/IosBundleConfigurationRepo")<
+export class IosBundleConfigurationRepo extends Context.Service<
   IosBundleConfigurationRepo,
   IosBundleConfigurationRepository
->() {}
+>()("api/IosBundleConfigurationRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

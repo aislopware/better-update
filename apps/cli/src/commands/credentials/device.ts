@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
 
@@ -30,8 +30,8 @@ const listCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const active = yield* Effect.either(activeRecipient);
-        const activeKey = Either.isRight(active) ? active.right.publicKey : null;
+        const active = yield* Effect.result(activeRecipient);
+        const activeKey = Result.isSuccess(active) ? active.success.publicKey : null;
         const { items } = yield* api.userEncryptionKeys.list();
         const devices = items.filter((key) => key.kind === "device");
         yield* printList(
@@ -82,7 +82,7 @@ const linkCommand = defineCommand({
         const envLinked = (yield* orgHasCutOver(api))
           ? yield* grantEnvRecipientIdempotent(api, target).pipe(
               Effect.as(true),
-              Effect.catchAll((error) =>
+              Effect.catch((error) =>
                 printHuman(
                   `⚠ Env vault not linked: ${formatCause(error)}\n` +
                     `  Link it later: better-update credentials access grant-env ${target.id}`,

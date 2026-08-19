@@ -68,10 +68,10 @@ export interface AndroidBuildCredentialsRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class AndroidBuildCredentialsRepo extends Context.Tag("api/AndroidBuildCredentialsRepo")<
+export class AndroidBuildCredentialsRepo extends Context.Service<
   AndroidBuildCredentialsRepo,
   AndroidBuildCredentialsRepository
->() {}
+>()("api/AndroidBuildCredentialsRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

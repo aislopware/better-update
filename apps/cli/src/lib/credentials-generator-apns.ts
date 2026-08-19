@@ -1,10 +1,9 @@
 import { compact, toOptional } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 // @expo/apple-utils is ncc-bundled CJS; `import * as` only surfaces `default`/`module.exports`
 // via Node ESM's cjs-module-lexer, so the entity managers + enums (Keys, ...) are read off
 // the default import.
 import AppleUtils from "@expo/apple-utils";
-import { Data, Effect } from "effect";
+import { FileSystem, Data, Effect } from "effect";
 
 import {
   openVaultSessionInteractive,
@@ -109,10 +108,10 @@ export const generateAndUploadApnsKeyViaAppleId = (
     // leaves an orphaned key on Apple that can never be re-downloaded. Rescue the
     // .p8 to disk and tell the user how to re-import it instead of losing it.
     const created = yield* persist.pipe(
-      Effect.catchAll((cause) =>
+      Effect.catch((error) =>
         Effect.gen(function* () {
           const rescuePath = yield* writeRescueP8(key.id, p8Pem).pipe(
-            Effect.catchAll(() => Effect.succeed(null)),
+            Effect.catch(() => Effect.succeed(null)),
           );
           const where =
             rescuePath === null
@@ -120,7 +119,7 @@ export const generateAndUploadApnsKeyViaAppleId = (
               : `was saved to ${rescuePath} — re-import with \`credentials generate push-key --p8 ${rescuePath} --key-id ${key.id} --apple-team-id ${input.appleTeamIdentifier}\``;
           return yield* new AppleIdGenerateFailedError({
             step: "store-apns-key",
-            message: `Created APNs key ${key.id} on Apple but failed to store it (${messageOf(cause)}). The downloaded .p8 ${where}.`,
+            message: `Created APNs key ${key.id} on Apple but failed to store it (${messageOf(error)}). The downloaded .p8 ${where}.`,
           });
         }),
       ),
@@ -198,7 +197,7 @@ export const revokeLocalApnsKey = (api: ApiClient, input: RevokeLocalApnsKeyInpu
       yield* revokeApnsKeyViaAppleId(input.context, input.keyId);
     }
     if (!input.keepLocal) {
-      yield* api.applePushKeys.delete({ path: { id: input.pushKeyId } });
+      yield* api.applePushKeys.delete({ params: { id: input.pushKeyId } });
     }
     return {
       localId: input.pushKeyId,

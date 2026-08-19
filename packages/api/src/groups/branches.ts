@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -12,65 +12,63 @@ import {
 import { idParam, pageResult } from "../domain/common";
 import { Conflict } from "../domain/errors";
 
-export class BranchesGroup extends HttpApiGroup.make("branches")
+export const BranchesGroup = HttpApiGroup.make("branches")
   .add(
-    HttpApiEndpoint.post("create", "/api/branches")
-      .setPayload(CreateBranchBody)
-      .addSuccess(Branch, { status: 201 })
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Create branch",
-          description: "Create a new branch within a project",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.get("list", "/api/branches")
-      .setUrlParams(ListBranchesParams)
-      .addSuccess(pageResult(Branch))
-      .annotateContext(
-        OpenApi.annotations({
-          title: "List branches",
-          description: "List all branches for a project",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.get("get")`/api/branches/${idParam}`.addSuccess(Branch).annotateContext(
+    HttpApiEndpoint.post("create", "/api/branches", {
+      payload: CreateBranchBody,
+      success: Branch.pipe(HttpApiSchema.status(201)),
+      error: [NotFound, Conflict, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Create branch",
+        description: "Create a new branch within a project",
+      }),
+    ),
+    HttpApiEndpoint.get("list", "/api/branches", {
+      query: ListBranchesParams,
+      success: pageResult(Branch),
+      error: [NotFound, Conflict, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "List branches",
+        description: "List all branches for a project",
+      }),
+    ),
+    HttpApiEndpoint.get("get", "/api/branches/:id", {
+      params: { ...idParam },
+      success: Branch,
+      error: [NotFound, Conflict, Forbidden],
+    }).annotateMerge(
       OpenApi.annotations({
         title: "Get branch",
         description: "Fetch a single branch by ID",
       }),
     ),
+    HttpApiEndpoint.patch("rename", "/api/branches/:id", {
+      params: { ...idParam },
+      payload: UpdateBranchBody,
+      success: Branch,
+      error: [Conflict, NotFound, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Rename branch",
+        description: "Rename a branch (channels and updates are unaffected)",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("delete", "/api/branches/:id", {
+      params: { ...idParam },
+      success: DeleteBranchResult,
+      error: [NotFound, Conflict, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Delete branch",
+        description: "Delete a branch and all its updates",
+      }),
+    ),
   )
-  .add(
-    HttpApiEndpoint.patch("rename")`/api/branches/${idParam}`
-      .setPayload(UpdateBranchBody)
-      .addSuccess(Branch)
-      .addError(Conflict)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Rename branch",
-          description: "Rename a branch (channels and updates are unaffected)",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("delete")`/api/branches/${idParam}`
-      .addSuccess(DeleteBranchResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Delete branch",
-          description: "Delete a branch and all its updates",
-        }),
-      ),
-  )
-  .addError(NotFound)
-  .addError(Conflict)
-  .addError(Forbidden)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Branches",
       description: "Branch management endpoints",
     }),
-  ) {}
+  );

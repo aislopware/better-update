@@ -1,6 +1,7 @@
 import { isRecord } from "@better-update/type-guards";
-import { HttpApiBuilder, HttpServerRequest } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpServerRequest } from "effect/unstable/http";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";

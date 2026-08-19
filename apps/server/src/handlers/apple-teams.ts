@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -90,6 +90,6 @@ export const AppleTeamsGroupLive = HttpApiBuilder.group(ManagementApi, "appleTea
         }),
       ),
     )
-    .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
-    .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
+    .handle("protect", ({ params }) => setProtectionEffect(params.id, true))
+    .handle("unprotect", ({ params }) => setProtectionEffect(params.id, false)),
 );

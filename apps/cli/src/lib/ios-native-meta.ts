@@ -3,7 +3,7 @@ import path from "node:path";
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 import type { PBXNativeTarget, XcodeProject } from "xcode";
 
 import { findXcodeProjectDir, parseProject, unquote } from "./xcode-targets";

@@ -3,11 +3,9 @@ import { Schema } from "effect";
 import { BundleIdentifier, DistributionType } from "./apple-provisioning-profile";
 import { DateTimeString, DeletedResult, Id } from "./common";
 
-const TargetName = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200));
+const TargetName = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200));
 
-export class IosBundleConfiguration extends Schema.Class<IosBundleConfiguration>(
-  "IosBundleConfiguration",
-)({
+export const IosBundleConfiguration = Schema.Struct({
   id: Id,
   organizationId: Id,
   projectId: Id,
@@ -22,7 +20,8 @@ export class IosBundleConfiguration extends Schema.Class<IosBundleConfiguration>
   parentBundleIdentifier: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "IosBundleConfiguration" });
+export type IosBundleConfiguration = typeof IosBundleConfiguration.Type;
 
 export const CreateIosBundleConfigurationBody = Schema.Struct({
   bundleIdentifier: BundleIdentifier,

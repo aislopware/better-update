@@ -1,6 +1,8 @@
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import worker from "../../src";
+import { incomingRequest } from "../helpers/incoming-request";
 
 // Workers Cache (wrangler `cache.enabled`) stores any GET/HEAD response whose
 // Cache-Control opts in, so cacheability is a per-route contract enforced at
@@ -16,7 +18,7 @@ const BASE = "http://localhost";
 
 const dispatch = async (path: string, init?: RequestInit): Promise<Response> => {
   const ctx = createExecutionContext();
-  const response = await worker.fetch(new Request(`${BASE}${path}`, init), env, ctx);
+  const response = await worker.fetch(incomingRequest(`${BASE}${path}`, init), env, ctx);
   await waitOnExecutionContext(ctx);
   return response;
 };

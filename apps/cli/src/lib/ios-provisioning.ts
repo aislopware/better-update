@@ -1,12 +1,13 @@
 import os from "node:os";
 import path from "node:path";
 
-import { Command, FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
 import type { Scope } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
+import { runText } from "./child-process";
 import { ProvisioningError } from "./exit-codes";
 import { parsePlistXml } from "./plist";
 
@@ -102,14 +103,14 @@ export const installProvisioningProfile = ({
 }: InstallProvisioningProfileOptions): Effect.Effect<
   InstalledProvisioning,
   ProvisioningError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | Scope.Scope
 > =>
   Effect.acquireRelease(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
 
-      const plistXml = yield* Command.string(
-        Command.make("security", "cms", "-D", "-i", profilePath),
+      const plistXml = yield* runText(
+        ChildProcess.make("security", ["cms", "-D", "-i", profilePath]),
       ).pipe(
         Effect.mapError(
           (cause) =>
@@ -124,10 +125,10 @@ export const installProvisioningProfile = ({
       const installedPath = path.join(targetDir, `${info.uuid}.mobileprovision`);
 
       yield* fs.makeDirectory(targetDir, { recursive: true }).pipe(
-        Effect.catchAll(
-          (cause) =>
+        Effect.catch(
+          (error) =>
             new ProvisioningError({
-              message: `Failed to create provisioning profiles dir: ${String(cause)}`,
+              message: `Failed to create provisioning profiles dir: ${String(error)}`,
             }),
         ),
       );
@@ -145,10 +146,10 @@ export const installProvisioningProfile = ({
       }
 
       yield* fs.copyFile(profilePath, installedPath).pipe(
-        Effect.catchAll(
-          (cause) =>
+        Effect.catch(
+          (error) =>
             new ProvisioningError({
-              message: `Failed to copy provisioning profile into ${installedPath}: ${String(cause)}`,
+              message: `Failed to copy provisioning profile into ${installedPath}: ${String(error)}`,
             }),
         ),
       );
@@ -165,7 +166,7 @@ export const installProvisioningProfile = ({
           return;
         }
         const fs = yield* FileSystem.FileSystem;
-        yield* fs.remove(acquired.installedPath).pipe(Effect.catchAll(() => Effect.void));
+        yield* fs.remove(acquired.installedPath).pipe(Effect.catch(() => Effect.void));
       }),
   ).pipe(
     Effect.map<AcquiredProvisioning, InstalledProvisioning>(

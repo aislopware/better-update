@@ -75,7 +75,7 @@ const interactiveAppleIdCertLimitRecover = (ctx: RequestContext) =>
       { required: true },
     );
     yield* Effect.forEach(toRevoke, (id) => revokeDistributionCert(ctx, id), {
-      concurrency: "inherit",
+      concurrency: "unbounded",
     });
     yield* Console.log(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
     return undefined;
@@ -108,7 +108,7 @@ const apnsKeyLimitRecover = (ctx: RequestContext) =>
       { required: true },
     );
     yield* Effect.forEach(toRevoke, (id) => revokeApnsKeyViaAppleId(ctx, id), {
-      concurrency: "inherit",
+      concurrency: "unbounded",
     });
     yield* Console.log(`Revoked ${toRevoke.length} key(s); retrying creation...`);
     return undefined;
@@ -206,7 +206,7 @@ const offerAscKeyFromSession = (api: ApiClient, ctx: RequestContext, appleTeamId
       "Create an App Store Connect API key from this session and bind it, so future regenerations skip the Apple ID login?",
   }).pipe(
     Effect.map((created) => (created === null ? null : created.id)),
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Console.log(
         `Note: could not create an ASC API key (${messageOf(error)}). Continuing with Apple ID login for future regenerations.`,
       ).pipe(Effect.as(null)),
@@ -316,7 +316,7 @@ export const regenerateProvisioningProfileViaAppleId = (
       yield* Ref.set(options.ascKeyOfferSettled, true);
     }
     yield* api.iosBundleConfigurations.update({
-      path: { id: input.bundleConfigurationId },
+      params: { id: input.bundleConfigurationId },
       payload: {
         appleProvisioningProfileId: created.id,
         ...compact({ ascApiKeyId: toOptional(ascApiKeyId) }),

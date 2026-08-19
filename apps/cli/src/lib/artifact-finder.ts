@@ -1,10 +1,9 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
-import { Effect, Option } from "effect";
+import { FileSystem, Effect, Option } from "effect";
 import { maxBy } from "es-toolkit";
 
-import type { PlatformError } from "@effect/platform/Error";
+import type { PlatformError } from "effect/PlatformError";
 
 import { ArtifactNotFoundError } from "./exit-codes";
 import { capitalize } from "./string-utils";

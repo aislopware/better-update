@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
@@ -213,7 +213,7 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
         }),
       ),
     )
-    .handle("getWrap", ({ path }) =>
+    .handle("getWrap", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertVaultParticipant;
@@ -221,7 +221,7 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
           const vaultRepo = yield* OrgVaultRepo;
           const envRepo = yield* OrgEnvVaultRepo;
 
-          const recipient = yield* resolveEnvRecipient(path);
+          const recipient = yield* resolveEnvRecipient(params);
           const isOwn = isSelfRecipient(recipient, ctx);
           const isOrgKey = recipient.organizationId === ctx.organizationId;
           if (!isOwn && !isOrgKey) {
@@ -235,8 +235,8 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
           const wrap = yield* envRepo.findEnvWrap({
             organizationId: ctx.organizationId,
             envVaultVersion: vault.envVaultVersion,
-            recipientKind: path.recipientKind,
-            recipientId: path.recipientId,
+            recipientKind: params.recipientKind,
+            recipientId: params.recipientId,
           });
           if (wrap === null) {
             return yield* new NotFound({
@@ -252,10 +252,10 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
           const accountRepo = yield* AccountKeyRepo;
           const now = new Date().toISOString();
           const touch =
-            path.recipientKind === "account"
-              ? accountRepo.touchLastUsed({ id: path.recipientId, now })
-              : keyRepo.touchLastUsed({ id: path.recipientId, now });
-          yield* touch.pipe(Effect.catchAllCause(() => Effect.void));
+            params.recipientKind === "account"
+              ? accountRepo.touchLastUsed({ id: params.recipientId, now })
+              : keyRepo.touchLastUsed({ id: params.recipientId, now });
+          yield* touch.pipe(Effect.catchCause(() => Effect.void));
 
           return { envVaultVersion: wrap.envVaultVersion, wrappedKey: wrap.wrappedKey };
         }),

@@ -21,7 +21,7 @@ export const adminUsersQueryOptions = (filters?: AdminUsersFilters) =>
       runApi(
         (api) =>
           api.admin.listUsers({
-            urlParams: compact({
+            query: compact({
               page: filters?.page,
               limit: filters?.limit,
               search: filters?.search,
@@ -34,7 +34,7 @@ export const adminUsersQueryOptions = (filters?: AdminUsersFilters) =>
   });
 
 export const approveUser = async (userId: string) =>
-  runApi((api) => api.admin.approveUser({ path: { userId } }));
+  runApi((api) => api.admin.approveUser({ params: { userId } }));
 
 export const revokeUser = async (userId: string) =>
-  runApi((api) => api.admin.revokeUser({ path: { userId } }));
+  runApi((api) => api.admin.revokeUser({ params: { userId } }));

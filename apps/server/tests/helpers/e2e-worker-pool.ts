@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import worker from "../../src";
+import { incomingRequest } from "./incoming-request";
 
 /**
  * E2E HTTP client backed by `@cloudflare/vitest-pool-workers`: requests are
@@ -29,10 +31,25 @@ import worker from "../../src";
  */
 const BASE = "http://localhost";
 
-const dispatch = async (url: string, init?: RequestInit): Promise<Response> => {
+/**
+ * `Response.json()` is declared `<T>() => Promise<T>` with no default, so every
+ * body these flows read back lands as `unknown`. They assert on the live wire
+ * shape on purpose — importing the server's own schemas would make a black-box
+ * test agree with the code under test by construction — so the boundary is
+ * widened once here rather than cast at each of the ~470 read sites. Passing an
+ * explicit type argument still narrows where a test wants the stricter check.
+ */
+type JsonBody = any;
+
+/** A `Response` whose `json()` defaults to the widened body type above. */
+export interface JsonResponse extends Response {
+  json: <T = JsonBody>() => Promise<T>;
+}
+
+const dispatch = async (url: string, init?: RequestInit): Promise<JsonResponse> => {
   const ctx = createExecutionContext();
   const headers = { origin: BASE, ...(init?.headers as Record<string, string> | undefined) };
-  const response = await worker.fetch(new Request(url, { ...init, headers }), env, ctx);
+  const response = await worker.fetch(incomingRequest(url, { ...init, headers }), env, ctx);
   await waitOnExecutionContext(ctx);
   return response;
 };
@@ -44,7 +61,7 @@ const parseCookies = (response: Response): string =>
     .filter(Boolean)
     .join("; ");
 
-const jsonRequest = (
+const jsonRequest = async (
   method: "POST" | "PATCH" | "PUT",
   path: string,
   body: unknown,
@@ -56,29 +73,27 @@ const jsonRequest = (
     body: JSON.stringify(body),
   });
 
-export function setupE2EWorker(_persistDir?: string) {
-  return {
-    getBaseUrl: () => BASE,
-    getPersistDir: () => "",
-    parseCookies,
-    get: (path: string, headers?: Record<string, string>) =>
-      dispatch(`${BASE}${path}`, headers ? { headers } : {}),
-    post: (path: string, body: unknown, headers?: Record<string, string>) =>
-      jsonRequest("POST", path, body, headers),
-    postRaw: (path: string, body: BodyInit, headers?: Record<string, string>) =>
-      dispatch(`${BASE}${path}`, { method: "POST", ...(headers ? { headers } : {}), body }),
-    patch: (path: string, body: unknown, headers?: Record<string, string>) =>
-      jsonRequest("PATCH", path, body, headers),
-    put: (path: string, body: unknown, headers?: Record<string, string>) =>
-      jsonRequest("PUT", path, body, headers),
-    del: (path: string, headers?: Record<string, string>) =>
-      dispatch(`${BASE}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) }),
-    postNoBody: (path: string, headers?: Record<string, string>) =>
-      dispatch(`${BASE}${path}`, { method: "POST", ...(headers ? { headers } : {}) }),
-    putAbsolute: (url: string, body: BodyInit, headers?: Record<string, string>) =>
-      fetch(url, { method: "PUT", ...(headers ? { headers } : {}), body }),
-  };
-}
+export const setupE2EWorker = (_persistDir?: string) => ({
+  getBaseUrl: () => BASE,
+  getPersistDir: () => "",
+  parseCookies,
+  get: async (path: string, headers?: Record<string, string>) =>
+    dispatch(`${BASE}${path}`, headers ? { headers } : {}),
+  post: async (path: string, body: unknown, headers?: Record<string, string>) =>
+    jsonRequest("POST", path, body, headers),
+  postRaw: async (path: string, body: BodyInit, headers?: Record<string, string>) =>
+    dispatch(`${BASE}${path}`, { method: "POST", ...(headers ? { headers } : {}), body }),
+  patch: async (path: string, body: unknown, headers?: Record<string, string>) =>
+    jsonRequest("PATCH", path, body, headers),
+  put: async (path: string, body: unknown, headers?: Record<string, string>) =>
+    jsonRequest("PUT", path, body, headers),
+  del: async (path: string, headers?: Record<string, string>) =>
+    dispatch(`${BASE}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) }),
+  postNoBody: async (path: string, headers?: Record<string, string>) =>
+    dispatch(`${BASE}${path}`, { method: "POST", ...(headers ? { headers } : {}) }),
+  putAbsolute: async (url: string, body: BodyInit, headers?: Record<string, string>) =>
+    fetch(url, { method: "PUT", ...(headers ? { headers } : {}), body }) as Promise<JsonResponse>,
+});
 
 /**
  * Local-R2 substitute for the presigned PUT path. Writes asset bytes straight
@@ -92,15 +107,15 @@ export function setupE2EWorker(_persistDir?: string) {
  * `hash` is the asset's base64url SHA-256 (its id); the R2 key mirrors
  * `assetR2Key` in `src/handlers/assets.ts` (`assets/<hash>`).
  */
-export async function seedAssetObject(params: {
+export const seedAssetObject = async (params: {
   readonly hash: string;
   readonly content: string | Uint8Array;
   readonly contentType: string;
-}): Promise<void> {
+}): Promise<void> => {
   const bytes =
     typeof params.content === "string" ? new TextEncoder().encode(params.content) : params.content;
   await env.ASSETS_BUCKET.put(`assets/${params.hash}`, bytes, {
     sha256: createHash("sha256").update(bytes).digest("hex"),
     httpMetadata: { contentType: params.contentType },
   });
-}
+};

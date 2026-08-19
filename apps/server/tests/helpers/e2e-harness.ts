@@ -1,3 +1,6 @@
+/* eslint-disable node/no-process-env -- `process.env` IS this module's contract: wrangler's
+   harness reads CLOUDFLARE_* from it, and the vitest globalSetup → test-worker handoff of the
+   booted stack's URLs goes through it (see ./e2e-harness-client for why). */
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage } from "node:http";
@@ -106,19 +109,13 @@ const toWorkerConfig = (
   vars: Record<string, string>,
   remoteR2: boolean,
 ): Record<string, unknown> => {
-  const { $schema, routes, route, ...rest } = raw;
-  void $schema;
-  void routes;
-  void route;
+  // `$schema`, `routes` and `route` are dropped: the harness serves on its own
+  // listener, so deploy-time routing keys would make workerd reject the config.
+  const { $schema: _schema, routes: _routes, route: _route, ...rest } = raw;
   const buckets = (raw["r2_buckets"] ?? []) as readonly R2BucketConfig[];
   return {
     ...rest,
-    r2_buckets: remoteR2
-      ? buckets
-      : buckets.map(({ remote, ...bucket }) => {
-          void remote;
-          return bucket;
-        }),
+    r2_buckets: remoteR2 ? buckets : buckets.map(({ remote: _remote, ...bucket }) => bucket),
     vars: { ...(raw["vars"] as Record<string, unknown> | undefined), ...vars },
   };
 };
@@ -144,7 +141,7 @@ const hydrateRemoteR2Credentials = (): boolean => {
   }
 
   process.env["CLOUDFLARE_ACCOUNT_ID"] = accountId;
-  process.env["CLOUDFLARE_API_TOKEN"] = apiToken;
+  process.env.CLOUDFLARE_API_TOKEN = apiToken;
   return true;
 };
 
@@ -175,6 +172,7 @@ const startSeedControlPlane = async (database: () => Promise<D1Like>) => {
       return;
     }
 
+    // eslint-disable-next-line eslint/no-void -- fire-and-forget: the node http handler is sync
     void readRequestBody(request)
       .then(async (sql) => {
         const db = await database();

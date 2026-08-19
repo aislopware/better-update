@@ -18,7 +18,7 @@ describe("Environments API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -28,7 +28,7 @@ describe("Environments API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(200);
-    organizationId = (await response.json()).id;
+    ({ id: organizationId } = await response.json());
     cookies = parseCookies(response) || cookies;
   });
 
@@ -48,12 +48,14 @@ describe("Environments API flow", () => {
     const response = await get("/api/environments", { cookie: cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items.map((e: { name: string }) => e.name)).toEqual([
+    expect(body.items.map((environment: { name: string }) => environment.name)).toStrictEqual([
       "development",
       "preview",
       "production",
     ]);
-    expect(body.items.every((e: { isBuiltin: boolean }) => e.isBuiltin)).toBe(true);
+    expect(body.items.every((environment: { isBuiltin: boolean }) => environment.isBuiltin)).toBe(
+      true,
+    );
   });
 
   // ── Create ──────────────────────────────────────────────────────
@@ -69,7 +71,7 @@ describe("Environments API flow", () => {
   it("lists built-ins plus the new environment", async () => {
     const response = await get("/api/environments", { cookie: cookies });
     const body = await response.json();
-    expect(body.items.map((e: { name: string }) => e.name)).toEqual([
+    expect(body.items.map((environment: { name: string }) => environment.name)).toStrictEqual([
       "development",
       "preview",
       "production",
@@ -98,7 +100,8 @@ describe("Environments API flow", () => {
   it("renames a user-defined environment", async () => {
     const response = await patch("/api/environments/staging", { name: "qa" }, { cookie: cookies });
     expect(response.status).toBe(200);
-    expect((await response.json()).name).toBe("qa");
+    const responseBody = await response.json();
+    expect(responseBody.name).toBe("qa");
   });
 
   it("rejects renaming a built-in environment (409)", async () => {
@@ -120,7 +123,8 @@ describe("Environments API flow", () => {
   it("deletes a user-defined environment with no bound variables", async () => {
     const response = await del("/api/environments/qa", { cookie: cookies });
     expect(response.status).toBe(200);
-    expect((await response.json()).deleted).toBe(1);
+    const responseBody2 = await response.json();
+    expect(responseBody2.deleted).toBe(1);
   });
 
   it("rejects deleting a non-existent environment (404)", async () => {

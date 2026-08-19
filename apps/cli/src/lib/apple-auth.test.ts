@@ -66,13 +66,9 @@ describe(parseProviderId, () => {
 
   it.effect("rejects a non-numeric string with AppleAuthError", () =>
     Effect.gen(function* () {
-      const exit = yield* Effect.exit(parseProviderId("abc"));
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
-        expect(err).toBeInstanceOf(AppleAuthError);
-        expect(err!.message).toContain("APPLE_PROVIDER_ID");
-      }
+      const err = yield* Effect.flip(parseProviderId("abc"));
+      expect(err).toBeInstanceOf(AppleAuthError);
+      expect(err.message).toContain("APPLE_PROVIDER_ID");
     }),
   );
 
@@ -199,15 +195,11 @@ describe(resolveProvider, () => {
       Effect.gen(function* () {
         const appleUtils = makeAppleUtilsStub();
 
-        const exit = yield* Effect.exit(
+        const err = yield* Effect.flip(
           resolveProvider(appleUtils, [provider(1), provider(2)], undefined),
         );
 
-        expect(Exit.isFailure(exit)).toBe(true);
-        if (Exit.isFailure(exit)) {
-          const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
-          expect(err).toBeInstanceOf(InteractiveProhibitedError);
-        }
+        expect(err).toBeInstanceOf(InteractiveProhibitedError);
       }).pipe(
         Effect.provide(Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false))),
       ),
@@ -219,14 +211,10 @@ describe(resolveProvider, () => {
         throw new Error("provider not accessible");
       });
 
-      const exit = yield* Effect.exit(resolveProvider(appleUtils, [provider(1), provider(2)], 1));
+      const err = yield* Effect.flip(resolveProvider(appleUtils, [provider(1), provider(2)], 1));
 
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
-        expect(err).toBeInstanceOf(AppleAuthError);
-        expect(err!.message).toContain("Failed to switch");
-      }
+      expect(err).toBeInstanceOf(AppleAuthError);
+      expect(err.message).toContain("Failed to switch");
     }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
   );
 });

@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { Effect, FiberRef, GlobalValue } from "effect";
+import { Context, Effect } from "effect";
 
 import type { Platform } from "./build-profile";
 
@@ -8,19 +8,24 @@ import type { Platform } from "./build-profile";
  * `build --platform all` runs both platform builds in parallel, each build
  * fiber carries its own `[ios]` / `[android]` tag so interleaved lines stay
  * attributable to their build.
+ *
+ * v4 replaced `FiberRef` with `Context.Reference`: a service key carrying a lazy
+ * default, read like any other service and overridden per-scope with
+ * `Effect.provideService` instead of `Effect.locally`. Context lookup is by key
+ * STRING, so the old `GlobalValue` memo around the ref is no longer needed.
  */
-const logPrefixRef = GlobalValue.globalValue("better-update/cli/log-prefix", () =>
-  FiberRef.unsafeMake<string | undefined>(undefined),
-);
+const LogPrefix = Context.Reference<string | undefined>("better-update/cli/log-prefix", {
+  defaultValue: () => undefined,
+});
 
 /** Read the current fiber's log prefix (`undefined` outside parallel builds). */
-export const currentLogPrefix = FiberRef.get(logPrefixRef);
+export const currentLogPrefix: Effect.Effect<string | undefined> = LogPrefix;
 
 /** Run `self` with every prefix-aware output line tagged with `prefix`. */
 export const withLogPrefix =
   (prefix: string) =>
   <Value, Err, Req>(self: Effect.Effect<Value, Err, Req>): Effect.Effect<Value, Err, Req> =>
-    Effect.locally(self, logPrefixRef, prefix);
+    Effect.provideService(self, LogPrefix, prefix);
 
 /** Tag `line` with `prefix` when one is set; pass it through untouched otherwise. */
 export const prefixLine = (prefix: string | undefined, line: string): string =>

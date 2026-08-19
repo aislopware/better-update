@@ -54,11 +54,11 @@ const deleteUpdatesWithStorage = (updates: readonly UpdateModel[]) =>
     return updatesDeleted;
   });
 
-export const handleDeleteGroup = ({ path }: { readonly path: { readonly groupId: string } }) =>
+export const handleDeleteGroup = ({ params }: { readonly params: { readonly groupId: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
       const updateRepo = yield* UpdateRepo;
-      const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
+      const updates = yield* updateRepo.findByGroupId({ groupId: params.groupId });
 
       // Verify ownership via branch -> project
       const [firstUpdate] = updates;
@@ -91,7 +91,7 @@ export const handleDeleteGroup = ({ path }: { readonly path: { readonly groupId:
       yield* logAudit({
         action: "update.delete",
         resourceType: "update",
-        resourceId: path.groupId,
+        resourceId: params.groupId,
         projectId: branch.projectId,
       });
 

@@ -10,53 +10,58 @@ import { DateTimeString, Id, UploadHeaders } from "./common";
  * `native-symbols` (Android NDK native-debug-symbols.zip). OTA publishes
  * attach one `js-sourcemap` per update.
  */
-export const DebugArtifactType = Schema.Literal(
+export const DebugArtifactType = Schema.Literals([
   "dsym",
   "js-sourcemap",
   "proguard-mapping",
   "native-symbols",
+]);
+
+const Sha256Hex = Schema.String.check(
+  Schema.isPattern(/^[a-fA-F0-9]{64}$/u),
+  Schema.isMaxLength(64),
 );
 
-const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/u), Schema.maxLength(64));
-
-export class BuildDebugArtifact extends Schema.Class<BuildDebugArtifact>("BuildDebugArtifact")({
+export const BuildDebugArtifact = Schema.Struct({
   buildId: Id,
   type: DebugArtifactType,
   contentType: Schema.String,
   byteSize: Schema.Number,
   sha256: Schema.String,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "BuildDebugArtifact" });
+export type BuildDebugArtifact = typeof BuildDebugArtifact.Type;
 
-export class UpdateSourcemap extends Schema.Class<UpdateSourcemap>("UpdateSourcemap")({
+export const UpdateSourcemap = Schema.Struct({
   updateId: Id,
   byteSize: Schema.Number,
   sha256: Schema.String,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "UpdateSourcemap" });
+export type UpdateSourcemap = typeof UpdateSourcemap.Type;
 
 export const ReserveDebugArtifactBody = Schema.Struct({
   type: DebugArtifactType,
   sha256: Sha256Hex,
-  byteSize: Schema.Number.pipe(Schema.nonNegative()),
+  byteSize: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 export const CompleteDebugArtifactBody = Schema.Struct({
   type: DebugArtifactType,
   sha256: Sha256Hex,
-  byteSize: Schema.Number.pipe(Schema.nonNegative()),
+  byteSize: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 export const ReserveSourcemapBody = Schema.Struct({
   sha256: Sha256Hex,
-  byteSize: Schema.Number.pipe(Schema.nonNegative()),
+  byteSize: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 // Same shape as the reserve body, but a distinct schema (not an alias) so the
 // two endpoint contracts can evolve independently.
 export const CompleteSourcemapBody = Schema.Struct({
   sha256: Sha256Hex,
-  byteSize: Schema.Number.pipe(Schema.nonNegative()),
+  byteSize: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 export const DebugUploadReservation = Schema.Struct({

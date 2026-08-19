@@ -52,10 +52,10 @@ export interface IosAppMetadataRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class IosAppMetadataRepo extends Context.Tag("api/IosAppMetadataRepo")<
+export class IosAppMetadataRepo extends Context.Service<
   IosAppMetadataRepo,
   IosAppMetadataRepository
->() {}
+>()("api/IosAppMetadataRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

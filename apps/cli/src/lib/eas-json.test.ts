@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
@@ -36,7 +36,7 @@ describe(readEasJsonRaw, () => {
       const invalid = yield* readEasJsonRaw(dir).pipe(Effect.ensuring(Effect.sync(dispose)));
       expect(absent).toBeUndefined();
       expect(invalid).toBeUndefined();
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -53,7 +53,7 @@ describe(writeEasJsonPatch, () => {
         build: { production: {} },
         custom: "kept",
       });
-    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeContext.layer));
+    }).pipe(Effect.ensuring(Effect.sync(dispose)), Effect.provide(NodeServices.layer));
   });
 });
 
@@ -64,7 +64,7 @@ describe(readEasLinkedProjectId, () => {
       writeEas(dir, { projectId: "proj_1", build: { production: {} } });
       const id = yield* readEasLinkedProjectId(dir).pipe(Effect.ensuring(Effect.sync(dispose)));
       expect(id).toBe("proj_1");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.effect("returns undefined for a missing or empty projectId", () =>
@@ -73,7 +73,7 @@ describe(readEasLinkedProjectId, () => {
       writeEas(dir, { projectId: "", build: {} });
       const id = yield* readEasLinkedProjectId(dir).pipe(Effect.ensuring(Effect.sync(dispose)));
       expect(id).toBeUndefined();
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -84,7 +84,7 @@ describe(readEasProjectType, () => {
       writeEas(dir, { projectType: "kmp" });
       const type = yield* readEasProjectType(dir).pipe(Effect.ensuring(Effect.sync(dispose)));
       expect(type).toBe("kmp");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -107,7 +107,7 @@ describe(readBuildProfile, () => {
       expect(profile.channel).toBe("production");
       expect(profile.ios?.workspace).toBe("ios/App.xcworkspace");
       expect(profile.android?.module).toBe("composeApp");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.effect("fails with a missing-eas.json hint when the file is absent", () =>
@@ -119,14 +119,14 @@ describe(readBuildProfile, () => {
         JSON.stringify({ build: { production: { distribution: "store" } } }),
       );
       const result = yield* readBuildProfile(dir, "production").pipe(
-        Effect.either,
+        Effect.result,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain("No eas.json found");
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure.message).toContain("No eas.json found");
       }
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.effect("fails when eas.json is invalid JSON", () =>
@@ -134,11 +134,11 @@ describe(readBuildProfile, () => {
       const { dir, dispose } = makeDir();
       writeFileSync(nodePath.join(dir, "eas.json"), "{not json");
       const result = yield* readBuildProfile(dir, "production").pipe(
-        Effect.either,
+        Effect.result,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Left");
-    }).pipe(Effect.provide(NodeContext.layer)),
+      expect(result._tag).toBe("Failure");
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -149,7 +149,7 @@ describe(listBuildProfileNames, () => {
       writeEas(dir, { build: { production: {}, preview: {} } });
       const names = yield* listBuildProfileNames(dir).pipe(Effect.ensuring(Effect.sync(dispose)));
       expect([...names].toSorted()).toStrictEqual(["preview", "production"]);
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.effect("returns [] when no eas.json exists", () =>
@@ -157,7 +157,7 @@ describe(listBuildProfileNames, () => {
       const { dir, dispose } = makeDir();
       const names = yield* listBuildProfileNames(dir).pipe(Effect.ensuring(Effect.sync(dispose)));
       expect(names).toStrictEqual([]);
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -173,7 +173,7 @@ describe(readSubmitProfile, () => {
         Effect.ensuring(Effect.sync(dispose)),
       );
       expect(submit.ios?.appleId).toBe("dev@acme.com");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -205,7 +205,7 @@ describe(setSubmitProfileAscApiKeyId, () => {
       expect(raw.submit?.preview?.ios?.ascAppId).toBe("999");
       expect(raw.projectId).toBe("proj-1");
       expect(raw.build?.production?.channel).toBe("production");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.effect("creates the submit/profile/ios path when eas.json has none", () =>
@@ -216,7 +216,7 @@ describe(setSubmitProfileAscApiKeyId, () => {
       const profile = yield* readSubmitProfile(dir, "production");
       dispose();
       expect(profile.ios?.ascApiKeyId).toBe("asc-key-2");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 
@@ -245,6 +245,6 @@ describe(setSubmitProfileAscAppId, () => {
       expect(raw.submit?.production?.ios?.ascApiKeyId).toBe("asc-key-1");
       expect(raw.submit?.preview?.ios?.ascAppId).toBe("111");
       expect(raw.projectId).toBe("proj-1");
-    }).pipe(Effect.provide(NodeContext.layer)),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });

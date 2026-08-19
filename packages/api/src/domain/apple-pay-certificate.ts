@@ -11,7 +11,7 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
  * are uploaded manually: the CLI seals the `.p12` (cert + key) and the server
  * stores only the envelope + metadata.
  */
-export class ApplePayCertificate extends Schema.Class<ApplePayCertificate>("ApplePayCertificate")({
+export const ApplePayCertificate = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Id,
@@ -23,15 +23,16 @@ export class ApplePayCertificate extends Schema.Class<ApplePayCertificate>("Appl
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "ApplePayCertificate" });
+export type ApplePayCertificate = typeof ApplePayCertificate.Type;
 
 /** Client-encrypted upload: the `.p12` bytes + password are sealed into `ciphertext`. */
 export const UploadApplePayCertificateBody = Schema.Struct({
   ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
-  merchantIdentifier: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  merchantIdentifier: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  serialNumber: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
   ...appleTeamMetadataFields,
   validFrom: DateTimeString,

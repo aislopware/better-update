@@ -1,6 +1,7 @@
 import { compact } from "@better-update/type-guards";
-import { HttpApiBuilder, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpServerResponse } from "effect/unstable/http";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertVaultRotationNotPending } from "../application/assert-vault-rotation";
@@ -59,10 +60,10 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
   ManagementApi,
   "buildCredentials",
   (handlers) =>
-    handlers.handle("resolve", ({ path, payload }) =>
+    handlers.handle("resolve", ({ params, payload }) =>
       toApiResolveReadEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(path.projectId);
+          yield* assertProjectOwnership(params.projectId);
           const ctx = yield* CurrentActor;
 
           // Fail closed while the vault is flagged for rotation (a recipient was
@@ -77,7 +78,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             yield* assertAccessAny("appleCredential", "download");
             const { response, resolvedIds } = yield* resolveIosBuildCredentials({
               organizationId: ctx.organizationId,
-              projectId: path.projectId,
+              projectId: params.projectId,
               bundleIdentifier: payload.bundleIdentifier,
               distributionType: payload.distributionType,
             });
@@ -91,7 +92,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             );
             yield* assertBoundToProject({
               organizationId: ctx.organizationId,
-              projectId: path.projectId,
+              projectId: params.projectId,
               resourceType: "appleTeam",
               resourceId: team.id,
               label: "This Apple team",
@@ -105,7 +106,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
               action: "build-credentials.resolve",
               resourceType: "appleCredential",
               resourceId: resolvedIds.provisioningProfileId,
-              projectId: path.projectId,
+              projectId: params.projectId,
               metadata: {
                 platform: "ios",
                 bundleIdentifier: payload.bundleIdentifier,
@@ -123,7 +124,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
           yield* assertAccessAny("androidCredential", "download");
           const { response, resolvedIds } = yield* resolveAndroidBuildCredentials({
             organizationId: ctx.organizationId,
-            projectId: path.projectId,
+            projectId: params.projectId,
             applicationIdentifier: payload.applicationIdentifier,
             buildProfile: payload.buildProfile,
           });
@@ -132,7 +133,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
           );
           yield* assertBoundToProject({
             organizationId: ctx.organizationId,
-            projectId: path.projectId,
+            projectId: params.projectId,
             resourceType: "androidUploadKeystore",
             resourceId: keystore.id,
             label: "This upload keystore",
@@ -147,7 +148,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             action: "build-credentials.resolve",
             resourceType: "androidCredential",
             resourceId: resolvedIds.keystoreId,
-            projectId: path.projectId,
+            projectId: params.projectId,
             metadata: {
               platform: "android",
               applicationIdentifier: payload.applicationIdentifier,

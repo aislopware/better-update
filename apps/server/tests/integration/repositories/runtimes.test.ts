@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { RuntimeRepo, RuntimeRepoLive } from "../../../src/repositories/runtimes";
@@ -6,31 +6,31 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, RuntimeRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, RuntimeRepo>) =>
   runWithLayerAndEnv(effect, RuntimeRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertBranch = (id: string, projectId: string) =>
+const insertBranch = async (id: string, projectId: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, projectId, `branch-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertUpdate = (
+const insertUpdate = async (
   id: string,
   branchId: string,
   runtimeVersion: string,
@@ -43,7 +43,7 @@ const insertUpdate = (
     .bind(id, branchId, `group-${id}`, "msg", platform, runtimeVersion, createdAt)
     .run();
 
-const insertBuild = (
+const insertBuild = async (
   id: string,
   projectId: string,
   runtimeVersion: string | null,
@@ -69,7 +69,7 @@ const seedProject = async (suffix: string) => {
 // ── Tests ─────────────────────────────────────────────────────────
 
 describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
-  test("aggregates builds and updates per runtime version, newest activity first", async () => {
+  it("aggregates builds and updates per runtime version, newest activity first", async () => {
     const suffix = crypto.randomUUID();
     const { projectId, branchId } = await seedProject(suffix);
 
@@ -88,7 +88,7 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
     );
 
     expect(result.total).toBe(3);
-    expect(result.items).toEqual([
+    expect(result.items).toStrictEqual([
       {
         version: "1.0.0",
         // Both platforms report it, and the fixed order holds whichever row
@@ -115,7 +115,7 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
     ]);
   });
 
-  test("ignores builds without a runtime version and other projects' data", async () => {
+  it("ignores builds without a runtime version and other projects' data", async () => {
     const suffix = crypto.randomUUID();
     const { projectId, branchId } = await seedProject(suffix);
     const other = await seedProject(`other-${suffix}`);
@@ -133,7 +133,7 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
     );
 
     expect(result.total).toBe(1);
-    expect(result.items).toEqual([
+    expect(result.items).toStrictEqual([
       {
         version: "1.0.0",
         platforms: ["ios"],
@@ -144,7 +144,7 @@ describe("RuntimeRepo — D1 integration (Kysely + session)", () => {
     ]);
   });
 
-  test("paginates with total reflecting all versions", async () => {
+  it("paginates with total reflecting all versions", async () => {
     const suffix = crypto.randomUUID();
     const { branchId, projectId } = await seedProject(suffix);
 

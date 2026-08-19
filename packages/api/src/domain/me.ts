@@ -15,14 +15,14 @@ export const MeOrganization = Schema.Struct({
   role: Schema.NullOr(Schema.String),
 });
 
-const OrgRoleLiteral = Schema.Literal("owner", "admin", "member");
-const ProjectRoleLiteral = Schema.Literal("maintainer", "developer", "reporter");
+const OrgRoleLiteral = Schema.Literals(["owner", "admin", "member"]);
+const ProjectRoleLiteral = Schema.Literals(["maintainer", "developer", "reporter"]);
 
 export const Me = Schema.Struct({
   user: Schema.NullOr(MeUser),
   activeOrganization: Schema.NullOr(MeOrganization),
   /** Authentication source — "session" for browser + CLI sessions, "robot" for robot-account (CI) bearer tokens. */
-  source: Schema.Literal("session", "robot"),
+  source: Schema.Literals(["session", "robot"]),
   /** Email or descriptor identifying the actor — useful when `user` is null (robot-account auth). */
   actorEmail: Schema.String,
   /** Org ladder position (GITLAB-RBAC-SPEC §1). Superadmins surface their real per-org role. */
@@ -32,7 +32,7 @@ export const Me = Schema.Struct({
    * owner/admin — they are implicit maintainers everywhere; the UI should key
    * per-project affordances off `orgRole` first, then this map.
    */
-  projectRoles: Schema.Record({ key: Schema.String, value: ProjectRoleLiteral }),
+  projectRoles: Schema.Record(Schema.String, ProjectRoleLiteral),
   // Sidebar/chrome capability booleans, each recomputed from the role matrix
   // exactly as its endpoint gates, so the UI never shows an action the server
   // would 403. Owner/superadmin are roots (true everywhere).
@@ -59,12 +59,12 @@ export const Me = Schema.Struct({
 });
 
 /** Image MIME types accepted for a user avatar. */
-export const AvatarContentType = Schema.Literal(
+export const AvatarContentType = Schema.Literals([
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/svg+xml",
-);
+]);
 
 /**
  * Request a presigned PUT to upload the current user's avatar. The server builds

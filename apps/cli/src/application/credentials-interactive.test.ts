@@ -1,6 +1,5 @@
-import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { FileSystem, Effect, Layer } from "effect";
 
 import type { Context } from "effect";
 
@@ -109,11 +108,17 @@ const stubLayer = (interactive: boolean) =>
   Layer.mergeAll(
     makeInteractiveModeLayer(interactive),
     makeOutputModeLayer(false),
-    Layer.succeed(AppleAuth, "unused" as unknown as Context.Tag.Service<typeof AppleAuth>),
-    Layer.succeed(CliRuntime, "unused" as unknown as Context.Tag.Service<typeof CliRuntime>),
+    Layer.succeed(AppleAuth, "unused" as unknown as Context.Service.Shape<typeof AppleAuth>),
+    Layer.succeed(CliRuntime, "unused" as unknown as Context.Service.Shape<typeof CliRuntime>),
     DeviceUnlockMemoLive,
-    Layer.succeed(IdentityStore, "unused" as unknown as Context.Tag.Service<typeof IdentityStore>),
-    Layer.succeed(FileSystem.FileSystem, "unused" as unknown as FileSystem.FileSystem),
+    Layer.succeed(
+      IdentityStore,
+      "unused" as unknown as Context.Service.Shape<typeof IdentityStore>,
+    ),
+    Layer.succeed(
+      FileSystem.FileSystem,
+      "unused" as unknown as Context.Service.Shape<typeof FileSystem.FileSystem>,
+    ),
   );
 
 beforeEach(() => {
@@ -135,7 +140,7 @@ describe(ensureIosCredentials, () => {
       expect(mocks.promptSelect).not.toHaveBeenCalled();
       expect(mocks.regenerateViaAppleId).not.toHaveBeenCalled();
       expect(updates).toStrictEqual([
-        { path: { id: "config-1" }, payload: { appleProvisioningProfileId: "profile-new-1" } },
+        { params: { id: "config-1" }, payload: { appleProvisioningProfileId: "profile-new-1" } },
       ]);
     }).pipe(Effect.provide(stubLayer(false))),
   );
@@ -175,8 +180,8 @@ describe(ensureIosCredentials, () => {
       expect(mocks.promptSelect).toHaveBeenCalledTimes(1);
       // Binding the key persists, so later runs (and CI) skip the offer entirely.
       expect(updates).toStrictEqual([
-        { path: { id: "config-1" }, payload: { ascApiKeyId: "asc-key-1" } },
-        { path: { id: "config-1" }, payload: { appleProvisioningProfileId: "profile-new-1" } },
+        { params: { id: "config-1" }, payload: { ascApiKeyId: "asc-key-1" } },
+        { params: { id: "config-1" }, payload: { appleProvisioningProfileId: "profile-new-1" } },
       ]);
     }).pipe(Effect.provide(stubLayer(true))),
   );

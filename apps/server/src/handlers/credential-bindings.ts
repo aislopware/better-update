@@ -1,10 +1,5 @@
-import {
-  CredentialBinding,
-  CredentialBindingPlanItem,
-  OrgCredentialBinding,
-} from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { computeCredentialBindingPlan } from "../application/credential-binding-plan";
@@ -98,31 +93,31 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
           Effect.gen(function* () {
             yield* assertAccess("credentialBinding", "read");
             const entries = yield* computeCredentialBindingPlan;
-            return { items: entries.map((entry) => new CredentialBindingPlanItem(entry)) };
+            return { items: entries.map((entry) => entry) };
           }),
         ),
       )
-      .handle("list", ({ path }) =>
+      .handle("list", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertAccess("credentialBinding", "read");
-            yield* assertProjectInOrg(path.id);
+            yield* assertProjectInOrg(params.id);
             const ctx = yield* CurrentActor;
             const repo = yield* ProjectCredentialBindingRepo;
             const items = yield* repo.listByProject({
               organizationId: ctx.organizationId,
-              projectId: path.id,
+              projectId: params.id,
             });
-            return { items: items.map((item) => new CredentialBinding(item)) };
+            return { items: items.map((item) => item) };
           }),
         ),
       )
-      .handle("bind", ({ path }) =>
+      .handle("bind", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertAccess("credentialBinding", "create");
-            yield* assertProjectInOrg(path.id);
-            yield* assertResourceBindable(path.resourceType, path.resourceId);
+            yield* assertProjectInOrg(params.id);
+            yield* assertResourceBindable(params.resourceType, params.resourceId);
             const ctx = yield* CurrentActor;
             const repo = yield* ProjectCredentialBindingRepo;
 
@@ -131,9 +126,9 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
             const inserted = yield* repo.bind({
               id,
               organizationId: ctx.organizationId,
-              projectId: path.id,
-              resourceType: path.resourceType,
-              resourceId: path.resourceId,
+              projectId: params.id,
+              resourceType: params.resourceType,
+              resourceId: params.resourceId,
               now,
             });
 
@@ -142,9 +137,9 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
               yield* logAudit({
                 action: "credentialBinding.create",
                 resourceType: "credentialBinding",
-                resourceId: path.resourceId,
-                projectId: path.id,
-                metadata: { projectId: path.id, bindingType: path.resourceType },
+                resourceId: params.resourceId,
+                projectId: params.id,
+                metadata: { projectId: params.id, bindingType: params.resourceType },
               });
             }
 
@@ -152,32 +147,32 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
             // so an already-bound resource returns the EXISTING row.
             const items = yield* repo.listByProject({
               organizationId: ctx.organizationId,
-              projectId: path.id,
+              projectId: params.id,
             });
             const bound = items.find(
               (item) =>
-                item.resourceType === path.resourceType && item.resourceId === path.resourceId,
+                item.resourceType === params.resourceType && item.resourceId === params.resourceId,
             );
             if (bound === undefined) {
               return yield* Effect.die(new Error("Binding vanished right after upsert"));
             }
-            return new CredentialBinding(bound);
+            return bound;
           }),
         ),
       )
-      .handle("bindAllProjects", ({ path }) =>
+      .handle("bindAllProjects", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertAccess("credentialBinding", "create");
-            yield* assertResourceBindable(path.resourceType, path.resourceId);
+            yield* assertResourceBindable(params.resourceType, params.resourceId);
             const ctx = yield* CurrentActor;
             const repo = yield* ProjectCredentialBindingRepo;
 
             const inserted = yield* repo.bindAllProjects({
               id: crypto.randomUUID(),
               organizationId: ctx.organizationId,
-              resourceType: path.resourceType,
-              resourceId: path.resourceId,
+              resourceType: params.resourceType,
+              resourceId: params.resourceId,
               now: new Date().toISOString(),
             });
             // Idempotent re-PUT of an existing org-wide binding is not an event.
@@ -185,25 +180,25 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
               yield* logAudit({
                 action: "credentialBinding.create",
                 resourceType: "credentialBinding",
-                resourceId: path.resourceId,
-                metadata: { bindingType: path.resourceType, allProjects: true },
+                resourceId: params.resourceId,
+                metadata: { bindingType: params.resourceType, allProjects: true },
               });
             }
 
             // Re-read for the canonical row (idempotent upsert semantics).
             const bound = yield* repo.findAllProjectsBinding({
               organizationId: ctx.organizationId,
-              resourceType: path.resourceType,
-              resourceId: path.resourceId,
+              resourceType: params.resourceType,
+              resourceId: params.resourceId,
             });
             if (bound === null) {
               return yield* Effect.die(new Error("Org-wide binding vanished right after upsert"));
             }
-            return new OrgCredentialBinding(bound);
+            return bound;
           }),
         ),
       )
-      .handle("unbindAllProjects", ({ path }) =>
+      .handle("unbindAllProjects", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertAccess("credentialBinding", "delete");
@@ -211,8 +206,8 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
             const repo = yield* ProjectCredentialBindingRepo;
             const removed = yield* repo.unbindAllProjects({
               organizationId: ctx.organizationId,
-              resourceType: path.resourceType,
-              resourceId: path.resourceId,
+              resourceType: params.resourceType,
+              resourceId: params.resourceId,
             });
             if (!removed) {
               return yield* new NotFound({ message: "Binding not found" });
@@ -220,25 +215,25 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "credentialBinding.delete",
               resourceType: "credentialBinding",
-              resourceId: path.resourceId,
-              metadata: { bindingType: path.resourceType, allProjects: true },
+              resourceId: params.resourceId,
+              metadata: { bindingType: params.resourceType, allProjects: true },
             });
             return { deleted: 1 };
           }),
         ),
       )
-      .handle("unbind", ({ path }) =>
+      .handle("unbind", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertAccess("credentialBinding", "delete");
-            yield* assertProjectInOrg(path.id);
+            yield* assertProjectInOrg(params.id);
             const ctx = yield* CurrentActor;
             const repo = yield* ProjectCredentialBindingRepo;
             const removed = yield* repo.unbind({
               organizationId: ctx.organizationId,
-              projectId: path.id,
-              resourceType: path.resourceType,
-              resourceId: path.resourceId,
+              projectId: params.id,
+              resourceType: params.resourceType,
+              resourceId: params.resourceId,
             });
             if (!removed) {
               return yield* new NotFound({ message: "Binding not found" });
@@ -246,9 +241,9 @@ export const CredentialBindingsGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "credentialBinding.delete",
               resourceType: "credentialBinding",
-              resourceId: path.resourceId,
-              projectId: path.id,
-              metadata: { projectId: path.id, bindingType: path.resourceType },
+              resourceId: params.resourceId,
+              projectId: params.id,
+              metadata: { projectId: params.id, bindingType: params.resourceType },
             });
             return { deleted: 1 };
           }),

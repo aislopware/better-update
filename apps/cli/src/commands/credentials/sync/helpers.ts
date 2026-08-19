@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { CredentialsJsonError } from "../../../lib/exit-codes";
 

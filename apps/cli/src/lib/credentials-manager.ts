@@ -1,7 +1,6 @@
 import { toBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect, Match } from "effect";
+import { FileSystem, Effect, Match } from "effect";
 
 import {
   openVaultSessionInteractive,
@@ -91,7 +90,7 @@ export const listAllCredentials = (api: ApiClient) =>
         api.applePayCertificates.list(),
         api.applePassTypeCertificates.list(),
         api.ascApiKeys.list(),
-        api.appleProvisioningProfiles.list({ urlParams: {} }),
+        api.appleProvisioningProfiles.list({ query: {} }),
         api.androidUploadKeystores.list(),
         api.googleServiceAccountKeys.list(),
       ],
@@ -444,33 +443,33 @@ export const deleteCredential = (
     readonly type: CliCredentialType;
   },
 ) => {
-  const path = { id: input.id };
+  const params = { id: input.id };
   return Match.value({ platform: input.platform, type: input.type }).pipe(
     Match.when({ platform: "ios", type: "distribution-certificate" }, () =>
-      api.appleDistributionCertificates.delete({ path }),
+      api.appleDistributionCertificates.delete({ params }),
     ),
     Match.when({ platform: "macos", type: "macos-certificate" }, () =>
-      api.appleDistributionCertificates.delete({ path }),
+      api.appleDistributionCertificates.delete({ params }),
     ),
-    Match.when({ platform: "ios", type: "push-key" }, () => api.applePushKeys.delete({ path })),
+    Match.when({ platform: "ios", type: "push-key" }, () => api.applePushKeys.delete({ params })),
     Match.when({ platform: "ios", type: "push-certificate" }, () =>
-      api.applePushCertificates.delete({ path }),
+      api.applePushCertificates.delete({ params }),
     ),
     Match.when({ platform: "ios", type: "apple-pay-certificate" }, () =>
-      api.applePayCertificates.delete({ path }),
+      api.applePayCertificates.delete({ params }),
     ),
     Match.when({ platform: "ios", type: "pass-type-certificate" }, () =>
-      api.applePassTypeCertificates.delete({ path }),
+      api.applePassTypeCertificates.delete({ params }),
     ),
-    Match.when({ platform: "ios", type: "asc-api-key" }, () => api.ascApiKeys.delete({ path })),
+    Match.when({ platform: "ios", type: "asc-api-key" }, () => api.ascApiKeys.delete({ params })),
     Match.when({ platform: "ios", type: "provisioning-profile" }, () =>
-      api.appleProvisioningProfiles.delete({ path }),
+      api.appleProvisioningProfiles.delete({ params }),
     ),
     Match.when({ platform: "android", type: "keystore" }, () =>
-      api.androidUploadKeystores.delete({ path }),
+      api.androidUploadKeystores.delete({ params }),
     ),
     Match.when({ platform: "android", type: "google-service-account-key" }, () =>
-      api.googleServiceAccountKeys.delete({ path }),
+      api.googleServiceAccountKeys.delete({ params }),
     ),
     Match.orElse(() =>
       Effect.fail(

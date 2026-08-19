@@ -1,6 +1,7 @@
-import { ProjectMember } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
+
+import type { ProjectMember } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -18,19 +19,18 @@ import { reconcileVaultAccess } from "./reconcile-vault-access";
 import type { ProjectPrincipalType, ProjectRole } from "../models";
 import type { ProjectMemberDetail } from "../repositories/project-members";
 
-const toApiProjectMember = (detail: ProjectMemberDetail): ProjectMember =>
-  new ProjectMember({
-    id: detail.id,
-    projectId: detail.projectId,
-    principalType: detail.principalType,
-    principalId: detail.principalId,
-    role: detail.role,
-    allProjects: detail.allProjects,
-    displayName: detail.displayName,
-    email: detail.email,
-    createdAt: detail.createdAt,
-    updatedAt: detail.updatedAt,
-  });
+const toApiProjectMember = (detail: ProjectMemberDetail): ProjectMember => ({
+  id: detail.id,
+  projectId: detail.projectId,
+  principalType: detail.principalType,
+  principalId: detail.principalId,
+  role: detail.role,
+  allProjects: detail.allProjects,
+  displayName: detail.displayName,
+  email: detail.email,
+  createdAt: detail.createdAt,
+  updatedAt: detail.updatedAt,
+});
 
 // Load the project org-scoped (404 on cross-org, mirroring every by-id
 // handler) — the shared preamble of all four routes.
@@ -135,29 +135,29 @@ export const ProjectMembersGroupLive = HttpApiBuilder.group(
   "project-members",
   (handlers) =>
     handlers
-      .handle("list", ({ path }) =>
+      .handle("list", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* loadProject(path.id);
-            yield* assertAccess("project", "read", { kind: "project", projectId: path.id });
+            yield* loadProject(params.id);
+            yield* assertAccess("project", "read", { kind: "project", projectId: params.id });
             const ctx = yield* CurrentActor;
             const repo = yield* ProjectMemberRepo;
             const rows = yield* repo.listByProject({
               organizationId: ctx.organizationId,
-              projectId: path.id,
+              projectId: params.id,
             });
             return { items: rows.map(toApiProjectMember) };
           }),
         ),
       )
-      .handle("add", ({ path, payload }) =>
+      .handle("add", ({ params, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* loadProject(path.id);
-            yield* assertProjectMaintainer(path.id);
+            yield* loadProject(params.id);
+            yield* assertProjectMaintainer(params.id);
             yield* assertPrincipalInOrg(payload);
             const detail = yield* upsertRole({
-              projectId: path.id,
+              projectId: params.id,
               principalType: payload.principalType,
               principalId: payload.principalId,
               role: payload.role,
@@ -167,22 +167,22 @@ export const ProjectMembersGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("updateRole", ({ path, payload }) =>
+      .handle("updateRole", ({ params, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* loadProject(path.id);
-            yield* assertProjectMaintainer(path.id);
+            yield* loadProject(params.id);
+            yield* assertProjectMaintainer(params.id);
             const ctx = yield* CurrentActor;
             // Must already be a member — PATCH never silently grants.
             yield* findDetail({
               organizationId: ctx.organizationId,
-              projectId: path.id,
-              principalId: path.principalId,
+              projectId: params.id,
+              principalId: params.principalId,
             });
             const detail = yield* upsertRole({
-              projectId: path.id,
+              projectId: params.id,
               principalType: payload.principalType,
-              principalId: path.principalId,
+              principalId: params.principalId,
               role: payload.role,
               action: "projectMember.role_update",
             });
@@ -192,25 +192,25 @@ export const ProjectMembersGroupLive = HttpApiBuilder.group(
             if (payload.role === "reporter") {
               yield* reconcileVaultAccess({
                 organizationId: ctx.organizationId,
-                reason: `project-member-role-change:${path.principalId}`,
+                reason: `project-member-role-change:${params.principalId}`,
               });
             }
             return toApiProjectMember(detail);
           }),
         ),
       )
-      .handle("remove", ({ path, urlParams }) =>
+      .handle("remove", ({ params, query }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* loadProject(path.id);
-            yield* assertProjectMaintainer(path.id);
+            yield* loadProject(params.id);
+            yield* assertProjectMaintainer(params.id);
             const ctx = yield* CurrentActor;
             const repo = yield* ProjectMemberRepo;
             const removed = yield* repo.remove({
               organizationId: ctx.organizationId,
-              projectId: path.id,
-              principalType: urlParams.principalType,
-              principalId: path.principalId,
+              projectId: params.id,
+              principalType: query.principalType,
+              principalId: params.principalId,
             });
             if (!removed) {
               return yield* new NotFound({ message: "Project member not found" });
@@ -218,15 +218,15 @@ export const ProjectMembersGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "projectMember.remove",
               resourceType: "member",
-              resourceId: path.principalId,
-              projectId: path.id,
-              metadata: { projectId: path.id, principalType: urlParams.principalType },
+              resourceId: params.principalId,
+              projectId: params.id,
+              metadata: { projectId: params.id, principalType: query.principalType },
             });
             // Losing a membership row can strip vault participation (≥ developer
             // on SOME project) — reconcile the recipient set.
             yield* reconcileVaultAccess({
               organizationId: ctx.organizationId,
-              reason: `project-member-remove:${path.principalId}`,
+              reason: `project-member-remove:${params.principalId}`,
             });
             return { deleted: 1 };
           }),

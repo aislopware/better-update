@@ -25,7 +25,7 @@ export const deleteDeviceCommand = defineCommand({
           }
         }
         const api = yield* apiClient;
-        yield* api.devices.delete({ path: { id: args.id } });
+        yield* api.devices.delete({ params: { id: args.id } });
         yield* printHuman(`Deleted device ${args.id}.`);
       }),
     ),

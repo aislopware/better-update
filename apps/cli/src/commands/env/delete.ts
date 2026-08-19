@@ -55,7 +55,7 @@ export const deleteCommand = defineCommand({
 
         yield* Effect.forEach(
           matches,
-          (match) => api["env-vars"].delete({ path: { id: match.id } }),
+          (match) => api["env-vars"].delete({ params: { id: match.id } }),
           {
             concurrency: 4,
           },

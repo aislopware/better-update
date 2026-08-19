@@ -1,5 +1,6 @@
-import { EnvVar } from "@better-update/api";
 import { render, screen } from "@testing-library/react";
+
+import type { EnvVar } from "@better-update/api";
 
 import { EnvVarRow } from "./-env-var-row";
 
@@ -13,24 +14,23 @@ const renderRow = (envVar: EnvVar) =>
     </table>,
   );
 
-const baseEnvVar = (overrides: Partial<ConstructorParameters<typeof EnvVar>[0]>) =>
-  new EnvVar({
-    id: "ev-1",
-    organizationId: "org-1",
-    projectId: null,
-    scope: "global",
-    environment: "production",
-    key: "API_URL",
-    visibility: "plaintext",
-    currentRevisionId: "rev-1",
-    revisionNumber: 1,
-    revisionCount: 1,
-    label: null,
-    description: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  });
+const baseEnvVar = (overrides: Partial<EnvVar>): EnvVar => ({
+  id: "ev-1",
+  organizationId: "org-1",
+  projectId: null,
+  scope: "global",
+  environment: "production",
+  key: "API_URL",
+  visibility: "plaintext",
+  currentRevisionId: "rev-1",
+  revisionNumber: 1,
+  revisionCount: 1,
+  label: null,
+  description: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  ...overrides,
+});
 
 describe("EnvVarRow documentation", () => {
   it("shows the label and description when set", () => {

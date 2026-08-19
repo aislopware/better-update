@@ -18,7 +18,7 @@ export const disableDeviceCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const device = yield* api.devices.update({
-          path: { id: args.id },
+          params: { id: args.id },
           payload: { enabled: false },
         });
         yield* printKeyValue([

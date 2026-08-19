@@ -71,57 +71,60 @@ export const syncAppleDevices = (params: {
 
     const zero: SyncDevicesSummary = { created: 0, linked: 0, unchanged: 0 };
 
-    return yield* Effect.reduce(deduped, zero, (summary, incoming) =>
-      Effect.gen(function* () {
-        const group = byIdentifier.get(incoming.identifier) ?? [];
-        // A row already on the target team wins (link in place); otherwise a
-        // team-less row is adopted; a row on *another* team is ignored so we
-        // register a fresh one for this team.
-        const onTeam = group.find((row) => row.appleTeamId === params.appleTeamId);
-        const local = onTeam ?? group.find((row) => row.appleTeamId === null);
+    return yield* Effect.reduce(
+      deduped,
+      () => zero,
+      (summary, incoming) =>
+        Effect.gen(function* () {
+          const group = byIdentifier.get(incoming.identifier) ?? [];
+          // A row already on the target team wins (link in place); otherwise a
+          // team-less row is adopted; a row on *another* team is ignored so we
+          // register a fresh one for this team.
+          const onTeam = group.find((row) => row.appleTeamId === params.appleTeamId);
+          const local = onTeam ?? group.find((row) => row.appleTeamId === null);
 
-        if (local === undefined) {
-          yield* repo.insert({
-            id: crypto.randomUUID(),
-            organizationId: params.organizationId,
+          if (local === undefined) {
+            yield* repo.insert({
+              id: crypto.randomUUID(),
+              organizationId: params.organizationId,
+              appleTeamId: params.appleTeamId,
+              identifier: incoming.identifier,
+              name: incoming.name,
+              model: null,
+              deviceClass: incoming.deviceClass,
+              enabled: true,
+              appleDevicePortalId: incoming.appleDevicePortalId,
+              createdAt: now,
+              updatedAt: now,
+            });
+            return { ...summary, created: summary.created + 1 };
+          }
+
+          if (local.appleTeamId === params.appleTeamId) {
+            if (local.appleDevicePortalId === incoming.appleDevicePortalId) {
+              return { ...summary, unchanged: summary.unchanged + 1 };
+            }
+            yield* repo.setApplePortalId({
+              id: local.id,
+              appleDevicePortalId: incoming.appleDevicePortalId,
+              updatedAt: now,
+            });
+            return { ...summary, linked: summary.linked + 1 };
+          }
+
+          // Adopt the team-less row into the synced team, then link its portal id,
+          // so subsequent syncs find it under the team.
+          yield* repo.update({
+            id: local.id,
             appleTeamId: params.appleTeamId,
-            identifier: incoming.identifier,
-            name: incoming.name,
-            model: null,
-            deviceClass: incoming.deviceClass,
-            enabled: true,
-            appleDevicePortalId: incoming.appleDevicePortalId,
-            createdAt: now,
             updatedAt: now,
           });
-          return { ...summary, created: summary.created + 1 };
-        }
-
-        if (local.appleTeamId === params.appleTeamId) {
-          if (local.appleDevicePortalId === incoming.appleDevicePortalId) {
-            return { ...summary, unchanged: summary.unchanged + 1 };
-          }
           yield* repo.setApplePortalId({
             id: local.id,
             appleDevicePortalId: incoming.appleDevicePortalId,
             updatedAt: now,
           });
           return { ...summary, linked: summary.linked + 1 };
-        }
-
-        // Adopt the team-less row into the synced team, then link its portal id,
-        // so subsequent syncs find it under the team.
-        yield* repo.update({
-          id: local.id,
-          appleTeamId: params.appleTeamId,
-          updatedAt: now,
-        });
-        yield* repo.setApplePortalId({
-          id: local.id,
-          appleDevicePortalId: incoming.appleDevicePortalId,
-          updatedAt: now,
-        });
-        return { ...summary, linked: summary.linked + 1 };
-      }),
+        }),
     );
   });

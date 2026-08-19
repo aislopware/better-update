@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { Effect, Exit } from "effect";
+import { Effect } from "effect";
 
 import { NotFound } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
@@ -30,23 +30,17 @@ describe(assertOrgOwnership, () => {
 
   it.effect("fails with NotFound when org IDs differ", () =>
     Effect.gen(function* () {
-      expect.assertions(2);
-      const exit = yield* assertOrgOwnership("org-other").pipe(provideAuth("org-1"), Effect.exit);
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const error = exit.cause.pipe((cause) => (cause._tag === "Fail" ? cause.error : undefined));
-        expect(error).toMatchObject({ _tag: "NotFound", message: "Resource not found" });
-      }
+      expect.assertions(1);
+      const error = yield* assertOrgOwnership("org-other").pipe(provideAuth("org-1"), Effect.flip);
+      expect(error).toMatchObject({ _tag: "NotFound", message: "Resource not found" });
     }),
   );
 
   it.effect("returns 'Resource not found' to prevent enumeration", () =>
     Effect.gen(function* () {
       expect.assertions(1);
-      const exit = yield* assertOrgOwnership("org-other").pipe(provideAuth("org-1"), Effect.exit);
-      if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-        expect(exit.cause.error.message).toBe("Resource not found");
-      }
+      const error = yield* assertOrgOwnership("org-other").pipe(provideAuth("org-1"), Effect.flip);
+      expect(error.message).toBe("Resource not found");
     }),
   );
 });
@@ -79,34 +73,28 @@ describe(assertProjectOwnership, () => {
 
   it.effect("fails with NotFound when project doesn't exist", () =>
     Effect.gen(function* () {
-      expect.assertions(2);
-      const exit = yield* assertProjectOwnership("missing").pipe(
+      expect.assertions(1);
+      const error = yield* assertProjectOwnership("missing").pipe(
         mockProjectRepo(null),
         provideAuth("org-1"),
-        Effect.exit,
+        Effect.flip,
       );
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-        expect(exit.cause.error).toMatchObject({ _tag: "NotFound" });
-      }
+      expect(error).toMatchObject({ _tag: "NotFound" });
     }),
   );
 
   it.effect("fails with NotFound when project belongs to different org", () =>
     Effect.gen(function* () {
-      expect.assertions(2);
-      const exit = yield* assertProjectOwnership("project-1").pipe(
+      expect.assertions(1);
+      const error = yield* assertProjectOwnership("project-1").pipe(
         mockProjectRepo("org-other"),
         provideAuth("org-1"),
-        Effect.exit,
+        Effect.flip,
       );
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-        expect(exit.cause.error).toMatchObject({
-          _tag: "NotFound",
-          message: "Resource not found",
-        });
-      }
+      expect(error).toMatchObject({
+        _tag: "NotFound",
+        message: "Resource not found",
+      });
     }),
   );
 });

@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { BundleRepo, BundleRepoLive } from "../../../src/repositories/bundle";
@@ -6,7 +6,7 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, BundleRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BundleRepo>) =>
   runWithLayerAndEnv(effect, BundleRepoLive, env);
 
 // ── Setup ─────────────────────────────────────────────────────────
@@ -74,7 +74,11 @@ describe("BundleRepo — R2 integration", () => {
     );
 
     expect(result.objects).toHaveLength(2);
-    expect(result.objects.map((o) => o.key).sort()).toEqual([
+    expect(
+      result.objects
+        .map((object) => object.key)
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toStrictEqual([
       "patches/bundle-list/1.0.0/ios/a__b.bsdiff",
       "patches/bundle-list/1.0.0/ios/c__d.bsdiff",
     ]);

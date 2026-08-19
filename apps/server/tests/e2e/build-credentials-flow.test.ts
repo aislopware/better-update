@@ -1,7 +1,9 @@
 import { toBase64 } from "@better-update/encoding";
 
-import { credentialEnvelope, type CredentialEnvelope } from "../helpers/credential-envelope";
+import { credentialEnvelope } from "../helpers/credential-envelope";
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+
+import type { CredentialEnvelope } from "../helpers/credential-envelope";
 
 const { parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-build-credentials");
 
@@ -53,7 +55,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -70,7 +72,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    projectId = (await projRes.json()).id;
+    ({ id: projectId } = await projRes.json());
   });
 
   it("seeds iOS credentials + bundle configuration", async () => {
@@ -93,7 +95,7 @@ describe("Build credentials resolve flow", () => {
     expect(certRes.status).toBe(201);
     const certBody = await certRes.json();
     certId = certBody.id;
-    appleTeamId = certBody.appleTeamId;
+    ({ appleTeamId } = certBody);
 
     const profile = buildMobileprovision(TEAM, IOS_BUNDLE);
     originalProfileBase64 = profile.base64;
@@ -103,7 +105,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(profRes.status).toBe(201);
-    profileId = (await profRes.json()).id;
+    ({ id: profileId } = await profRes.json());
 
     const ascRes = await post(
       "/api/apple/asc-api-keys",
@@ -117,7 +119,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(ascRes.status).toBe(201);
-    ascKeyId = (await ascRes.json()).id;
+    ({ id: ascKeyId } = await ascRes.json());
 
     const bundleCfg = await post(
       `/api/projects/${projectId}/ios-bundle-configurations`,
@@ -188,7 +190,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(profRes.status).toBe(201);
-    const noAscProfileId = (await profRes.json()).id;
+    const { id: noAscProfileId } = await profRes.json();
 
     const bundleCfg = await post(
       `/api/projects/${projectId}/ios-bundle-configurations`,
@@ -250,7 +252,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(profRes.status).toBe(201);
-    const otherProfileId = (await profRes.json()).id;
+    const { id: otherProfileId } = await profRes.json();
 
     const bundleCfg = await post(
       `/api/projects/${projectId}/ios-bundle-configurations`,
@@ -283,7 +285,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(appRes.status).toBe(201);
-    androidAppId = (await appRes.json()).id;
+    ({ id: androidAppId } = await appRes.json());
 
     keystoreEnv = credentialEnvelope();
     const ksRes = await post(
@@ -297,7 +299,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(ksRes.status).toBe(201);
-    keystoreId = (await ksRes.json()).id;
+    ({ id: keystoreId } = await ksRes.json());
 
     // Creating the application identifier auto-provisions an empty "Default"
     // profile (EAS parity), so attach the keystore under a distinct profile;
@@ -348,7 +350,7 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(otherOrgRes.status).toBe(200);
-    const otherOrgId = (await otherOrgRes.json()).id;
+    const { id: otherOrgId } = await otherOrgRes.json();
     cookies = parseCookies(otherOrgRes) || cookies;
 
     const activeRes = await post(

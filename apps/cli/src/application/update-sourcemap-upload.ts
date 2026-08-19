@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { findExportedSourcemap } from "../lib/expo-export";
@@ -35,7 +35,7 @@ const uploadUpdateSourcemap = (
       ),
     );
     const reservation = yield* api.updates
-      .reserveSourcemap({ path: { id: params.updateId }, payload: { sha256, byteSize } })
+      .reserveSourcemap({ params: { id: params.updateId }, payload: { sha256, byteSize } })
       .pipe(
         Effect.mapError(
           (cause) =>
@@ -61,7 +61,7 @@ const uploadUpdateSourcemap = (
         ),
       );
     yield* api.updates
-      .completeSourcemap({ path: { id: params.updateId }, payload: { sha256, byteSize } })
+      .completeSourcemap({ params: { id: params.updateId }, payload: { sha256, byteSize } })
       .pipe(
         Effect.mapError(
           (cause) =>
@@ -92,8 +92,8 @@ export const storeSourcemapBestEffort = (
     return Effect.succeed(false);
   }
   return uploadUpdateSourcemap(api, { updateId: params.updateId, bundlePath }).pipe(
-    Effect.catchAll((cause) =>
-      printHuman(`Sourcemap upload skipped for ${params.platform}: ${formatCause(cause)}`).pipe(
+    Effect.catch((error) =>
+      printHuman(`Sourcemap upload skipped for ${params.platform}: ${formatCause(error)}`).pipe(
         Effect.as(false),
       ),
     ),

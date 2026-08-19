@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { asRecord, asVersionSlot, compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import {
   asBooleanValue,
@@ -389,7 +388,9 @@ export const readEasJson = (
         (cause) =>
           new BuildProfileError({
             message:
-              cause._tag === "SystemError" && cause.reason === "NotFound"
+              // v4 wraps platform failures in a single `PlatformError` whose
+              // `reason` carries the normalized tag v3 kept on `.reason`.
+              cause.reason._tag === "NotFound"
                 ? `No eas.json found at ${filePath}. Create one with a "build" section.`
                 : `Failed to read eas.json: ${cause.message}`,
           }),

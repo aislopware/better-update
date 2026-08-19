@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -30,7 +30,7 @@ const profile = (channel?: string): BuildProfile => ({
   ...(channel === undefined ? {} : { channel }),
 });
 
-const layer = Layer.mergeAll(NodeContext.layer, makeOutputModeLayer(false));
+const layer = Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false));
 
 describe(resolveUpdateChannel, () => {
   // The regression this guards: the channel used to be gated on the "expo"
@@ -67,10 +67,10 @@ describe(resolveUpdateChannel, () => {
       const result = yield* resolveUpdateChannel({
         userCwd: dir,
         profile: profile(),
-      }).pipe(Effect.either, Effect.ensuring(Effect.sync(dispose)));
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain('has no "channel"');
+      }).pipe(Effect.result, Effect.ensuring(Effect.sync(dispose)));
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure.message).toContain('has no "channel"');
       }
     }).pipe(Effect.provide(layer)),
   );

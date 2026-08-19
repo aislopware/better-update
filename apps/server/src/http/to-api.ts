@@ -1,23 +1,10 @@
-import {
+import type {
   AndroidApplicationIdentifier,
   AndroidBuildCredentials,
   AndroidUploadKeystore,
-  AuditLog,
-  Branch,
-  BuildCompatibilityChannel,
-  BuildWithArtifact,
-  Channel,
-  CompatibilityChannelInfo,
-  Device,
-  DeviceRegistrationRequest,
-  Environment,
-  EnvVar,
   GoogleServiceAccountKey,
   IosAppMetadata,
   IosBundleConfiguration,
-  MissingRuntimeVersionBuild,
-  Project,
-  Update,
 } from "@better-update/api";
 
 import type { EnvVarModel } from "../env-var-models";
@@ -43,158 +30,148 @@ import type {
 } from "../models";
 import type { IosAppMetadataModel } from "../submission-models";
 
-export const toApiProject = (project: ProjectModel) =>
-  new Project({
-    id: project.id,
-    organizationId: project.organizationId,
-    name: project.name,
-    slug: project.slug,
-    createdAt: project.createdAt,
-    lastActivityAt: project.lastActivityAt,
-    archivedAt: project.archivedAt,
-    logoUrl: project.logoUrl,
-    branchCount: project.branchCount,
-    channelCount: project.channelCount,
-    updateCount: project.updateCount,
-  });
+export const toApiProject = (project: ProjectModel) => ({
+  id: project.id,
+  organizationId: project.organizationId,
+  name: project.name,
+  slug: project.slug,
+  createdAt: project.createdAt,
+  lastActivityAt: project.lastActivityAt,
+  archivedAt: project.archivedAt,
+  logoUrl: project.logoUrl,
+  branchCount: project.branchCount,
+  channelCount: project.channelCount,
+  updateCount: project.updateCount,
+});
 
-export const toApiBranch = (branch: BranchModel) =>
-  new Branch({
-    id: branch.id,
-    projectId: branch.projectId,
-    name: branch.name,
-    isBuiltin: branch.isBuiltin,
-    createdAt: branch.createdAt,
-    updateCount: branch.updateCount,
-    channelNames: branch.channelNames,
-    latestUpdateAt: branch.latestUpdateAt,
-  });
+export const toApiBranch = (branch: BranchModel) => ({
+  id: branch.id,
+  projectId: branch.projectId,
+  name: branch.name,
+  isBuiltin: branch.isBuiltin,
+  createdAt: branch.createdAt,
+  updateCount: branch.updateCount,
+  channelNames: branch.channelNames,
+  latestUpdateAt: branch.latestUpdateAt,
+});
 
-export const toApiChannel = (channel: ChannelModel) =>
-  new Channel({
-    id: channel.id,
-    projectId: channel.projectId,
-    name: channel.name,
-    branchId: channel.branchId,
-    ...(channel.branchName === undefined ? {} : { branchName: channel.branchName }),
-    ...(channel.rolloutTargetBranchName === undefined
-      ? {}
-      : { rolloutTargetBranchName: channel.rolloutTargetBranchName }),
-    branchMappingJson: channel.branchMappingJson,
-    cacheVersion: channel.cacheVersion,
-    isPaused: channel.isPaused,
-    isBuiltin: channel.isBuiltin,
-    createdAt: channel.createdAt,
-  });
+export const toApiChannel = (channel: ChannelModel) => ({
+  id: channel.id,
+  projectId: channel.projectId,
+  name: channel.name,
+  branchId: channel.branchId,
+  ...(channel.branchName === undefined ? {} : { branchName: channel.branchName }),
+  ...(channel.rolloutTargetBranchName === undefined
+    ? {}
+    : { rolloutTargetBranchName: channel.rolloutTargetBranchName }),
+  branchMappingJson: channel.branchMappingJson,
+  cacheVersion: channel.cacheVersion,
+  isPaused: channel.isPaused,
+  isBuiltin: channel.isBuiltin,
+  createdAt: channel.createdAt,
+});
 
 /** Map a user-defined environment row to the API shape (built-ins are virtual). */
-export const toApiEnvironment = (environment: EnvironmentModel, isProtected: boolean) =>
-  new Environment({
-    id: environment.id,
-    organizationId: environment.organizationId,
-    name: environment.name,
-    isBuiltin: false,
-    protected: isProtected,
-    createdAt: environment.createdAt,
-  });
+export const toApiEnvironment = (environment: EnvironmentModel, isProtected: boolean) => ({
+  id: environment.id,
+  organizationId: environment.organizationId,
+  name: environment.name,
+  isBuiltin: false,
+  protected: isProtected,
+  createdAt: environment.createdAt,
+});
 
-export const toApiUpdate = (update: UpdateModel) =>
-  new Update({
-    id: update.id,
-    branchId: update.branchId,
-    ...(update.branchName === undefined ? {} : { branchName: update.branchName }),
-    runtimeVersion: update.runtimeVersion,
-    platform: update.platform,
-    message: update.message,
-    metadataJson: update.metadataJson,
-    extraJson: update.extraJson,
-    groupId: update.groupId,
-    rolloutPercentage: update.rolloutPercentage,
-    isRollback: update.isRollback,
-    signature: update.signature,
-    certificateChain: update.certificateChain,
-    manifestBody: update.manifestBody,
-    directiveBody: update.directiveBody,
-    fingerprintHash: update.fingerprintHash,
-    gitCommit: update.gitCommit,
-    gitDirty: update.gitDirty,
-    isEmbedded: update.isEmbedded,
-    totalAssetSize: update.totalAssetSize,
-    createdAt: update.createdAt,
-  });
+export const toApiUpdate = (update: UpdateModel) => ({
+  id: update.id,
+  branchId: update.branchId,
+  ...(update.branchName === undefined ? {} : { branchName: update.branchName }),
+  runtimeVersion: update.runtimeVersion,
+  platform: update.platform,
+  message: update.message,
+  metadataJson: update.metadataJson,
+  extraJson: update.extraJson,
+  groupId: update.groupId,
+  rolloutPercentage: update.rolloutPercentage,
+  isRollback: update.isRollback,
+  signature: update.signature,
+  certificateChain: update.certificateChain,
+  manifestBody: update.manifestBody,
+  directiveBody: update.directiveBody,
+  fingerprintHash: update.fingerprintHash,
+  gitCommit: update.gitCommit,
+  gitDirty: update.gitDirty,
+  isEmbedded: update.isEmbedded,
+  totalAssetSize: update.totalAssetSize,
+  createdAt: update.createdAt,
+});
 
 export const toApiEnvVar = (
   envVar: EnvVarModel,
   overridesGlobal = envVar.overridesGlobal ?? false,
-) =>
-  new EnvVar({
-    id: envVar.id,
-    organizationId: envVar.organizationId,
-    projectId: envVar.projectId,
-    scope: envVar.scope,
-    environment: envVar.environment,
-    key: envVar.key,
-    visibility: envVar.visibility,
-    currentRevisionId: envVar.currentRevisionId,
-    revisionNumber: envVar.revisionNumber,
-    revisionCount: envVar.revisionCount,
-    ...(overridesGlobal ? { overridesGlobal: true } : {}),
-    label: envVar.label,
-    description: envVar.description,
-    createdAt: envVar.createdAt,
-    updatedAt: envVar.updatedAt,
-  });
+) => ({
+  id: envVar.id,
+  organizationId: envVar.organizationId,
+  projectId: envVar.projectId,
+  scope: envVar.scope,
+  environment: envVar.environment,
+  key: envVar.key,
+  visibility: envVar.visibility,
+  currentRevisionId: envVar.currentRevisionId,
+  revisionNumber: envVar.revisionNumber,
+  revisionCount: envVar.revisionCount,
+  ...(overridesGlobal ? { overridesGlobal: true } : {}),
+  label: envVar.label,
+  description: envVar.description,
+  createdAt: envVar.createdAt,
+  updatedAt: envVar.updatedAt,
+});
 
-export const toApiBuild = (build: BuildWithArtifactModel) =>
-  new BuildWithArtifact({
-    id: build.id,
-    projectId: build.projectId,
-    platform: build.platform,
-    profile: build.profile,
-    distribution: build.distribution,
-    runtimeVersion: build.runtimeVersion,
-    appVersion: build.appVersion,
-    buildNumber: build.buildNumber,
-    bundleId: build.bundleId,
-    gitRef: build.gitRef,
-    gitCommit: build.gitCommit,
-    gitDirty: build.gitDirty,
-    message: build.message,
-    metadataJson: build.metadataJson,
-    fingerprintHash: build.fingerprintHash,
-    createdAt: build.createdAt,
-    artifact: build.artifact,
-  });
+export const toApiBuild = (build: BuildWithArtifactModel) => ({
+  id: build.id,
+  projectId: build.projectId,
+  platform: build.platform,
+  profile: build.profile,
+  distribution: build.distribution,
+  runtimeVersion: build.runtimeVersion,
+  appVersion: build.appVersion,
+  buildNumber: build.buildNumber,
+  bundleId: build.bundleId,
+  gitRef: build.gitRef,
+  gitCommit: build.gitCommit,
+  gitDirty: build.gitDirty,
+  message: build.message,
+  metadataJson: build.metadataJson,
+  fingerprintHash: build.fingerprintHash,
+  createdAt: build.createdAt,
+  artifact: build.artifact,
+});
 
-const toApiBuildCompatibilityChannel = (channel: BuildCompatibilityChannelModel) =>
-  new BuildCompatibilityChannel({
-    channelId: channel.channelId,
-    updateCount: channel.updateCount,
-    latestUpdateId: channel.latestUpdateId,
-    latestUpdateMessage: channel.latestUpdateMessage,
-    latestUpdateCreatedAt: channel.latestUpdateCreatedAt,
-  });
+const toApiBuildCompatibilityChannel = (channel: BuildCompatibilityChannelModel) => ({
+  channelId: channel.channelId,
+  updateCount: channel.updateCount,
+  latestUpdateId: channel.latestUpdateId,
+  latestUpdateMessage: channel.latestUpdateMessage,
+  latestUpdateCreatedAt: channel.latestUpdateCreatedAt,
+});
 
-const toApiCompatibilityChannelInfo = (channel: CompatibilityChannelInfoModel) =>
-  new CompatibilityChannelInfo({
-    channelId: channel.channelId,
-    channelName: channel.channelName,
-    isPaused: channel.isPaused,
-    rolloutActive: channel.rolloutActive,
-  });
+const toApiCompatibilityChannelInfo = (channel: CompatibilityChannelInfoModel) => ({
+  channelId: channel.channelId,
+  channelName: channel.channelName,
+  isPaused: channel.isPaused,
+  rolloutActive: channel.rolloutActive,
+});
 
-const toApiMissingRuntimeVersionBuild = (build: MissingRuntimeVersionBuildModel) =>
-  new MissingRuntimeVersionBuild({
-    channelId: build.channelId,
-    channelName: build.channelName,
-    platform: build.platform,
-    runtimeVersion: build.runtimeVersion,
-    updateCount: build.updateCount,
-    latestUpdateId: build.latestUpdateId,
-    latestUpdateMessage: build.latestUpdateMessage,
-    latestUpdateCreatedAt: build.latestUpdateCreatedAt,
-    rolloutActive: build.rolloutActive,
-  });
+const toApiMissingRuntimeVersionBuild = (build: MissingRuntimeVersionBuildModel) => ({
+  channelId: build.channelId,
+  channelName: build.channelName,
+  platform: build.platform,
+  runtimeVersion: build.runtimeVersion,
+  updateCount: build.updateCount,
+  latestUpdateId: build.latestUpdateId,
+  latestUpdateMessage: build.latestUpdateMessage,
+  latestUpdateCreatedAt: build.latestUpdateCreatedAt,
+  rolloutActive: build.rolloutActive,
+});
 
 export const toApiBuildCompatibilityMatrix = (matrix: BuildCompatibilityMatrixModel) => ({
   channels: matrix.channels.map(toApiCompatibilityChannelInfo),
@@ -207,51 +184,48 @@ export const toApiBuildCompatibilityMatrix = (matrix: BuildCompatibilityMatrixMo
   missingRuntimeVersions: matrix.missingRuntimeVersions.map(toApiMissingRuntimeVersionBuild),
 });
 
-export const toApiDevice = (device: DeviceModel) =>
-  new Device({
-    id: device.id,
-    organizationId: device.organizationId,
-    appleTeamId: device.appleTeamId,
-    identifier: device.identifier,
-    name: device.name,
-    model: device.model,
-    deviceClass: device.deviceClass,
-    enabled: device.enabled,
-    appleDevicePortalId: device.appleDevicePortalId,
-    createdAt: device.createdAt,
-    updatedAt: device.updatedAt,
-  });
+export const toApiDevice = (device: DeviceModel) => ({
+  id: device.id,
+  organizationId: device.organizationId,
+  appleTeamId: device.appleTeamId,
+  identifier: device.identifier,
+  name: device.name,
+  model: device.model,
+  deviceClass: device.deviceClass,
+  enabled: device.enabled,
+  appleDevicePortalId: device.appleDevicePortalId,
+  createdAt: device.createdAt,
+  updatedAt: device.updatedAt,
+});
 
 export const toApiDeviceRegistrationRequest = (
   model: DeviceRegistrationRequestModel,
   url: string,
-) =>
-  new DeviceRegistrationRequest({
-    id: model.id,
-    organizationId: model.organizationId,
-    appleTeamId: model.appleTeamId,
-    deviceNameHint: model.deviceNameHint,
-    deviceClassHint: model.deviceClassHint,
-    url,
-    expiresAt: model.expiresAt,
-    consumedAt: model.consumedAt,
-    consumedDeviceId: model.consumedDeviceId,
-    createdAt: model.createdAt,
-  });
+) => ({
+  id: model.id,
+  organizationId: model.organizationId,
+  appleTeamId: model.appleTeamId,
+  deviceNameHint: model.deviceNameHint,
+  deviceClassHint: model.deviceClassHint,
+  url,
+  expiresAt: model.expiresAt,
+  consumedAt: model.consumedAt,
+  consumedDeviceId: model.consumedDeviceId,
+  createdAt: model.createdAt,
+});
 
-export const toApiAuditLog = (log: AuditLogModel) =>
-  new AuditLog({
-    id: log.id,
-    organizationId: log.organizationId,
-    actorId: log.actorId,
-    actorEmail: log.actorEmail,
-    action: log.action,
-    resourceType: log.resourceType,
-    resourceId: log.resourceId,
-    metadata: log.metadata,
-    source: log.source,
-    createdAt: log.createdAt,
-  });
+export const toApiAuditLog = (log: AuditLogModel) => ({
+  id: log.id,
+  organizationId: log.organizationId,
+  actorId: log.actorId,
+  actorEmail: log.actorEmail,
+  action: log.action,
+  resourceType: log.resourceType,
+  resourceId: log.resourceId,
+  metadata: log.metadata,
+  source: log.source,
+  createdAt: log.createdAt,
+});
 
 // Apple credential mappers live in ./to-api-apple (extracted for the line
 // budget); re-exported here so existing import sites stay stable.
@@ -270,105 +244,99 @@ export const toApiGoogleServiceAccountKey = (
   model: GoogleServiceAccountKeyModel,
   boundProjectIds: readonly string[],
   boundToAllProjects = false,
-): GoogleServiceAccountKey =>
-  new GoogleServiceAccountKey({
-    boundProjectIds,
-    boundToAllProjects,
-    id: model.id,
-    organizationId: model.organizationId,
-    clientEmail: model.clientEmail,
-    privateKeyId: model.privateKeyId,
-    googleProjectId: model.googleProjectId,
-    clientId: model.clientId,
-    protected: model.isProtected,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+): GoogleServiceAccountKey => ({
+  boundProjectIds,
+  boundToAllProjects,
+  id: model.id,
+  organizationId: model.organizationId,
+  clientEmail: model.clientEmail,
+  privateKeyId: model.privateKeyId,
+  googleProjectId: model.googleProjectId,
+  clientId: model.clientId,
+  protected: model.isProtected,
+  createdAt: model.createdAt,
+  updatedAt: model.updatedAt,
+});
 
 export const toApiIosBundleConfiguration = (
   model: IosBundleConfigurationModel,
-): IosBundleConfiguration =>
-  new IosBundleConfiguration({
-    id: model.id,
-    organizationId: model.organizationId,
-    projectId: model.projectId,
-    bundleIdentifier: model.bundleIdentifier,
-    distributionType: model.distributionType,
-    appleTeamId: model.appleTeamId,
-    appleDistributionCertificateId: model.appleDistributionCertificateId,
-    appleProvisioningProfileId: model.appleProvisioningProfileId,
-    applePushKeyId: model.applePushKeyId,
-    ascApiKeyId: model.ascApiKeyId,
-    targetName: model.targetName,
-    parentBundleIdentifier: model.parentBundleIdentifier,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+): IosBundleConfiguration => ({
+  id: model.id,
+  organizationId: model.organizationId,
+  projectId: model.projectId,
+  bundleIdentifier: model.bundleIdentifier,
+  distributionType: model.distributionType,
+  appleTeamId: model.appleTeamId,
+  appleDistributionCertificateId: model.appleDistributionCertificateId,
+  appleProvisioningProfileId: model.appleProvisioningProfileId,
+  applePushKeyId: model.applePushKeyId,
+  ascApiKeyId: model.ascApiKeyId,
+  targetName: model.targetName,
+  parentBundleIdentifier: model.parentBundleIdentifier,
+  createdAt: model.createdAt,
+  updatedAt: model.updatedAt,
+});
 
 export const toApiAndroidApplicationIdentifier = (
   model: AndroidApplicationIdentifierModel,
-): AndroidApplicationIdentifier =>
-  new AndroidApplicationIdentifier({
-    id: model.id,
-    organizationId: model.organizationId,
-    projectId: model.projectId,
-    packageName: model.packageName,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+): AndroidApplicationIdentifier => ({
+  id: model.id,
+  organizationId: model.organizationId,
+  projectId: model.projectId,
+  packageName: model.packageName,
+  createdAt: model.createdAt,
+  updatedAt: model.updatedAt,
+});
 
 export const toApiAndroidUploadKeystore = (
   model: AndroidUploadKeystoreModel,
   boundProjectIds: readonly string[],
   boundToAllProjects = false,
-): AndroidUploadKeystore =>
-  new AndroidUploadKeystore({
-    boundProjectIds,
-    boundToAllProjects,
-    id: model.id,
-    organizationId: model.organizationId,
-    name: model.name,
-    keyAlias: model.keyAlias,
-    md5Fingerprint: model.md5Fingerprint,
-    sha1Fingerprint: model.sha1Fingerprint,
-    sha256Fingerprint: model.sha256Fingerprint,
-    keystoreType: model.keystoreType,
-    validUntil: model.validUntil,
-    protected: model.isProtected,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+): AndroidUploadKeystore => ({
+  boundProjectIds,
+  boundToAllProjects,
+  id: model.id,
+  organizationId: model.organizationId,
+  name: model.name,
+  keyAlias: model.keyAlias,
+  md5Fingerprint: model.md5Fingerprint,
+  sha1Fingerprint: model.sha1Fingerprint,
+  sha256Fingerprint: model.sha256Fingerprint,
+  keystoreType: model.keystoreType,
+  validUntil: model.validUntil,
+  protected: model.isProtected,
+  createdAt: model.createdAt,
+  updatedAt: model.updatedAt,
+});
 
 export const toApiAndroidBuildCredentials = (
   model: AndroidBuildCredentialsModel,
-): AndroidBuildCredentials =>
-  new AndroidBuildCredentials({
-    id: model.id,
-    organizationId: model.organizationId,
-    androidApplicationIdentifierId: model.androidApplicationIdentifierId,
-    androidUploadKeystoreId: model.androidUploadKeystoreId,
-    googleServiceAccountKeyForSubmissionsId: model.googleServiceAccountKeyForSubmissionsId,
-    googleServiceAccountKeyForFcmV1Id: model.googleServiceAccountKeyForFcmV1Id,
-    name: model.name,
-    isDefault: model.isDefault,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+): AndroidBuildCredentials => ({
+  id: model.id,
+  organizationId: model.organizationId,
+  androidApplicationIdentifierId: model.androidApplicationIdentifierId,
+  androidUploadKeystoreId: model.androidUploadKeystoreId,
+  googleServiceAccountKeyForSubmissionsId: model.googleServiceAccountKeyForSubmissionsId,
+  googleServiceAccountKeyForFcmV1Id: model.googleServiceAccountKeyForFcmV1Id,
+  name: model.name,
+  isDefault: model.isDefault,
+  createdAt: model.createdAt,
+  updatedAt: model.updatedAt,
+});
 
-export const toApiIosAppMetadata = (model: IosAppMetadataModel): IosAppMetadata =>
-  new IosAppMetadata({
-    id: model.id,
-    organizationId: model.organizationId,
-    projectId: model.projectId,
-    bundleIdentifier: model.bundleIdentifier,
-    ascAppId: model.ascAppId,
-    sku: model.sku,
-    language: model.language,
-    companyName: model.companyName,
-    appName: model.appName,
-    createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
-  });
+export const toApiIosAppMetadata = (model: IosAppMetadataModel): IosAppMetadata => ({
+  id: model.id,
+  organizationId: model.organizationId,
+  projectId: model.projectId,
+  bundleIdentifier: model.bundleIdentifier,
+  ascAppId: model.ascAppId,
+  sku: model.sku,
+  language: model.language,
+  companyName: model.companyName,
+  appName: model.appName,
+  createdAt: model.createdAt,
+  updatedAt: model.updatedAt,
+});
 
 // Submission mappers live in to-api-submission.ts (extracted for the line
 // budget); re-exported here so existing import sites stay stable.

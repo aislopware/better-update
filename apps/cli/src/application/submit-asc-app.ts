@@ -48,7 +48,7 @@ const persist = (input: EnsureAscAppForSubmitInput, ascAppId: string) =>
     Effect.flatMap((path) =>
       printHuman(`Saved ascAppId to ${path} (submit profile "${input.profileName}") for reuse.`),
     ),
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       printHuman(
         `Note: could not write ascAppId to eas.json (${error.message}). Add it manually to reuse it.`,
       ),
@@ -172,7 +172,7 @@ export const ensureAscAppForSubmit = (input: EnsureAscAppForSubmitInput) =>
     yield* persist(input, app.id);
     return app.id;
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       printHuman(
         `Could not resolve or create the App Store Connect app (${messageOf(error)}). Continuing without it — set ascAppId in the eas.json submit profile to skip this lookup.`,
       ).pipe(Effect.as(null)),

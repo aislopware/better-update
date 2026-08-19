@@ -1,39 +1,39 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { ManifestRepo, ManifestRepoLive } from "../../../src/repositories/manifest";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ManifestRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ManifestRepo>) =>
   runWithLayerAndEnv(effect, ManifestRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, ManifestRepo>) =>
-  runEitherWithLayerAndEnv(effect, ManifestRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ManifestRepo>) =>
+  runResultWithLayerAndEnv(effect, ManifestRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string, scopeKey: string | null) =>
+const insertProject = async (id: string, organizationId: string, scopeKey: string | null) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "scope_key", "created_at") VALUES (?, ?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`, scopeKey, "2024-01-01T00:00:00Z")
     .run();
 
-const insertBranch = (id: string, projectId: string, name: string) =>
+const insertBranch = async (id: string, projectId: string, name: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, projectId, name, "2024-01-02T00:00:00Z")
     .run();
 
-const insertChannel = (params: {
+const insertChannel = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly name: string;
@@ -56,7 +56,7 @@ const insertChannel = (params: {
     )
     .run();
 
-const insertUpdate = (params: {
+const insertUpdate = async (params: {
   readonly id: string;
   readonly branchId: string;
   readonly runtimeVersion: string;
@@ -87,7 +87,7 @@ const insertUpdate = (params: {
     )
     .run();
 
-const insertAsset = (params: {
+const insertAsset = async (params: {
   readonly hash: string;
   readonly contentType: string;
   readonly fileExt: string;
@@ -108,7 +108,7 @@ const insertAsset = (params: {
     )
     .run();
 
-const insertUpdateAsset = (params: {
+const insertUpdateAsset = async (params: {
   readonly updateId: string;
   readonly assetKey: string;
   readonly assetHash: string;
@@ -219,7 +219,7 @@ describe("ManifestRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(channel).toEqual({
+    expect(channel).toStrictEqual({
       branch_id: BRANCH_ID,
       branch_mapping_json: null,
       cache_version: 7,
@@ -229,16 +229,16 @@ describe("ManifestRepo — D1 integration (Kysely + session)", () => {
   });
 
   it("resolveChannel fails with NotFound when the channel is absent", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* ManifestRepo;
         return yield* repo.resolveChannel({ projectId: PROJECT_ID, channelName: "ghost" });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound", message: "Channel not found" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound", message: "Channel not found" });
     }
   });
 
@@ -254,7 +254,7 @@ describe("ManifestRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(rows.map((row) => row.id)).toEqual(["upd-3", "upd-2"]);
+    expect(rows.map((row) => row.id)).toStrictEqual(["upd-3", "upd-2"]);
     expect(rows.every((row) => row.platform === "ios" && row.runtime_version === "1.0.0")).toBe(
       true,
     );
@@ -298,7 +298,9 @@ describe("ManifestRepo — D1 integration (Kysely + session)", () => {
         return yield* repo.findUpdateAssets({ updateId: "upd-2" });
       }),
     );
-    expect(assets.map((asset) => asset.hash).sort()).toEqual(["hash-extra", "hash-launch"]);
+    expect(
+      assets.map((asset) => asset.hash).toSorted((left, right) => left.localeCompare(right)),
+    ).toStrictEqual(["hash-extra", "hash-launch"]);
 
     const launch = await run(
       Effect.gen(function* () {
@@ -306,7 +308,7 @@ describe("ManifestRepo — D1 integration (Kysely + session)", () => {
         return yield* repo.findLaunchAssetForUpdate({ updateId: "upd-2" });
       }),
     );
-    expect(launch).toEqual({
+    expect(launch).toStrictEqual({
       hash: "hash-launch",
       r2_key: "assets/hash-launch",
       content_type: "application/octet-stream",

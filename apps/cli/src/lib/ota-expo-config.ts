@@ -57,9 +57,9 @@ export const readOtaExpoConfig = (params: {
       return undefined;
     }
     return yield* readExpoConfig(params.projectRoot, params.envVars).pipe(
-      Effect.catchAll((cause) =>
+      Effect.catch((error) =>
         printWarn(
-          `This project depends on expo-updates but its Expo config could not be read, so no OTA runtime version will be recorded for this ${params.subject}: ${formatCause(cause)}`,
+          `This project depends on expo-updates but its Expo config could not be read, so no OTA runtime version will be recorded for this ${params.subject}: ${formatCause(error)}`,
         ).pipe(Effect.as(undefined)),
       ),
     );
@@ -86,9 +86,9 @@ export const resolveOtaRuntimeVersion = (
   params.raw === undefined
     ? Effect.succeed(undefined)
     : resolveRuntimeVersion(params).pipe(
-        Effect.catchAll((cause) =>
+        Effect.catch((error) =>
           printWarn(
-            `Could not resolve the OTA runtime version, so none will be recorded for this ${params.subject}: ${formatCause(cause)}`,
+            `Could not resolve the OTA runtime version, so none will be recorded for this ${params.subject}: ${formatCause(error)}`,
           ).pipe(Effect.as(undefined)),
         ),
       );

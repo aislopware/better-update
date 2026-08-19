@@ -11,9 +11,7 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
  * ID (`bundleIdentifier`) rather than a whole team. The production cert serves
  * both the sandbox and production APNs environments.
  */
-export class ApplePushCertificate extends Schema.Class<ApplePushCertificate>(
-  "ApplePushCertificate",
-)({
+export const ApplePushCertificate = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Id,
@@ -25,7 +23,8 @@ export class ApplePushCertificate extends Schema.Class<ApplePushCertificate>(
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "ApplePushCertificate" });
+export type ApplePushCertificate = typeof ApplePushCertificate.Type;
 
 /**
  * Client-encrypted upload: the `.p12` bytes + password are sealed into
@@ -36,8 +35,8 @@ export const UploadApplePushCertificateBody = Schema.Struct({
   ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
-  bundleIdentifier: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  bundleIdentifier: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  serialNumber: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
   ...appleTeamMetadataFields,
   validFrom: DateTimeString,

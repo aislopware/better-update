@@ -1,5 +1,6 @@
+/* eslint-disable no-await-in-loop -- fixture rows are seeded serially: foreign keys (branch → channel → update → asset link) and the keep-set ordering the assertions rely on both depend on insert order. */
 import { patchR2Key } from "@better-update/expo-protocol";
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect, Layer } from "effect";
 
 import { reapPatches, reapUpdates } from "../../src/application/ota-reaper";
@@ -31,7 +32,7 @@ const ReaperLayer = Layer.mergeAll(
   BuildStorageRepoLive,
 );
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, never>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, Layer.Success<typeof ReaperLayer>>) =>
   runWithLayerAndEnv(effect.pipe(Effect.provide(ReaperLayer)), Layer.empty, env);
 
 // Far past / future so the retention windows are unambiguous.
@@ -44,7 +45,7 @@ const PATCH_CUTOFF = computeCutoff(30);
 // without tripping D1's 100-bound-parameter ceiling.
 const IN_CHUNK_THRESHOLD = 80;
 
-const insertUpdate = (params: {
+const insertUpdate = async (params: {
   readonly id: string;
   readonly branchId: string;
   readonly groupId: string;
@@ -70,14 +71,14 @@ const insertUpdate = (params: {
     )
     .run();
 
-const insertAsset = (hash: string) =>
+const insertAsset = async (hash: string) =>
   env.DB.prepare(
     `INSERT OR IGNORE INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, 'application/javascript', 'js', 2048, ?, '2020-01-01T00:00:00.000Z')`,
   )
     .bind(hash, `assets/${hash}`)
     .run();
 
-const linkAsset = (updateId: string, hash: string, isLaunch: boolean) =>
+const linkAsset = async (updateId: string, hash: string, isLaunch: boolean) =>
   env.DB.prepare(
     `INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch") VALUES (?, ?, ?, ?)`,
   )
@@ -101,8 +102,10 @@ describe("OTA reaper (real D1 + R2)", () => {
   const uRolloutPrev = `5555aaaa-0000-0000-0000-${suffix}00000000`;
   const uRolloutNew = `6666aaaa-0000-0000-0000-${suffix}00000000`;
 
-  const hashA = `hasha-${suffix}`; // launch asset of uOldUnref only
-  const hashS = `hashs-${suffix}`; // shared between uOldUnref and uRecent
+  // launch asset of uOldUnref only
+  const hashA = `hasha-${suffix}`;
+  // shared between uOldUnref and uRecent
+  const hashS = `hashs-${suffix}`;
   const hashEmbedded = `hashe-${suffix}`;
 
   const orphanPatchKey = patchR2Key({
@@ -291,21 +294,21 @@ describe("OTA reaper (real D1 + R2)", () => {
       .first();
     expect(oldRow).toBeNull();
     const oldAssets = await env.DB.prepare(
-      `SELECT COUNT(*) AS c FROM "update_assets" WHERE "update_id" = ?`,
+      `SELECT COUNT(*) AS total FROM "update_assets" WHERE "update_id" = ?`,
     )
       .bind(uOldUnref)
-      .first<{ c: number }>();
-    expect(oldAssets?.c).toBe(0);
+      .first<{ total: number }>();
+    expect(oldAssets?.total).toBe(0);
 
     // assets/{hashA} deleted from R2 AND its assets row gone (now-unshared).
-    expect(await env.ASSETS_BUCKET.get(`assets/${hashA}`)).toBeNull();
+    await expect(env.ASSETS_BUCKET.get(`assets/${hashA}`)).resolves.toBeNull();
     const assetRow = await env.DB.prepare(`SELECT "hash" FROM "assets" WHERE "hash" = ?`)
       .bind(hashA)
       .first();
     expect(assetRow).toBeNull();
 
     // The orphaned patch (its `to` reaped) is gone (patchCutoff=RECENT => beyond TTL).
-    expect(await env.ASSETS_BUCKET.get(orphanPatchKey)).toBeNull();
+    await expect(env.ASSETS_BUCKET.get(orphanPatchKey)).resolves.toBeNull();
   });
 
   it("keeps channel-current, embedded, and in-flight-rollout updates", async () => {
@@ -319,7 +322,7 @@ describe("OTA reaper (real D1 + R2)", () => {
 
   it("keeps a shared asset still referenced by a surviving update", async () => {
     // uRecent survives and references hashS, so it is never orphaned.
-    expect(await env.ASSETS_BUCKET.get(`assets/${hashS}`)).not.toBeNull();
+    await expect(env.ASSETS_BUCKET.get(`assets/${hashS}`)).resolves.not.toBeNull();
     const row = await env.DB.prepare(`SELECT "hash" FROM "assets" WHERE "hash" = ?`)
       .bind(hashS)
       .first();
@@ -329,13 +332,11 @@ describe("OTA reaper (real D1 + R2)", () => {
   it("keeps a live patch whose from/to both survive within the base window", async () => {
     // from=uEmbedded (valid base), to=uCurrent (surviving). Even with
     // patchCutoff=RECENT (everything beyond TTL), both ids reachable => KEEP.
-    expect(await env.ASSETS_BUCKET.get(livePatchKey)).not.toBeNull();
+    await expect(env.ASSETS_BUCKET.get(livePatchKey)).resolves.not.toBeNull();
     // The embedded base bundle is untouched.
-    expect(
-      await env.DB.prepare(`SELECT "hash" FROM "assets" WHERE "hash" = ?`)
-        .bind(hashEmbedded)
-        .first(),
-    ).not.toBeNull();
+    await expect(
+      env.DB.prepare(`SELECT "hash" FROM "assets" WHERE "hash" = ?`).bind(hashEmbedded).first(),
+    ).resolves.not.toBeNull();
   });
 
   it("keeps a within-TTL patch whose `to` was reaped (TTL guard)", async () => {
@@ -345,7 +346,7 @@ describe("OTA reaper (real D1 + R2)", () => {
     await env.ASSETS_BUCKET.put(ttlGuardedPatchKey, new Uint8Array([5]));
     const kept = await run(reapPatches({ patchCutoff: PATCH_CUTOFF }));
     expect(kept.patchesDeleted).toBe(0);
-    expect(await env.ASSETS_BUCKET.get(ttlGuardedPatchKey)).not.toBeNull();
+    await expect(env.ASSETS_BUCKET.get(ttlGuardedPatchKey)).resolves.not.toBeNull();
   });
 
   it("is idempotent: a second run deletes nothing new", async () => {
@@ -362,28 +363,33 @@ describe("OTA reaper (real D1 + R2)", () => {
   });
 });
 
-const insertOrg = (id: string, slug: string) =>
+const insertOrg = async (id: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, 'Org', ?, '2020-01-01')`,
   )
     .bind(id, slug)
     .run();
 
-const insertProject = (id: string, orgId: string, slug: string) =>
+const insertProject = async (id: string, orgId: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, 'Project', ?, '2020-01-01T00:00:00.000Z')`,
   )
     .bind(id, orgId, slug)
     .run();
 
-const insertBranch = (id: string, projectId: string, name: string) =>
+const insertBranch = async (id: string, projectId: string, name: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, '2020-01-01T00:00:00.000Z')`,
   )
     .bind(id, projectId, name)
     .run();
 
-const insertChannel = (id: string, projectId: string, branchId: string, name = "production") =>
+const insertChannel = async (
+  id: string,
+  projectId: string,
+  branchId: string,
+  name = "production",
+) =>
   env.DB.prepare(
     `INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "branch_mapping_json", "is_paused", "created_at") VALUES (?, ?, ?, ?, NULL, 0, '2020-01-01T00:00:00.000Z')`,
   )
@@ -467,8 +473,10 @@ describe("OTA reaper: global shared-asset reconciliation (P3)", () => {
   const uOldA = `cccc1111-0000-0000-0000-${suffix}00000000`;
   const uOldB = `dddd2222-0000-0000-0000-${suffix}00000000`;
   const uNewest = `eeee3333-0000-0000-0000-${suffix}00000000`;
-  const sharedReaped = `hash-shared-reaped-${suffix}`; // only uOldA + uOldB
-  const sharedSurvives = `hash-shared-survives-${suffix}`; // uOldA + uNewest
+  // only uOldA + uOldB
+  const sharedReaped = `hash-shared-reaped-${suffix}`;
+  // uOldA + uNewest
+  const sharedSurvives = `hash-shared-survives-${suffix}`;
 
   beforeAll(async () => {
     await insertOrg(`org-sa-${suffix}`, `sa-org-${suffix}`);
@@ -541,14 +549,14 @@ describe("OTA reaper: global shared-asset reconciliation (P3)", () => {
     expect(result.updatesDeleted).toBeGreaterThanOrEqual(2);
 
     // sharedReaped: both referrers (uOldA, uOldB) reaped => collected.
-    expect(await env.ASSETS_BUCKET.get(`assets/${sharedReaped}`)).toBeNull();
+    await expect(env.ASSETS_BUCKET.get(`assets/${sharedReaped}`)).resolves.toBeNull();
     const reapedRow = await env.DB.prepare(`SELECT "hash" FROM "assets" WHERE "hash" = ?`)
       .bind(sharedReaped)
       .first();
     expect(reapedRow, "asset with no surviving referrer must be collected").toBeNull();
 
     // sharedSurvives: still referenced by uNewest => kept.
-    expect(await env.ASSETS_BUCKET.get(`assets/${sharedSurvives}`)).not.toBeNull();
+    await expect(env.ASSETS_BUCKET.get(`assets/${sharedSurvives}`)).resolves.not.toBeNull();
     const survivesRow = await env.DB.prepare(`SELECT "hash" FROM "assets" WHERE "hash" = ?`)
       .bind(sharedSurvives)
       .first();
@@ -636,10 +644,10 @@ describe("OTA reaper: D1 parameter ceilings (P1)", () => {
 
     // Every current/servable update on the 60 keep branches survives.
     const survivorCount = await env.DB.prepare(
-      `SELECT COUNT(*) AS c FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ? AND u."created_at" >= '2099-01-01T00:00:00.000Z'`,
+      `SELECT COUNT(*) AS total FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ? AND u."created_at" >= '2099-01-01T00:00:00.000Z'`,
     )
       .bind(projectId)
-      .first<{ c: number }>();
-    expect(survivorCount?.c).toBe(branchCount + 1);
+      .first<{ total: number }>();
+    expect(survivorCount?.total).toBe(branchCount + 1);
   });
 });

@@ -44,7 +44,7 @@ export const listDevicesCommand = defineCommand({
         const page = yield* parseLimit(args.page, 1);
         const limit = yield* parseLimit(args.limit, 20);
         const result = yield* api.devices.list({
-          urlParams: {
+          query: {
             page,
             limit,
             ...compact({

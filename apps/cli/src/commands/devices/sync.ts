@@ -1,6 +1,6 @@
 import AppleUtils from "@expo/apple-utils";
 import { defineCommand } from "citty";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import { createAscKeyViaLogin } from "../../application/asc-key-resolve";
 import { buildTokenRequestContext, wrapConnect } from "../../lib/apple-asc-connect";
@@ -33,7 +33,7 @@ interface SyncArgs {
 
 /**
  * Resolve which ASC key authenticates the sync and which internal team it
- * targets. Either flag suffices: an ASC key already carries its team, and a team
+ * targets. Result flag suffices: an ASC key already carries its team, and a team
  * resolves to the ASC key uploaded for it.
  */
 const resolveTarget = (api: ApiClient, args: SyncArgs) =>
@@ -102,7 +102,7 @@ const listAllLocalDevices = (api: ApiClient, appleTeamId: string) =>
     // another team are skipped — they are not this sync's to push or link.
     while (fetched < total) {
       const result = yield* api.devices.list({
-        urlParams: { page, limit: LIST_LIMIT },
+        query: { page, limit: LIST_LIMIT },
       });
       ({ total } = result);
       if (result.items.length === 0) {
@@ -171,7 +171,7 @@ export const syncDeviceCommand = defineCommand({
           const appleUdids = new Set(appleDevices.map((device) => device.udid.toLowerCase()));
           const toPush = local.filter((device) => !appleUdids.has(device.identifier.toLowerCase()));
           for (const device of toPush) {
-            const result = yield* Effect.either(
+            const result = yield* Effect.result(
               wrapConnect("apple-create-device", async () =>
                 AppleUtils.Device.createAsync(ctx, {
                   name: device.name,
@@ -180,10 +180,10 @@ export const syncDeviceCommand = defineCommand({
                 }),
               ),
             );
-            if (Either.isRight(result)) {
-              pushed.push(toAppleDevice(result.right));
+            if (Result.isSuccess(result)) {
+              pushed.push(toAppleDevice(result.success));
             } else {
-              pushFailures.push({ identifier: device.identifier, message: result.left.message });
+              pushFailures.push({ identifier: device.identifier, message: result.failure.message });
             }
           }
         }

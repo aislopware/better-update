@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertIosCredentialRefs } from "../application/validate-credential-refs";
@@ -18,27 +18,27 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
   "iosBundleConfigurations",
   (handlers) =>
     handlers
-      .handle("list", ({ path }) =>
+      .handle("list", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertProjectOwnership(path.projectId);
+            yield* assertProjectOwnership(params.projectId);
             yield* assertAccess("iosBundleConfiguration", "read", {
               kind: "project",
-              projectId: path.projectId,
+              projectId: params.projectId,
             });
             const repo = yield* IosBundleConfigurationRepo;
-            const items = yield* repo.listByProject({ projectId: path.projectId });
+            const items = yield* repo.listByProject({ projectId: params.projectId });
             return { items: items.map(toApiIosBundleConfiguration) };
           }),
         ),
       )
-      .handle("create", ({ path, payload }) =>
+      .handle("create", ({ params, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertProjectOwnership(path.projectId);
+            yield* assertProjectOwnership(params.projectId);
             yield* assertAccess("iosBundleConfiguration", "create", {
               kind: "project",
-              projectId: path.projectId,
+              projectId: params.projectId,
             });
             const ctx = yield* CurrentActor;
             const repo = yield* IosBundleConfigurationRepo;
@@ -52,7 +52,7 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
             const model = {
               id,
               organizationId: ctx.organizationId,
-              projectId: path.projectId,
+              projectId: params.projectId,
               bundleIdentifier: payload.bundleIdentifier,
               distributionType: payload.distributionType,
               appleTeamId: payload.appleTeamId,
@@ -71,7 +71,7 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
               action: "ios.bundle-configuration.create",
               resourceType: "iosBundleConfiguration",
               resourceId: id,
-              projectId: path.projectId,
+              projectId: params.projectId,
               metadata: {
                 bundleIdentifier: payload.bundleIdentifier,
                 distributionType: payload.distributionType,
@@ -87,11 +87,11 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
       )
       // A write, not a plain CRUD update: rebinding can fail validation
       // (assertIosCredentialRefs rejects a macOS certificate) as well as authz.
-      .handle("update", ({ path, payload }) =>
+      .handle("update", ({ params, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
             const repo = yield* IosBundleConfigurationRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAccess("iosBundleConfiguration", "update", {
               kind: "project",
@@ -101,7 +101,7 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
 
             const now = new Date().toISOString();
             yield* repo.update({
-              id: path.id,
+              id: params.id,
               appleDistributionCertificateId: payload.appleDistributionCertificateId,
               appleProvisioningProfileId: payload.appleProvisioningProfileId,
               applePushKeyId: payload.applePushKeyId,
@@ -113,33 +113,33 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "ios.bundle-configuration.update",
               resourceType: "iosBundleConfiguration",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: existing.projectId,
               metadata: {
                 bundleIdentifier: existing.bundleIdentifier,
                 distributionType: existing.distributionType,
               },
             });
-            const merged = yield* repo.findById({ id: path.id });
+            const merged = yield* repo.findById({ id: params.id });
             return toApiIosBundleConfiguration(merged);
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const repo = yield* IosBundleConfigurationRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAccess("iosBundleConfiguration", "delete", {
               kind: "project",
               projectId: existing.projectId,
             });
-            yield* repo.delete({ id: path.id });
+            yield* repo.delete({ id: params.id });
             yield* logAudit({
               action: "ios.bundle-configuration.delete",
               resourceType: "iosBundleConfiguration",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: existing.projectId,
               metadata: {
                 bundleIdentifier: existing.bundleIdentifier,

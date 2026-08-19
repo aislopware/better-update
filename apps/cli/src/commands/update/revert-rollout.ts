@@ -23,7 +23,7 @@ export const revertRolloutCommand = defineCommand({
         const api = yield* apiClient;
 
         const allUpdates = yield* drainPages((page) =>
-          api.updates.list({ urlParams: { projectId, limit: 100, page } }),
+          api.updates.list({ query: { projectId, limit: 100, page } }),
         );
         const inGroup = allUpdates.filter((update) => update.groupId === args.groupId);
         if (inGroup.length === 0) {
@@ -34,7 +34,7 @@ export const revertRolloutCommand = defineCommand({
 
         yield* Effect.forEach(
           inGroup,
-          (update) => api.updates.revertRollout({ path: { id: update.id } }),
+          (update) => api.updates.revertRollout({ params: { id: update.id } }),
           { concurrency: 2 },
         );
 

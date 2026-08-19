@@ -1,8 +1,6 @@
 import { safeJsonParse } from "@better-update/safe-json";
-import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
-
-import type { HttpApp } from "@effect/platform";
+import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
 /** Convert PascalCase to UPPER_SNAKE_CASE: "OrgRequired" → "ORG_REQUIRED" */
 export const pascalToUpperSnake = (str: string): string =>
@@ -52,6 +50,13 @@ export const rewriteErrorResponse = (
 /**
  * Middleware that rewrites Effect HttpApi error responses — matching the format
  * Better Auth already uses natively.
+ *
+ * A GLOBAL `HttpRouter.middleware` layer rather than a `toWebHandler`
+ * middleware: v4 applies the latter around the whole server chain, past the
+ * point where the response is sent, so a rewrite there never reaches the
+ * client.
  */
-export const errorFormatMiddleware = (httpApp: HttpApp.Default): HttpApp.Default =>
-  httpApp.pipe(Effect.flatMap(rewriteErrorResponse));
+export const ErrorFormatMiddlewareLive = HttpRouter.middleware(
+  (httpEffect) => httpEffect.pipe(Effect.flatMap(rewriteErrorResponse)),
+  { global: true },
+);

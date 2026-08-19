@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import { OrgVaultRepo } from "../repositories/org-vault";
 import { assertEnvVaultWriteAllowed } from "./assert-vault-version";
@@ -45,7 +45,7 @@ const run = (
 ) =>
   assertEnvVaultWriteAllowed({ organizationId: "org-1", ...params }).pipe(
     Effect.provideService(OrgVaultRepo, repo(vault)),
-    Effect.either,
+    Effect.result,
   );
 
 describe(assertEnvVaultWriteAllowed, () => {
@@ -56,7 +56,7 @@ describe(assertEnvVaultWriteAllowed, () => {
         const result = yield* run(vaultStub({ vaultVersion: 1, forked: false }), {
           vaultVersion: 1,
         });
-        expect(Either.isRight(result)).toBe(true);
+        expect(Result.isSuccess(result)).toBe(true);
       }),
   );
 
@@ -66,7 +66,7 @@ describe(assertEnvVaultWriteAllowed, () => {
         vaultVersion: 3,
         vaultKind: "credentials",
       });
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     }),
   );
 
@@ -76,7 +76,7 @@ describe(assertEnvVaultWriteAllowed, () => {
         vaultVersion: 1,
         vaultKind: "env",
       });
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     }),
   );
 
@@ -86,7 +86,7 @@ describe(assertEnvVaultWriteAllowed, () => {
         vaultVersion: 1,
         vaultKind: "env",
       });
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     }),
   );
 
@@ -102,7 +102,7 @@ describe(assertEnvVaultWriteAllowed, () => {
             vaultVersion: 1,
           },
         );
-        expect(Either.isLeft(result)).toBe(true);
+        expect(Result.isFailure(result)).toBe(true);
       }),
   );
 
@@ -112,7 +112,7 @@ describe(assertEnvVaultWriteAllowed, () => {
         vaultVersion: 1,
         vaultKind: "credentials",
       });
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     }),
   );
 
@@ -122,7 +122,7 @@ describe(assertEnvVaultWriteAllowed, () => {
         vaultStub({ forked: true, envVaultVersion: 2, envRotationPending: true }),
         { vaultVersion: 2, vaultKind: "env" },
       );
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     }),
   );
 
@@ -132,14 +132,14 @@ describe(assertEnvVaultWriteAllowed, () => {
         vaultVersion: 1,
         vaultKind: "env",
       });
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     }),
   );
 
   it.effect("no vault yet: not gated (nothing to be stale against)", () =>
     Effect.gen(function* () {
       const result = yield* run(null, { vaultVersion: 1, vaultKind: "env" });
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     }),
   );
 });

@@ -14,7 +14,7 @@ export const viewCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const update = yield* api.updates.get({ path: { id: args.id } });
+        const update = yield* api.updates.get({ params: { id: args.id } });
         yield* printHumanKeyValue([
           ["ID", update.id],
           ["Group ID", update.groupId],

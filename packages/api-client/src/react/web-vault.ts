@@ -21,7 +21,7 @@ export const getAccountKeyEscrow = async () => runApi((api) => api.accountKeys.g
 /** The env-vault key wrapped to the caller's account key, to unwrap locally. */
 export const getEnvVaultAccountWrap = async (accountKeyId: string) =>
   runApi((api) =>
-    api.envVault.getWrap({ path: { recipientKind: "account", recipientId: accountKeyId } }),
+    api.envVault.getWrap({ params: { recipientKind: "account", recipientId: accountKeyId } }),
   );
 
 // Browser-side env-vault provisioning (web self-enrollment + admin grant). Register

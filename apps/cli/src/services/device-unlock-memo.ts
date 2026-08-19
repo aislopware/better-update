@@ -21,7 +21,7 @@ import type { UnlockedDeviceIdentity } from "../application/vault-access";
  * Nothing is persisted — the layer holds the only reference and dies with the
  * process, so unlike the keychain tier there is no at-rest exposure to weigh.
  */
-export class DeviceUnlockMemo extends Context.Tag("cli/DeviceUnlockMemo")<
+export class DeviceUnlockMemo extends Context.Service<
   DeviceUnlockMemo,
   {
     /** The identity unlocked earlier in this run for `publicKey`, or `undefined`. */
@@ -32,7 +32,7 @@ export class DeviceUnlockMemo extends Context.Tag("cli/DeviceUnlockMemo")<
       unlocked: UnlockedDeviceIdentity,
     ) => Effect.Effect<UnlockedDeviceIdentity>;
   }
->() {}
+>()("cli/DeviceUnlockMemo") {}
 
 interface MemoEntry {
   readonly publicKey: string;

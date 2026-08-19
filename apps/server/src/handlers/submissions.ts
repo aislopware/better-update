@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import type { CreateSubmissionBody } from "@better-update/api";
 
@@ -67,21 +67,21 @@ const resolveSubmissionConfig = (payload: CreatePayload) =>
 
 export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submissions", (handlers) =>
   handlers
-    .handle("list", ({ path, urlParams }) =>
+    .handle("list", ({ params, query }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(path.projectId);
+          yield* assertProjectOwnership(params.projectId);
           yield* assertAccess("submission", "read", {
             kind: "submission",
-            projectId: path.projectId,
+            projectId: params.projectId,
           });
           const repo = yield* SubmissionsRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { page, limit, offset } = parsePagination(query);
           const { items, total } = yield* repo.listByProject({
-            projectId: path.projectId,
-            platform: urlParams.platform,
-            profile: urlParams.profile,
-            buildId: urlParams.buildId,
+            projectId: params.projectId,
+            platform: query.platform,
+            profile: query.profile,
+            buildId: query.buildId,
             limit,
             offset,
           });
@@ -89,13 +89,13 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
         }),
       ),
     )
-    .handle("create", ({ path, payload }) =>
+    .handle("create", ({ params, payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(path.projectId);
+          yield* assertProjectOwnership(params.projectId);
           yield* assertAccess("submission", "create", {
             kind: "submission",
-            projectId: path.projectId,
+            projectId: params.projectId,
           });
           const ctx = yield* CurrentActor;
           const repo = yield* SubmissionsRepo;
@@ -140,7 +140,7 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             payload.buildVersion === undefined || payload.buildVersion === ""
               ? null
               : yield* repo.findLatestByBuildVersion({
-                  projectId: path.projectId,
+                  projectId: params.projectId,
                   platform: payload.platform,
                   buildVersion: payload.buildVersion,
                 });
@@ -150,7 +150,7 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             ? repo.insert({
                 id,
                 organizationId: ctx.organizationId,
-                projectId: path.projectId,
+                projectId: params.projectId,
                 platform: payload.platform,
                 profileName,
                 archiveSource: payload.archiveSource,
@@ -177,7 +177,7 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             action: "submission.create",
             resourceType: "submission",
             resourceId: id,
-            projectId: path.projectId,
+            projectId: params.projectId,
             metadata: {
               platform: payload.platform,
               profile: profileName,
@@ -190,37 +190,37 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* SubmissionsRepo;
-          const submission = yield* repo.findById({ id: path.id });
+          const submission = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(submission.organizationId);
           yield* assertAccess("submission", "read", {
             kind: "submission",
             projectId: submission.projectId,
-            submissionId: path.id,
+            submissionId: params.id,
           });
           return toApiSubmission(submission);
         }),
       ),
     )
-    .handle("delete", ({ path }) =>
+    .handle("delete", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* SubmissionsRepo;
-          const existing = yield* repo.findById({ id: path.id });
+          const existing = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(existing.organizationId);
           yield* assertAccess("submission", "delete", {
             kind: "submission",
             projectId: existing.projectId,
-            submissionId: path.id,
+            submissionId: params.id,
           });
-          yield* repo.delete({ id: path.id });
+          yield* repo.delete({ id: params.id });
           yield* logAudit({
             action: "submission.delete",
             resourceType: "submission",
-            resourceId: path.id,
+            resourceId: params.id,
             projectId: existing.projectId,
             metadata: { platform: existing.platform },
           });

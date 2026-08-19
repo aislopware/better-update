@@ -79,11 +79,11 @@ const checkServerHealth = Effect.gen(function* () {
   const response = yield* Effect.tryPromise({
     try: async () => fetch(url, { signal: AbortSignal.timeout(3000) }),
     catch: (cause) => new HealthCheckError({ message: String(cause), cause }),
-  }).pipe(Effect.either);
-  if (response._tag === "Left") {
-    return fail("health", "Server reachable", `${url} unreachable: ${response.left.message}`);
+  }).pipe(Effect.result);
+  if (response._tag === "Failure") {
+    return fail("health", "Server reachable", `${url} unreachable: ${response.failure.message}`);
   }
-  const res = response.right;
+  const res = response.success;
   if (res.ok) {
     return pass("health", "Server reachable", `${url} returned 200`);
   }
@@ -95,11 +95,11 @@ const checkAuth = Effect.gen(function* () {
   if (api._tag === "None") {
     return fail("auth", "Auth token", "Not logged in (run `better-update login`)");
   }
-  const result = yield* api.value.me.get().pipe(Effect.either);
-  if (result._tag === "Left") {
-    return fail("auth", "Auth token", `Token rejected by server: ${String(result.left)}`);
+  const result = yield* api.value.me.get().pipe(Effect.result);
+  if (result._tag === "Failure") {
+    return fail("auth", "Auth token", `Token rejected by server: ${String(result.failure)}`);
   }
-  const me = result.right;
+  const me = result.success;
   const who = me.user?.email ?? me.actorEmail;
   return pass("auth", "Auth token", `Valid (${who})`);
 });
@@ -115,14 +115,14 @@ const checkProjectLink = Effect.gen(function* () {
       `projectId=${fromEnv} (via ${BETTER_UPDATE_PROJECT_ID_ENV})`,
     );
   }
-  const resolved = yield* readProjectId.pipe(Effect.either);
-  if (resolved._tag === "Left") {
-    return warn("project-linked", "Project linked", resolved.left.message);
+  const resolved = yield* readProjectId.pipe(Effect.result);
+  if (resolved._tag === "Failure") {
+    return warn("project-linked", "Project linked", resolved.failure.message);
   }
   // Distinguish the eas.json link from the Expo-config fallback.
   const fromFile = yield* readEasLinkedProjectId(root);
   const source = fromFile === undefined ? "Expo config" : "eas.json";
-  return pass("project-linked", "Project linked", `projectId=${resolved.right} (via ${source})`);
+  return pass("project-linked", "Project linked", `projectId=${resolved.success} (via ${source})`);
 });
 
 const checkProjectType = Effect.gen(function* () {
@@ -137,18 +137,18 @@ const checkProjectType = Effect.gen(function* () {
 const checkBuildConfig = Effect.gen(function* () {
   const runtime = yield* CliRuntime;
   const root = yield* runtime.cwd;
-  const names = yield* listBuildProfileNames(root).pipe(Effect.either);
-  if (names._tag === "Left") {
-    return warn("build-config", "Build config", names.left.message);
+  const names = yield* listBuildProfileNames(root).pipe(Effect.result);
+  if (names._tag === "Failure") {
+    return warn("build-config", "Build config", names.failure.message);
   }
-  if (names.right.length === 0) {
+  if (names.success.length === 0) {
     return warn(
       "build-config",
       "Build config",
       'No build profiles found. Add a "build" section to eas.json.',
     );
   }
-  return pass("build-config", "Build config", `${names.right.length} profile(s) defined`);
+  return pass("build-config", "Build config", `${names.success.length} profile(s) defined`);
 });
 
 const runChecks = Effect.gen(function* () {

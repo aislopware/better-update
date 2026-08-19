@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
@@ -12,30 +12,30 @@ export const FingerprintsGroupLive = HttpApiBuilder.group(
   ManagementApi,
   "fingerprints",
   (handlers) =>
-    handlers.handle("get", ({ path }) =>
+    handlers.handle("get", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(path.projectId);
-          yield* assertAccess("build", "read", { kind: "build", projectId: path.projectId });
+          yield* assertProjectOwnership(params.projectId);
+          yield* assertAccess("build", "read", { kind: "build", projectId: params.projectId });
 
           const [buildRepo, updateRepo] = yield* Effect.all([BuildRepo, UpdateRepo]);
           const [builds, updates] = yield* Effect.all(
             [
               buildRepo.listByProjectAndFingerprint({
-                projectId: path.projectId,
-                fingerprintHash: path.hash,
+                projectId: params.projectId,
+                fingerprintHash: params.hash,
               }),
               updateRepo.listByProjectAndFingerprint({
-                projectId: path.projectId,
-                fingerprintHash: path.hash,
+                projectId: params.projectId,
+                fingerprintHash: params.hash,
               }),
             ],
             { concurrency: "unbounded" },
           );
 
           return {
-            hash: path.hash,
-            projectId: path.projectId,
+            hash: params.hash,
+            projectId: params.projectId,
             builds: builds.map(toApiBuild),
             updates: updates.map(toApiUpdate),
           };

@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import { OrgVaultRepo } from "../repositories/org-vault";
 import {
@@ -48,12 +48,12 @@ describe(assertVaultRotationNotPending, () => {
     Effect.gen(function* () {
       const result = yield* assertVaultRotationNotPending({ organizationId: "org-1" }).pipe(
         Effect.provideService(OrgVaultRepo, repo(vaultStub(true))),
-        Effect.either,
+        Effect.result,
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("Conflict");
-        expect(result.left.message).toBe(VAULT_ROTATION_PENDING_MESSAGE);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("Conflict");
+        expect(result.failure.message).toBe(VAULT_ROTATION_PENDING_MESSAGE);
       }
     }),
   );
@@ -62,9 +62,9 @@ describe(assertVaultRotationNotPending, () => {
     Effect.gen(function* () {
       const result = yield* assertVaultRotationNotPending({ organizationId: "org-1" }).pipe(
         Effect.provideService(OrgVaultRepo, repo(vaultStub(false))),
-        Effect.either,
+        Effect.result,
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     }),
   );
 
@@ -72,9 +72,9 @@ describe(assertVaultRotationNotPending, () => {
     Effect.gen(function* () {
       const result = yield* assertVaultRotationNotPending({ organizationId: "org-1" }).pipe(
         Effect.provideService(OrgVaultRepo, repo(null)),
-        Effect.either,
+        Effect.result,
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     }),
   );
 });
@@ -84,11 +84,11 @@ describe(assertEnvVaultRotationNotPending, () => {
     Effect.gen(function* () {
       const result = yield* assertEnvVaultRotationNotPending({ organizationId: "org-1" }).pipe(
         Effect.provideService(OrgVaultRepo, repo(vaultStub(true, { forked: false }))),
-        Effect.either,
+        Effect.result,
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left.message).toBe(VAULT_ROTATION_PENDING_MESSAGE);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure.message).toBe(VAULT_ROTATION_PENDING_MESSAGE);
       }
     }),
   );
@@ -101,9 +101,9 @@ describe(assertEnvVaultRotationNotPending, () => {
           OrgVaultRepo,
           repo(vaultStub(true, { forked: true, envRotationPending: false })),
         ),
-        Effect.either,
+        Effect.result,
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     }),
   );
 
@@ -114,11 +114,11 @@ describe(assertEnvVaultRotationNotPending, () => {
           OrgVaultRepo,
           repo(vaultStub(false, { forked: true, envRotationPending: true })),
         ),
-        Effect.either,
+        Effect.result,
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left.message).toBe(ENV_VAULT_ROTATION_PENDING_MESSAGE);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure.message).toBe(ENV_VAULT_ROTATION_PENDING_MESSAGE);
       }
     }),
   );

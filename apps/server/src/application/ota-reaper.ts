@@ -121,6 +121,27 @@ interface ReapLoopState {
   readonly referencedHashes: ReadonlySet<string>;
 }
 
+/**
+ * Drain every reapable batch for one project. v4 dropped `Effect.iterate`; the
+ * v4 idiom for a data-driven loop is self-recursion — `Effect.flatMap` is
+ * trampolined, so depth is bounded by memory, not the JS stack.
+ */
+const reapUntilDrained = (
+  params: {
+    readonly projectId: string;
+    readonly cutoff: string;
+    readonly keepUpdateIds: ReadonlySet<string>;
+  },
+  state: ReapLoopState,
+): Effect.Effect<
+  ReapLoopState,
+  never,
+  BuildStorageRepo | BundleRepo | DebugArtifactRepo | UpdateRepo
+> =>
+  state.hasMore
+    ? Effect.flatMap(reapOneBatch(params, state), (next) => reapUntilDrained(params, next))
+    : Effect.succeed(state);
+
 const reapProjectUpdates = (params: {
   readonly projectId: string;
   readonly cutoff: string;
@@ -132,10 +153,7 @@ const reapProjectUpdates = (params: {
       updatesDeleted: 0,
       referencedHashes: new Set<string>(),
     };
-    const loop = yield* Effect.iterate(initial, {
-      while: (state) => state.hasMore,
-      body: (state) => reapOneBatch(params, state),
-    });
+    const loop = yield* reapUntilDrained(params, initial);
 
     // GLOBAL orphan reconciliation (P3): all reaped updates' update_assets rows
     // are now deleted, so of every hash they referenced, the unreferenced subset
@@ -179,7 +197,7 @@ const reapOneBatch = (
     const guarded = candidates.filter((row) => !params.keepUpdateIds.has(row.id));
 
     if (guarded.length === 0) {
-      // Either no candidates at all, or the whole page was keep-guarded; either
+      // Result no candidates at all, or the whole page was keep-guarded; either
       // way there is nothing more this loop can make progress on.
       return { ...state, hasMore: false } satisfies ReapLoopState;
     }
@@ -282,47 +300,59 @@ const sweepPatchPrefix = (params: {
   readonly patchCutoff: string;
   readonly survivingSet: ReadonlySet<string>;
   readonly baseSet: ReadonlySet<string>;
-}) =>
-  Effect.iterate(
-    { cursor: undefined as string | undefined, hasMore: true, patchesDeleted: 0 },
-    {
-      while: (state) => state.hasMore,
-      body: (state) =>
-        Effect.gen(function* () {
-          const bundleRepo = yield* BundleRepo;
-          const listed = yield* bundleRepo.listObjects(
-            state.cursor === undefined
-              ? { prefix: params.prefix }
-              : { prefix: params.prefix, cursor: state.cursor },
-          );
+}) => sweepPatchPage(params, { cursor: undefined, patchesDeleted: 0 });
 
-          const eligibleKeys = listed.objects
-            .filter((object) => {
-              const parsed = parsePatchKey(object.key);
-              return isPatchReapEligible({
-                uploadedAt: object.uploaded.toISOString(),
-                parsed,
-                // A malformed key (parsed === null) is treated as junk by the
-                // predicate; the cross-ref flags below are only consulted when
-                // parsed is non-null.
-                toSurvives: parsed !== null && params.survivingSet.has(parsed.toUpdateId),
-                fromSurvives: parsed !== null && params.survivingSet.has(parsed.fromUpdateId),
-                fromIsValidBase: parsed !== null && params.baseSet.has(parsed.fromUpdateId),
-                cutoff: params.patchCutoff,
-              });
-            })
-            .map((object) => object.key);
+interface PatchSweepState {
+  readonly cursor: string | undefined;
+  readonly patchesDeleted: number;
+}
 
-          yield* deleteInChunks(eligibleKeys);
+/**
+ * One R2 list page of patch objects, recursing while the listing is truncated.
+ * Recursion (rather than v3's `Effect.iterate`) is the v4 idiom for cursor
+ * loops, and `Effect.flatMap` keeps it stack-safe.
+ */
+const sweepPatchPage = (
+  params: {
+    readonly prefix: string;
+    readonly patchCutoff: string;
+    readonly survivingSet: ReadonlySet<string>;
+    readonly baseSet: ReadonlySet<string>;
+  },
+  state: PatchSweepState,
+): Effect.Effect<number, never, BundleRepo> =>
+  Effect.gen(function* () {
+    const bundleRepo = yield* BundleRepo;
+    const listed = yield* bundleRepo.listObjects(
+      state.cursor === undefined
+        ? { prefix: params.prefix }
+        : { prefix: params.prefix, cursor: state.cursor },
+    );
 
-          return {
-            cursor: listed.cursor,
-            hasMore: listed.truncated,
-            patchesDeleted: state.patchesDeleted + eligibleKeys.length,
-          };
-        }),
-    },
-  ).pipe(Effect.map((state) => state.patchesDeleted));
+    const eligibleKeys = listed.objects
+      .filter((object) => {
+        const parsed = parsePatchKey(object.key);
+        return isPatchReapEligible({
+          uploadedAt: object.uploaded.toISOString(),
+          parsed,
+          // A malformed key (parsed === null) is treated as junk by the
+          // predicate; the cross-ref flags below are only consulted when
+          // parsed is non-null.
+          toSurvives: parsed !== null && params.survivingSet.has(parsed.toUpdateId),
+          fromSurvives: parsed !== null && params.survivingSet.has(parsed.fromUpdateId),
+          fromIsValidBase: parsed !== null && params.baseSet.has(parsed.fromUpdateId),
+          cutoff: params.patchCutoff,
+        });
+      })
+      .map((object) => object.key);
+
+    yield* deleteInChunks(eligibleKeys);
+
+    const patchesDeleted = state.patchesDeleted + eligibleKeys.length;
+    return listed.truncated
+      ? yield* sweepPatchPage(params, { cursor: listed.cursor, patchesDeleted })
+      : patchesDeleted;
+  });
 
 const deleteInChunks = (keys: readonly string[]) =>
   Effect.gen(function* () {

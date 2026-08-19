@@ -47,7 +47,7 @@ const listCommand = defineCommand({
         const limit = yield* parseLimit(args.limit, 50);
         const status = listStatus(args.all, args.archived);
         const result = yield* api.projects.list({
-          urlParams: {
+          query: {
             page,
             limit,
             sort,
@@ -108,7 +108,7 @@ const getCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const project = yield* api.projects.get({ path: { id: args.id } });
+        const project = yield* api.projects.get({ params: { id: args.id } });
         yield* printHumanKeyValue([
           ["ID", project.id],
           ["Name", project.name],
@@ -133,7 +133,7 @@ const renameCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const project = yield* api.projects.rename({
-          path: { id: args.id },
+          params: { id: args.id },
           payload: { name: args.name },
         });
         yield* printHuman(`Project renamed to "${project.name}".`);
@@ -166,7 +166,7 @@ const archiveCommand = defineCommand({
           }
         }
         const api = yield* apiClient;
-        const project = yield* api.projects.archive({ path: { id: args.id } });
+        const project = yield* api.projects.archive({ params: { id: args.id } });
         yield* printHuman(
           `Project ${project.name} archived. Unarchive with: projects unarchive ${project.id}`,
         );
@@ -185,7 +185,7 @@ const unarchiveCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const project = yield* api.projects.unarchive({ path: { id: args.id } });
+        const project = yield* api.projects.unarchive({ params: { id: args.id } });
         yield* printHuman(`Project ${project.name} unarchived. It is writable again.`);
         return project;
       }),
@@ -216,7 +216,7 @@ const deleteCommand = defineCommand({
           }
         }
         const api = yield* apiClient;
-        yield* api.projects.delete({ path: { id: args.id } });
+        yield* api.projects.delete({ params: { id: args.id } });
         yield* printHuman(`Project ${args.id} deleted.`);
         return { id: args.id, deleted: true };
       }),

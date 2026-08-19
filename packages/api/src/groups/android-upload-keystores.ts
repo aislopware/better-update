@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -12,76 +12,72 @@ import {
 import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 
-export class AndroidUploadKeystoresGroup extends HttpApiGroup.make("androidUploadKeystores")
+export const AndroidUploadKeystoresGroup = HttpApiGroup.make("androidUploadKeystores")
   .add(
-    HttpApiEndpoint.get("list", "/api/android/upload-keystores")
-      .addSuccess(Schema.Struct({ items: Schema.Array(AndroidUploadKeystore) }))
-      .annotateContext(
-        OpenApi.annotations({
-          title: "List Android upload keystores",
-          description: "List uploaded Android keystores",
-        }),
-      ),
+    HttpApiEndpoint.get("list", "/api/android/upload-keystores", {
+      success: Schema.Struct({ items: Schema.Array(AndroidUploadKeystore) }),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "List Android upload keystores",
+        description: "List uploaded Android keystores",
+      }),
+    ),
+    HttpApiEndpoint.post("upload", "/api/android/upload-keystores", {
+      payload: UploadAndroidUploadKeystoreBody,
+      success: AndroidUploadKeystore.pipe(HttpApiSchema.status(201)),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Upload Android keystore",
+        description: "Upload a JKS/PKCS12 keystore with key alias + passwords",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("delete", "/api/android/upload-keystores/:id", {
+      params: { ...idParam },
+      success: DeleteAndroidUploadKeystoreResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Delete Android keystore",
+        description: "Remove a stored Android keystore",
+      }),
+    ),
+    HttpApiEndpoint.get("download", "/api/android/upload-keystores/:id/download", {
+      params: { ...idParam },
+      success: DownloadAndroidUploadKeystoreResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Download Android keystore",
+        description: "Fetch the decrypted keystore + passwords for local use (audit-logged)",
+      }),
+    ),
+    HttpApiEndpoint.put("protect", "/api/android/upload-keystores/:id/protection", {
+      params: { ...idParam },
+      success: AndroidUploadKeystore,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Protect credential",
+        description:
+          "Mark the credential protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("unprotect", "/api/android/upload-keystores/:id/protection", {
+      params: { ...idParam },
+      success: AndroidUploadKeystore,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Unprotect credential",
+        description: "Remove the credential's protection. Org admin only. Idempotent.",
+      }),
+    ),
   )
-  .add(
-    HttpApiEndpoint.post("upload", "/api/android/upload-keystores")
-      .setPayload(UploadAndroidUploadKeystoreBody)
-      .addSuccess(AndroidUploadKeystore, { status: 201 })
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Upload Android keystore",
-          description: "Upload a JKS/PKCS12 keystore with key alias + passwords",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("delete")`/api/android/upload-keystores/${idParam}`
-      .addSuccess(DeleteAndroidUploadKeystoreResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Delete Android keystore",
-          description: "Remove a stored Android keystore",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.get("download")`/api/android/upload-keystores/${idParam}/download`
-      .addSuccess(DownloadAndroidUploadKeystoreResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Download Android keystore",
-          description: "Fetch the decrypted keystore + passwords for local use (audit-logged)",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.put("protect")`/api/android/upload-keystores/${idParam}/protection`
-      .addSuccess(AndroidUploadKeystore)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Protect credential",
-          description:
-            "Mark the credential protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("unprotect")`/api/android/upload-keystores/${idParam}/protection`
-      .addSuccess(AndroidUploadKeystore)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Unprotect credential",
-          description: "Remove the credential's protection. Org admin only. Idempotent.",
-        }),
-      ),
-  )
-  .addError(NotFound)
-  .addError(Conflict)
-  .addError(BadRequest)
-  .addError(Forbidden)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Android Upload Keystores",
       description: "Manage Android signing keystores",
     }),
-  ) {}
+  );

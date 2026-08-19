@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import type { CreateUpdateBody } from "@better-update/api";
 
@@ -239,22 +239,22 @@ const updateRolloutPercentage = (id: string, percentage: number) =>
 export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (handlers) =>
   handlers
     .handle("create", handleCreateUpdate)
-    .handle("list", ({ urlParams }) =>
+    .handle("list", ({ query }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertProjectOwnership(query.projectId);
 
           const repo = yield* UpdateRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
-          const { sort, order } = parseUpdateSort(urlParams.sort);
+          const { page, limit, offset } = parsePagination(query);
+          const { sort, order } = parseUpdateSort(query.sort);
 
           const { items, total } = yield* repo.findByProject({
-            projectId: urlParams.projectId,
-            ...(urlParams.branchId?.length ? { branchId: urlParams.branchId } : {}),
-            ...(urlParams.platform ? { platform: urlParams.platform } : {}),
-            ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
-            ...(urlParams.query ? { query: urlParams.query } : {}),
-            ...(urlParams.isEmbedded === undefined ? {} : { isEmbedded: urlParams.isEmbedded }),
+            projectId: query.projectId,
+            ...(query.branchId?.length ? { branchId: query.branchId } : {}),
+            ...(query.platform ? { platform: query.platform } : {}),
+            ...(query.runtimeVersion ? { runtimeVersion: query.runtimeVersion } : {}),
+            ...(query.query ? { query: query.query } : {}),
+            ...(query.isEmbedded === undefined ? {} : { isEmbedded: query.isEmbedded }),
             sort,
             order,
             limit,
@@ -268,15 +268,15 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }),
       ),
     )
-    .handle("listPatchBases", ({ urlParams }) =>
+    .handle("listPatchBases", ({ query }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertProjectOwnership(query.projectId);
 
           const branchId = yield* resolvePatchBaseBranchId({
-            projectId: urlParams.projectId,
-            branchId: urlParams.branchId,
-            channel: urlParams.channel,
+            projectId: query.projectId,
+            branchId: query.branchId,
+            channel: query.channel,
           });
 
           // Read gate at the patch-base branch's environment (its NAME), so an
@@ -286,27 +286,27 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const branch = yield* branchRepo.findById({ id: branchId });
           yield* assertAccess("update", "read", {
             kind: "environment",
-            projectId: urlParams.projectId,
+            projectId: query.projectId,
             environment: branch.name,
           });
 
           const repo = yield* UpdateRepo;
           const rows = yield* repo.listPatchBases({
-            projectId: urlParams.projectId,
+            projectId: query.projectId,
             branchId,
-            runtimeVersion: urlParams.runtimeVersion,
-            platform: urlParams.platform,
-            limit: clampPatchBaseLimit(urlParams.limit),
+            runtimeVersion: query.runtimeVersion,
+            platform: query.platform,
+            limit: clampPatchBaseLimit(query.limit),
           });
           return rows.map(toApiPatchBaseCandidate);
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const updateRepo = yield* UpdateRepo;
-          const update = yield* updateRepo.findById({ id: path.id });
+          const update = yield* updateRepo.findById({ id: params.id });
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
@@ -319,11 +319,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }),
       ),
     )
-    .handle("getGroup", ({ path }) =>
+    .handle("getGroup", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const updateRepo = yield* UpdateRepo;
-          const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
+          const updates = yield* updateRepo.findByGroupId({ groupId: params.groupId });
           if (updates.length === 0) {
             return yield* new NotFound({ message: "Update group not found" });
           }
@@ -343,11 +343,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }),
       ),
     )
-    .handle("listAssets", ({ path }) =>
+    .handle("listAssets", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const updateRepo = yield* UpdateRepo;
-          const update = yield* updateRepo.findById({ id: path.id });
+          const update = yield* updateRepo.findById({ id: params.id });
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
@@ -356,7 +356,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             projectId: branch.projectId,
             environment: branch.name,
           });
-          const assets = yield* updateRepo.findAssetsByUpdateId({ updateId: path.id });
+          const assets = yield* updateRepo.findAssetsByUpdateId({ updateId: params.id });
           return assets.map((asset) => ({
             hash: asset.hash,
             key: asset.key,
@@ -431,14 +431,14 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }),
       ),
     )
-    .handle("editRollout", ({ path, payload }) =>
-      toApiBadRequestReadEffect(updateRolloutPercentage(path.id, payload.percentage)),
+    .handle("editRollout", ({ params, payload }) =>
+      toApiBadRequestReadEffect(updateRolloutPercentage(params.id, payload.percentage)),
     )
-    .handle("completeRollout", ({ path }) =>
-      toApiBadRequestReadEffect(updateRolloutPercentage(path.id, 100)),
+    .handle("completeRollout", ({ params }) =>
+      toApiBadRequestReadEffect(updateRolloutPercentage(params.id, 100)),
     )
-    .handle("revertRollout", ({ path }) =>
-      toApiBadRequestReadEffect(updateRolloutPercentage(path.id, 0)),
+    .handle("revertRollout", ({ params }) =>
+      toApiBadRequestReadEffect(updateRolloutPercentage(params.id, 0)),
     )
     .handle("reserveSourcemap", handleReserveSourcemap)
     .handle("completeSourcemap", handleCompleteSourcemap)

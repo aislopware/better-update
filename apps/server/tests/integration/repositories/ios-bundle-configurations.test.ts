@@ -1,49 +1,49 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import {
   IosBundleConfigurationRepo,
   IosBundleConfigurationRepoLive,
 } from "../../../src/repositories/ios-bundle-configurations";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, IosBundleConfigurationRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, IosBundleConfigurationRepo>) =>
   runWithLayerAndEnv(effect, IosBundleConfigurationRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, IosBundleConfigurationRepo>) =>
-  runEitherWithLayerAndEnv(effect, IosBundleConfigurationRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, IosBundleConfigurationRepo>) =>
+  runResultWithLayerAndEnv(effect, IosBundleConfigurationRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, id, "2026-01-01T00:00:00Z")
     .run();
 
-const insertAppleTeam = (id: string, orgId: string) =>
+const insertAppleTeam = async (id: string, orgId: string) =>
   env.DB.prepare(
     `INSERT INTO "apple_teams" ("id", "organization_id", "apple_team_id", "apple_team_type") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, orgId, `TEAM${id.toUpperCase()}`, "COMPANY_ORGANIZATION")
     .run();
 
-const insertProject = (id: string, orgId: string) =>
+const insertProject = async (id: string, orgId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, orgId, `Project ${id}`, id, "2026-01-01T00:00:00Z")
     .run();
 
-const seedConfig = (
-  id: string,
-  projectId: string,
-  orgId: string,
-  teamId: string,
-  bundleId: string,
-  distributionType: string,
-) =>
+const seedConfig = async (params: {
+  readonly id: string;
+  readonly projectId: string;
+  readonly orgId: string;
+  readonly teamId: string;
+  readonly bundleId: string;
+  readonly distributionType: string;
+}) =>
   env.DB.prepare(
     `INSERT INTO "ios_bundle_configurations"
       ("id", "organization_id", "project_id", "bundle_identifier", "distribution_type",
@@ -51,12 +51,12 @@ const seedConfig = (
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
-      id,
-      orgId,
-      projectId,
-      bundleId,
-      distributionType,
-      teamId,
+      params.id,
+      params.orgId,
+      params.projectId,
+      params.bundleId,
+      params.distributionType,
+      params.teamId,
       "2026-01-01T00:00:00Z",
       "2026-01-01T00:00:00Z",
     )
@@ -68,22 +68,22 @@ beforeAll(async () => {
   await insertOrg("ibc-org-1");
   await insertAppleTeam("ibc-team-1", "ibc-org-1");
   await insertProject("ibc-proj-1", "ibc-org-1");
-  await seedConfig(
-    "ibc-cfg-1",
-    "ibc-proj-1",
-    "ibc-org-1",
-    "ibc-team-1",
-    "com.example.app",
-    "APP_STORE",
-  );
-  await seedConfig(
-    "ibc-cfg-2",
-    "ibc-proj-1",
-    "ibc-org-1",
-    "ibc-team-1",
-    "com.example.app",
-    "AD_HOC",
-  );
+  await seedConfig({
+    id: "ibc-cfg-1",
+    projectId: "ibc-proj-1",
+    orgId: "ibc-org-1",
+    teamId: "ibc-team-1",
+    bundleId: "com.example.app",
+    distributionType: "APP_STORE",
+  });
+  await seedConfig({
+    id: "ibc-cfg-2",
+    projectId: "ibc-proj-1",
+    orgId: "ibc-org-1",
+    teamId: "ibc-team-1",
+    bundleId: "com.example.app",
+    distributionType: "AD_HOC",
+  });
 });
 
 // ── Tests ─────────────────────────────────────────────────────────
@@ -99,10 +99,10 @@ describe("IosBundleConfigurationRepo — D1 integration (Kysely)", () => {
 
     expect(configs).toHaveLength(2);
     // AD_HOC < APP_STORE alphabetically
-    expect(configs[0].id).toBe("ibc-cfg-2");
-    expect(configs[0].distributionType).toBe("AD_HOC");
-    expect(configs[1].id).toBe("ibc-cfg-1");
-    expect(configs[1].distributionType).toBe("APP_STORE");
+    expect(configs[0]?.id).toBe("ibc-cfg-2");
+    expect(configs[0]?.distributionType).toBe("AD_HOC");
+    expect(configs[1]?.id).toBe("ibc-cfg-1");
+    expect(configs[1]?.distributionType).toBe("APP_STORE");
   });
 
   it("findByProjectAndBundle returns config and fails NotFound for missing", async () => {
@@ -121,7 +121,7 @@ describe("IosBundleConfigurationRepo — D1 integration (Kysely)", () => {
     expect(config.bundleIdentifier).toBe("com.example.app");
     expect(config.organizationId).toBe("ibc-org-1");
 
-    const missing = await runEither(
+    const missing = await runResult(
       Effect.gen(function* () {
         const repo = yield* IosBundleConfigurationRepo;
         return yield* repo.findByProjectAndBundle({
@@ -132,9 +132,9 @@ describe("IosBundleConfigurationRepo — D1 integration (Kysely)", () => {
       }),
     );
 
-    expect(Either.isLeft(missing)).toBe(true);
-    if (Either.isLeft(missing)) {
-      expect(missing.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(missing)).toBe(true);
+    if (Result.isFailure(missing)) {
+      expect(missing.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -149,16 +149,16 @@ describe("IosBundleConfigurationRepo — D1 integration (Kysely)", () => {
     expect(config.id).toBe("ibc-cfg-2");
     expect(config.distributionType).toBe("AD_HOC");
 
-    const missing = await runEither(
+    const missing = await runResult(
       Effect.gen(function* () {
         const repo = yield* IosBundleConfigurationRepo;
         return yield* repo.findById({ id: "ibc-cfg-missing" });
       }),
     );
 
-    expect(Either.isLeft(missing)).toBe(true);
-    if (Either.isLeft(missing)) {
-      expect(missing.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(missing)).toBe(true);
+    if (Result.isFailure(missing)) {
+      expect(missing.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -196,16 +196,16 @@ describe("IosBundleConfigurationRepo — D1 integration (Kysely)", () => {
     expect(row?.bundle_identifier).toBe("com.example.new");
 
     // Duplicate → Conflict
-    const conflict = await runEither(
+    const conflict = await runResult(
       Effect.gen(function* () {
         const repo = yield* IosBundleConfigurationRepo;
         return yield* repo.insert({ ...params, id: "ibc-cfg-4" });
       }),
     );
 
-    expect(Either.isLeft(conflict)).toBe(true);
-    if (Either.isLeft(conflict)) {
-      expect(conflict.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(conflict)).toBe(true);
+    if (Result.isFailure(conflict)) {
+      expect(conflict.failure).toMatchObject({ _tag: "Conflict" });
     }
   });
 

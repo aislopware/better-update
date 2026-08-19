@@ -82,7 +82,7 @@ export interface DeviceRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class DeviceRepo extends Context.Tag("api/DeviceRepo")<DeviceRepo, DeviceRepository>() {}
+export class DeviceRepo extends Context.Service<DeviceRepo, DeviceRepository>()("api/DeviceRepo") {}
 
 // ── D1 Adapter ────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ import {
   UploadHeaders,
 } from "./common";
 
-export const Distribution = Schema.Literal(
+export const Distribution = Schema.Literals([
   "app-store",
   "ad-hoc",
   "development",
@@ -19,9 +19,9 @@ export const Distribution = Schema.Literal(
   "simulator",
   "play-store",
   "direct",
-);
+]);
 
-export const BuildAudience = Schema.Literal("internal", "store");
+export const BuildAudience = Schema.Literals(["internal", "store"]);
 
 export const INTERNAL_DISTRIBUTIONS = [
   "ad-hoc",
@@ -52,8 +52,11 @@ export const OTA_INSTALLABLE_DISTRIBUTIONS = [
 export const isOtaInstallableDistribution = (distribution: typeof Distribution.Type): boolean =>
   (OTA_INSTALLABLE_DISTRIBUTIONS as readonly string[]).includes(distribution);
 
-export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
-const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/u), Schema.maxLength(64));
+export const ArtifactFormat = Schema.Literals(["ipa", "apk", "aab", "tar.gz"]);
+const Sha256Hex = Schema.String.check(
+  Schema.isPattern(/^[a-fA-F0-9]{64}$/u),
+  Schema.isMaxLength(64),
+);
 
 const CreateBuildCommonFields = {
   projectId: Id,
@@ -66,13 +69,13 @@ const CreateBuildCommonFields = {
   gitCommit: Schema.optional(Schema.String),
   gitDirty: Schema.optional(Schema.Boolean),
   message: Schema.optional(Schema.String),
-  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
-  fingerprintHash: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+  fingerprintHash: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
   sha256: Sha256Hex,
-  byteSize: Schema.Number.pipe(Schema.nonNegative()),
+  byteSize: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 } as const;
 
-export class Build extends Schema.Class<Build>("Build")({
+export const Build = Schema.Struct({
   id: Id,
   projectId: Id,
   platform: Platform,
@@ -89,9 +92,10 @@ export class Build extends Schema.Class<Build>("Build")({
   metadataJson: Schema.String,
   fingerprintHash: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Build" });
+export type Build = typeof Build.Type;
 
-export class BuildArtifact extends Schema.Class<BuildArtifact>("BuildArtifact")({
+export const BuildArtifact = Schema.Struct({
   buildId: Id,
   r2Key: Schema.String,
   format: ArtifactFormat,
@@ -99,9 +103,11 @@ export class BuildArtifact extends Schema.Class<BuildArtifact>("BuildArtifact")(
   byteSize: Schema.Number,
   sha256: Schema.String,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "BuildArtifact" });
+export type BuildArtifact = typeof BuildArtifact.Type;
 
-export class BuildWithArtifact extends Build.extend<BuildWithArtifact>("BuildWithArtifact")({
+export const BuildWithArtifact = Schema.Struct({
+  ...Build.fields,
   artifact: Schema.NullOr(
     Schema.Struct({
       r2Key: Schema.String,
@@ -111,13 +117,14 @@ export class BuildWithArtifact extends Build.extend<BuildWithArtifact>("BuildWit
       sha256: Schema.String,
     }),
   ),
-}) {}
+}).annotate({ identifier: "BuildWithArtifact" });
+export type BuildWithArtifact = typeof BuildWithArtifact.Type;
 
-export const CreateBuildBody = Schema.Union(
+export const CreateBuildBody = Schema.Union([
   Schema.Struct({
     ...CreateBuildCommonFields,
     platform: Schema.Literal("ios"),
-    distribution: Schema.Literal("app-store", "ad-hoc", "development", "enterprise"),
+    distribution: Schema.Literals(["app-store", "ad-hoc", "development", "enterprise"]),
     artifactFormat: Schema.Literal("ipa"),
   }),
   Schema.Struct({
@@ -138,15 +145,15 @@ export const CreateBuildBody = Schema.Union(
     distribution: Schema.Literal("direct"),
     artifactFormat: Schema.Literal("apk"),
   }),
-);
+]);
 
-export const BuildSortColumn = Schema.Literal(
+export const BuildSortColumn = Schema.Literals([
   "createdAt",
   "platform",
   "distribution",
   "runtimeVersion",
   "appVersion",
-);
+]);
 
 export const BuildSort = sortParam(BuildSortColumn);
 
@@ -165,7 +172,7 @@ export const ListBuildsParams = Schema.Struct({
 
 export const CompleteBuildBody = Schema.Struct({
   sha256: Sha256Hex,
-  byteSize: Schema.Number.pipe(Schema.nonNegative()),
+  byteSize: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 export const ReserveBuildResult = Schema.Struct({

@@ -33,9 +33,10 @@ export interface AndroidApplicationIdentifierRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class AndroidApplicationIdentifierRepo extends Context.Tag(
-  "api/AndroidApplicationIdentifierRepo",
-)<AndroidApplicationIdentifierRepo, AndroidApplicationIdentifierRepository>() {}
+export class AndroidApplicationIdentifierRepo extends Context.Service<
+  AndroidApplicationIdentifierRepo,
+  AndroidApplicationIdentifierRepository
+>()("api/AndroidApplicationIdentifierRepo") {}
 
 const COLUMNS = [
   "id",

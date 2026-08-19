@@ -1,8 +1,7 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError, UploadFailedError } from "../../lib/exit-codes";
@@ -44,7 +43,7 @@ const resolveBuild = (params: {
 }) =>
   Effect.gen(function* () {
     if (params.id !== undefined) {
-      return yield* params.api.builds.get({ path: { id: params.id } });
+      return yield* params.api.builds.get({ params: { id: params.id } });
     }
     if (!params.latest) {
       return yield* new InvalidArgumentError({
@@ -57,7 +56,7 @@ const resolveBuild = (params: {
       });
     }
     const list = yield* params.api.builds.list({
-      urlParams: { projectId: params.projectId, platform: params.platform, limit: 1 },
+      query: { projectId: params.projectId, platform: params.platform, limit: 1 },
     });
     const [first] = list.items;
     if (!first) {
@@ -65,7 +64,7 @@ const resolveBuild = (params: {
         message: `No builds found for platform ${params.platform}.`,
       });
     }
-    return yield* params.api.builds.get({ path: { id: first.id } });
+    return yield* params.api.builds.get({ params: { id: first.id } });
   });
 
 interface IosRunParams {
@@ -252,7 +251,7 @@ export const runCommand = defineCommand({
               message: `Build ${build.id} has no artifact yet.`,
             });
           }
-          const link = yield* api.builds.getInstallLink({ path: { id: build.id } });
+          const link = yield* api.builds.getInstallLink({ params: { id: build.id } });
           const tempDir = yield* acquireBuildTempDir;
           const artifactPath = path.join(tempDir, `artifact.${artifact.format}`);
           yield* printHuman(

@@ -59,10 +59,9 @@ export interface AccountKeyRepository {
   }) => Effect.Effect<void>;
 }
 
-export class AccountKeyRepo extends Context.Tag("api/AccountKeyRepo")<
-  AccountKeyRepo,
-  AccountKeyRepository
->() {}
+export class AccountKeyRepo extends Context.Service<AccountKeyRepo, AccountKeyRepository>()(
+  "api/AccountKeyRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

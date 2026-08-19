@@ -37,7 +37,7 @@ describe("Credentials Apple flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -52,7 +52,8 @@ describe("Credentials Apple flow", () => {
   it("uploads a distribution certificate and auto-creates the Apple team", async () => {
     const teamsBefore = await get("/api/apple-teams", { cookie: cookies });
     expect(teamsBefore.status).toBe(200);
-    expect((await teamsBefore.json()).items).toHaveLength(0);
+    const teamsBeforeBody = await teamsBefore.json();
+    expect(teamsBeforeBody.items).toHaveLength(0);
 
     const res = await post(
       "/api/apple/distribution-certificates",
@@ -77,7 +78,7 @@ describe("Credentials Apple flow", () => {
 
     const teamsAfter = await get("/api/apple-teams", { cookie: cookies });
     expect(teamsAfter.status).toBe(200);
-    const teams = (await teamsAfter.json()).items as AppleTeam[];
+    const { items: teams } = await teamsAfter.json<{ items: AppleTeam[] }>();
     expect(teams).toHaveLength(1);
     const [team] = teams;
     expect(team?.appleTeamId).toBe(TEAM_A);
@@ -148,8 +149,8 @@ describe("Credentials Apple flow", () => {
     expect(body.keyId).toBe("PUSH1234AB");
     pushKeyId = body.id;
 
-    const teams = (await (await get("/api/apple-teams", { cookie: cookies })).json())
-      .items as AppleTeam[];
+    const teamsResponse = await get("/api/apple-teams", { cookie: cookies });
+    const { items: teams } = await teamsResponse.json<{ items: AppleTeam[] }>();
     expect(teams).toHaveLength(1);
     const [team] = teams;
     expect(team?.distributionCertificateCount).toBe(1);
@@ -175,7 +176,8 @@ describe("Credentials Apple flow", () => {
     expect(body.serialNumber).toBe("PUSHCERT0001");
     pushCertId = body.id;
 
-    const listed = await (await get("/api/apple/push-certificates", { cookie: cookies })).json();
+    const getResult = await get("/api/apple/push-certificates", { cookie: cookies });
+    const listed = await getResult.json();
     expect(listed.items).toHaveLength(1);
 
     const download = await get(`/api/apple/push-certificates/${pushCertId}/download`, {
@@ -185,8 +187,8 @@ describe("Credentials Apple flow", () => {
     const downloadBody = await download.json();
     expect(downloadBody.bundleIdentifier).toBe("com.acme.app");
     expect(downloadBody.serialNumber).toBe("PUSHCERT0001");
-    expect(downloadBody.ciphertext).toBeTruthy();
-    expect(downloadBody.wrappedDek).toBeTruthy();
+    expect(downloadBody.ciphertext).toMatch(/./u);
+    expect(downloadBody.wrappedDek).toMatch(/./u);
   });
 
   it("uploads an Apple Pay certificate and downloads it", async () => {
@@ -207,7 +209,8 @@ describe("Credentials Apple flow", () => {
     expect(body.merchantIdentifier).toBe("merchant.com.acme.pay");
     payCertId = body.id;
 
-    const listed = await (await get("/api/apple/pay-certificates", { cookie: cookies })).json();
+    const getResult2 = await get("/api/apple/pay-certificates", { cookie: cookies });
+    const listed = await getResult2.json();
     expect(listed.items).toHaveLength(1);
 
     const download = await get(`/api/apple/pay-certificates/${payCertId}/download`, {
@@ -216,7 +219,7 @@ describe("Credentials Apple flow", () => {
     expect(download.status).toBe(200);
     const downloadBody = await download.json();
     expect(downloadBody.merchantIdentifier).toBe("merchant.com.acme.pay");
-    expect(downloadBody.ciphertext).toBeTruthy();
+    expect(downloadBody.ciphertext).toMatch(/./u);
   });
 
   it("uploads a Pass Type ID certificate and downloads it", async () => {
@@ -237,9 +240,8 @@ describe("Credentials Apple flow", () => {
     expect(body.passTypeIdentifier).toBe("pass.com.acme.coupon");
     passCertId = body.id;
 
-    const listed = await (
-      await get("/api/apple/pass-type-certificates", { cookie: cookies })
-    ).json();
+    const listedResponse = await get("/api/apple/pass-type-certificates", { cookie: cookies });
+    const listed = await listedResponse.json();
     expect(listed.items).toHaveLength(1);
 
     const download = await get(`/api/apple/pass-type-certificates/${passCertId}/download`, {
@@ -248,7 +250,7 @@ describe("Credentials Apple flow", () => {
     expect(download.status).toBe(200);
     const downloadBody = await download.json();
     expect(downloadBody.passTypeIdentifier).toBe("pass.com.acme.coupon");
-    expect(downloadBody.ciphertext).toBeTruthy();
+    expect(downloadBody.ciphertext).toMatch(/./u);
   });
 
   it("uploads an ASC API key bound to the same apple team", async () => {
@@ -267,24 +269,25 @@ describe("Credentials Apple flow", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.keyId).toBe("ASCKEY1234");
-    expect(body.roles).toEqual(["ADMIN"]);
+    expect(body.roles).toStrictEqual(["ADMIN"]);
     ascKeyId = body.id;
 
-    const teams = (await (await get("/api/apple-teams", { cookie: cookies })).json())
-      .items as AppleTeam[];
+    const teamsResponse = await get("/api/apple-teams", { cookie: cookies });
+    const { items: teams } = await teamsResponse.json<{ items: AppleTeam[] }>();
     expect(teams[0]?.ascApiKeyCount).toBe(1);
   });
 
   it("lists all apple credentials", async () => {
-    const certs = await (
-      await get("/api/apple/distribution-certificates", { cookie: cookies })
-    ).json();
+    const certsResponse = await get("/api/apple/distribution-certificates", { cookie: cookies });
+    const certs = await certsResponse.json();
     expect(certs.items).toHaveLength(1);
 
-    const pushKeys = await (await get("/api/apple/push-keys", { cookie: cookies })).json();
+    const getResult3 = await get("/api/apple/push-keys", { cookie: cookies });
+    const pushKeys = await getResult3.json();
     expect(pushKeys.items).toHaveLength(1);
 
-    const ascKeys = await (await get("/api/apple/asc-api-keys", { cookie: cookies })).json();
+    const getResult4 = await get("/api/apple/asc-api-keys", { cookie: cookies });
+    const ascKeys = await getResult4.json();
     expect(ascKeys.items).toHaveLength(1);
   });
 
@@ -305,9 +308,8 @@ describe("Credentials Apple flow", () => {
     expect(body.privateKeyId).toBe("abc123def456");
     expect(body.googleProjectId).toBe("my-gcp-project");
 
-    const listed = await (
-      await get("/api/google/service-account-keys", { cookie: cookies })
-    ).json();
+    const listedResponse = await get("/api/google/service-account-keys", { cookie: cookies });
+    const listed = await listedResponse.json();
     expect(listed.items).toHaveLength(1);
   });
 
@@ -331,8 +333,8 @@ describe("Credentials Apple flow", () => {
     });
     expect(res.status).toBe(200);
 
-    const teams = (await (await get("/api/apple-teams", { cookie: cookies })).json())
-      .items as AppleTeam[];
+    const teamsResponse = await get("/api/apple-teams", { cookie: cookies });
+    const { items: teams } = await teamsResponse.json<{ items: AppleTeam[] }>();
     expect(teams).toHaveLength(1);
     const [team] = teams;
     expect(team?.distributionCertificateCount).toBe(0);
@@ -363,7 +365,7 @@ describe("Credentials Apple flow", () => {
       { cookie: cookies },
     );
     expect(orgBRes.status).toBe(200);
-    const orgBId = (await orgBRes.json()).id;
+    const { id: orgBId } = await orgBRes.json();
     cookies = parseCookies(orgBRes) || cookies;
 
     const activeRes = await post(
@@ -374,11 +376,11 @@ describe("Credentials Apple flow", () => {
     expect(activeRes.status).toBe(200);
     cookies = parseCookies(activeRes) || cookies;
 
-    const certs = await (
-      await get("/api/apple/distribution-certificates", { cookie: cookies })
-    ).json();
+    const certsResponse = await get("/api/apple/distribution-certificates", { cookie: cookies });
+    const certs = await certsResponse.json();
     expect(certs.items).toHaveLength(0);
-    const teams = await (await get("/api/apple-teams", { cookie: cookies })).json();
+    const getResult5 = await get("/api/apple-teams", { cookie: cookies });
+    const teams = await getResult5.json();
     expect(teams.items).toHaveLength(0);
 
     // Getting org A's push key from org B → 404

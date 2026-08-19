@@ -1,4 +1,3 @@
-import { UpdateSourcemap } from "@better-update/api";
 import { Effect, Schema } from "effect";
 
 import type { CompleteSourcemapBody, ReserveSourcemapBody } from "@better-update/api";
@@ -46,13 +45,12 @@ const SourcemapReservationSchema = Schema.Struct({
   byteSize: Schema.Number,
 });
 
-const toApiSourcemap = (model: UpdateSourcemapModel) =>
-  new UpdateSourcemap({
-    updateId: model.updateId,
-    byteSize: model.byteSize,
-    sha256: model.sha256,
-    createdAt: model.createdAt,
-  });
+const toApiSourcemap = (model: UpdateSourcemapModel) => ({
+  updateId: model.updateId,
+  byteSize: model.byteSize,
+  sha256: model.sha256,
+  createdAt: model.createdAt,
+});
 
 /**
  * Resolve update → branch → project and gate the caller. `create` gates at
@@ -75,22 +73,22 @@ const assertUpdateAccess = (updateId: string, action: "create" | "read") =>
   });
 
 export const handleReserveSourcemap = ({
-  path,
+  params,
   payload,
 }: {
-  readonly path: { readonly id: string };
+  readonly params: { readonly id: string };
   readonly payload: typeof ReserveSourcemapBody.Type;
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      const { projectId } = yield* assertUpdateAccess(path.id, "create");
+      const { projectId } = yield* assertUpdateAccess(params.id, "create");
       const ctx = yield* CurrentActor;
       const runtime = yield* BuildRuntime;
 
       const r2Key = updateSourcemapKey({
         organizationId: ctx.organizationId,
         projectId,
-        updateId: path.id,
+        updateId: params.id,
       });
       const checksumSha256Base64 = yield* sha256HexToBase64(payload.sha256, "Sourcemap");
       const uploadUrl = yield* runtime.createUploadUrl({
@@ -101,7 +99,7 @@ export const handleReserveSourcemap = ({
       });
 
       yield* runtime.putReservation({
-        id: sourcemapReservationId(path.id),
+        id: sourcemapReservationId(params.id),
         value: JSON.stringify({
           r2Key,
           sha256: payload.sha256.toLowerCase(),
@@ -122,18 +120,18 @@ export const handleReserveSourcemap = ({
   );
 
 export const handleCompleteSourcemap = ({
-  path,
+  params,
   payload,
 }: {
-  readonly path: { readonly id: string };
+  readonly params: { readonly id: string };
   readonly payload: typeof CompleteSourcemapBody.Type;
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      const { projectId } = yield* assertUpdateAccess(path.id, "create");
+      const { projectId } = yield* assertUpdateAccess(params.id, "create");
       const runtime = yield* BuildRuntime;
 
-      const reservationId = sourcemapReservationId(path.id);
+      const reservationId = sourcemapReservationId(params.id);
       const reservationJson = yield* runtime.getReservation({ id: reservationId });
       if (!reservationJson) {
         return yield* new NotFound({ message: "Sourcemap reservation not found or expired" });
@@ -152,7 +150,7 @@ export const handleCompleteSourcemap = ({
 
       const repo = yield* DebugArtifactRepo;
       const sourcemap = yield* repo.upsertUpdateSourcemap({
-        updateId: path.id,
+        updateId: params.id,
         r2Key: reservation.r2Key,
         byteSize: reservation.byteSize,
         sha256: reservation.sha256,
@@ -163,7 +161,7 @@ export const handleCompleteSourcemap = ({
       yield* logAudit({
         action: "update.sourcemap.upload",
         resourceType: "update",
-        resourceId: path.id,
+        resourceId: params.id,
         projectId,
       });
 
@@ -171,24 +169,28 @@ export const handleCompleteSourcemap = ({
     }),
   );
 
-export const handleGetSourcemap = ({ path }: { readonly path: { readonly id: string } }) =>
+export const handleGetSourcemap = ({ params }: { readonly params: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertUpdateAccess(path.id, "read");
+      yield* assertUpdateAccess(params.id, "read");
       const repo = yield* DebugArtifactRepo;
-      const sourcemap = yield* repo.findSourcemapByUpdateId({ updateId: path.id });
+      const sourcemap = yield* repo.findSourcemapByUpdateId({ updateId: params.id });
       return sourcemap ? toApiSourcemap(sourcemap) : null;
     }),
   );
 
-export const handleGetSourcemapDownload = ({ path }: { readonly path: { readonly id: string } }) =>
+export const handleGetSourcemapDownload = ({
+  params,
+}: {
+  readonly params: { readonly id: string };
+}) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertUpdateAccess(path.id, "read");
+      yield* assertUpdateAccess(params.id, "read");
       const repo = yield* DebugArtifactRepo;
-      const sourcemap = yield* repo.findSourcemapByUpdateId({ updateId: path.id });
+      const sourcemap = yield* repo.findSourcemapByUpdateId({ updateId: params.id });
       if (!sourcemap) {
-        return yield* new NotFound({ message: `Update ${path.id} has no sourcemap` });
+        return yield* new NotFound({ message: `Update ${params.id} has no sourcemap` });
       }
       const runtime = yield* BuildRuntime;
       const url = yield* runtime.createDownloadUrl({
@@ -196,7 +198,7 @@ export const handleGetSourcemapDownload = ({ path }: { readonly path: { readonly
         expiresIn: DOWNLOAD_EXPIRY_SECONDS,
         // Force a save dialog: a bare presigned URL would render the JSON map
         // as text when opened in a browser tab.
-        contentDisposition: `attachment; filename="${path.id}.map"`,
+        contentDisposition: `attachment; filename="${params.id}.map"`,
       });
       return { url, expiresAt: downloadExpiresAtIso() };
     }),

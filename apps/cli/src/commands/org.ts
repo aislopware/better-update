@@ -30,7 +30,7 @@ const activeOrganizationId = Effect.gen(function* () {
 // Best-effort: a device without a local identity has nothing cached.
 const dropVaultCaches = (orgId: string) =>
   Effect.all([forgetCachedVaultKey(orgId), forgetCachedEnvVaultKey(orgId)]).pipe(
-    Effect.catchAll(() => Effect.void),
+    Effect.catch(() => Effect.void),
   );
 
 const listCommand = defineCommand({

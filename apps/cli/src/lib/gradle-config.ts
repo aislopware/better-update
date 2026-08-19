@@ -2,8 +2,7 @@ import path from "node:path";
 
 import { AndroidPackageName } from "@better-update/api";
 import { asRecord, compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { FileSystem, Effect, Schema } from "effect";
 
 import { printWarn } from "./warning-style";
 

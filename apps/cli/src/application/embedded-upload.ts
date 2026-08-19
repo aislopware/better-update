@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { fromHex, toBase64Url } from "@better-update/encoding";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";

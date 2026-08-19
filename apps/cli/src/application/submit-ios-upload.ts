@@ -139,7 +139,7 @@ const uploadIpaViaAscApi = (params: {
         printHuman(
           `Build Upload API unavailable (${error.message}) — falling back to xcrun altool.`,
         ).pipe(
-          Effect.zipRight(
+          Effect.andThen(
             uploadIpaViaAltool({
               auth: params.auth,
               ascCredentials: params.ascCredentials,
@@ -217,7 +217,7 @@ const configureUploadedBuild = (params: {
   readonly config: IosSubmitInputs["config"];
 }) =>
   Effect.gen(function* () {
-    const configResult = yield* Effect.either(
+    const configResult = yield* Effect.result(
       applyTestFlightConfig({
         credentials: params.ascCredentials,
         appId: params.appId,
@@ -228,8 +228,8 @@ const configureUploadedBuild = (params: {
         groups: params.config.groups,
       }),
     );
-    if (configResult._tag === "Left") {
-      const configError = configResult.left;
+    if (configResult._tag === "Failure") {
+      const configError = configResult.failure;
       yield* printHuman(`TestFlight configuration failed: ${configError.message}`);
       return {
         buildVersion: params.ipaInfo.buildVersion,
@@ -280,31 +280,31 @@ const resolveIosUploadTarget = (params: {
         uploader: params.uploader,
       } satisfies IosUploadTarget;
     }
-    const resolved = yield* Effect.either(
+    const resolved = yield* Effect.result(
       resolveExistingBuild({
         ascCredentials: params.ascCredentials,
         ipaInfo: params.ipaInfo,
         config: params.config,
       }),
     );
-    if (resolved._tag === "Left") {
+    if (resolved._tag === "Failure") {
       if (params.wantsConfigWithKey) {
         // TestFlight config cannot proceed without the app record — fail loudly.
-        return yield* resolved.left;
+        return yield* resolved.failure;
       }
       yield* printHuman(
-        `Could not resolve the App Store Connect app (${resolved.left.message}) — using xcrun altool for the upload.`,
+        `Could not resolve the App Store Connect app (${resolved.failure.message}) — using xcrun altool for the upload.`,
       );
       return { appId: null, alreadyUploaded: false, uploader: "altool" } satisfies IosUploadTarget;
     }
-    if (resolved.right.alreadyUploaded) {
+    if (resolved.success.alreadyUploaded) {
       yield* printHuman(
         `Build ${params.ipaInfo.buildVersion} is already on App Store Connect — skipping upload.`,
       );
     }
     return {
-      appId: resolved.right.appId,
-      alreadyUploaded: resolved.right.alreadyUploaded,
+      appId: resolved.success.appId,
+      alreadyUploaded: resolved.success.alreadyUploaded,
       uploader: params.uploader,
     } satisfies IosUploadTarget;
   });
@@ -337,7 +337,7 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
     // The CFBundleVersion makes the upload idempotent (skip when the build is
     // already on ASC) and lets us configure the exact build. Required with config.
     const ipaInfo = yield* readIpaVersionInfo(ipaPath).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         wantsConfigWithKey
           ? Effect.fail(
               new CliSubmitError({ code: "SUBMISSION_IPA_READ_FAILED", message: error.message }),

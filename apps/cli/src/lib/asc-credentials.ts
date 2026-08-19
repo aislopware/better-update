@@ -25,7 +25,7 @@ export interface AscCredentials {
  */
 export const fetchAscCredentials = (api: ApiClient, ascApiKeyId: string) =>
   Effect.gen(function* () {
-    const data = yield* api.ascApiKeys.getCredentials({ path: { id: ascApiKeyId } });
+    const data = yield* api.ascApiKeys.getCredentials({ params: { id: ascApiKeyId } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,

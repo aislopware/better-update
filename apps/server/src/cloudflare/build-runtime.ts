@@ -58,10 +58,9 @@ export interface BuildRuntimeService {
   readonly getInstallTokenSecret: Effect.Effect<string | null>;
 }
 
-export class BuildRuntime extends Context.Tag("server/BuildRuntime")<
-  BuildRuntime,
-  BuildRuntimeService
->() {}
+export class BuildRuntime extends Context.Service<BuildRuntime, BuildRuntimeService>()(
+  "server/BuildRuntime",
+) {}
 
 const toStoredBuildBlob = (object: R2ObjectBody): StoredBuildBlob => ({
   body: object.body,

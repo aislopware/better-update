@@ -1,8 +1,8 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { EnvVarRepo, EnvVarRepoLive } from "../../../src/repositories/env-vars";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 import type { EnvVarListFilters, InsertParams } from "../../../src/repositories/env-vars-sql";
 
@@ -11,11 +11,11 @@ import type { EnvVarListFilters, InsertParams } from "../../../src/repositories/
 const ORG_ID = "ev-org";
 const PROJECT_ID = "ev-proj";
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvVarRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvVarRepo>) =>
   runWithLayerAndEnv(effect, EnvVarRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvVarRepo>) =>
-  runEitherWithLayerAndEnv(effect, EnvVarRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvVarRepo>) =>
+  runResultWithLayerAndEnv(effect, EnvVarRepoLive, env);
 
 const insertWithRevision = (params: InsertParams) =>
   Effect.gen(function* () {
@@ -23,7 +23,7 @@ const insertWithRevision = (params: InsertParams) =>
     return yield* repo.insertWithRevision(params);
   });
 
-const addRevision = (params: Parameters<EnvVarRepo["Type"]["addRevision"]>[0]) =>
+const addRevision = (params: Parameters<EnvVarRepo["Service"]["addRevision"]>[0]) =>
   Effect.gen(function* () {
     const repo = yield* EnvVarRepo;
     return yield* repo.addRevision(params);
@@ -35,7 +35,7 @@ const list = (filters: EnvVarListFilters) =>
     return yield* repo.list(filters);
   });
 
-const upsertDescription = (params: Parameters<EnvVarRepo["Type"]["upsertDescription"]>[0]) =>
+const upsertDescription = (params: Parameters<EnvVarRepo["Service"]["upsertDescription"]>[0]) =>
   Effect.gen(function* () {
     const repo = yield* EnvVarRepo;
     return yield* repo.upsertDescription(params);
@@ -65,10 +65,10 @@ const globalInsert = (key: string, revisionId: string): InsertParams => ({
   revision: revision(revisionId),
 });
 
-const countRevisions = (envVarId: string) =>
-  env.DB.prepare(`SELECT COUNT(*) AS n FROM "env_var_revisions" WHERE "env_var_id" = ?`)
+const countRevisions = async (envVarId: string) =>
+  env.DB.prepare(`SELECT COUNT(*) AS total FROM "env_var_revisions" WHERE "env_var_id" = ?`)
     .bind(envVarId)
-    .first<{ n: number }>();
+    .first<{ total: number }>();
 
 // ── Setup ─────────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ describe("EnvVarRepo — D1 integration (Kysely + session)", () => {
     });
 
     const revisions = await countRevisions(model.id);
-    expect(revisions?.n).toBe(1);
+    expect(revisions?.total).toBe(1);
   });
 
   it("lists the inserted env var with its active revision metadata", async () => {
@@ -118,11 +118,11 @@ describe("EnvVarRepo — D1 integration (Kysely + session)", () => {
   });
 
   it("fails with Conflict on a duplicate (scope, key, environment)", async () => {
-    const result = await runEither(insertWithRevision(globalInsert("API_URL", "rev-dup")));
+    const result = await runResult(insertWithRevision(globalInsert("API_URL", "rev-dup")));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({
         _tag: "Conflict",
         message: `Variable "API_URL" already exists for this environment in this organization`,
       });
@@ -148,17 +148,17 @@ describe("EnvVarRepo — D1 integration (Kysely + session)", () => {
       visibility: "sensitive",
     });
     const revisions = await countRevisions(created.id);
-    expect(revisions?.n).toBe(2);
+    expect(revisions?.total).toBe(2);
   });
 
   it("fails NotFound when adding a revision to a missing env var", async () => {
-    const result = await runEither(
+    const result = await runResult(
       addRevision({ id: "does-not-exist", createdByUserId: null, revision: revision("rev-x") }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -285,10 +285,10 @@ describe("EnvVarRepo — D1 integration (Kysely + session)", () => {
       .first<{ id: string }>();
     expect(remaining).toBeNull();
 
-    const result = await runEither(deleteById(created.id));
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    const result = await runResult(deleteById(created.id));
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 });

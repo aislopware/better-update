@@ -4,9 +4,8 @@ import { promisify } from "node:util";
 
 import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 import { Entry } from "@napi-rs/keyring";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
 
 import type { Auth } from "@expo/apple-utils";
 
@@ -37,7 +36,7 @@ export interface AppleAccountsIndex {
 /** Apple IDs are email addresses — compare and key them case-insensitively. */
 export const normalizeAppleUsername = (username: string): string => username.trim().toLowerCase();
 
-export class AppleSessionStore extends Context.Tag("cli/AppleSessionStore")<
+export class AppleSessionStore extends Context.Service<
   AppleSessionStore,
   {
     /** Session of the active account, or null when none is active/cached. */
@@ -61,7 +60,7 @@ export class AppleSessionStore extends Context.Tag("cli/AppleSessionStore")<
     readonly loadLastUsername: Effect.Effect<string | null>;
     readonly saveLastUsername: (username: string) => Effect.Effect<void, AppleAuthError>;
   }
->() {}
+>()("cli/AppleSessionStore") {}
 
 const execFileAsync = promisify(execFile);
 
@@ -137,7 +136,7 @@ const deleteKeyring = (account: string) =>
 // binary: the keyring API then can't read/update/delete it — only SecItemAdd
 // still collides. The `security` CLI can still find and delete such an item.
 const evictStaleKeyring = (account: string) =>
-  Effect.zipRight(
+  Effect.andThen(
     deleteKeyring(account),
     process.platform === "darwin"
       ? Effect.tryPromise(async () =>
@@ -155,7 +154,7 @@ const writeKeyring = (account: string, blob: string) => {
   const write = Effect.try(() => {
     new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
   });
-  return write.pipe(Effect.orElse(() => Effect.zipRight(evictStaleKeyring(account), write)));
+  return write.pipe(Effect.catch(() => Effect.andThen(evictStaleKeyring(account), write)));
 };
 
 /**
@@ -192,7 +191,7 @@ export const AppleSessionStoreLive = Layer.effect(
     const readFileOrNull = (file: string) =>
       fs.readFileString(file).pipe(Effect.orElseSucceed((): string | null => null));
 
-    const removeFile = (file: string) => fs.remove(file).pipe(Effect.catchAll(() => Effect.void));
+    const removeFile = (file: string) => fs.remove(file).pipe(Effect.catch(() => Effect.void));
 
     const readIndex = readFileOrNull(indexFile).pipe(
       Effect.map((content) => (content === null ? EMPTY_INDEX : parseIndex(content))),
@@ -216,7 +215,7 @@ export const AppleSessionStoreLive = Layer.effect(
         yield* writeSessionsFile(
           Object.fromEntries(Object.entries(sessions).filter(([key]) => key !== normalized)),
         );
-      }).pipe(Effect.catchAll(() => Effect.void));
+      }).pipe(Effect.catch(() => Effect.void));
 
     /** Register an account in the index; keeps the current active unless absent. */
     const indexAccount = (normalized: string, options: { readonly activate: boolean }) =>
@@ -232,8 +231,8 @@ export const AppleSessionStoreLive = Layer.effect(
     const persistSession = (normalized: string, session: SerializedAppleSession) =>
       writeKeyring(keychainAccount(normalized), JSON.stringify(session)).pipe(
         // Keychain write succeeded — drop any stale plaintext copy.
-        Effect.zipRight(dropFromSessionsFile(normalized)),
-        Effect.orElse(() =>
+        Effect.andThen(dropFromSessionsFile(normalized)),
+        Effect.catch(() =>
           readSessionsFile.pipe(
             Effect.flatMap((sessions) => writeSessionsFile({ ...sessions, [normalized]: session })),
           ),
@@ -263,7 +262,7 @@ export const AppleSessionStoreLive = Layer.effect(
         }
         yield* removeFile(legacySessionFile);
       }
-    }).pipe(Effect.catchAll(() => Effect.void));
+    }).pipe(Effect.catch(() => Effect.void));
     const ensureMigrated = yield* Effect.cached(migrateLegacy);
 
     const loadSessionFor = (username: string) =>
@@ -318,7 +317,7 @@ export const AppleSessionStoreLive = Layer.effect(
         yield* writeIndex({
           active: null,
           accounts: index.accounts.filter((account) => account !== normalized),
-        }).pipe(Effect.catchAll(() => Effect.void));
+        }).pipe(Effect.catch(() => Effect.void));
       }),
 
       clearAllSessions: Effect.gen(function* () {

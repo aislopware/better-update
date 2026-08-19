@@ -51,10 +51,10 @@ export interface UserEncryptionKeyRepository {
   }) => Effect.Effect<void>;
 }
 
-export class UserEncryptionKeyRepo extends Context.Tag("api/UserEncryptionKeyRepo")<
+export class UserEncryptionKeyRepo extends Context.Service<
   UserEncryptionKeyRepo,
   UserEncryptionKeyRepository
->() {}
+>()("api/UserEncryptionKeyRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

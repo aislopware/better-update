@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
@@ -114,13 +114,15 @@ describe("Superadmin admin API", () => {
       cookie: superCookies,
     });
     expect(approve.status).toBe(200);
-    expect((await approve.json()).approved).toBe(true);
+    const approveBody = await approve.json();
+    expect(approveBody.approved).toBe(true);
 
     const revoke = await postNoBody(`/api/admin/users/${targetUserId}/revoke`, {
       cookie: superCookies,
     });
     expect(revoke.status).toBe(200);
-    expect((await revoke.json()).approved).toBe(false);
+    const revokeBody = await revoke.json();
+    expect(revokeBody.approved).toBe(false);
   });
 
   it("returns 404 approving an unknown user", async () => {

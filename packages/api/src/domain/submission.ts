@@ -3,15 +3,15 @@ import { Schema } from "effect";
 import { BundleIdentifier } from "./apple-provisioning-profile";
 import { DateTimeString, DeletedResult, Id, Platform } from "./common";
 
-export const SubmissionArchiveSource = Schema.Literal("build", "path", "url");
+export const SubmissionArchiveSource = Schema.Literals(["build", "path", "url"]);
 
-export const AndroidReleaseStatus = Schema.Literal("completed", "draft", "halted", "inProgress");
+export const AndroidReleaseStatus = Schema.Literals(["completed", "draft", "halted", "inProgress"]);
 
-export const AndroidTrack = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100));
+export const AndroidTrack = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100));
 
-export const Rollout = Schema.Number.pipe(Schema.greaterThan(0), Schema.lessThanOrEqualTo(1));
+export const Rollout = Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(1));
 
-export class IosSubmissionConfig extends Schema.Class<IosSubmissionConfig>("IosSubmissionConfig")({
+export const IosSubmissionConfig = Schema.Struct({
   appleId: Schema.NullOr(Schema.String),
   ascAppId: Schema.NullOr(Schema.String),
   appleTeamId: Schema.NullOr(Schema.String),
@@ -23,24 +23,24 @@ export class IosSubmissionConfig extends Schema.Class<IosSubmissionConfig>("IosS
   ascApiKeyId: Schema.NullOr(Id),
   groups: Schema.Array(Schema.String),
   whatToTest: Schema.NullOr(Schema.String),
-}) {}
+}).annotate({ identifier: "IosSubmissionConfig" });
+export type IosSubmissionConfig = typeof IosSubmissionConfig.Type;
 
-export class AndroidSubmissionConfig extends Schema.Class<AndroidSubmissionConfig>(
-  "AndroidSubmissionConfig",
-)({
+export const AndroidSubmissionConfig = Schema.Struct({
   applicationId: Schema.String,
   track: Schema.String,
   releaseStatus: AndroidReleaseStatus,
   changesNotSentForReview: Schema.Boolean,
   rollout: Schema.NullOr(Schema.Number),
   googleServiceAccountKeyId: Schema.NullOr(Id),
-}) {}
+}).annotate({ identifier: "AndroidSubmissionConfig" });
+export type AndroidSubmissionConfig = typeof AndroidSubmissionConfig.Type;
 
 // A submission row exists iff a client-side binary upload succeeded.
 // `metadataComplete` is false when the upload landed but its post-upload store
 // metadata step (iOS TestFlight config) did not; `buildVersion` (CFBundleVersion)
 // keys the idempotent re-run that later completes it.
-export class Submission extends Schema.Class<Submission>("Submission")({
+export const Submission = Schema.Struct({
   id: Id,
   organizationId: Id,
   projectId: Id,
@@ -55,7 +55,8 @@ export class Submission extends Schema.Class<Submission>("Submission")({
   buildVersion: Schema.NullOr(Schema.String),
   initiatingUserId: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Submission" });
+export type Submission = typeof Submission.Type;
 
 export const CreateIosSubmissionBody = Schema.Struct({
   appleId: Schema.optional(Schema.String),

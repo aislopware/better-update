@@ -1,37 +1,38 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import {
   AppleDistributionCertificateRepo,
   AppleDistributionCertificateRepoLive,
 } from "../../../src/repositories/apple-distribution-certificates";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleDistributionCertificateRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleDistributionCertificateRepo>) =>
   runWithLayerAndEnv(effect, AppleDistributionCertificateRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleDistributionCertificateRepo>) =>
-  runEitherWithLayerAndEnv(effect, AppleDistributionCertificateRepoLive, env);
+const runResult = async <Ret, Err>(
+  effect: Effect.Effect<Ret, Err, AppleDistributionCertificateRepo>,
+) => runResultWithLayerAndEnv(effect, AppleDistributionCertificateRepoLive, env);
 
 // `apple_distribution_certificates` FKs `organization` + `apple_teams` (both NOT
 // NULL) — those parents must exist before any cert row is inserted.
-const seedOrg = (id: string) =>
+const seedOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2026-01-01T00:00:00Z")
     .run();
 
-const seedAppleTeam = (id: string, orgId: string) =>
+const seedAppleTeam = async (id: string, orgId: string) =>
   env.DB.prepare(
     `INSERT INTO "apple_teams" ("id", "organization_id", "apple_team_id", "apple_team_type") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, orgId, id, "COMPANY_ORGANIZATION")
     .run();
 
-const seedCert = (
+const seedCert = async (
   id: string,
   orgId: string,
   serialNumber: string,
@@ -83,9 +84,10 @@ describe("AppleDistributionCertificateRepo — D1 integration (Kysely + session)
     );
 
     expect(certs).toHaveLength(2);
-    expect(certs[0].id).toBe("cert-a2"); // newer first
-    expect(certs[1].id).toBe("cert-a1");
-    expect(certs[0].serialNumber).toBe("SN-BETA");
+    // newer first
+    expect(certs[0]?.id).toBe("cert-a2");
+    expect(certs[1]?.id).toBe("cert-a1");
+    expect(certs[0]?.serialNumber).toBe("SN-BETA");
   });
 
   it("listByOrg returns empty array for org with no certs", async () => {
@@ -162,16 +164,16 @@ describe("AppleDistributionCertificateRepo — D1 integration (Kysely + session)
   });
 
   it("findById fails with NotFound for a missing id", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* AppleDistributionCertificateRepo;
         return yield* repo.findById({ id: "cert-missing" });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -209,16 +211,16 @@ describe("AppleDistributionCertificateRepo — D1 integration (Kysely + session)
     expect(row?.serial_number).toBe("SN-UNIQUE");
 
     // Duplicate serial → Conflict
-    const conflict = await runEither(
+    const conflict = await runResult(
       Effect.gen(function* () {
         const repo = yield* AppleDistributionCertificateRepo;
         return yield* repo.insert({ ...params, id: "cert-new-2" });
       }),
     );
 
-    expect(Either.isLeft(conflict)).toBe(true);
-    if (Either.isLeft(conflict)) {
-      expect(conflict.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(conflict)).toBe(true);
+    if (Result.isFailure(conflict)) {
+      expect(conflict.failure).toMatchObject({ _tag: "Conflict" });
     }
   });
 });

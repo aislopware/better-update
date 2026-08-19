@@ -1,5 +1,4 @@
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 /**
  * Create a scoped temp directory prefixed with "better-update-" and `chmod 0o700`

@@ -99,7 +99,7 @@ const sealEnvVar = (
 const buildApi = (
   vault: TestVault,
   exportFn: (args: {
-    urlParams: { projectId: string; environment: string };
+    query: { projectId: string; environment: string };
   }) => Effect.Effect<{ environment: string; items: readonly SealedEnvVar[] }, unknown>,
 ): ApiClient =>
   ({

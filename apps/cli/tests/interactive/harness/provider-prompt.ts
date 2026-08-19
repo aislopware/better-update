@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import process from "node:process";
 
-import { NodeContext, NodeRuntime } from "@effect/platform-node";
+import { NodeServices, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
 
 import type { Session } from "@expo/apple-utils";
@@ -53,6 +53,6 @@ const program = Effect.gen(function* () {
 });
 
 program.pipe(
-  Effect.provide(Layer.mergeAll(NodeContext.layer, CliRuntimeLive, InteractiveModeLive)),
+  Effect.provide(Layer.mergeAll(NodeServices.layer, CliRuntimeLive, InteractiveModeLive)),
   NodeRuntime.runMain,
 );

@@ -15,7 +15,7 @@ const uploadOne = (api: ApiClient, buildId: string, artifact: CapturedDebugArtif
     const { sha256, byteSize } = yield* sha256File(artifact.path);
 
     const reservation = yield* api.builds.reserveDebugArtifact({
-      path: { id: buildId },
+      params: { id: buildId },
       payload: { type: artifact.type, sha256, byteSize },
     });
 
@@ -28,7 +28,7 @@ const uploadOne = (api: ApiClient, buildId: string, artifact: CapturedDebugArtif
     });
 
     yield* api.builds.completeDebugArtifact({
-      path: { id: buildId },
+      params: { id: buildId },
       payload: { type: artifact.type, sha256, byteSize },
     });
   });
@@ -57,9 +57,9 @@ export const uploadDebugArtifacts = (
       (artifact) =>
         uploadOne(api, params.buildId, artifact).pipe(
           Effect.as<CapturedDebugArtifact["type"] | null>(artifact.type),
-          Effect.catchAll((cause) =>
+          Effect.catch((error) =>
             printWarn(
-              `Failed to store ${artifact.type} debug artifact: ${formatCause(cause)}`,
+              `Failed to store ${artifact.type} debug artifact: ${formatCause(error)}`,
             ).pipe(Effect.as(null)),
           ),
         ),

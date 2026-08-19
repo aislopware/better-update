@@ -34,7 +34,7 @@ export const createCommand = defineCommand({
 
         const branches = yield* drainPages((page) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, page },
+            query: { projectId, limit: 100, page },
           }),
         );
         const newBranchId = yield* resolveNamedResourceId({
@@ -46,7 +46,7 @@ export const createCommand = defineCommand({
         const runtimeVersion = args["runtime-version"];
 
         const channel = yield* api.channels.createBranchRollout({
-          path: { id: args.channelId },
+          params: { id: args.channelId },
           payload: compact({ newBranchId, percentage, runtimeVersion }),
         });
 

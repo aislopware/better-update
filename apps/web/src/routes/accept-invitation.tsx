@@ -118,7 +118,6 @@ export const Route = createFileRoute("/accept-invitation")({
   beforeLoad: async ({ context, location }) => {
     const session = await context.queryClient
       .ensureQueryData(sessionQueryOptions)
-      // eslint-disable-next-line promise/prefer-await-to-then -- ensureQueryData rejects on network error; we treat that as "not authed" and fall through to redirect
       .catch(() => null);
     if (!session?.user) {
       // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error -- TanStack Router idiom: throw redirect preserves typed search-param inference

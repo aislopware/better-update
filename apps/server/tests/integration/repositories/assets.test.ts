@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { AssetRepo, AssetRepoLive } from "../../../src/repositories/assets";
@@ -6,10 +6,10 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetRepo>) =>
   runWithLayerAndEnv(effect, AssetRepoLive, env);
 
-const seedAsset = (hash: string, byteSize = 1024) =>
+const seedAsset = async (hash: string, byteSize = 1024) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
@@ -71,7 +71,9 @@ describe("AssetRepo — D1 integration (Kysely + session)", () => {
     );
 
     expect(assets).toHaveLength(2);
-    expect(assets.map((a) => a.hash).sort()).toEqual(["hash-001", "hash-002"]);
+    expect(
+      assets.map((asset) => asset.hash).toSorted((left, right) => left.localeCompare(right)),
+    ).toStrictEqual(["hash-001", "hash-002"]);
   });
 
   it("insertBatch inserts new assets and silently ignores duplicates", async () => {

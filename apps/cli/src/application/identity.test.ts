@@ -1,6 +1,6 @@
 import { generateIdentity } from "@better-update/credentials-crypto";
 import { it } from "@effect/vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 
 import type { IdentityFile } from "@better-update/credentials-crypto";
 
@@ -103,14 +103,14 @@ describe("active recipient resolution", () => {
 
   it.effect("fails when neither an env key nor an on-disk identity exists", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         activeRecipient.pipe(
           Effect.provide(Layer.mergeAll(cliRuntimeStub({}), identityStoreStub(null).layer)),
         ),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );
@@ -120,12 +120,12 @@ describe("creating a local identity", () => {
   it.effect("refuses to overwrite an existing identity", () =>
     Effect.gen(function* () {
       const store = identityStoreStub(FIXTURE_FILE);
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         createLocalIdentity("passphrase").pipe(Effect.provide(store.layer)),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
       expect(store.saved()).toHaveLength(0);
     }),

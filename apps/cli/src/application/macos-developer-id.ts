@@ -84,7 +84,7 @@ export interface DeveloperIdP12 {
 export const fetchDeveloperIdP12 = (api: ApiClient, certificateId: string) =>
   Effect.gen(function* () {
     const data = yield* api.appleDistributionCertificates.download({
-      path: { id: certificateId },
+      params: { id: certificateId },
     });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({

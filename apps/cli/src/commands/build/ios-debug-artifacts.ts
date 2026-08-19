@@ -1,9 +1,8 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { formatCause } from "../../lib/format-error";
 import { printWarn } from "../../lib/warning-style";
@@ -26,7 +25,7 @@ export const collectIosDebugArtifacts = (params: {
 }): Effect.Effect<
   readonly CapturedDebugArtifact[],
   never,
-  FileSystem.FileSystem | CommandExecutor.CommandExecutor | OutputMode
+  FileSystem.FileSystem | ChildProcessSpawner.ChildProcessSpawner | OutputMode
 > =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -57,8 +56,8 @@ export const collectIosDebugArtifacts = (params: {
 
     return artifacts;
   }).pipe(
-    Effect.catchAll((cause) =>
-      printWarn(`Debug symbol capture skipped: ${formatCause(cause)}`).pipe(
+    Effect.catch((error) =>
+      printWarn(`Debug symbol capture skipped: ${formatCause(error)}`).pipe(
         Effect.as([] as readonly CapturedDebugArtifact[]),
       ),
     ),

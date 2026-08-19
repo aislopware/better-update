@@ -31,7 +31,7 @@ export interface AssetRepository {
   }) => Effect.Effect<void>;
 }
 
-export class AssetRepo extends Context.Tag("api/AssetRepo")<AssetRepo, AssetRepository>() {}
+export class AssetRepo extends Context.Service<AssetRepo, AssetRepository>()("api/AssetRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

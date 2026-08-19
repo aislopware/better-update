@@ -4,8 +4,7 @@ import path from "node:path";
 import { canonicalDeviceRoster } from "@better-update/api";
 import { toBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Data, Effect } from "effect";
+import { FileSystem, Data, Effect } from "effect";
 
 import {
   openVaultSessionInteractive,

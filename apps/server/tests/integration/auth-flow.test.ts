@@ -1,9 +1,13 @@
-import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import worker from "../../src";
+import { incomingRequest } from "../helpers/incoming-request";
 
-const request = (url: string, init?: RequestInit) => {
-  const req = new Request(`http://localhost${url}`, init);
+import type { JsonResponse } from "../helpers/e2e-worker-pool";
+
+const request = async (url: string, init?: RequestInit): Promise<JsonResponse> => {
+  const req = incomingRequest(`http://localhost${url}`, init);
   const ctx = createExecutionContext();
   return worker.fetch(req, env, ctx).then(async (response) => {
     await waitOnExecutionContext(ctx);
@@ -11,7 +15,7 @@ const request = (url: string, init?: RequestInit) => {
   });
 };
 
-const jsonPost = (url: string, body: unknown) =>
+const jsonPost = async (url: string, body: unknown) =>
   request(url, {
     method: "POST",
     headers: { "content-type": "application/json" },

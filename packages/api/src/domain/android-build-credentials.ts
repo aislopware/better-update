@@ -2,9 +2,7 @@ import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id, Name120 } from "./common";
 
-export class AndroidBuildCredentials extends Schema.Class<AndroidBuildCredentials>(
-  "AndroidBuildCredentials",
-)({
+export const AndroidBuildCredentials = Schema.Struct({
   id: Id,
   organizationId: Id,
   androidApplicationIdentifierId: Id,
@@ -15,7 +13,8 @@ export class AndroidBuildCredentials extends Schema.Class<AndroidBuildCredential
   isDefault: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AndroidBuildCredentials" });
+export type AndroidBuildCredentials = typeof AndroidBuildCredentials.Type;
 
 export const CreateAndroidBuildCredentialsBody = Schema.Struct({
   name: Name120,

@@ -1,6 +1,7 @@
 import { Console, Effect } from "effect";
 
-import type { CommandExecutor, FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
@@ -49,7 +50,7 @@ export type MenuEffect = Effect.Effect<
   never,
   | AppleAuth
   | CliRuntime
-  | CommandExecutor.CommandExecutor
+  | ChildProcessSpawner.ChildProcessSpawner
   | FileSystem.FileSystem
   | DeviceUnlockMemo
   | IdentityStore
@@ -71,7 +72,7 @@ export const safely = <Value, Err, Req>(
   effect: Effect.Effect<Value, Err, Req>,
 ): Effect.Effect<void, never, Req> =>
   effect.pipe(
-    Effect.catchAll((cause) => reportError(label, cause)),
+    Effect.catch((error) => reportError(label, error)),
     Effect.asVoid,
   );
 
@@ -81,7 +82,7 @@ export const safePrompt = (effect: Effect.Effect<string, unknown, InteractiveMod
 export const promptForBundleConfig = (ctx: WizardContext) =>
   Effect.gen(function* () {
     const list = yield* ctx.api.iosBundleConfigurations.list({
-      path: { projectId: ctx.projectId },
+      params: { projectId: ctx.projectId },
     });
     if (list.items.length === 0) {
       return yield* new MissingCredentialsError({

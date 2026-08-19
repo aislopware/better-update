@@ -1,8 +1,7 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { UploadFailedError } from "../../lib/exit-codes";
@@ -33,7 +32,7 @@ export const downloadCommand = defineCommand({
         const runtime = yield* CliRuntime;
         const cwd = yield* runtime.cwd;
 
-        const build = yield* api.builds.get({ path: { id: args.id } });
+        const build = yield* api.builds.get({ params: { id: args.id } });
         const { artifact } = build;
         if (!artifact) {
           return yield* new UploadFailedError({
@@ -41,7 +40,7 @@ export const downloadCommand = defineCommand({
           });
         }
 
-        const link = yield* api.builds.getInstallLink({ path: { id: args.id } });
+        const link = yield* api.builds.getInstallLink({ params: { id: args.id } });
         const ext = artifact.format;
         const outputPath = args.output ?? path.join(cwd, `${args.id}.${ext}`);
 

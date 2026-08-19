@@ -1,6 +1,5 @@
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { uploadEnvVars } from "../../lib/env-exporter";

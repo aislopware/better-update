@@ -11,9 +11,7 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
  * manually: the CLI seals the `.p12` (cert + key) and the server stores only the
  * envelope + metadata.
  */
-export class ApplePassTypeCertificate extends Schema.Class<ApplePassTypeCertificate>(
-  "ApplePassTypeCertificate",
-)({
+export const ApplePassTypeCertificate = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Id,
@@ -25,15 +23,16 @@ export class ApplePassTypeCertificate extends Schema.Class<ApplePassTypeCertific
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "ApplePassTypeCertificate" });
+export type ApplePassTypeCertificate = typeof ApplePassTypeCertificate.Type;
 
 /** Client-encrypted upload: the `.p12` bytes + password are sealed into `ciphertext`. */
 export const UploadApplePassTypeCertificateBody = Schema.Struct({
   ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
-  passTypeIdentifier: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  passTypeIdentifier: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+  serialNumber: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
   ...appleTeamMetadataFields,
   validFrom: DateTimeString,

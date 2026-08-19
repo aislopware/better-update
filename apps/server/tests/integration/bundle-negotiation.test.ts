@@ -1,8 +1,10 @@
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import worker from "../../src";
 import { UpdateRepo, UpdateRepoLive } from "../../src/repositories/updates";
+import { incomingRequest } from "../helpers/incoming-request";
 import { runWithLayerAndEnv } from "../helpers/runtime";
 
 // Cross-flow integration tests for the Expo OTA bundle route (RFC-3229 / A-IM
@@ -23,7 +25,7 @@ const fetchBundle = async (
 ): Promise<Response> => {
   const ctx = createExecutionContext();
   const response = await worker.fetch(
-    new Request(`${BASE}/manifest/${projectId}/bundle/${updateId}/${hash}`, { headers }),
+    incomingRequest(`${BASE}/manifest/${projectId}/bundle/${updateId}/${hash}`, { headers }),
     env,
     ctx,
   );
@@ -33,7 +35,7 @@ const fetchBundle = async (
 
 // -- Seed helpers -------------------------------------------------------------
 
-const insertUpdate = (params: {
+const insertUpdate = async (params: {
   readonly id: string;
   readonly branchId: string;
   readonly runtimeVersion: string;
@@ -52,30 +54,30 @@ const insertUpdate = (params: {
     )
     .run();
 
-const insertAsset = (hash: string) =>
+const insertAsset = async (hash: string) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, 'application/javascript', 'js', 2048, ?, '2024-01-10T00:00:00.000Z')`,
   )
     .bind(hash, `assets/${hash}`)
     .run();
 
-const linkLaunchAsset = (updateId: string, hash: string) =>
+const linkLaunchAsset = async (updateId: string, hash: string) =>
   env.DB.prepare(
     `INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch") VALUES (?, 'bundle', ?, 1)`,
   )
     .bind(updateId, hash)
     .run();
 
-const seedFullBundle = (hash: string, bytes: Uint8Array) =>
+const seedFullBundle = async (hash: string, bytes: Uint8Array) =>
   env.ASSETS_BUCKET.put(`assets/${hash}`, bytes);
 
-const seedPatch = (key: string, bytes: Uint8Array) => env.ASSETS_BUCKET.put(key, bytes);
+const seedPatch = async (key: string, bytes: Uint8Array) => env.ASSETS_BUCKET.put(key, bytes);
 
-const runUpdates = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
+const runUpdates = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
   runWithLayerAndEnv(effect, UpdateRepoLive, env);
 
 const FULL_BUNDLE_BYTES = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
-const PATCH_BYTES = new Uint8Array([0xff, 0xee, 0xdd, 0xcc]);
+const PATCH_BYTES = new Uint8Array([255, 238, 221, 204]);
 
 // -- (a)-(e) bundle negotiation -----------------------------------------------
 
@@ -137,7 +139,7 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     expect(response.headers.get("content-type")).toBe("application/octet-stream");
     // Cloudflare edge applies zstd/gzip; the worker must never set content-encoding.
     expect(response.headers.get("content-encoding")).toBeNull();
-    expect(await bytesOf(response)).toEqual(PATCH_BYTES);
+    await expect(bytesOf(response)).resolves.toStrictEqual(PATCH_BYTES);
   });
 
   it("(b) falls back to the full bundle when no matching patch object exists", async () => {
@@ -153,7 +155,7 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     expect(response.headers.get("im")).toBeNull();
     expect(response.headers.get("expo-base-update-id")).toBeNull();
     expect(response.headers.get("content-type")).toBe("application/octet-stream");
-    expect(await bytesOf(response)).toEqual(FULL_BUNDLE_BYTES);
+    await expect(bytesOf(response)).resolves.toStrictEqual(FULL_BUNDLE_BYTES);
   });
 
   it("(c) serves the full bundle for a legacy client with no a-im header", async () => {
@@ -170,7 +172,7 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     // Workers Cache purge contract: the stored full-bundle copy is tagged so
     // an explicit update-group delete can evict it (domain/cache-tags.ts).
     expect(response.headers.get("cache-tag")).toBe(`project:${projectId},update:${toUpdateId}`);
-    expect(await bytesOf(response)).toEqual(FULL_BUNDLE_BYTES);
+    await expect(bytesOf(response)).resolves.toStrictEqual(FULL_BUNDLE_BYTES);
   });
 
   it("(d) serves a first-launch patch (embedded update is the current update on first launch)", async () => {
@@ -188,7 +190,7 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("im")).toBe("bsdiff");
     expect(response.headers.get("expo-base-update-id")).toBe(embeddedUpdateId);
-    expect(await bytesOf(response)).toEqual(PATCH_BYTES);
+    await expect(bytesOf(response)).resolves.toStrictEqual(PATCH_BYTES);
   });
 
   it("(e) returns 404 on runtime-version mismatch and full bundle when the header is absent", async () => {
@@ -205,7 +207,7 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     });
     expect(absent.status).toBe(200);
     expect(absent.headers.get("im")).toBeNull();
-    expect(await bytesOf(absent)).toEqual(FULL_BUNDLE_BYTES);
+    await expect(bytesOf(absent)).resolves.toStrictEqual(FULL_BUNDLE_BYTES);
   });
 
   it("returns 404 for an unknown update id", async () => {
@@ -230,8 +232,8 @@ const fetchBundleWithEnv = async (
 ): Promise<Response> => {
   const ctx = createExecutionContext();
   const response = await worker.fetch(
-    new Request(`${BASE}/manifest/${projectId}/bundle/${updateId}/${hash}`, { headers }),
-    { ...env, ...envOverride } as typeof env,
+    incomingRequest(`${BASE}/manifest/${projectId}/bundle/${updateId}/${hash}`, { headers }),
+    { ...env, ...envOverride },
     ctx,
   );
   await waitOnExecutionContext(ctx);
@@ -290,7 +292,7 @@ describe("bundle route — Item 3 opt-in HTTP 226 IM Used", () => {
     expect(response.status).toBe(226);
     expect(response.headers.get("im")).toBe("bsdiff");
     expect(response.headers.get("expo-base-update-id")).toBe(fromUpdateId);
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(PATCH_BYTES);
+    expect(new Uint8Array(await response.arrayBuffer())).toStrictEqual(PATCH_BYTES);
   });
 
   it("keeps 200 for a patch when the flag is off (default)", async () => {
@@ -317,7 +319,7 @@ describe("bundle route — Item 3 opt-in HTTP 226 IM Used", () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("im")).toBeNull();
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(FULL_BUNDLE_BYTES);
+    expect(new Uint8Array(await response.arrayBuffer())).toStrictEqual(FULL_BUNDLE_BYTES);
   });
 });
 
@@ -357,14 +359,14 @@ describe("embedded baseline — partial unique index + bundle resolution", () =>
 
   const embeddedRowCount = async () => {
     const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
+      `SELECT COUNT(*) AS total FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
     )
       .bind(branchId, runtimeVersion)
-      .first<{ n: number }>();
-    return row?.n ?? 0;
+      .first<{ total: number }>();
+    return row?.total ?? 0;
   };
 
-  const insertEmbedded = (message: string) =>
+  const insertEmbedded = async (message: string) =>
     runUpdates(
       Effect.gen(function* () {
         const repo = yield* UpdateRepo;
@@ -397,17 +399,19 @@ describe("embedded baseline — partial unique index + bundle resolution", () =>
 
   it("flips the embedded baseline so exactly one remains per (runtime, platform)", async () => {
     const first = await insertEmbedded("embedded-v1");
-    expect(await embeddedRowCount()).toBe(1);
+    await expect(embeddedRowCount()).resolves.toBe(1);
 
     const second = await insertEmbedded("embedded-v2");
     expect(second.id).not.toBe(first.id);
     // The partial unique index allows only one embedded baseline at a time.
-    expect(await embeddedRowCount()).toBe(1);
+    await expect(embeddedRowCount()).resolves.toBe(1);
 
-    const firstRow = await env.DB.prepare(`SELECT "is_embedded" AS f FROM "updates" WHERE "id" = ?`)
+    const firstRow = await env.DB.prepare(
+      `SELECT "is_embedded" AS isEmbedded FROM "updates" WHERE "id" = ?`,
+    )
       .bind(first.id)
-      .first<{ f: number }>();
-    expect(firstRow?.f).toBe(0);
+      .first<{ isEmbedded: number }>();
+    expect(firstRow?.isEmbedded).toBe(0);
 
     // On first launch the embedded update is the launched/current update, so the
     // device sends it as expo-current-update-id and the server patches against
@@ -425,7 +429,7 @@ describe("embedded baseline — partial unique index + bundle resolution", () =>
     expect(response.status).toBe(200);
     expect(response.headers.get("im")).toBe("bsdiff");
     expect(response.headers.get("expo-base-update-id")).toBe(second.id.toLowerCase());
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(PATCH_BYTES);
+    expect(new Uint8Array(await response.arrayBuffer())).toStrictEqual(PATCH_BYTES);
   });
 });
 
@@ -469,13 +473,13 @@ describe("manifest still serves a full bundle through the worker route", () => {
 
   const dispatch = async (path: string, headers: Record<string, string>): Promise<Response> => {
     const ctx = createExecutionContext();
-    const response = await worker.fetch(new Request(`${BASE}${path}`, { headers }), env, ctx);
+    const response = await worker.fetch(incomingRequest(`${BASE}${path}`, { headers }), env, ctx);
     await waitOnExecutionContext(ctx);
     return response;
   };
 
   const parseMultipartLaunchUrl = (contentType: string, rawBody: string): string => {
-    const boundary = /boundary=([^\s;]+)/.exec(contentType)?.[1] ?? "";
+    const boundary = /boundary=(?<boundary>[^\s;]+)/u.exec(contentType)?.groups?.["boundary"] ?? "";
     const manifestPart = rawBody
       .split(`--${boundary}`)
       .slice(1, -1)
@@ -511,7 +515,7 @@ describe("manifest still serves a full bundle through the worker route", () => {
     const bundleResponse = await dispatch(path, {});
     expect(bundleResponse.status).toBe(200);
     expect(bundleResponse.headers.get("im")).toBeNull();
-    expect(new Uint8Array(await bundleResponse.arrayBuffer())).toEqual(FULL_BUNDLE_BYTES);
+    expect(new Uint8Array(await bundleResponse.arrayBuffer())).toStrictEqual(FULL_BUNDLE_BYTES);
   });
 
   it("a freshly registered embedded baseline never hijacks the served manifest", async () => {

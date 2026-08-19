@@ -27,7 +27,7 @@ describe("Submission flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -44,7 +44,7 @@ describe("Submission flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    projectId = (await projRes.json()).id;
+    ({ id: projectId } = await projRes.json());
   });
 
   it("records an iOS submission from URL archive source", async () => {
@@ -91,7 +91,7 @@ describe("Submission flow", () => {
       cookie: cookies,
     });
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as Array<{ id: string }>;
+    const { items } = await res.json<{ items: { id: string }[] }>();
     expect(items).toHaveLength(1);
     expect(items[0]?.id).toBe(iosSubmissionId);
   });
@@ -133,7 +133,7 @@ describe("Submission flow", () => {
     expect(res.status).toBe(200);
 
     const list = await get(`/api/projects/${projectId}/submissions`, { cookie: cookies });
-    const items = (await list.json()).items as Array<{ id: string }>;
+    const { items } = await list.json<{ items: { id: string }[] }>();
     expect(items.some((item) => item.id === iosSubmissionId)).toBe(false);
   });
 });

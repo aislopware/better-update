@@ -1,10 +1,12 @@
 import nodePath from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { Command, FileSystem } from "@effect/platform";
-import { Data, Effect } from "effect";
+import { FileSystem, Data, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
+
+import { runText } from "./child-process";
 
 import type { Platform } from "./build-profile";
 
@@ -210,12 +212,12 @@ export const fingerprintCliArgs = (
 export const runFingerprintFull = (
   projectRoot: string,
   options: RunFingerprintOptions = {},
-): Effect.Effect<FingerprintResult, FingerprintError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<FingerprintResult, FingerprintError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
-    const cmd = Command.make("bunx", ...fingerprintCliArgs(projectRoot, options)).pipe(
-      Command.workingDirectory(projectRoot),
+    const cmd = ChildProcess.make("bunx", fingerprintCliArgs(projectRoot, options)).pipe(
+      ChildProcess.setCwd(projectRoot),
     );
-    const stdout = yield* Command.string(cmd).pipe(
+    const stdout = yield* runText(cmd).pipe(
       Effect.mapError(
         (cause) =>
           new FingerprintError({
@@ -267,7 +269,7 @@ export const runFingerprintForPlatform = (
 ): Effect.Effect<
   FingerprintResult,
   FingerprintError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
     const workflow = yield* resolveExpoWorkflow(projectRoot, platform);

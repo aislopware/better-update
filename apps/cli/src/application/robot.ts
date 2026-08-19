@@ -52,7 +52,7 @@ export const createRobotAccount = (api: ApiClient, name: string, options: Create
  * left untouched. Used to rotate a compromised bearer.
  */
 export const rotateRobotAccountBearer = (api: ApiClient, id: string) =>
-  api["robot-accounts"].rotate({ path: { id } });
+  api["robot-accounts"].rotate({ params: { id } });
 
 /** In-place robot changes: rename and/or a new project role (never the project). */
 export interface UpdateRobotOptions {
@@ -67,6 +67,6 @@ export interface UpdateRobotOptions {
  */
 export const updateRobotAccount = (api: ApiClient, id: string, options: UpdateRobotOptions) =>
   api["robot-accounts"].update({
-    path: { id },
+    params: { id },
     payload: compact({ name: options.name, role: options.role }),
   });

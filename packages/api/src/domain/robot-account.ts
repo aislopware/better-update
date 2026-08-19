@@ -12,7 +12,7 @@ import { AgeRecipient, KeyFingerprint } from "./user-encryption-key";
 // pre-v2 rows. The hashed bearer secret is NEVER exposed — only `bearerStart`
 // (the first few characters of the plaintext, incl. the prefix) so a masked
 // CI variable can be matched back to its robot.
-export class RobotAccount extends Schema.Class<RobotAccount>("RobotAccount")({
+export const RobotAccount = Schema.Struct({
   id: Id,
   organizationId: Id,
   name: Name120,
@@ -21,12 +21,13 @@ export class RobotAccount extends Schema.Class<RobotAccount>("RobotAccount")({
   projectId: Id,
   role: ProjectMemberRole,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "RobotAccount" });
+export type RobotAccount = typeof RobotAccount.Type;
 
 // A freshly-minted robot account. Extends {@link RobotAccount} with the
 // plaintext `bearerSecret` — returned ONCE at creation, never persisted in
 // cleartext.
-export class CreatedRobotAccount extends Schema.Class<CreatedRobotAccount>("CreatedRobotAccount")({
+export const CreatedRobotAccount = Schema.Struct({
   id: Id,
   organizationId: Id,
   name: Name120,
@@ -36,7 +37,8 @@ export class CreatedRobotAccount extends Schema.Class<CreatedRobotAccount>("Crea
   role: ProjectMemberRole,
   createdAt: DateTimeString,
   bearerSecret: Schema.String,
-}) {}
+}).annotate({ identifier: "CreatedRobotAccount" });
+export type CreatedRobotAccount = typeof CreatedRobotAccount.Type;
 
 // The age keypair is generated client-side (zero-knowledge) — only the public
 // half + fingerprint ever reach the server, alongside the name for the vault
@@ -60,11 +62,10 @@ export const UpdateRobotAccountBody = Schema.Struct({
 });
 
 // A re-minted bearer secret (rotate). Leaves any linked vault identity untouched.
-export class RotatedRobotAccountBearer extends Schema.Class<RotatedRobotAccountBearer>(
-  "RotatedRobotAccountBearer",
-)({
+export const RotatedRobotAccountBearer = Schema.Struct({
   bearerSecret: Schema.String,
-}) {}
+}).annotate({ identifier: "RotatedRobotAccountBearer" });
+export type RotatedRobotAccountBearer = typeof RotatedRobotAccountBearer.Type;
 
 // Optional server-side project scope for the list (the dashboard's per-project
 // robots tab); omitted = every robot visible to the actor.

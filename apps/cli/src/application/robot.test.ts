@@ -93,7 +93,7 @@ describe("rotating a robot account's bearer", () => {
 
 describe("updating a robot account", () => {
   interface UpdateCall {
-    readonly path: { readonly id: string };
+    readonly params: { readonly id: string };
     readonly payload: Record<string, unknown>;
   }
 
@@ -103,7 +103,7 @@ describe("updating a robot account", () => {
         update: (call: UpdateCall) => {
           captured.push(call);
           return Effect.succeed({
-            id: call.path.id,
+            id: call.params.id,
             organizationId: "org-1",
             name: "renamed",
             bearerStart: "bu_rob",
@@ -122,7 +122,7 @@ describe("updating a robot account", () => {
       yield* updateRobotAccount(buildUpdateApi(captured), "robot-1", { name: "renamed" });
 
       expect(captured).toHaveLength(1);
-      expect(captured[0]?.path.id).toBe("robot-1");
+      expect(captured[0]?.params.id).toBe("robot-1");
       expect(captured[0]?.payload).toStrictEqual({ name: "renamed" });
     }),
   );

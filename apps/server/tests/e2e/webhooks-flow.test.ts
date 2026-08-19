@@ -22,7 +22,7 @@ describe("Webhooks API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -86,9 +86,9 @@ describe("Webhooks API flow", () => {
     expect(body.projectId).toBeNull();
     expect(body.name).toBe("Deploy notifier");
     expect(body.url).toBe("https://example.com/hook");
-    expect(body.events).toEqual(["update.published"]);
+    expect(body.events).toStrictEqual(["update.published"]);
     expect(body.enabled).toBe(true);
-    expect(body.secret).toEqual(expect.any(String));
+    expect(body.secret).toStrictEqual(expect.any(String));
     expect(body.secret).toHaveLength(64);
     webhookId = body.id;
   });
@@ -107,7 +107,7 @@ describe("Webhooks API flow", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.projectId).toBe(projectId);
-    expect(body.events).toEqual(["update.published", "build.completed"]);
+    expect(body.events).toStrictEqual(["update.published", "build.completed"]);
     projectScopedId = body.id;
   });
 
@@ -120,7 +120,9 @@ describe("Webhooks API flow", () => {
     expect(body).not.toHaveProperty("page");
     expect(body).not.toHaveProperty("limit");
     expect(body.items).toHaveLength(2);
-    expect(body.items.map((w: { name: string }) => w.name)).toContain("Deploy notifier");
+    expect(body.items.map((webhook: { name: string }) => webhook.name)).toContain(
+      "Deploy notifier",
+    );
     // plain Webhook (not WebhookWithSecret) - no secret on list
     expect(body.items[0].secret).toBeUndefined();
     // repo orders by created_at DESC - the project-scoped (created later) is items[0]
@@ -147,7 +149,7 @@ describe("Webhooks API flow", () => {
     expect(body.id).toBe(webhookId);
     expect(body.name).toBe("Renamed hook");
     expect(body.enabled).toBe(false);
-    expect(body.events).toEqual(["build.completed"]);
+    expect(body.events).toStrictEqual(["build.completed"]);
     // url unchanged - compact() drops undefined keys so only provided fields update
     expect(body.url).toBe("https://example.com/hook");
   });
@@ -284,7 +286,7 @@ describe("Webhooks API flow", () => {
     const response = await get("/api/webhooks", { cookie: cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items.some((w: { id: string }) => w.id === webhookId)).toBe(false);
+    expect(body.items.some((webhook: { id: string }) => webhook.id === webhookId)).toBe(false);
     // remaining = the project-scoped "Build hook" only (Key hook deleted via API key)
     expect(body.items).toHaveLength(1);
   });
@@ -298,7 +300,7 @@ describe("Webhooks API flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const orgBId = (await orgRes.json()).id;
+    const { id: orgBId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(

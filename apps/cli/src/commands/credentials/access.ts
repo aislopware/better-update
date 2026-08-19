@@ -126,7 +126,7 @@ const grantCommand = defineCommand({
         const envGranted = (yield* orgHasCutOver(api))
           ? yield* grantEnvRecipientIdempotent(api, target).pipe(
               Effect.as(true),
-              Effect.catchAll((error) =>
+              Effect.catch((error) =>
                 printHuman(
                   `⚠ Env vault not granted: ${formatCause(error)}\n` +
                     `  Grant it later: better-update credentials access grant-env ${target.id}`,
@@ -334,7 +334,7 @@ const recoverCommand = defineCommand({
           });
         }
 
-        const wrap = yield* api.orgVault.getWrap({ path: { keyId: recovery.id } });
+        const wrap = yield* api.orgVault.getWrap({ params: { keyId: recovery.id } });
         const vaultKey = yield* Effect.tryPromise({
           try: async () =>
             unwrapVaultKey({

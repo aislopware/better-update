@@ -17,14 +17,14 @@ export const createEnvironment = async (body: typeof CreateEnvironmentBody.Type)
   runApi((api) => api.environments.create({ payload: body }));
 
 export const renameEnvironment = async (name: string, body: typeof RenameEnvironmentBody.Type) =>
-  runApi((api) => api.environments.rename({ path: { name }, payload: body }));
+  runApi((api) => api.environments.rename({ params: { name }, payload: body }));
 
 export const deleteEnvironment = async (name: string) =>
-  runApi((api) => api.environments.delete({ path: { name } }));
+  runApi((api) => api.environments.delete({ params: { name } }));
 
 // Toggle environment protection (IAM-gated by environment:update). A protected
 // environment additionally requires environment:update for any write into it.
 export const setEnvironmentProtection = async (name: string, isProtected: boolean) =>
   isProtected
-    ? runApi((api) => api.environments.protect({ path: { name } }))
-    : runApi((api) => api.environments.unprotect({ path: { name } }));
+    ? runApi((api) => api.environments.protect({ params: { name } }))
+    : runApi((api) => api.environments.unprotect({ params: { name } }));

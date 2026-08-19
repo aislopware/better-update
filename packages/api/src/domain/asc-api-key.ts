@@ -7,13 +7,16 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const AscApiKeyId = tenCharPortalId("ASC API Key ID");
 
-export const IssuerId = Schema.String.pipe(
-  Schema.pattern(/^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u, {
-    message: () => "Issuer ID must be a UUID (8-4-4-4-12 hex)",
-  }),
+export const IssuerId = Schema.String.check(
+  Schema.isPattern(
+    /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u,
+    {
+      message: "Issuer ID must be a UUID (8-4-4-4-12 hex)",
+    },
+  ),
 );
 
-export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
+export const AscApiKey = Schema.Struct({
   ...boundProjectIdsField,
   id: Id,
   organizationId: Id,
@@ -29,7 +32,8 @@ export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AscApiKey" });
+export type AscApiKey = typeof AscApiKey.Type;
 
 /** Client-encrypted upload: the `.p8` PEM is sealed into `ciphertext`. */
 export const UploadAscApiKeyBody = Schema.Struct({
@@ -62,12 +66,11 @@ export const DownloadAscApiKeyResult = Schema.Struct({
  * decrypts `ciphertext` locally to recover the `.p8` PEM — the server never
  * holds it in plaintext.
  */
-export class AscApiKeyCredentials extends Schema.Class<AscApiKeyCredentials>(
-  "AscApiKeyCredentials",
-)({
+export const AscApiKeyCredentials = Schema.Struct({
   ascApiKeyId: Id,
   ...encryptedEnvelopeFields,
   keyId: AscApiKeyId,
   issuerId: IssuerId,
   appleTeamIdentifier: Schema.NullOr(AppleTeamIdentifier),
-}) {}
+}).annotate({ identifier: "AscApiKeyCredentials" });
+export type AscApiKeyCredentials = typeof AscApiKeyCredentials.Type;

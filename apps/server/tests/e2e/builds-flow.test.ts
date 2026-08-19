@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop -- each build must be reserved and completed before the next starts — the pagination assertions read back this exact insert order. */
 import { createHash } from "node:crypto";
 
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
@@ -26,7 +27,7 @@ describe("Builds API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -89,7 +90,7 @@ describe("Builds API flow", () => {
     expect(body.uploadMode).toBe("single");
     expect(body.uploadUrl).toBeDefined();
     expect(body.uploadExpiresAt).toBeDefined();
-    expect(body.uploadHeaders).toEqual(
+    expect(body.uploadHeaders).toStrictEqual(
       expect.objectContaining({
         "content-type": "application/octet-stream",
         "x-amz-checksum-sha256": expect.any(String),
@@ -130,7 +131,7 @@ describe("Builds API flow", () => {
       throw new Error(`Expected build completion to succeed, got ${response.status}: ${bodyText}`);
     }
     const body = JSON.parse(bodyText);
-    expect(body).toEqual(
+    expect(body).toStrictEqual(
       expect.objectContaining({
         id: buildId,
         message: "E2E test build",
@@ -161,7 +162,8 @@ describe("Builds API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    mismatchBuildId = (await response.json()).id as string;
+    const responseBody = await response.json();
+    mismatchBuildId = responseBody.id as string;
   });
 
   it("rejects build completion when the completion payload does not match the reserved artifact", async () => {
@@ -174,7 +176,7 @@ describe("Builds API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({
         message: expect.stringContaining("reserved artifact metadata"),
       }),
@@ -190,7 +192,7 @@ describe("Builds API flow", () => {
     expect(body.items).toBeDefined();
     expect(body.page).toBe(1);
     expect(body.total).toBeGreaterThan(0);
-    expect(body.items).toEqual(
+    expect(body.items).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: buildId,
@@ -204,7 +206,7 @@ describe("Builds API flow", () => {
 
   it("paginates builds via page+limit with stable order", async () => {
     const extraBuildIds: string[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let index = 0; index < 3; index++) {
       const reserve = await post(
         "/api/builds",
         {
@@ -212,10 +214,10 @@ describe("Builds API flow", () => {
           platform: "ios",
           distribution: "ad-hoc",
           artifactFormat: "ipa",
-          appVersion: `1.0.${i + 1}`,
-          buildNumber: `${100 + i}`,
+          appVersion: `1.0.${index + 1}`,
+          buildNumber: `${100 + index}`,
           bundleId: "com.test.app",
-          message: `Page pagination build ${i}`,
+          message: `Page pagination build ${index}`,
           sha256: artifactSha256,
           byteSize: artifactBytes.byteLength,
         },
@@ -262,7 +264,7 @@ describe("Builds API flow", () => {
       cookie: cookies,
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({
         id: buildId,
         artifact: expect.objectContaining({
@@ -281,14 +283,12 @@ describe("Builds API flow", () => {
   });
 
   it("returns 401 for unauthenticated build artifact download", async () => {
-    const testId = buildId ?? "fake-build-id";
-    const response = await get(`/api/builds/${testId}/artifact`);
+    const response = await get(`/api/builds/${buildId}/artifact`);
     expect(response.status).toBe(401);
   });
 
   it("returns 401 for install plist without signed token", async () => {
-    const testId = buildId ?? "fake-build-id";
-    const response = await get(`/api/builds/${testId}/install`);
+    const response = await get(`/api/builds/${buildId}/install`);
     expect(response.status).toBe(401);
   });
 
@@ -307,7 +307,7 @@ describe("Builds API flow", () => {
     const artifact = new URL(links.artifactUrl, "http://localhost");
     const redirect = await get(`${artifact.pathname}${artifact.search}`);
     expect(redirect.status).toBe(302);
-    expect(redirect.headers.get("location")).toBeTruthy();
+    expect(redirect.headers.get("location")).toMatch(/./u);
 
     const plistResponse = await get(
       `/api/builds/${buildId}/install?token=${String(links.token)}&expires=${String(links.expires)}`,
@@ -339,7 +339,7 @@ describe("Builds API flow", () => {
       { cookie: cookies },
     );
     expect(reserve.status).toBe(201);
-    const devBuildId = (await reserve.json()).id as string;
+    const { id: devBuildId } = await reserve.json<{ id: string }>();
 
     const complete = await post(
       `/api/builds/${devBuildId}/complete`,
@@ -359,7 +359,7 @@ describe("Builds API flow", () => {
       `/api/builds/${devBuildId}/install?token=${String(links.token)}&expires=${String(links.expires)}`,
     );
     expect(plistResponse.status).toBe(200);
-    expect(await plistResponse.text()).toContain("software-package");
+    await expect(plistResponse.text()).resolves.toContain("software-package");
   });
 
   it("deletes the build and its artifact record", async () => {
@@ -367,7 +367,7 @@ describe("Builds API flow", () => {
       cookie: cookies,
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ deleted: 1 });
+    await expect(response.json()).resolves.toStrictEqual({ deleted: 1 });
 
     const getDeletedResponse = await get(`/api/builds/${buildId}`, {
       cookie: cookies,

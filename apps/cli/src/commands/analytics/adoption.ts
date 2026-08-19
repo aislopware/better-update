@@ -21,7 +21,7 @@ export const adoptionCommand = defineCommand({
         const periodFilter = args.period ? { period: args.period } : {};
 
         const result = yield* api.analytics.adoption({
-          urlParams: { projectId, ...periodFilter },
+          query: { projectId, ...periodFilter },
         });
 
         yield* printList(

@@ -55,10 +55,9 @@ export interface EnvironmentRepository {
   }) => Effect.Effect<void>;
 }
 
-export class EnvironmentRepo extends Context.Tag("api/EnvironmentRepo")<
-  EnvironmentRepo,
-  EnvironmentRepository
->() {}
+export class EnvironmentRepo extends Context.Service<EnvironmentRepo, EnvironmentRepository>()(
+  "api/EnvironmentRepo",
+) {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

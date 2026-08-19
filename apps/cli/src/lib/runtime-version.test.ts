@@ -1,7 +1,7 @@
-import { CommandExecutor, FileSystem } from "@effect/platform";
-import { SystemError } from "@effect/platform/Error";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { FileSystem, Effect, Exit, Layer } from "effect";
+import { systemError } from "effect/PlatformError";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import { RuntimeVersionError } from "./exit-codes";
 import { resolveRuntimeVersion } from "./runtime-version";
@@ -11,16 +11,15 @@ import type { Platform, RawRuntimeVersion } from "./build-profile";
 
 // ── helpers ───────────────────────────────────────────────────────
 
-const makeStubExecutor = (stdout: string): CommandExecutor.CommandExecutor =>
+const makeStubExecutor = (stdout: string): ChildProcessSpawner.ChildProcessSpawner["Service"] =>
   ({
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     string: () => Effect.succeed(stdout),
-  }) as unknown as CommandExecutor.CommandExecutor;
+  }) as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"];
 
 /**
  * Minimal FileSystem stub exposing only `readFileString`, the single method
  * `resolveInstalledExpoSdkVersion` calls. `files` maps an absolute path to its
- * contents; any path not present fails with an ENOENT-style SystemError so the
+ * contents; any path not present fails with an ENOENT-style `NotFound` PlatformError so the
  * resolver's "expo not installed" fallback is exercised.
  */
 const makeStubFileSystem = (files: Record<string, string>): FileSystem.FileSystem =>
@@ -29,10 +28,10 @@ const makeStubFileSystem = (files: Record<string, string>): FileSystem.FileSyste
       const content = files[path];
       if (content === undefined) {
         return Effect.fail(
-          new SystemError({
+          systemError({
+            _tag: "NotFound",
             module: "FileSystem",
             method: "readFileString",
-            reason: "NotFound",
             pathOrDescriptor: path,
           }),
         );
@@ -44,7 +43,7 @@ const makeStubFileSystem = (files: Record<string, string>): FileSystem.FileSyste
 const provideStubs = (stdout: string, files: Record<string, string> = {}) =>
   Effect.provide(
     Layer.mergeAll(
-      Layer.succeed(CommandExecutor.CommandExecutor, makeStubExecutor(stdout)),
+      Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, makeStubExecutor(stdout)),
       Layer.succeed(FileSystem.FileSystem, makeStubFileSystem(files)),
     ),
   );

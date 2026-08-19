@@ -145,7 +145,7 @@ export const reserveAndUpload = (
 
     const completed = yield* api.builds
       .complete({
-        path: { id: reserveResult.id },
+        params: { id: reserveResult.id },
         payload: { sha256: input.sha256, byteSize: input.byteSize },
       })
       .pipe(

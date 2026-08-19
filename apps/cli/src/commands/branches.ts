@@ -17,7 +17,7 @@ const listCommand = defineCommand({
         const api = yield* apiClient;
         const items = yield* drainPages((page) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, page },
+            query: { projectId, limit: 100, page },
           }),
         );
 
@@ -65,13 +65,13 @@ const viewCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const branch = yield* api.branches.get({ path: { id: args.target } }).pipe(
+        const branch = yield* api.branches.get({ params: { id: args.target } }).pipe(
           Effect.catchTag("NotFound", () =>
             Effect.gen(function* () {
               const projectId = yield* readProjectId;
               const matches = yield* drainPages((page) =>
                 api.branches.list({
-                  urlParams: { projectId, limit: 100, page },
+                  query: { projectId, limit: 100, page },
                 }),
               );
               const byName = matches.find((entry) => entry.name === args.target);
@@ -109,7 +109,7 @@ const renameCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const branch = yield* api.branches.rename({
-          path: { id: args.id },
+          params: { id: args.id },
           payload: { name: args.name },
         });
         yield* printHuman(`Branch renamed to "${branch.name}".`);
@@ -128,7 +128,7 @@ const deleteCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        yield* api.branches.delete({ path: { id: args.id } });
+        yield* api.branches.delete({ params: { id: args.id } });
         yield* printHuman(`Branch ${args.id} deleted.`);
         return { id: args.id, deleted: true };
       }),

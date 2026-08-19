@@ -67,10 +67,9 @@ export interface SubmissionsRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
-export class SubmissionsRepo extends Context.Tag("api/SubmissionsRepo")<
-  SubmissionsRepo,
-  SubmissionsRepository
->() {}
+export class SubmissionsRepo extends Context.Service<SubmissionsRepo, SubmissionsRepository>()(
+  "api/SubmissionsRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

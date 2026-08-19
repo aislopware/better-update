@@ -39,7 +39,7 @@ const findBoundIosConfig = (api: ApiClient, input: IosSetupInput) =>
   Effect.gen(function* () {
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
     const configs = yield* api.iosBundleConfigurations.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     const match = configs.items.find(
       (config) =>
@@ -80,7 +80,7 @@ const offerAscKeyBinding = (
         return null;
       }
       yield* api.iosBundleConfigurations.update({
-        path: { id: config.id },
+        params: { id: config.id },
         payload: { ascApiKeyId: remembered },
       });
       yield* printHuman(
@@ -113,7 +113,7 @@ const offerAscKeyBinding = (
       return null;
     }
     yield* api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: { ascApiKeyId: chosen },
     });
     yield* printHuman("ASC API key bound — this and future regenerations skip Apple ID login.");
@@ -207,7 +207,7 @@ export const regenerateProvisioningProfile = (
       distributionType,
     });
     yield* api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: { appleProvisioningProfileId: created.id },
     });
     return created;

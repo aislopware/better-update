@@ -6,9 +6,7 @@ import { DateTimeString, DeletedResult, Id } from "./common";
 import { credentialCreateBindingField } from "./credential-binding";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
 
-export class AppleDistributionCertificate extends Schema.Class<AppleDistributionCertificate>(
-  "AppleDistributionCertificate",
-)({
+export const AppleDistributionCertificate = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Id,
@@ -22,7 +20,8 @@ export class AppleDistributionCertificate extends Schema.Class<AppleDistribution
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AppleDistributionCertificate" });
+export type AppleDistributionCertificate = typeof AppleDistributionCertificate.Type;
 
 /**
  * Client-encrypted upload: the `.p12` bytes + password are sealed into
@@ -33,7 +32,7 @@ export const UploadAppleDistributionCertificateBody = Schema.Struct({
   ...credentialCreateBindingField,
   id: Id,
   ...encryptedEnvelopeFields,
-  serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  serialNumber: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
   ...appleTeamMetadataFields,
   /**
@@ -42,7 +41,7 @@ export const UploadAppleDistributionCertificateBody = Schema.Struct({
    * Application, anything else iOS distribution).
    */
   certificateType: Schema.optional(AppleCertificateType),
-  developerIdIdentifier: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
+  developerIdIdentifier: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
   validFrom: DateTimeString,
   validUntil: DateTimeString,
 });

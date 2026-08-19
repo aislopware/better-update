@@ -88,15 +88,15 @@ const resolveBranch = (params: {
       })
       .pipe(
         Effect.as({ id: branchId, created: true } as const),
-        Effect.orElse(() =>
+        Effect.catch(() =>
           Effect.gen(function* () {
             const branch = yield* findBranchOptional({
               projectId: params.projectId,
               name: params.branchName,
             });
             if (branch === null) {
-              return yield* Effect.dieMessage(
-                "Branch conflict detected but branch could not be reloaded",
+              return yield* Effect.die(
+                new Error("Branch conflict detected but branch could not be reloaded"),
               );
             }
             return { id: branch.id, created: false } as const;
@@ -125,15 +125,15 @@ const resolveChannel = (params: {
       })
       .pipe(
         Effect.map((inserted) => ({ id: inserted.id, created: true }) as const),
-        Effect.orElse(() =>
+        Effect.catch(() =>
           Effect.gen(function* () {
             const channel = yield* findChannelOptional({
               projectId: params.projectId,
               name: params.branchName,
             });
             if (channel === null) {
-              return yield* Effect.dieMessage(
-                "Channel conflict detected but channel could not be reloaded",
+              return yield* Effect.die(
+                new Error("Channel conflict detected but channel could not be reloaded"),
               );
             }
             return { id: channel.id, created: false } as const;
@@ -380,12 +380,12 @@ export const publishUpdate = (params: PublishOperation) =>
       // converted here to a clean 409 instead of crashing the DO. The embedded
       // path is already reconciled above, so this only fires for a non-embedded
       // pinned-id collision.
-      .pipe(Effect.either);
+      .pipe(Effect.result);
 
-    if (insertResult._tag === "Left") {
-      return conflict<PublishedUpdateEffectResult>(insertResult.left.message);
+    if (insertResult._tag === "Failure") {
+      return conflict<PublishedUpdateEffectResult>(insertResult.failure.message);
     }
-    const update = insertResult.right;
+    const update = insertResult.success;
 
     yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
     // Last activity is WHEN the publish happened (server clock), not the row's

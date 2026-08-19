@@ -86,10 +86,9 @@ export interface WebhookRepository {
   }) => Effect.Effect<{ readonly deleted: number }>;
 }
 
-export class WebhookRepo extends Context.Tag("server/WebhookRepo")<
-  WebhookRepo,
-  WebhookRepository
->() {}
+export class WebhookRepo extends Context.Service<WebhookRepo, WebhookRepository>()(
+  "server/WebhookRepo",
+) {}
 
 export const WebhookRepoLive = Layer.succeed(WebhookRepo, {
   insert: (input) =>

@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import nodePath from "node:path";
 import process from "node:process";
 
-import { CommandExecutor } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
@@ -114,7 +114,7 @@ interface ApiStubOptions {
     unknown
   >;
   readonly complete?: (args: {
-    path: { id: string };
+    params: { id: string };
     payload: { sha256: string; byteSize: number };
   }) => Effect.Effect<{ id: string; artifact: unknown }, unknown>;
   readonly envVars?: readonly { key: string; value: string }[];
@@ -135,11 +135,11 @@ const makeApi = (opts: ApiStubOptions = {}): ApiClient =>
           })),
       complete:
         opts.complete ??
-        (({ path, payload }) =>
+        (({ params, payload }) =>
           Effect.succeed({
-            id: path.id,
+            id: params.id,
             artifact: {
-              r2Key: `r2/${path.id}`,
+              r2Key: `r2/${params.id}`,
               format: "ipa",
               contentType: "application/octet-stream",
               byteSize: payload.byteSize,
@@ -161,21 +161,20 @@ const makeApiClientLayer = (api: ApiClient) =>
   });
 
 const makePresignedUploadLayer = (
-  put: PresignedUploadClient["Type"]["putToPresignedUrl"] = () => Effect.void,
+  put: PresignedUploadClient["Service"]["putToPresignedUrl"] = () => Effect.void,
 ) => Layer.succeed(PresignedUploadClient, { putToPresignedUrl: put });
 
 // Stub CommandExecutor returning empty stdout for every command.
-// Replaces NodeContext.layer's executor so the workflow's `bunx @expo/fingerprint`
+// Replaces NodeServices.layer's executor so the workflow's `bunx @expo/fingerprint`
 // invocation does not actually shell out (the tempdir fixture is not a real
 // Expo project, so the install + fetch would hang past the test timeout).
 // `readGitContext` already wraps every git command in `catchAll`, so empty
 // stdout produces all-undefined fields. `runFingerprintForPlatform` JSON-parses
 // the empty string and fails, which the workflow likewise swallows into
 // `undefined`.
-const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, {
-  [CommandExecutor.TypeId]: CommandExecutor.TypeId,
+const stubCommandExecutorLayer = Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, {
   string: () => Effect.succeed(""),
-} as unknown as CommandExecutor.CommandExecutor);
+} as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"]);
 
 // pullEnvVars only unlocks the vault when the project has env vars (the stub
 // returns none), so these satisfy the type without ever being invoked.
@@ -209,7 +208,7 @@ const runWorkflow = (
   project: ProjectFixture,
   api: ApiClient,
   options: Parameters<typeof runUploadWorkflow>[0],
-  put?: PresignedUploadClient["Type"]["putToPresignedUrl"],
+  put?: PresignedUploadClient["Service"]["putToPresignedUrl"],
 ) => {
   const originalCwd = process.cwd();
   process.chdir(project.dir);
@@ -219,7 +218,7 @@ const runWorkflow = (
         makeApiClientLayer(api),
         makePresignedUploadLayer(put),
         makeCliRuntimeLayer(project.dir),
-        NodeContext.layer,
+        NodeServices.layer,
         OutputModeLive,
         stubCommandExecutorLayer,
         stubVaultLayer,
@@ -316,7 +315,7 @@ describe(runUploadWorkflow, () => {
 
       let reservePayload: Record<string, unknown> | undefined;
       let completeArgs:
-        | { path: { id: string }; payload: { sha256: string; byteSize: number } }
+        | { params: { id: string }; payload: { sha256: string; byteSize: number } }
         | undefined;
       let putFilePath: string | undefined;
 
@@ -334,9 +333,9 @@ describe(runUploadWorkflow, () => {
         complete: (args) => {
           completeArgs = args;
           return Effect.succeed({
-            id: args.path.id,
+            id: args.params.id,
             artifact: {
-              r2Key: `r2/${args.path.id}`,
+              r2Key: `r2/${args.params.id}`,
               format: "ipa",
               contentType: "application/octet-stream",
               byteSize: args.payload.byteSize,
@@ -376,7 +375,7 @@ describe(runUploadWorkflow, () => {
       const sha256 = reservePayload?.["sha256"];
       expect(sha256).toMatch(/^[a-f0-9]{64}$/);
 
-      expect(completeArgs?.path.id).toBe("build_happy");
+      expect(completeArgs?.params.id).toBe("build_happy");
       expect(completeArgs?.payload.byteSize).toBe(11);
       expect(completeArgs?.payload.sha256).toBe(sha256);
 

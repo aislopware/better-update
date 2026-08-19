@@ -1,6 +1,6 @@
-import { CommandExecutor } from "@effect/platform";
 import { it } from "@effect/vitest";
 import { Data, Effect, Exit } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import {
   extractKeystoreCertificate,
@@ -18,27 +18,25 @@ class SpawnFailedError extends Data.TaggedError("SpawnFailedError")<{
 }> {}
 
 const makeStubExecutor = (
-  exitCode: (command: unknown) => Effect.Effect<CommandExecutor.ExitCode, unknown>,
-): CommandExecutor.CommandExecutor =>
+  exitCode: (command: unknown) => Effect.Effect<ChildProcessSpawner.ExitCode, unknown>,
+): ChildProcessSpawner.ChildProcessSpawner["Service"] =>
   ({
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     exitCode,
-  }) as unknown as CommandExecutor.CommandExecutor;
+  }) as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"];
 
 const provideStubExecutor = (
-  exitCode: (command: unknown) => Effect.Effect<CommandExecutor.ExitCode, unknown>,
-) => Effect.provideService(CommandExecutor.CommandExecutor, makeStubExecutor(exitCode));
+  exitCode: (command: unknown) => Effect.Effect<ChildProcessSpawner.ExitCode, unknown>,
+) => Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, makeStubExecutor(exitCode));
 
 const makeStringStubExecutor = (
   string: (command: unknown) => Effect.Effect<string, unknown>,
-): CommandExecutor.CommandExecutor =>
+): ChildProcessSpawner.ChildProcessSpawner["Service"] =>
   ({
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     string,
-  }) as unknown as CommandExecutor.CommandExecutor;
+  }) as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"];
 
 const provideStringStubExecutor = (string: (command: unknown) => Effect.Effect<string, unknown>) =>
-  Effect.provideService(CommandExecutor.CommandExecutor, makeStringStubExecutor(string));
+  Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, makeStringStubExecutor(string));
 
 // `keytool -list -rfc` against a throwaway JKS built for these tests:
 // CN=Example App, O=Example Corp, RSA 2048, 3650 days.
@@ -98,7 +96,7 @@ describe("android keystore helpers", () => {
       }).pipe(
         provideStubExecutor((command) => {
           executedCommand = command as Record<string, unknown>;
-          return Effect.succeed(CommandExecutor.ExitCode(0));
+          return Effect.succeed(ChildProcessSpawner.ExitCode(0));
         }),
       );
 
@@ -132,7 +130,7 @@ describe("android keystore helpers", () => {
         commonName: "Jane Doe",
         organization: "Acme Inc",
       }).pipe(
-        provideStubExecutor(() => Effect.succeed(CommandExecutor.ExitCode(23))),
+        provideStubExecutor(() => Effect.succeed(ChildProcessSpawner.ExitCode(23))),
         Effect.exit,
       );
 
@@ -232,7 +230,11 @@ describe("android keystore helpers", () => {
 
       // The env pin matters as much as the flag: keytool localises its prose.
       expect(executedCommand?.["args"]).toContain("-rfc");
-      expect(executedCommand?.["env"]).toBeDefined();
+      // v4 nests spawn options (env included) under `options`.
+      expect(executedCommand?.["options"]).toMatchObject({
+        env: { LC_ALL: "C" },
+        extendEnv: true,
+      });
     }),
   );
 
@@ -243,7 +245,7 @@ describe("android keystore helpers", () => {
         keyAlias: "release",
         storePassword: "wrong-pass",
       }).pipe(
-        // `Command.string` resolves with stdout even on a non-zero exit, so a wrong
+        // `runText` resolves with stdout even on a non-zero exit, so a wrong
         // password yields an error blob with no PEM block.
         provideStringStubExecutor(() =>
           Effect.succeed("keytool error: java.io.IOException: keystore password was incorrect"),

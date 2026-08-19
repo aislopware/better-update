@@ -25,6 +25,7 @@ import { printHuman } from "../lib/output";
 import { explainWhatsNewApiError } from "../lib/whats-new";
 
 import type { AscCredentials } from "../lib/asc-credentials";
+import type { OutputMode } from "../lib/output-mode";
 
 export class TestFlightConfigError extends Data.TaggedError("TestFlightConfigError")<{
   readonly code: string;
@@ -131,65 +132,60 @@ export const findBuildByVersion = (
     return toDbNull(builds[0]);
   });
 
-const pollForProcessedBuild = (params: {
+interface PollForProcessedBuildParams {
   readonly ctx: AppleUtils.RequestContext;
   readonly appId: string;
   readonly buildVersion: string;
   readonly shortVersion: string | undefined;
   readonly pollTimeoutMs: number;
   readonly pollIntervalMs: number;
-}) =>
+}
+
+const pollForProcessedBuild = (params: PollForProcessedBuildParams) =>
+  pollForProcessedBuildRound(params, Date.now() + params.pollTimeoutMs, 0);
+
+// One processing probe, recursing until the build reports `valid` or the
+// deadline passes. v4 dropped `Effect.iterate`; self-recursion is the idiomatic
+// replacement and stays stack-safe because `Effect.gen` is trampolined.
+const pollForProcessedBuildRound = (
+  params: PollForProcessedBuildParams,
+  deadline: number,
+  attempt: number,
+): Effect.Effect<AppleUtils.Build, TestFlightConfigError, OutputMode> =>
   Effect.gen(function* () {
-    const deadline = Date.now() + params.pollTimeoutMs;
-    const final = yield* Effect.iterate(
-      { build: null as AppleUtils.Build | null, attempt: 0 },
-      {
-        while: (state) => state.build === null,
-        body: (state) =>
-          Effect.gen(function* () {
-            if (state.attempt > 0) {
-              yield* Effect.sleep(Duration.millis(params.pollIntervalMs));
-            }
-            const candidate = yield* findBuildByVersion(
-              params.ctx,
-              params.appId,
-              params.buildVersion,
-              params.shortVersion,
-            );
-            if (candidate !== null) {
-              const processing = classifyProcessingState(candidate.attributes.processingState);
-              if (processing === "failed") {
-                return yield* new TestFlightConfigError({
-                  code: "TESTFLIGHT_BUILD_PROCESSING_FAILED",
-                  message: `App Store Connect rejected build ${candidate.attributes.version} during processing (state ${candidate.attributes.processingState}).`,
-                });
-              }
-              if (processing === "valid") {
-                return { build: candidate, attempt: state.attempt + 1 };
-              }
-            }
-            if (Date.now() > deadline) {
-              return yield* new TestFlightConfigError({
-                code: "TESTFLIGHT_BUILD_PROCESSING_TIMEOUT",
-                message: `Timed out after ${String(Math.round(params.pollTimeoutMs / 60_000))} min waiting for the uploaded build to finish processing on App Store Connect. The binary uploaded successfully — re-run submit (it will skip the upload and just configure TestFlight).`,
-              });
-            }
-            yield* printHuman(
-              candidate === null
-                ? "Waiting for the uploaded build to appear on App Store Connect..."
-                : "Build is processing on App Store Connect...",
-            );
-            return { build: null, attempt: state.attempt + 1 };
-          }),
-      },
+    if (attempt > 0) {
+      yield* Effect.sleep(Duration.millis(params.pollIntervalMs));
+    }
+    const candidate = yield* findBuildByVersion(
+      params.ctx,
+      params.appId,
+      params.buildVersion,
+      params.shortVersion,
     );
-    if (final.build === null) {
+    if (candidate !== null) {
+      const processing = classifyProcessingState(candidate.attributes.processingState);
+      if (processing === "failed") {
+        return yield* new TestFlightConfigError({
+          code: "TESTFLIGHT_BUILD_PROCESSING_FAILED",
+          message: `App Store Connect rejected build ${candidate.attributes.version} during processing (state ${candidate.attributes.processingState}).`,
+        });
+      }
+      if (processing === "valid") {
+        return candidate;
+      }
+    }
+    if (Date.now() > deadline) {
       return yield* new TestFlightConfigError({
-        code: "TESTFLIGHT_BUILD_NOT_FOUND",
-        message: "Could not locate the uploaded build on App Store Connect.",
+        code: "TESTFLIGHT_BUILD_PROCESSING_TIMEOUT",
+        message: `Timed out after ${String(Math.round(params.pollTimeoutMs / 60_000))} min waiting for the uploaded build to finish processing on App Store Connect. The binary uploaded successfully — re-run submit (it will skip the upload and just configure TestFlight).`,
       });
     }
-    return final.build;
+    yield* printHuman(
+      candidate === null
+        ? "Waiting for the uploaded build to appear on App Store Connect..."
+        : "Build is processing on App Store Connect...",
+    );
+    return yield* pollForProcessedBuildRound(params, deadline, attempt + 1);
   });
 
 const applyWhatToTest = (params: {

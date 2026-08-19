@@ -84,7 +84,7 @@ export interface MemberRepository {
   } | null>;
 }
 
-export class MemberRepo extends Context.Tag("api/MemberRepo")<MemberRepo, MemberRepository>() {}
+export class MemberRepo extends Context.Service<MemberRepo, MemberRepository>()("api/MemberRepo") {}
 
 export const MemberRepoLive = Layer.succeed(MemberRepo, {
   findOrgId: (params) =>

@@ -19,7 +19,7 @@ import type { ApiClient } from "../../services/api-client";
 
 const requireEmbedded = (api: ApiClient, id: string) =>
   Effect.gen(function* () {
-    const update = yield* api.updates.get({ path: { id } });
+    const update = yield* api.updates.get({ params: { id } });
     if (!update.isEmbedded) {
       return yield* new UpdateCommandError({
         message: `Update "${id}" is not an embedded baseline. Use \`update view\`/\`update delete\` for published updates.`,
@@ -47,14 +47,14 @@ export const embeddedListCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
         const branches = yield* drainPages((page) =>
-          api.branches.list({ urlParams: { projectId, limit: 100, page } }),
+          api.branches.list({ query: { projectId, limit: 100, page } }),
         );
         const branchId = args.branch
           ? yield* resolveNamedResourceId({ items: branches, kind: "Branch", name: args.branch })
           : undefined;
 
         const { items } = yield* api.updates.list({
-          urlParams: {
+          query: {
             projectId,
             isEmbedded: true,
             limit,
@@ -128,7 +128,7 @@ export const embeddedDeleteCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const update = yield* requireEmbedded(api, args.id);
-        const result = yield* api.updates.deleteGroup({ path: { groupId: update.groupId } });
+        const result = yield* api.updates.deleteGroup({ params: { groupId: update.groupId } });
         yield* printHuman(`Deleted embedded baseline ${args.id}.`);
         yield* printHuman(
           "Note: bsdiff patches already generated against this bundle keep serving; new first-launch patches need a re-registered baseline.",

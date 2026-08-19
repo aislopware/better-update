@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 
-import type { CommandExecutor, FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { RuntimeVersionError } from "./exit-codes";
 import { resolveInstalledExpoSdkVersion } from "./expo-config";
@@ -57,7 +58,7 @@ export const resolveRuntimeVersion = ({
 }: ResolveRuntimeVersionOptions): Effect.Effect<
   string,
   RuntimeVersionError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
     if (typeof raw === "string") {

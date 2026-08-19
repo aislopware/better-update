@@ -1,40 +1,40 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { buildBranchMapping } from "../../../src/domain/branch-mapping";
 import { BranchRepo, BranchRepoLive } from "../../../src/repositories/branches";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, BranchRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BranchRepo>) =>
   runWithLayerAndEnv(effect, BranchRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, BranchRepo>) =>
-  runEitherWithLayerAndEnv(effect, BranchRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BranchRepo>) =>
+  runResultWithLayerAndEnv(effect, BranchRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertBranch = (id: string, projectId: string, name: string, createdAt: string) =>
+const insertBranch = async (id: string, projectId: string, name: string, createdAt: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, projectId, name, createdAt)
     .run();
 
-const insertUpdate = (id: string, branchId: string, createdAt = "2024-01-05T00:00:00Z") =>
+const insertUpdate = async (id: string, branchId: string, createdAt = "2024-01-05T00:00:00Z") =>
   env.DB.prepare(
     `INSERT INTO "updates" ("id", "branch_id", "group_id", "message", "platform", "runtime_version", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
@@ -63,7 +63,7 @@ const insertUpdateAsset = async (updateId: string, assetKey: string) => {
     .run();
 };
 
-const insertChannel = (params: {
+const insertChannel = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly name: string;
@@ -93,7 +93,7 @@ const countRows = async (table: string, column: string, value: string) => {
 // ── Tests ─────────────────────────────────────────────────────────
 
 describe("BranchRepo — D1 integration (Kysely + session)", () => {
-  test("findByProject returns items with computed update_count, sorted", async () => {
+  it("findByProject returns items with computed update_count, sorted", async () => {
     const suffix = crypto.randomUUID();
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
@@ -122,7 +122,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
 
     expect(result.total).toBe(2);
     expect(result.items).toHaveLength(2);
-    expect(result.items[0]).toEqual({
+    expect(result.items[0]).toStrictEqual({
       id: prodId,
       projectId,
       name: "production",
@@ -137,7 +137,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
     expect(result.items[1]?.latestUpdateAt).toBeNull();
   });
 
-  test("findByProject names every channel that reaches the branch, sorted", async () => {
+  it("findByProject names every channel that reaches the branch, sorted", async () => {
     const suffix = crypto.randomUUID();
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
@@ -182,7 +182,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(result.items.map((branch) => branch.channelNames)).toEqual([
+    expect(result.items.map((branch) => branch.channelNames)).toStrictEqual([
       ["production", "staging"],
       ["production"],
     ]);
@@ -208,7 +208,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       return { suffix, projectId };
     };
 
-    const findWithQuery = (projectId: string, query: string, limit = 20) =>
+    const findWithQuery = async (projectId: string, query: string, limit = 20) =>
       run(
         Effect.gen(function* () {
           const repo = yield* BranchRepo;
@@ -223,7 +223,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
         }),
       );
 
-    test("matches name substring case-insensitively", async () => {
+    it("matches name substring case-insensitively", async () => {
       const { projectId } = await seedSearchBranches();
 
       const result = await findWithQuery(projectId, "PROD");
@@ -233,7 +233,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       expect(result.items[0]?.name).toBe("Production");
     });
 
-    test("total respects the filter when the page is smaller than the match set", async () => {
+    it("total respects the filter when the page is smaller than the match set", async () => {
       const { projectId } = await seedSearchBranches();
 
       // "ev" matches both "preview-feature" and "development".
@@ -244,7 +244,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       expect(result.items[0]?.name).toBe("preview-feature");
     });
 
-    test("returns empty when no branch matches", async () => {
+    it("returns empty when no branch matches", async () => {
       const { projectId } = await seedSearchBranches();
 
       const result = await findWithQuery(projectId, "doesnotexist");
@@ -254,21 +254,21 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
     });
   });
 
-  test("findById returns NotFound when the branch is absent", async () => {
-    const result = await runEither(
+  it("findById returns NotFound when the branch is absent", async () => {
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* BranchRepo;
         return yield* repo.findById({ id: `missing-${crypto.randomUUID()}` });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
-  test("insert succeeds then rejects a duplicate name with Conflict", async () => {
+  it("insert succeeds then rejects a duplicate name with Conflict", async () => {
     const suffix = crypto.randomUUID();
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
@@ -297,7 +297,7 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
     );
     expect(inserted.id).toBe(`branch-a-${suffix}`);
 
-    const conflict = await runEither(
+    const conflict = await runResult(
       Effect.gen(function* () {
         const repo = yield* BranchRepo;
         yield* repo.insert({
@@ -310,13 +310,13 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(Either.isLeft(conflict)).toBe(true);
-    if (Either.isLeft(conflict)) {
-      expect(conflict.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(conflict)).toBe(true);
+    if (Result.isFailure(conflict)) {
+      expect(conflict.failure).toMatchObject({ _tag: "Conflict" });
     }
   });
 
-  test("updateName renames the branch", async () => {
+  it("updateName renames the branch", async () => {
     const suffix = crypto.randomUUID();
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
@@ -336,10 +336,10 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
     const row = await env.DB.prepare(`SELECT "name" FROM "branches" WHERE "id" = ?`)
       .bind(branchId)
       .first<{ name: string }>();
-    expect(row).toEqual({ name: "new-name" });
+    expect(row).toStrictEqual({ name: "new-name" });
   });
 
-  test("delete cascades updates and update_assets when no channel references the branch", async () => {
+  it("delete cascades updates and update_assets when no channel references the branch", async () => {
     const suffix = crypto.randomUUID();
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
@@ -359,12 +359,12 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(await countRows("branches", "id", branchId)).toBe(0);
-    expect(await countRows("updates", "branch_id", branchId)).toBe(0);
-    expect(await countRows("update_assets", "update_id", updateId)).toBe(0);
+    await expect(countRows("branches", "id", branchId)).resolves.toBe(0);
+    await expect(countRows("updates", "branch_id", branchId)).resolves.toBe(0);
+    await expect(countRows("update_assets", "update_id", updateId)).resolves.toBe(0);
   });
 
-  test("delete fails with Conflict when a channel rollout-mapping targets the branch", async () => {
+  it("delete fails with Conflict when a channel rollout-mapping targets the branch", async () => {
     const suffix = crypto.randomUUID();
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
@@ -388,18 +388,18 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
       }),
     });
 
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* BranchRepo;
         yield* repo.delete({ id: rolloutBranchId });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "Conflict" });
     }
     // The branch survived the rejected delete.
-    expect(await countRows("branches", "id", rolloutBranchId)).toBe(1);
+    await expect(countRows("branches", "id", rolloutBranchId)).resolves.toBe(1);
   });
 });

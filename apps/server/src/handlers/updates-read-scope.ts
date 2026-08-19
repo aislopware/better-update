@@ -19,7 +19,7 @@ export const resolvePatchBaseBranchId = (params: {
       return params.branchId;
     }
     if (params.channel === undefined) {
-      return yield* new BadRequest({ message: "Either branchId or channel is required" });
+      return yield* new BadRequest({ message: "Result branchId or channel is required" });
     }
     const channelRepo = yield* ChannelRepo;
     const channel = yield* channelRepo.findByProjectAndName({

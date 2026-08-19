@@ -1,7 +1,9 @@
-import { Command } from "@effect/platform";
 import { Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
+
+import { runText } from "./child-process";
 
 export interface GitContext {
   readonly ref: string | undefined;
@@ -11,10 +13,10 @@ export interface GitContext {
 }
 
 const runString = (
-  cmd: Command.Command,
+  cmd: ChildProcess.Command,
   cwd: string,
-): Effect.Effect<string, unknown, CommandExecutor.CommandExecutor> =>
-  Command.string(Command.workingDirectory(cmd, cwd));
+): Effect.Effect<string, unknown, ChildProcessSpawner.ChildProcessSpawner> =>
+  runText(ChildProcess.setCwd(cmd, cwd));
 
 /**
  * Best-effort git context extraction. If git is missing, the directory isn't
@@ -24,23 +26,23 @@ const runString = (
  */
 export const readGitContext = (
   projectRoot: string,
-): Effect.Effect<GitContext, never, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<GitContext, never, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const [commit, ref, commitMessage, status] = yield* Effect.all(
       [
-        runString(Command.make("git", "rev-parse", "HEAD"), projectRoot).pipe(
+        runString(ChildProcess.make("git", ["rev-parse", "HEAD"]), projectRoot).pipe(
           Effect.map((output) => output.trim()),
           Effect.orElseSucceed(() => ""),
         ),
-        runString(Command.make("git", "symbolic-ref", "--short", "HEAD"), projectRoot).pipe(
+        runString(ChildProcess.make("git", ["symbolic-ref", "--short", "HEAD"]), projectRoot).pipe(
           Effect.map((output) => output.trim()),
           Effect.orElseSucceed(() => ""),
         ),
-        runString(Command.make("git", "log", "-1", "--format=%s"), projectRoot).pipe(
+        runString(ChildProcess.make("git", ["log", "-1", "--format=%s"]), projectRoot).pipe(
           Effect.map((output) => output.trim()),
           Effect.orElseSucceed(() => ""),
         ),
-        runString(Command.make("git", "status", "--porcelain"), projectRoot).pipe(
+        runString(ChildProcess.make("git", ["status", "--porcelain"]), projectRoot).pipe(
           Effect.orElseSucceed(() => ""),
         ),
       ],

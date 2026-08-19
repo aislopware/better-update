@@ -3,30 +3,31 @@ import { Schema } from "effect";
 import { DateTimeString, Id, UploadHeaders } from "./common";
 
 // The active organization, as surfaced by the IAM-gated settings endpoint.
-export class Organization extends Schema.Class<Organization>("Organization")({
+export const Organization = Schema.Struct({
   id: Id,
   name: Schema.String,
   slug: Schema.String,
   /** Absolute public CDN URL of the organization logo; `null` when none is set. */
   logoUrl: Schema.NullOr(Schema.String),
-}) {}
+}).annotate({ identifier: "Organization" });
+export type Organization = typeof Organization.Type;
 
 // PATCH body for org settings — both fields optional (only provided ones change).
 // Targets the ACTIVE org (resolved from the session), so there is no id path param
 // and no cross-org reach. `slug` is unique org-wide (the endpoint maps a collision
 // to Conflict).
 export const UpdateOrganizationBody = Schema.Struct({
-  name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
-  slug: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
+  name: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(120))),
+  slug: Schema.optional(Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(120))),
 });
 
 /** Image MIME types accepted for an organization logo. */
-export const OrganizationLogoContentType = Schema.Literal(
+export const OrganizationLogoContentType = Schema.Literals([
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/svg+xml",
-);
+]);
 
 /**
  * Request a presigned PUT to upload the active organization's logo. The server

@@ -1,14 +1,14 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { DeviceRepo, DeviceRepoLive } from "../../../src/repositories/devices";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 import type { DeviceRepository } from "../../../src/repositories/devices";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const call = <Ret, Err>(use: (repo: DeviceRepository) => Effect.Effect<Ret, Err>) =>
+const call = async <Ret, Err>(use: (repo: DeviceRepository) => Effect.Effect<Ret, Err>) =>
   runWithLayerAndEnv(
     Effect.gen(function* () {
       const repo = yield* DeviceRepo;
@@ -18,8 +18,8 @@ const call = <Ret, Err>(use: (repo: DeviceRepository) => Effect.Effect<Ret, Err>
     env,
   );
 
-const callEither = <Ret, Err>(use: (repo: DeviceRepository) => Effect.Effect<Ret, Err>) =>
-  runEitherWithLayerAndEnv(
+const callResult = async <Ret, Err>(use: (repo: DeviceRepository) => Effect.Effect<Ret, Err>) =>
+  runResultWithLayerAndEnv(
     Effect.gen(function* () {
       const repo = yield* DeviceRepo;
       return yield* use(repo);
@@ -28,14 +28,14 @@ const callEither = <Ret, Err>(use: (repo: DeviceRepository) => Effect.Effect<Ret
     env,
   );
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, id, "2026-01-01T00:00:00Z")
     .run();
 
-const insertDevice = (device: {
+const insertDevice = async (device: {
   id: string;
   organizationId: string;
   identifier: string;
@@ -118,7 +118,7 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
 
     // Org scoping excludes io-org-2's device, so the total is 3, not 4.
     expect(page.total).toBe(3);
-    expect(page.items.map((device) => device.id)).toEqual(["dev-iphone", "dev-ipad"]);
+    expect(page.items.map((device) => device.id)).toStrictEqual(["dev-iphone", "dev-ipad"]);
     expect(page.items[0]).toMatchObject({
       name: "Alice iPhone",
       deviceClass: "IPHONE",
@@ -138,7 +138,7 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
       }),
     );
     expect(fts.total).toBe(1);
-    expect(fts.items.map((device) => device.id)).toEqual(["dev-iphone"]);
+    expect(fts.items.map((device) => device.id)).toStrictEqual(["dev-iphone"]);
 
     const short = await call((repo) =>
       repo.findByOrg({
@@ -151,7 +151,7 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
       }),
     );
     expect(short.total).toBe(1);
-    expect(short.items.map((device) => device.id)).toEqual(["dev-mac"]);
+    expect(short.items.map((device) => device.id)).toStrictEqual(["dev-mac"]);
   });
 
   it("filters by Apple-portal sync state (portal id presence)", async () => {
@@ -166,7 +166,7 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
       }),
     );
     expect(unsynced.total).toBe(2);
-    expect(unsynced.items.map((device) => device.id)).toEqual(["dev-iphone", "dev-ipad"]);
+    expect(unsynced.items.map((device) => device.id)).toStrictEqual(["dev-iphone", "dev-ipad"]);
 
     const synced = await call((repo) =>
       repo.findByOrg({
@@ -179,7 +179,7 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
       }),
     );
     expect(synced.total).toBe(1);
-    expect(synced.items.map((device) => device.id)).toEqual(["dev-mac"]);
+    expect(synced.items.map((device) => device.id)).toStrictEqual(["dev-mac"]);
   });
 
   it("finds a device by COALESCE'd identifier match and rejects a team mismatch", async () => {
@@ -193,16 +193,16 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
     expect(found.id).toBe("dev-iphone");
 
     // The stored apple_team_id is null; a non-null lookup must not COALESCE-match.
-    const mismatch = await callEither((repo) =>
+    const mismatch = await callResult((repo) =>
       repo.findByIdentifier({
         organizationId: "io-org",
         appleTeamId: "team-x",
         identifier: "ID-IPHONE-0001",
       }),
     );
-    expect(Either.isLeft(mismatch)).toBe(true);
-    if (Either.isLeft(mismatch)) {
-      expect(mismatch.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(mismatch)).toBe(true);
+    if (Result.isFailure(mismatch)) {
+      expect(mismatch.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
@@ -226,7 +226,7 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
     const inserted = await call((repo) => repo.findById({ id: "dev-new" }));
     expect(inserted).toMatchObject({ identifier: "ID-NEW-1000", name: "Dave Phone" });
 
-    const conflict = await callEither((repo) =>
+    const conflict = await callResult((repo) =>
       repo.insert({
         id: "dev-dupe",
         organizationId: "io-org",
@@ -241,18 +241,18 @@ describe("DeviceRepo — D1 integration (Kysely + session)", () => {
         updatedAt: "2026-02-06T00:00:00Z",
       }),
     );
-    expect(Either.isLeft(conflict)).toBe(true);
-    if (Either.isLeft(conflict)) {
-      expect(conflict.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(conflict)).toBe(true);
+    if (Result.isFailure(conflict)) {
+      expect(conflict.failure).toMatchObject({ _tag: "Conflict" });
     }
   });
 
   it("fails with NotFound for an unknown id", async () => {
-    const result = await callEither((repo) => repo.findById({ id: "dev-missing" }));
+    const result = await callResult((repo) => repo.findById({ id: "dev-missing" }));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 });

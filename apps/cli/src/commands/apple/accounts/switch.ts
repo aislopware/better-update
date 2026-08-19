@@ -18,7 +18,7 @@ const SWITCH_EXIT_EXTRAS = {
 const FRESH_LOGIN_CHOICE = "__login__";
 
 const resolveTarget = (
-  store: Context.Tag.Service<AppleSessionStore>,
+  store: Context.Service.Shape<typeof AppleSessionStore>,
   username: string | undefined,
 ) =>
   Effect.gen(function* () {

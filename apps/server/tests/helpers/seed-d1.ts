@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 /**
  * Drop blank + `--` comment lines from the front of a statement, stopping at the

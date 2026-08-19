@@ -21,10 +21,10 @@ export interface CompatibilityRepository {
   }) => Effect.Effect<BuildCompatibilityMatrixModel>;
 }
 
-export class CompatibilityRepo extends Context.Tag("api/CompatibilityRepo")<
+export class CompatibilityRepo extends Context.Service<
   CompatibilityRepo,
   CompatibilityRepository
->() {}
+>()("api/CompatibilityRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

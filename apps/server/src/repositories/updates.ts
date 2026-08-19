@@ -144,7 +144,7 @@ export interface UpdateRepository extends UpdateReaperQueries {
   readonly hasActiveRollout: (params: LatestTupleParams) => Effect.Effect<boolean>;
 }
 
-export class UpdateRepo extends Context.Tag("api/UpdateRepo")<UpdateRepo, UpdateRepository>() {}
+export class UpdateRepo extends Context.Service<UpdateRepo, UpdateRepository>()("api/UpdateRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 
@@ -188,7 +188,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       // that actually fired so an asset/baseline collision is not misreported as
       // an update-id collision. Anything else stays a defect (re-died).
       yield* d1Batch(statements).pipe(
-        Effect.catchAllDefect((cause) => {
+        Effect.catchDefect((cause) => {
           const message = describeUniqueConstraintConflict(String(cause), id);
           return message === undefined ? Effect.die(cause) : Effect.fail(new Conflict({ message }));
         }),

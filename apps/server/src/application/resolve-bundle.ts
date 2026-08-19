@@ -62,7 +62,7 @@ const resolvePatch = (params: {
     // Probe candidates in order; first hit wins, short-circuiting the rest.
     return yield* Effect.reduce(
       candidates,
-      null as { readonly baseUpdateId: string; readonly blob: StoredBlob } | null,
+      (): { readonly baseUpdateId: string; readonly blob: StoredBlob } | null => null,
       (found, baseUpdateId) =>
         found === null
           ? bundleRepo

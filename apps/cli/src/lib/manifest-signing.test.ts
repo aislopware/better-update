@@ -157,7 +157,7 @@ describe(signBody, () => {
     });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         // Sign with one key but hand a DIFFERENT cert → self-verify must fail.
         signBody({
           bodyBytes: body,
@@ -167,9 +167,9 @@ describe(signBody, () => {
         }),
       ),
     );
-    expect(result._tag).toBe("Left");
-    if (result._tag === "Left") {
-      expect(result.left._tag).toBe("UpdatePublishError");
+    expect(result._tag).toBe("Failure");
+    if (result._tag === "Failure") {
+      expect(result.failure._tag).toBe("UpdatePublishError");
     }
   });
 
@@ -229,7 +229,7 @@ describe(signDirectiveBody, () => {
     const directiveBody = buildRollbackDirectiveBody(COMMIT_TIME);
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         // Sign with one key but hand a DIFFERENT cert → self-verify must fail,
         // and the failure must carry the rollback error tag (not the publish one).
         signDirectiveBody({
@@ -240,9 +240,9 @@ describe(signDirectiveBody, () => {
         }),
       ),
     );
-    expect(result._tag).toBe("Left");
-    if (result._tag === "Left") {
-      expect(result.left._tag).toBe("UpdateRollbackError");
+    expect(result._tag).toBe("Failure");
+    if (result._tag === "Failure") {
+      expect(result.failure._tag).toBe("UpdateRollbackError");
     }
   });
 });

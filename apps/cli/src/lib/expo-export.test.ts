@@ -1,7 +1,6 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
-import { Effect, Exit } from "effect";
+import { FileSystem, Effect, Exit } from "effect";
 
 import { UpdatePublishError } from "./exit-codes";
 import { findExportedSourcemap, readExpoExportAssets } from "./expo-export";

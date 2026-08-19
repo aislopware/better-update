@@ -47,7 +47,7 @@ export const runAltool = (args: readonly string[], extraEnv?: Record<string, str
         stderr: stderr === "" ? String(error) : stderr,
       };
     },
-  }).pipe(Effect.catchAll((result) => Effect.succeed(result)));
+  }).pipe(Effect.catch((error) => Effect.succeed(error)));
 
 const unescapeXml = (value: string): string =>
   value

@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -16,27 +16,27 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
   "androidApplicationIdentifiers",
   (handlers) =>
     handlers
-      .handle("list", ({ path }) =>
+      .handle("list", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertProjectOwnership(path.projectId);
+            yield* assertProjectOwnership(params.projectId);
             yield* assertAccess("androidCredential", "read", {
               kind: "project",
-              projectId: path.projectId,
+              projectId: params.projectId,
             });
             const repo = yield* AndroidApplicationIdentifierRepo;
-            const items = yield* repo.listByProject({ projectId: path.projectId });
+            const items = yield* repo.listByProject({ projectId: params.projectId });
             return { items: items.map(toApiAndroidApplicationIdentifier) };
           }),
         ),
       )
-      .handle("create", ({ path, payload }) =>
+      .handle("create", ({ params, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertProjectOwnership(path.projectId);
+            yield* assertProjectOwnership(params.projectId);
             yield* assertAccess("androidCredential", "create", {
               kind: "project",
-              projectId: path.projectId,
+              projectId: params.projectId,
             });
             const ctx = yield* CurrentActor;
             const repo = yield* AndroidApplicationIdentifierRepo;
@@ -47,7 +47,7 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
             const model = {
               id,
               organizationId: ctx.organizationId,
-              projectId: path.projectId,
+              projectId: params.projectId,
               packageName: payload.packageName,
               createdAt: now,
               updatedAt: now,
@@ -72,28 +72,28 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
               action: "android.application-identifier.create",
               resourceType: "androidCredential",
               resourceId: id,
-              projectId: path.projectId,
+              projectId: params.projectId,
               metadata: { packageName: payload.packageName },
             });
             return toApiAndroidApplicationIdentifier(model);
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const repo = yield* AndroidApplicationIdentifierRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAccess("androidCredential", "delete", {
               kind: "project",
               projectId: existing.projectId,
             });
-            yield* repo.delete({ id: path.id });
+            yield* repo.delete({ id: params.id });
             yield* logAudit({
               action: "android.application-identifier.delete",
               resourceType: "androidCredential",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: existing.projectId,
               metadata: { packageName: existing.packageName },
             });

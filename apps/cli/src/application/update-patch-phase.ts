@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { launchBundleUrl } from "@better-update/expo-protocol";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { formatCause } from "../lib/format-error";
 import { printHuman } from "../lib/output";
@@ -109,7 +108,7 @@ export const runPatchPhase = (
 
     const candidates = yield* api.updates
       .listPatchBases({
-        urlParams: {
+        query: {
           projectId: input.projectId,
           // Resolve the base set by channel. `branch.create` auto-creates a
           // same-named channel (ensureBranchChannel), so the server resolves
@@ -206,8 +205,8 @@ export const runPatchPhase = (
           );
           return { kind: "uploaded", byteSize, savingsPct } as const;
         }).pipe(
-          Effect.catchAll((cause) =>
-            printHuman(`  skipped base ${base.updateId}: ${formatCause(cause)}`).pipe(
+          Effect.catch((error) =>
+            printHuman(`  skipped base ${base.updateId}: ${formatCause(error)}`).pipe(
               Effect.as({ kind: "skipped" } as const),
             ),
           ),

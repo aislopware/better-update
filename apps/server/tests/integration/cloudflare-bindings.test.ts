@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { AssetStorage, AssetStorageLive } from "../../src/cloudflare/asset-storage";
@@ -8,32 +8,32 @@ import { runWithLayerAndEnv } from "../helpers/runtime";
 
 const textEncoder = new TextEncoder();
 
-const runAssetStorage = <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetStorage>) =>
+const runAssetStorage = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetStorage>) =>
   runWithLayerAndEnv(effect, AssetStorageLive, env);
 
-const runBuildRuntime = <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRuntime>) =>
+const runBuildRuntime = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRuntime>) =>
   runWithLayerAndEnv(effect, BuildRuntimeLive, env);
 
-const runUpdateCoordinator = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateCoordinator>) =>
+const runUpdateCoordinator = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateCoordinator>) =>
   runWithLayerAndEnv(effect, UpdateCoordinatorLive, env);
 
 const uniqueId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const insertOrganization = (id: string, slug: string) =>
+const insertOrganization = async (id: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${slug}`, slug, "2026-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string, slug: string) =>
+const insertProject = async (id: string, organizationId: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, slug, "2026-01-01T00:00:00Z")
     .run();
 
-const insertAsset = (hash: string) =>
+const insertAsset = async (hash: string) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, ?, ?, ?, ?, ?)`,
   )
@@ -89,7 +89,7 @@ const setupPublishBranch = async (slugPrefix: string) => {
   return { branch, launchHash };
 };
 
-const createUpdateOnBranch = (params: {
+const createUpdateOnBranch = async (params: {
   readonly branchId: string;
   readonly launchHash: string;
   readonly rolloutPercentage: number;
@@ -155,7 +155,7 @@ describe("Cloudflare bindings integration", () => {
 
       expect(stored.size).toBe(bytes.byteLength);
       expect(stored.contentType).toBe("text/plain");
-      expect(await readTextBody(stored.body)).toBe(content);
+      await expect(readTextBody(stored.body)).resolves.toBe(content);
 
       await runAssetStorage(
         Effect.gen(function* () {
@@ -164,7 +164,7 @@ describe("Cloudflare bindings integration", () => {
         }),
       );
 
-      expect(await env.ASSETS_BUCKET.get(key)).toBeNull();
+      await expect(env.ASSETS_BUCKET.get(key)).resolves.toBeNull();
     });
   });
 
@@ -184,7 +184,7 @@ describe("Cloudflare bindings integration", () => {
         }),
       );
 
-      expect(await env.BUILD_RESERVATIONS.get(id)).toBe(value);
+      await expect(env.BUILD_RESERVATIONS.get(id)).resolves.toBe(value);
 
       const stored = await runBuildRuntime(
         Effect.gen(function* () {
@@ -202,7 +202,7 @@ describe("Cloudflare bindings integration", () => {
         }),
       );
 
-      expect(await env.BUILD_RESERVATIONS.get(id)).toBeNull();
+      await expect(env.BUILD_RESERVATIONS.get(id)).resolves.toBeNull();
     });
 
     it("stores, lists, reads, and deletes build artifacts in local R2", async () => {
@@ -235,7 +235,11 @@ describe("Cloudflare bindings integration", () => {
         }),
       );
 
-      expect(listed.objects.map((object) => object.key).sort()).toEqual([keyA, keyB].sort());
+      expect(
+        listed.objects
+          .map((object) => object.key)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toStrictEqual([keyA, keyB].toSorted((left, right) => left.localeCompare(right)));
 
       const stored = await runBuildRuntime(
         Effect.gen(function* () {
@@ -250,7 +254,7 @@ describe("Cloudflare bindings integration", () => {
       }
 
       expect(stored.contentType).toBe("application/octet-stream");
-      expect(await readTextBody(stored.body)).toBe("build artifact a");
+      await expect(readTextBody(stored.body)).resolves.toBe("build artifact a");
 
       await runBuildRuntime(
         Effect.gen(function* () {
@@ -259,8 +263,8 @@ describe("Cloudflare bindings integration", () => {
         }),
       );
 
-      expect(await env.BUILD_BUCKET.get(keyA)).toBeNull();
-      expect(await env.BUILD_BUCKET.get(keyB)).toBeNull();
+      await expect(env.BUILD_BUCKET.get(keyA)).resolves.toBeNull();
+      await expect(env.BUILD_BUCKET.get(keyB)).resolves.toBeNull();
     });
 
     it("generates presigned URLs and exposes the configured install token secret", async () => {
@@ -363,7 +367,7 @@ describe("Cloudflare bindings integration", () => {
         .first<{ branchId: string; groupId: string }>();
 
       expect(createdRow?.branchId).toBe(sourceBranch.branchId);
-      expect(await getChannelCacheVersion(sourceBranch.branchId)).toBe(1);
+      await expect(getChannelCacheVersion(sourceBranch.branchId)).resolves.toBe(1);
 
       const republished = await runUpdateCoordinator(
         Effect.gen(function* () {
@@ -408,9 +412,9 @@ describe("Cloudflare bindings integration", () => {
         .first<{ branchId: string; groupId: string }>();
 
       expect(republishedRow?.branchId).toBe(targetBranch.branchId);
-      expect(republishedRow?.groupId).toBeTruthy();
+      expect(republishedRow?.groupId).toMatch(/./u);
       expect(republishedRow?.groupId).not.toBe(createdRow?.groupId);
-      expect(await getChannelCacheVersion(targetBranch.branchId)).toBe(1);
+      await expect(getChannelCacheVersion(targetBranch.branchId)).resolves.toBe(1);
 
       const updateAssets = await env.DB.prepare(
         `SELECT "asset_hash" AS "assetHash", "is_launch" AS "isLaunch" FROM "update_assets" WHERE "update_id" = ?`,
@@ -418,7 +422,7 @@ describe("Cloudflare bindings integration", () => {
         .bind(republishedUpdate?.id ?? "")
         .all<{ assetHash: string; isLaunch: number }>();
 
-      expect(updateAssets.results).toEqual([
+      expect(updateAssets.results).toStrictEqual([
         expect.objectContaining({
           assetHash: launchHash,
           isLaunch: 1,
@@ -461,7 +465,7 @@ describe("Cloudflare bindings integration", () => {
 
       expect(results.filter((result) => result.ok)).toHaveLength(1);
       expect(results.filter((result) => !result.ok)).toHaveLength(3);
-      expect(await countUpdatesOnBranch(branch.branchId)).toBe(1);
+      await expect(countUpdatesOnBranch(branch.branchId)).resolves.toBe(1);
     });
 
     it("serializes concurrent 100% publishes without dropping updates or cache-version bumps", async () => {
@@ -493,8 +497,8 @@ describe("Cloudflare bindings integration", () => {
       ]);
 
       expect(results.every((result) => result.ok)).toBe(true);
-      expect(await countUpdatesOnBranch(branch.branchId)).toBe(3);
-      expect(await getChannelCacheVersion(branch.branchId)).toBe(3);
+      await expect(countUpdatesOnBranch(branch.branchId)).resolves.toBe(3);
+      await expect(getChannelCacheVersion(branch.branchId)).resolves.toBe(3);
     });
   });
 });

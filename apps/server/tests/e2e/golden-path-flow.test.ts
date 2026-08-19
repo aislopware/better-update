@@ -6,7 +6,7 @@ const { del, get, parseCookies, post, postNoBody } = setupE2EWorker(
   ".wrangler/state/e2e-golden-path",
 );
 
-const manifestGet = (projectId: string, headers: Record<string, string>) =>
+const manifestGet = async (projectId: string, headers: Record<string, string>) =>
   get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (
@@ -29,8 +29,8 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
-  const boundaryMatch = /boundary=([^\s;]+)/.exec(contentType);
-  const boundary = boundaryMatch?.[1] ?? "";
+  const boundaryMatch = /boundary=(?<boundary>[^\s;]+)/u.exec(contentType);
+  const boundary = boundaryMatch?.groups?.["boundary"] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)
@@ -114,7 +114,7 @@ describe("Golden path cross-flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -148,7 +148,8 @@ describe("Golden path cross-flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    projectId = (await response.json()).id as string;
+    const responseBody = await response.json();
+    projectId = responseBody.id as string;
   });
 
   // The project is seeded with production/development/preview branches+channels at
@@ -160,7 +161,7 @@ describe("Golden path cross-flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     const byName = new Map<string, string>(
-      body.items.map((b: { id: string; name: string }) => [b.name, b.id]),
+      body.items.map((branch: { id: string; name: string }) => [branch.name, branch.id]),
     );
     const production = byName.get("production");
     const development = byName.get("development");
@@ -177,7 +178,8 @@ describe("Golden path cross-flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    rollbackBranchId = (await response.json()).id as string;
+    const responseBody2 = await response.json();
+    rollbackBranchId = responseBody2.id as string;
   });
 
   it("creates rollback channel linked to rollback branch", async () => {
@@ -269,12 +271,12 @@ describe("Golden path cross-flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.updates).toHaveLength(2);
-    const updates = body.updates as Array<{
+    const updates = body.updates as {
       id: string;
       branchId: string;
       platform: "ios" | "android";
       message: string;
-    }>;
+    }[];
     expect(updates.every((update) => update.branchId === productionBranchId)).toBe(true);
     expect(updates.every((update) => update.message === "Go live v1")).toBe(true);
     const iosPromoted = updates.find((update) => update.platform === "ios");
@@ -440,7 +442,7 @@ describe("Golden path cross-flow", () => {
       part.headers["content-disposition"]?.includes('name="directive"'),
     );
     expect(directivePart).toBeDefined();
-    expect(JSON.parse(directivePart!.body)).toEqual({
+    expect(JSON.parse(directivePart!.body)).toStrictEqual({
       type: "rollBackToEmbedded",
       parameters: { commitTime: "2026-04-15T00:00:00.000Z" },
     });

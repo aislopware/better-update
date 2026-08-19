@@ -1,6 +1,8 @@
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import worker from "../../src";
+import { incomingRequest } from "../helpers/incoming-request";
 
 // Cross-tenant cache isolation proof + legacy NULL scope_key fallback, dispatched
 // straight into worker.fetch (full route + handler + repo + Cache API stack)
@@ -19,7 +21,7 @@ const fetchManifest = async (
 ): Promise<Response> => {
   const ctx = createExecutionContext();
   const response = await worker.fetch(
-    new Request(`${BASE}/manifest/${projectId}`, {
+    incomingRequest(`${BASE}/manifest/${projectId}`, {
       headers: {
         "expo-protocol-version": "1",
         "expo-platform": "ios",
@@ -39,8 +41,8 @@ const fetchManifest = async (
 // Pull the `id` out of the multipart `manifest` part body.
 const manifestIdOf = async (response: Response): Promise<string> => {
   const text = await response.text();
-  const match = /"id"\s*:\s*"([^"]+)"/u.exec(text);
-  return match?.[1] ?? "";
+  const match = /"id"\s*:\s*"(?<id>[^"]+)"/u.exec(text);
+  return match?.groups?.["id"] ?? "";
 };
 
 interface SeedParams {
@@ -90,7 +92,7 @@ const seedTenant = async (params: SeedParams) => {
     .run();
 };
 
-const sdhRow = (projectId: string, scopeKey: string) =>
+const sdhRow = async (projectId: string, scopeKey: string) =>
   env.DB.prepare(
     `SELECT "server_defined_headers_json" FROM "project_protocol_metadata" WHERE "project_id" = ? AND "scope_key" = ?`,
   )
@@ -125,17 +127,17 @@ describe("manifest serving — scopeKey cache + metadata isolation", () => {
     // 1. Serve A — populates A's cache bucket + stores A's server-defined-headers.
     const firstA = await fetchManifest(projectA, { "expo-extra-params": 'foo="a"' });
     expect(firstA.status).toBe(200);
-    expect(await manifestIdOf(firstA)).toBe(updateA);
+    await expect(manifestIdOf(firstA)).resolves.toBe(updateA);
 
     // 2. Serve B with the SAME protocol headers — must MISS A's bucket and get
     //    B's own manifest, not A's.
     const firstB = await fetchManifest(projectB, { "expo-extra-params": 'foo="b"' });
     expect(firstB.status).toBe(200);
-    expect(await manifestIdOf(firstB)).toBe(updateB);
+    await expect(manifestIdOf(firstB)).resolves.toBe(updateB);
 
     // 3. Re-serve A — must HIT its OWN bucket (id still A's).
     const secondA = await fetchManifest(projectA, { "expo-extra-params": 'foo="a"' });
-    expect(await manifestIdOf(secondA)).toBe(updateA);
+    await expect(manifestIdOf(secondA)).resolves.toBe(updateA);
 
     // 4. Stored server-defined-headers are isolated per (project, scopeKey).
     const storedA = await sdhRow(projectA, scopeKeyA);
@@ -147,8 +149,8 @@ describe("manifest serving — scopeKey cache + metadata isolation", () => {
       JSON.stringify({ "expo-extra-params": 'foo="b"' }),
     );
     // A never has B's scopeKey row and vice versa.
-    expect(await sdhRow(projectA, scopeKeyB)).toBeNull();
-    expect(await sdhRow(projectB, scopeKeyA)).toBeNull();
+    await expect(sdhRow(projectA, scopeKeyB)).resolves.toBeNull();
+    await expect(sdhRow(projectB, scopeKeyA)).resolves.toBeNull();
   });
 
   it("does not emit a spec-malformed expo-server-defined-headers reflection", async () => {
@@ -173,11 +175,11 @@ describe("manifest serving — scopeKey cache + metadata isolation", () => {
 
     const first = await fetchManifest(projectLegacy, {});
     expect(first.status).toBe(200);
-    expect(await manifestIdOf(first)).toBe(updateLegacy);
+    await expect(manifestIdOf(first)).resolves.toBe(updateLegacy);
 
     // Stable across requests — the fallback scopeKey (PUBLIC_API_URL origin) is
     // deterministic, so the second request hits the same cache bucket.
     const second = await fetchManifest(projectLegacy, {});
-    expect(await manifestIdOf(second)).toBe(updateLegacy);
+    await expect(manifestIdOf(second)).resolves.toBe(updateLegacy);
   });
 });

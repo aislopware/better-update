@@ -16,7 +16,8 @@ import { setupE2EWorker } from "../helpers/e2e-worker-pool";
  */
 const { parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-asset-bulk-register");
 
-const ASSET_COUNT = 250; // comfortably past the 100-param ceiling and >1 chunk
+// comfortably past the 100-param ceiling and >1 chunk
+const ASSET_COUNT = 250;
 
 const assetHash = (index: number): string =>
   createHash("sha256").update(`bulk-asset-${index}`).digest("base64url");
@@ -33,7 +34,7 @@ describe("Bulk asset registration (D1 param ceiling)", () => {
     });
     expect(signup.status).toBe(200);
     cookies = parseCookies(signup);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
 
     const org = await post(
       "/api/auth/organization/create",
@@ -41,7 +42,7 @@ describe("Bulk asset registration (D1 param ceiling)", () => {
       { cookie: cookies },
     );
     expect(org.status).toBe(200);
-    const organizationId = (await org.json()).id;
+    const { id: organizationId } = await org.json();
     cookies = parseCookies(org) || cookies;
 
     const active = await post(
@@ -58,7 +59,8 @@ describe("Bulk asset registration (D1 param ceiling)", () => {
       { cookie: cookies },
     );
     expect(project.status).toBe(201);
-    projectId = (await project.json()).id as string;
+    const projectBody = await project.json();
+    projectId = projectBody.id as string;
   });
 
   it("registers a >100-asset batch in one request without hitting the D1 param ceiling", async () => {
@@ -73,9 +75,9 @@ describe("Bulk asset registration (D1 param ceiling)", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.uploaded).toHaveLength(ASSET_COUNT);
-    expect(body.deduplicated).toEqual([]);
+    expect(body.deduplicated).toStrictEqual([]);
     // Every requested hash gets exactly one presigned slot back, across chunks.
-    expect(new Set(body.uploaded.map((entry: { hash: string }) => entry.hash))).toEqual(
+    expect(new Set(body.uploaded.map((entry: { hash: string }) => entry.hash))).toStrictEqual(
       new Set(assets.map((asset) => asset.hash)),
     );
   });
@@ -87,7 +89,7 @@ describe("Bulk asset registration (D1 param ceiling)", () => {
     // the first chunk's rows would silently 201 here instead of 400.
     const assets = Array.from({ length: ASSET_COUNT }, (_, index) => ({
       hash: assetHash(index),
-      contentType: index === ASSET_COUNT - 1 ? "image/png" : ("application/javascript" as string),
+      contentType: index === ASSET_COUNT - 1 ? "image/png" : "application/javascript",
       fileExt: index === ASSET_COUNT - 1 ? "png" : "js",
     }));
 

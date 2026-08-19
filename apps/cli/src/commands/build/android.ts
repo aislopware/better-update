@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { renderSigningGradle } from "../../lib/android-signing-gradle";
 import { applyAndroidVersion } from "../../lib/android-version-sync";
@@ -94,8 +93,8 @@ const resolveAndroidCredentials = (
   input: RunAndroidBuildInput,
 ): Effect.Effect<
   AndroidSigningCredentials | undefined,
-  Effect.Effect.Error<ReturnType<typeof downloadAndroidCredentials>>,
-  Effect.Effect.Context<ReturnType<typeof downloadAndroidCredentials>>
+  Effect.Error<ReturnType<typeof downloadAndroidCredentials>>,
+  Effect.Services<ReturnType<typeof downloadAndroidCredentials>>
 > => {
   if (input.skipCredentials) {
     // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (AndroidSigningCredentials | undefined); Effect.void breaks the declared return type
@@ -204,8 +203,8 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
       module: moduleName,
       minMtimeMs: buildStartMs,
     }).pipe(
-      Effect.catchAll((cause) =>
-        printWarn(`Debug symbol capture skipped: ${formatCause(cause)}`).pipe(
+      Effect.catch((error) =>
+        printWarn(`Debug symbol capture skipped: ${formatCause(error)}`).pipe(
           Effect.as([] as readonly CapturedDebugArtifact[]),
         ),
       ),

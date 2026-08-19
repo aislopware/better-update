@@ -4,7 +4,7 @@ import { Id, csvList } from "./common";
 
 // -- Shared --
 
-export const PeriodLiteral = Schema.Literal("1d", "7d", "30d", "90d");
+export const PeriodLiteral = Schema.Literals(["1d", "7d", "30d", "90d"]);
 export const Period = Schema.optional(PeriodLiteral);
 
 /**

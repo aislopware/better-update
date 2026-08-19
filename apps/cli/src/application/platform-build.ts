@@ -1,6 +1,8 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
+import type { Semaphore } from "effect";
+
 import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
 import { resolveAndroidStrategy, resolveIosStrategy } from "../lib/build-strategy";
@@ -17,9 +19,9 @@ import type { readAppMeta } from "../lib/expo-config";
 import type { PackageManager } from "../lib/project-staging";
 import type { apiClient } from "../services/api-client";
 
-export type AppMeta = Effect.Effect.Success<ReturnType<typeof readAppMeta>>;
-export type BuildProfile = Effect.Effect.Success<ReturnType<typeof readBuildProfile>>;
-type ApiClient = Effect.Effect.Success<typeof apiClient>;
+export type AppMeta = Effect.Success<ReturnType<typeof readAppMeta>>;
+export type BuildProfile = Effect.Success<ReturnType<typeof readBuildProfile>>;
+type ApiClient = Effect.Success<typeof apiClient>;
 
 export interface PlatformBuildInput {
   readonly api: ApiClient;
@@ -47,7 +49,7 @@ export interface PlatformBuildInput {
    * Serializes interactive credential setup across parallel `--platform all`
    * builds so two fibers never prompt on the same terminal at once.
    */
-  readonly mutex?: Effect.Semaphore;
+  readonly mutex?: Semaphore.Semaphore;
 }
 
 const runIosPlatformBuild = (input: PlatformBuildInput) =>
@@ -184,7 +186,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
 
 // Wrapped in gen so the two platform branches unify into ONE Effect type —
 // a bare ternary returns a union of Effects, which breaks generic combinators
-// like Effect.either at the call site.
+// like Effect.result at the call site.
 export const runPlatformBuild = (input: PlatformBuildInput) =>
   Effect.gen(function* () {
     // Materialize the decrypted env into `.env` for bare react-native-config

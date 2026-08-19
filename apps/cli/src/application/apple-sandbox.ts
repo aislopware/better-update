@@ -56,12 +56,12 @@ const MAX_V2_PAGES = 100;
  * default at the schema so both auth paths render the same empty values.
  */
 const SandboxTesterV2Attributes = Schema.Struct({
-  firstName: Schema.optionalWith(Schema.String, { default: () => "" }),
-  lastName: Schema.optionalWith(Schema.String, { default: () => "" }),
+  firstName: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  lastName: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
   /** The tester's Apple Account email — the v2 name for v1's `email`. */
-  acAccountName: Schema.optionalWith(Schema.String, { default: () => "" }),
+  acAccountName: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
   territory: Schema.optional(Schema.NullOr(Schema.String)),
-  applePayCompatible: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  applePayCompatible: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
 });
 
 const EMPTY_V2_ATTRIBUTES: typeof SandboxTesterV2Attributes.Type = {
@@ -76,9 +76,9 @@ const SandboxTestersV2Response = Schema.Struct({
   data: Schema.Array(
     Schema.Struct({
       id: Schema.String,
-      attributes: Schema.optionalWith(SandboxTesterV2Attributes, {
-        default: () => EMPTY_V2_ATTRIBUTES,
-      }),
+      attributes: SandboxTesterV2Attributes.pipe(
+        Schema.withDecodingDefaultType(Effect.succeed(EMPTY_V2_ATTRIBUTES)),
+      ),
     }),
   ),
   links: Schema.optional(Schema.Struct({ next: Schema.optional(Schema.NullOr(Schema.String)) })),

@@ -27,7 +27,7 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
-  const boundary = /boundary=([^\s;]+)/.exec(contentType)?.[1] ?? "";
+  const boundary = /boundary=(?<boundary>[^\s;]+)/u.exec(contentType)?.groups?.["boundary"] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)
@@ -99,7 +99,7 @@ describe("Code-signing publish verification (E2E)", () => {
       { cookie: cookies },
     );
     expect(org.status).toBe(200);
-    const organizationId = (await org.json()).id as string;
+    const { id: organizationId } = await org.json<{ id: string }>();
     cookies = parseCookies(org) || cookies;
 
     const setActive = await post(
@@ -115,7 +115,8 @@ describe("Code-signing publish verification (E2E)", () => {
       { cookie: cookies },
     );
     expect(project.status).toBe(201);
-    projectId = (await project.json()).id as string;
+    const projectBody = await project.json();
+    projectId = projectBody.id as string;
 
     // Register + finalize the launch asset so the publish passes assertAssetsExist.
     const register = await post(
@@ -179,14 +180,14 @@ describe("Code-signing publish verification (E2E)", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({ message: expect.stringContaining("does not verify") }),
     );
 
     // The row must NOT have been written.
     const updatesList = await get(`/api/updates?projectId=${projectId}`, { cookie: cookies });
-    const body = (await updatesList.json()) as { items: { id: string }[] };
-    expect(body.items.find((u) => u.id === updateId)).toBeUndefined();
+    const body = await updatesList.json<{ items: { id: string }[] }>();
+    expect(body.items.find((update) => update.id === updateId)).toBeUndefined();
   });
 
   // ── (3) Wrong-alg signed publish is rejected (ECDSA gated off) ───
@@ -196,7 +197,7 @@ describe("Code-signing publish verification (E2E)", () => {
     const manifestBody = renderSignedManifestFor({ updateId, projectId });
     // Correct signature bytes but an unsupported alg in the SFV header.
     const validSig = signTestManifestBody(manifestBody);
-    const sigBase64 = /sig="([^"]+)"/.exec(validSig)![1]!;
+    const sigBase64 = /sig="(?<sig>[^"]+)"/u.exec(validSig)!.groups!["sig"]!;
     const ecdsaHeader = `sig="${sigBase64}", keyid="main", alg="ecdsa-p256-sha256"`;
 
     const response = await post(
@@ -226,7 +227,7 @@ describe("Code-signing publish verification (E2E)", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({ message: expect.stringContaining("rsa-v1_5-sha256") }),
     );
   });
@@ -264,12 +265,7 @@ describe("Code-signing publish verification (E2E)", () => {
       { cookie: cookies },
     );
     expect(publish.status).toBe(201);
-    const created = (await publish.json()) as {
-      id: string;
-      signature: string | null;
-      certificateChain: string | null;
-      manifestBody: string | null;
-    };
+    const created = await publish.json();
     // The server honored the client-chosen id.
     expect(created.id).toBe(updateId);
     expect(created.signature).toBe(signature);
@@ -290,8 +286,8 @@ describe("Code-signing publish verification (E2E)", () => {
     const contentType = manifestResponse.headers.get("content-type")!;
     const parts = parseMultipart(contentType, await manifestResponse.text());
 
-    const manifestPart = parts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
     );
     expect(manifestPart).toBeDefined();
     // Served BYTE-FOR-BYTE === the signed body.
@@ -300,8 +296,8 @@ describe("Code-signing publish verification (E2E)", () => {
     expect(manifestPart!.headers["expo-signature"]).toBe(signature);
 
     // certificate_chain part is present.
-    const certPart = parts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="certificate_chain"'),
+    const certPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="certificate_chain"'),
     );
     expect(certPart).toBeDefined();
     expect(certPart!.body).toContain("BEGIN CERTIFICATE");

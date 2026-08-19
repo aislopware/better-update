@@ -29,7 +29,7 @@ const ttlHours = (value: string | undefined): number | undefined => {
 };
 
 const renderQrcode = (url: string): Effect.Effect<string> =>
-  Effect.async<string>((resume) => {
+  Effect.callback<string>((resume) => {
     qrcode.generate(url, { small: true }, (qr) => {
       resume(Effect.succeed(qr));
     });

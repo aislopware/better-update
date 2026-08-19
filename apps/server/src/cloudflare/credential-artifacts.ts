@@ -10,10 +10,10 @@ export interface CredentialArtifactsService {
   readonly delete: (r2Key: string) => Effect.Effect<void>;
 }
 
-export class CredentialArtifacts extends Context.Tag("api/CredentialArtifacts")<
+export class CredentialArtifacts extends Context.Service<
   CredentialArtifacts,
   CredentialArtifactsService
->() {}
+>()("api/CredentialArtifacts") {}
 
 export const CredentialArtifactsLive = Layer.succeed(CredentialArtifacts, {
   get: (r2Key, label) =>

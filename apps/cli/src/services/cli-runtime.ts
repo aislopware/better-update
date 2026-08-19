@@ -9,7 +9,7 @@ const definedEnvironment = (): Readonly<Record<string, string>> =>
     ),
   );
 
-export class CliRuntime extends Context.Tag("cli/CliRuntime")<
+export class CliRuntime extends Context.Service<
   CliRuntime,
   {
     readonly argv: readonly string[];
@@ -23,7 +23,7 @@ export class CliRuntime extends Context.Tag("cli/CliRuntime")<
     ) => Effect.Effect<Readonly<Record<string, string>>>;
     readonly setExitCode: (code: number) => Effect.Effect<void>;
   }
->() {}
+>()("cli/CliRuntime") {}
 
 export const CliRuntimeLive = Layer.succeed(CliRuntime, {
   argv: [...process.argv],

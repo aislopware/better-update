@@ -14,7 +14,7 @@ export const viewWebhookCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const webhook = yield* api.webhooks.get({ path: { id: args.id } });
+        const webhook = yield* api.webhooks.get({ params: { id: args.id } });
         yield* printHumanKeyValue([
           ["ID", webhook.id],
           ["Name", webhook.name],

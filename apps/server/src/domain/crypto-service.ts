@@ -39,7 +39,6 @@ export interface CryptoServiceImpl {
   }) => Effect.Effect<boolean, CryptoError>;
 }
 
-export class CryptoService extends Context.Tag("server/CryptoService")<
-  CryptoService,
-  CryptoServiceImpl
->() {}
+export class CryptoService extends Context.Service<CryptoService, CryptoServiceImpl>()(
+  "server/CryptoService",
+) {}

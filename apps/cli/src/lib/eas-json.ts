@@ -1,6 +1,5 @@
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { easJsonPath, readEasJson, resolveEasSubmitProfile } from "./eas-config";
 import { ProjectNotLinkedError } from "./exit-codes";

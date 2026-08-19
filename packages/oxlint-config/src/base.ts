@@ -33,7 +33,7 @@ export default defineConfig({
       {
         selector: "LogicalExpression[operator='??'][right.type='Literal'][right.raw='null']",
         message:
-          "Use toDbNull() for DB nullable-column inserts or Option.fromNullable for domain absence.",
+          "Use toDbNull() for DB nullable-column inserts or Option.fromNullishOr for domain absence.",
       },
       {
         selector:
@@ -53,7 +53,12 @@ export default defineConfig({
       },
     ],
 
-    "promise/prefer-await-to-then": ["warn", { strict: true }],
+    // Off since the Effect v4 migration: v4 renamed `Effect.catchAll` to
+    // `Effect.catch`, and this rule matches any `.catch()` member call, so every
+    // `.pipe(Effect.catch(...))` in the repo trips it. The rule cannot tell an
+    // Effect combinator from a promise chain, and the codebase has no bare
+    // `.then()` chains for it to catch.
+    "promise/prefer-await-to-then": "off",
     "promise/always-return": "off",
     "promise/avoid-new": "off",
     "promise/catch-or-return": "off",
@@ -114,6 +119,13 @@ export default defineConfig({
     "no-duplicate-imports": "off",
     "sort-imports": "off",
     "sort-keys": "off",
+    // Newly implemented in oxlint 1.78. `one-var` defaults to "always" and wants every
+    // top-level `export const` merged into a single comma-separated declaration, which
+    // would destroy per-export JSDoc, tree-shaking hints and the one-binding-per-line
+    // style used everywhere here. `sort-vars` only has meaning once declarations are
+    // combined, so it goes with it.
+    "one-var": "off",
+    "sort-vars": "off",
 
     "typescript/strict-void-return": "off",
     "typescript/explicit-function-return-type": "off",
@@ -226,7 +238,6 @@ export default defineConfig({
         "functional/no-throw-statements": "off",
         "functional/no-promise-reject": "off",
         "functional/no-try-statements": "off",
-        "promise/prefer-await-to-then": "off",
         "typescript/require-await": "off",
 
         "import/no-nodejs-modules": "off",

@@ -1,6 +1,6 @@
-import { CommandExecutor, FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { FileSystem, Effect, Exit, Layer } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import { FingerprintMismatchError } from "../../lib/exit-codes";
 import { FingerprintError } from "../../lib/fingerprint";
@@ -23,12 +23,12 @@ interface StubApiOptions {
 const makeStubApiClient = (options: StubApiOptions): ApiClient =>
   ({
     builds: {
-      get: ({ path }: { readonly path: { readonly id: string } }) =>
-        Effect.succeed({ id: path.id, fingerprintHash: options.builds?.[path.id] ?? null }),
+      get: ({ params }: { readonly params: { readonly id: string } }) =>
+        Effect.succeed({ id: params.id, fingerprintHash: options.builds?.[params.id] ?? null }),
     },
     updates: {
-      get: ({ path }: { readonly path: { readonly id: string } }) =>
-        Effect.succeed({ id: path.id, fingerprintHash: options.updates?.[path.id] ?? null }),
+      get: ({ params }: { readonly params: { readonly id: string } }) =>
+        Effect.succeed({ id: params.id, fingerprintHash: options.updates?.[params.id] ?? null }),
     },
   }) as unknown as ApiClient;
 
@@ -43,16 +43,15 @@ const apiLayer = (options: StubApiOptions): Layer.Layer<ApiClientService> =>
 const cliRuntimeLayer = (cwd = "/project"): Layer.Layer<CliRuntime> =>
   Layer.succeed(CliRuntime, {
     cwd: Effect.succeed(cwd),
-  } as unknown as CliRuntime["Type"]);
+  } as unknown as CliRuntime["Service"]);
 
 const localFingerprint = (hash: string, sources: readonly FingerprintSource[] = []) =>
   JSON.stringify({ hash, sources });
 
-const executorLayer = (stdout: string): Layer.Layer<CommandExecutor.CommandExecutor> =>
-  Layer.succeed(CommandExecutor.CommandExecutor, {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
+const executorLayer = (stdout: string): Layer.Layer<ChildProcessSpawner.ChildProcessSpawner> =>
+  Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, {
     string: () => Effect.succeed(stdout),
-  } as unknown as CommandExecutor.CommandExecutor);
+  } as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"]);
 
 // `--platform` routes the local fingerprint through `runFingerprintForPlatform`,
 // which probes the filesystem for native markers; a noop FS resolves the

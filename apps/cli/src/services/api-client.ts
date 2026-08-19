@@ -1,13 +1,14 @@
 import { ManagementApi } from "@better-update/api";
-import { Headers, HttpApiClient, HttpClient, HttpClientRequest } from "@effect/platform";
 import { Context, Effect, Layer, Option, Schedule, Schema } from "effect";
+import { Headers, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpApiClient } from "effect/unstable/httpapi";
 
 import { AuthRequiredError, LoginError, OrgError } from "../lib/exit-codes";
 import { AuthStore } from "./auth-store";
 import { ConfigStore } from "./config-store";
 
 const client = HttpApiClient.make(ManagementApi);
-export type ApiClient = Effect.Effect.Success<typeof client>;
+export type ApiClient = Effect.Success<typeof client>;
 
 // Better Auth's organization endpoints live on the auth routes (`/api/auth/*`),
 // outside the typed ManagementApi — the CLI calls them raw, authenticated with
@@ -23,7 +24,7 @@ const AuthOrganizationList = Schema.Array(AuthOrganizationSchema);
 /** An organization the authenticated user belongs to (from `organization/list`). */
 export type AuthOrganization = typeof AuthOrganizationSchema.Type;
 
-export class ApiClientService extends Context.Tag("cli/ApiClient")<
+export class ApiClientService extends Context.Service<
   ApiClientService,
   {
     readonly get: Effect.Effect<ApiClient, AuthRequiredError>;
@@ -41,7 +42,7 @@ export class ApiClientService extends Context.Tag("cli/ApiClient")<
       organizationId: string,
     ) => Effect.Effect<void, AuthRequiredError | OrgError>;
   }
->() {}
+>()("cli/ApiClient") {}
 
 export const apiClient: Effect.Effect<ApiClient, AuthRequiredError, ApiClientService> =
   // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.flatMap, not Array.prototype.flatMap; the second arg is a continuation, not a thisArg
@@ -144,7 +145,7 @@ export const ApiClientLive = Layer.effect(
             () => new OrgError({ message: "The organization list response was not valid JSON." }),
           ),
         );
-        return yield* Schema.decodeUnknown(AuthOrganizationList)(body).pipe(
+        return yield* Schema.decodeUnknownEffect(AuthOrganizationList)(body).pipe(
           Effect.mapError(
             () => new OrgError({ message: "Unexpected organization list response shape." }),
           ),

@@ -1,35 +1,35 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { buildBranchMapping } from "../../../src/domain/branch-mapping";
 import { ChannelRepo, ChannelRepoLive } from "../../../src/repositories/channels";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ChannelRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ChannelRepo>) =>
   runWithLayerAndEnv(effect, ChannelRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertBranch = (id: string, projectId: string, name: string) =>
+const insertBranch = async (id: string, projectId: string, name: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, projectId, name, "2024-01-02T00:00:00Z")
     .run();
 
-const insertChannel = (params: {
+const insertChannel = async (params: {
   readonly id: string;
   readonly projectId: string;
   readonly name: string;
@@ -74,7 +74,7 @@ describe("ChannelRepo -- findByProject query search (LIKE)", () => {
     return { suffix, projectId };
   };
 
-  const findWithQuery = (projectId: string, query: string, limit = 20) =>
+  const findWithQuery = async (projectId: string, query: string, limit = 20) =>
     run(
       Effect.gen(function* () {
         const repo = yield* ChannelRepo;
@@ -89,7 +89,7 @@ describe("ChannelRepo -- findByProject query search (LIKE)", () => {
       }),
     );
 
-  test("matches name substring case-insensitively", async () => {
+  it("matches name substring case-insensitively", async () => {
     const { projectId } = await seedSearchChannels();
 
     const result = await findWithQuery(projectId, "PROD");
@@ -99,7 +99,7 @@ describe("ChannelRepo -- findByProject query search (LIKE)", () => {
     expect(result.items[0]?.name).toBe("Production");
   });
 
-  test("total respects the filter when the page is smaller than the match set", async () => {
+  it("total respects the filter when the page is smaller than the match set", async () => {
     const { projectId } = await seedSearchChannels();
 
     // "ev" matches both "preview-feature" and "development".
@@ -110,7 +110,7 @@ describe("ChannelRepo -- findByProject query search (LIKE)", () => {
     expect(result.items[0]?.name).toBe("development");
   });
 
-  test("returns empty when no channel matches", async () => {
+  it("returns empty when no channel matches", async () => {
     const { projectId } = await seedSearchChannels();
 
     const result = await findWithQuery(projectId, "doesnotexist");
@@ -121,7 +121,7 @@ describe("ChannelRepo -- findByProject query search (LIKE)", () => {
 });
 
 describe("ChannelRepo -- cache version integration", () => {
-  test("bumps cache version for direct channels and rollout target channels", async () => {
+  it("bumps cache version for direct channels and rollout target channels", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `org-channel-${suffix}`;
     const projectId = `proj-channel-${suffix}`;
@@ -181,7 +181,7 @@ describe("ChannelRepo -- cache version integration", () => {
       .bind(projectId)
       .all<{ name: string; cache_version: number }>();
 
-    expect(rows.results).toEqual([
+    expect(rows.results).toStrictEqual([
       { name: "direct", cache_version: 4 },
       { name: "rollout", cache_version: 8 },
       { name: "rollout-similar", cache_version: 11 },

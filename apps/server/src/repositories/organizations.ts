@@ -36,10 +36,9 @@ export interface OrganizationRepository {
   }) => Effect.Effect<void>;
 }
 
-export class OrganizationRepo extends Context.Tag("api/OrganizationRepo")<
-  OrganizationRepo,
-  OrganizationRepository
->() {}
+export class OrganizationRepo extends Context.Service<OrganizationRepo, OrganizationRepository>()(
+  "api/OrganizationRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

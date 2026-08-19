@@ -129,10 +129,9 @@ export interface OrgVaultRepository {
   }) => Effect.Effect<readonly string[]>;
 }
 
-export class OrgVaultRepo extends Context.Tag("api/OrgVaultRepo")<
-  OrgVaultRepo,
-  OrgVaultRepository
->() {}
+export class OrgVaultRepo extends Context.Service<OrgVaultRepo, OrgVaultRepository>()(
+  "api/OrgVaultRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

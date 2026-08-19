@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id, PaginationParams, sortParam } from "./common";
 
-export class Channel extends Schema.Class<Channel>("Channel")({
+export const Channel = Schema.Struct({
   id: Id,
   projectId: Id,
   name: Schema.String,
@@ -19,9 +19,10 @@ export class Channel extends Schema.Class<Channel>("Channel")({
   isPaused: Schema.Boolean,
   isBuiltin: Schema.Boolean,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Channel" });
+export type Channel = typeof Channel.Type;
 
-export const ChannelSortColumn = Schema.Literal("name", "createdAt");
+export const ChannelSortColumn = Schema.Literals(["name", "createdAt"]);
 
 export const ChannelSort = sortParam(ChannelSortColumn);
 
@@ -36,7 +37,7 @@ export const ListChannelsParams = Schema.Struct({
 
 export const CreateChannelBody = Schema.Struct({
   projectId: Id,
-  name: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
   branchId: Id,
 });
 
@@ -46,8 +47,8 @@ export const UpdateChannelBody = Schema.Struct({
 
 export const CreateBranchRolloutBody = Schema.Struct({
   newBranchId: Id,
-  percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
-  runtimeVersion: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  percentage: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 })),
+  runtimeVersion: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
 });
 
 export const DeleteChannelResult = DeletedResult;

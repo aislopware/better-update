@@ -47,7 +47,7 @@ describe("iOS Bundle Configuration flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -64,7 +64,7 @@ describe("iOS Bundle Configuration flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    projectId = (await projRes.json()).id;
+    ({ id: projectId } = await projRes.json());
   });
 
   it("uploads cert + provisioning profile + push + ASC", async () => {
@@ -83,7 +83,7 @@ describe("iOS Bundle Configuration flow", () => {
     expect(certRes.status).toBe(201);
     const certBody = await certRes.json();
     certId = certBody.id;
-    appleTeamId = certBody.appleTeamId;
+    ({ appleTeamId } = certBody);
 
     const profRes = await post(
       "/api/apple/provisioning-profiles",
@@ -105,7 +105,7 @@ describe("iOS Bundle Configuration flow", () => {
       { cookie: cookies },
     );
     expect(pushRes.status).toBe(201);
-    pushKeyId = (await pushRes.json()).id;
+    ({ id: pushKeyId } = await pushRes.json());
 
     const ascRes = await post(
       "/api/apple/asc-api-keys",
@@ -119,7 +119,7 @@ describe("iOS Bundle Configuration flow", () => {
       { cookie: cookies },
     );
     expect(ascRes.status).toBe(201);
-    ascKeyId = (await ascRes.json()).id;
+    ({ id: ascKeyId } = await ascRes.json());
   });
 
   it("filters provisioning profiles by bundle + distributionType", async () => {
@@ -128,7 +128,7 @@ describe("iOS Bundle Configuration flow", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as Array<{ id: string }>;
+    const { items } = await res.json<{ items: { id: string }[] }>();
     expect(items).toHaveLength(1);
     expect(items[0]?.id).toBe(profileId);
   });
@@ -173,7 +173,7 @@ describe("iOS Bundle Configuration flow", () => {
       cookie: cookies,
     });
     expect(res.status).toBe(200);
-    const items = (await res.json()).items as Array<{ id: string }>;
+    const { items } = await res.json<{ items: { id: string }[] }>();
     expect(items).toHaveLength(1);
     expect(items[0]?.id).toBe(bundleConfigId);
   });
@@ -212,11 +212,13 @@ describe("iOS Bundle Configuration flow", () => {
     const listRes = await get(`/api/projects/${projectId}/ios-bundle-configurations`, {
       cookie: cookies,
     });
-    const items = (await listRes.json()).items as Array<{
-      bundleIdentifier: string;
-      targetName: string | null;
-      parentBundleIdentifier: string | null;
-    }>;
+    const { items } = await listRes.json<{
+      items: {
+        bundleIdentifier: string;
+        targetName: string | null;
+        parentBundleIdentifier: string | null;
+      }[];
+    }>();
     const extensionRow = items.find((item) => item.bundleIdentifier === extensionBundle);
     expect(extensionRow?.targetName).toBe("NotificationServiceExtension");
     expect(extensionRow?.parentBundleIdentifier).toBe(BUNDLE);
@@ -243,7 +245,7 @@ describe("iOS Bundle Configuration flow", () => {
     const list = await get(`/api/projects/${projectId}/ios-bundle-configurations`, {
       cookie: cookies,
     });
-    const items = (await list.json()).items as Array<{ id: string }>;
+    const { items } = await list.json<{ items: { id: string }[] }>();
     expect(items.find((config) => config.id === bundleConfigId)).toBeUndefined();
   });
 });

@@ -4,14 +4,14 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
-import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { FileSystem, Effect, Layer } from "effect";
 
 import type { Identity } from "@better-update/credentials-crypto";
 import type { RequestContext } from "@expo/apple-utils";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory accepts a partial of the entire module shape; namespace import is the only way to satisfy ModuleMockFactoryWithHelper at compile time
 import type * as AppleUtilsModule from "@expo/apple-utils";
+import type { Context, Exit } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
@@ -29,6 +29,7 @@ import {
   revokeDistributionCert,
 } from "./credentials-generator-apple";
 import { makeInteractiveModeLayer } from "./interactive-mode";
+import { failureError } from "./test-utils";
 
 import type { ApiClient } from "../services/api-client";
 // eslint-disable-next-line import-plugin/no-namespace -- same reason: typed vi.mock factory needs the full module namespace type
@@ -208,7 +209,7 @@ const fsStubLayer = Layer.succeed(FileSystem.FileSystem, {
     Effect.sync(() => {
       recordedWrites.push({ path, content });
     }),
-} as unknown as FileSystem.FileSystem);
+} as unknown as Context.Service.Shape<typeof FileSystem.FileSystem>);
 
 /** CliRuntime surfacing the env identity so the vault unlocks without a passphrase. */
 const vaultLayer = (privateKey: string) =>
@@ -459,11 +460,7 @@ describe(generateAndUploadDistributionCertificate, () => {
         generateAndUploadDistributionCertificate(api, { context }),
       ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
-      expect(exit._tag).toBe("Failure");
-      if (exit._tag === "Failure") {
-        const failure = exit.cause.toJSON() as { failure?: { _tag?: string } };
-        expect(failure.failure?._tag).toBe("CertificateLimitError");
-      }
+      expect(failureTag(exit)).toBe("CertificateLimitError");
     }),
   );
 
@@ -477,11 +474,7 @@ describe(generateAndUploadDistributionCertificate, () => {
         generateAndUploadDistributionCertificate(api, { context }),
       ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
-      expect(exit._tag).toBe("Failure");
-      if (exit._tag === "Failure") {
-        const failure = exit.cause.toJSON() as { failure?: { _tag?: string } };
-        expect(failure.failure?._tag).toBe("AppleIdGenerateFailedError");
-      }
+      expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
     }),
   );
 
@@ -585,13 +578,10 @@ describe(revokeDistributionCert, () => {
   );
 });
 
-const failureTag = (exit: Exit.Exit<unknown, unknown>): string | undefined => {
-  if (!Exit.isFailure(exit)) {
-    return undefined;
-  }
-  const json = exit.cause.toJSON() as { failure?: { _tag?: string } };
-  return json.failure?._tag;
-};
+// v4 flattened `Cause` into `reasons`, so the old `cause.toJSON().failure`
+// shape is gone; the first `Fail` value is read through `failureError`.
+const failureTag = (exit: Exit.Exit<unknown, { readonly _tag: string }>): string | undefined =>
+  failureError(exit)?._tag;
 
 describe(generateAndUploadApnsKeyViaAppleId, () => {
   it.effect("creates an APNs key, downloads it, and uploads only the sealed envelope", () =>

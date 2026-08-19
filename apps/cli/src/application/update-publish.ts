@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";
@@ -182,7 +181,7 @@ export const runUpdatePublish = (
   | ApiClientService
   | CliRuntime
   | UpdateAssetUploader
-  | CommandExecutor.CommandExecutor
+  | ChildProcessSpawner.ChildProcessSpawner
   | FileSystem.FileSystem
   | InteractiveMode
   | DeviceUnlockMemo

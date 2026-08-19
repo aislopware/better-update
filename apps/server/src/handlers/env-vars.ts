@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import type { CreateEnvVarBody, UpsertEnvVarDescriptionBody } from "@better-update/api";
 
@@ -176,13 +176,13 @@ const upsertDescriptionEffect = (payload: typeof UpsertEnvVarDescriptionBody.Typ
 export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", (handlers) =>
   handlers
     .handle("create", ({ payload }) => toApiWriteEffect(createEnvVarEffect(payload)))
-    .handle("list", ({ urlParams }) =>
+    .handle("list", ({ query }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
 
-          const scope = resolveListScope(urlParams);
-          const { projectId } = urlParams;
+          const scope = resolveListScope(query);
+          const { projectId } = query;
 
           if (scope === "project" || (scope === "all" && projectId)) {
             if (!projectId) {
@@ -195,17 +195,17 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             yield* assertOrgOwnership(ctx.organizationId);
           }
 
-          const environments = yield* parseEnvironmentsCsv(urlParams.environments);
+          const environments = yield* parseEnvironmentsCsv(query.environments);
 
           const repo = yield* EnvVarRepo;
-          const { limit, offset } = parsePagination(urlParams, 50);
+          const { limit, offset } = parsePagination(query, 50);
 
           const filters: EnvVarListFilters = {
             organizationId: ctx.organizationId,
             ...(projectId ? { projectId } : {}),
             scope,
             ...(environments ? { environments } : {}),
-            ...(urlParams.search ? { search: urlParams.search } : {}),
+            ...(query.search ? { search: query.search } : {}),
             limit,
             offset,
           };
@@ -229,11 +229,11 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const repo = yield* EnvVarRepo;
-          const model = yield* repo.findById({ id: path.id });
+          const model = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(model.organizationId);
 
           yield* assertEnvVarScopedPermission("read", model.projectId, model.environment);
@@ -242,15 +242,15 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         }),
       ),
     )
-    .handle("getValue", ({ path }) => toApiReadEffect(revealCurrentValue(path.id)))
-    .handle("update", ({ path, payload }) =>
+    .handle("getValue", ({ params }) => toApiReadEffect(revealCurrentValue(params.id)))
+    .handle("update", ({ params, payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
           yield* assertWebEnvStepUp(ctx);
 
           const repo = yield* EnvVarRepo;
-          const existing = yield* repo.findById({ id: path.id });
+          const existing = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(existing.organizationId);
 
           yield* assertEnvVarScopedPermission("update", existing.projectId, existing.environment);
@@ -262,7 +262,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
               vaultKind: payload.value.vaultKind,
             });
             const model = yield* repo.addRevision({
-              id: path.id,
+              id: params.id,
               createdByUserId: ctx.userId,
               revision: toRevision(payload.value),
               ...compact({ visibility: payload.visibility }),
@@ -270,7 +270,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             yield* logAudit({
               action: "envVar.update",
               resourceType: "envVar",
-              resourceId: path.id,
+              resourceId: params.id,
               ...(existing.projectId ? { projectId: existing.projectId } : {}),
               metadata: compact({
                 key: existing.key,
@@ -283,13 +283,13 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
 
           if (payload.visibility !== undefined) {
             const model = yield* repo.updateVisibility({
-              id: path.id,
+              id: params.id,
               visibility: payload.visibility,
             });
             yield* logAudit({
               action: "envVar.update",
               resourceType: "envVar",
-              resourceId: path.id,
+              resourceId: params.id,
               ...(existing.projectId ? { projectId: existing.projectId } : {}),
               metadata: { key: existing.key, visibility: payload.visibility },
             });
@@ -305,40 +305,40 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("upsertDescription", ({ payload }) =>
       toApiWriteEffect(upsertDescriptionEffect(payload)),
     )
-    .handle("delete", ({ path }) =>
+    .handle("delete", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertWebEnvStepUp(yield* CurrentActor);
           const repo = yield* EnvVarRepo;
-          const model = yield* repo.findById({ id: path.id });
+          const model = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(model.organizationId);
 
           yield* assertEnvVarScopedPermission("delete", model.projectId, model.environment);
 
-          yield* repo.deleteById({ id: path.id });
+          yield* repo.deleteById({ id: params.id });
 
           yield* logAudit({
             action: "envVar.delete",
             resourceType: "envVar",
-            resourceId: path.id,
+            resourceId: params.id,
             ...(model.projectId ? { projectId: model.projectId } : {}),
             metadata: { key: model.key, environment: model.environment },
           });
 
-          return { id: path.id };
+          return { id: params.id };
         }),
       ),
     )
-    .handle("revisions", ({ path }) =>
+    .handle("revisions", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const repo = yield* EnvVarRepo;
-          const model = yield* repo.findById({ id: path.id });
+          const model = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(model.organizationId);
 
           yield* assertEnvVarScopedPermission("read", model.projectId, model.environment);
 
-          const revisions = yield* repo.listRevisions({ envVarId: path.id });
+          const revisions = yield* repo.listRevisions({ envVarId: params.id });
           return {
             items: revisions.map((revision) => ({
               id: revision.id,
@@ -352,22 +352,22 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         }),
       ),
     )
-    .handle("rollback", ({ path, payload }) =>
+    .handle("rollback", ({ params, payload }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertWebEnvStepUp(yield* CurrentActor);
           const repo = yield* EnvVarRepo;
-          const existing = yield* repo.findById({ id: path.id });
+          const existing = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(existing.organizationId);
 
           yield* assertEnvVarScopedPermission("update", existing.projectId, existing.environment);
 
-          const model = yield* repo.rollback({ id: path.id, toRevisionId: payload.toRevisionId });
+          const model = yield* repo.rollback({ id: params.id, toRevisionId: payload.toRevisionId });
 
           yield* logAudit({
             action: "envVar.rollback",
             resourceType: "envVar",
-            resourceId: path.id,
+            resourceId: params.id,
             ...(existing.projectId ? { projectId: existing.projectId } : {}),
             metadata: { key: existing.key, toRevisionId: payload.toRevisionId },
           });
@@ -401,7 +401,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         }),
       ),
     )
-    .handle("export", ({ urlParams }) =>
+    .handle("export", ({ query }) =>
       toApiResolveReadEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
@@ -409,7 +409,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           // rotation (a recipient was removed). Pre-cutover that is the credentials
           // vault; post-cutover the env vault. See assert-vault-rotation.
           yield* assertEnvVaultRotationNotPending({ organizationId: ctx.organizationId });
-          return yield* handleExport(urlParams);
+          return yield* handleExport(query);
         }),
       ),
     ),

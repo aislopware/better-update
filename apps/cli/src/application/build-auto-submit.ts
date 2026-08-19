@@ -136,7 +136,7 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
     const runtime = yield* CliRuntime;
     const easProfile = yield* readSubmitProfile(yield* runtime.cwd, input.profileName);
 
-    const installLink = yield* input.api.builds.getInstallLink({ path: { id: input.buildId } });
+    const installLink = yield* input.api.builds.getInstallLink({ params: { id: input.buildId } });
     const archiveUrl = installLink.artifactUrl;
 
     const iosConfig =

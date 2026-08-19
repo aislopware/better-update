@@ -39,10 +39,9 @@ export interface AuditLogRepository {
   }>;
 }
 
-export class AuditLogRepo extends Context.Tag("api/AuditLogRepo")<
-  AuditLogRepo,
-  AuditLogRepository
->() {}
+export class AuditLogRepo extends Context.Service<AuditLogRepo, AuditLogRepository>()(
+  "api/AuditLogRepo",
+) {}
 
 // -- D1 Adapter --------------------------------------------------------------
 

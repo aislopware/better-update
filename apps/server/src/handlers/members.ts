@@ -1,6 +1,5 @@
-import { MemberProjectMembership, MemberProjectMemberships } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -15,7 +14,7 @@ import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (handlers) =>
   handlers
-    .handle("updateRole", ({ path, payload }) =>
+    .handle("updateRole", ({ params, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertAccess("member", "update");
@@ -32,7 +31,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
 
           const repo = yield* MemberRepo;
           const target = yield* repo.findInOrg({
-            id: path.id,
+            id: params.id,
             organizationId: ctx.organizationId,
           });
           if (target === null) {
@@ -45,7 +44,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           }
 
           yield* repo.updateRole({
-            id: path.id,
+            id: params.id,
             organizationId: ctx.organizationId,
             role: payload.role,
           });
@@ -53,7 +52,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           yield* logAudit({
             action: "member.role_update",
             resourceType: "member",
-            resourceId: path.id,
+            resourceId: params.id,
             metadata: { from: target.role, to: payload.role },
           });
 
@@ -65,15 +64,15 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           if (payload.role === "member") {
             yield* reconcileVaultAccess({
               organizationId: ctx.organizationId,
-              reason: `member-role-change:${path.id}`,
+              reason: `member-role-change:${params.id}`,
             });
           }
 
-          return { id: path.id, role: payload.role };
+          return { id: params.id, role: payload.role };
         }),
       ),
     )
-    .handle("remove", ({ path }) =>
+    .handle("remove", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertAccess("member", "delete");
@@ -83,7 +82,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           // Load org-scoped: a member absent in this org is NotFound (never a
           // cross-org delete, mirroring robot-accounts.revoke / invitations.cancel).
           const target = yield* repo.findInOrg({
-            id: path.id,
+            id: params.id,
             organizationId: ctx.organizationId,
           });
           if (target === null) {
@@ -107,20 +106,20 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
             }
           }
 
-          yield* repo.remove({ id: path.id, organizationId: ctx.organizationId });
+          yield* repo.remove({ id: params.id, organizationId: ctx.organizationId });
 
           // Membership rows die with the member (GITLAB-RBAC-SPEC §4a).
           const projectMembers = yield* ProjectMemberRepo;
           yield* projectMembers.removeAllForPrincipal({
             organizationId: ctx.organizationId,
             principalType: "member",
-            principalId: path.id,
+            principalId: params.id,
           });
 
           yield* logAudit({
             action: "member.delete",
             resourceType: "member",
-            resourceId: path.id,
+            resourceId: params.id,
           });
 
           // Bind the departure to the vault: drop the removed member's device wraps
@@ -165,19 +164,16 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
             organizationId: ctx.organizationId,
           });
           return {
-            items: summaries.map(
-              (summary) =>
-                new MemberProjectMemberships({
-                  principalId: summary.principalId,
-                  allProjectsRole: summary.allProjectsRole,
-                  projects: summary.projects.map((project) => new MemberProjectMembership(project)),
-                }),
-            ),
+            items: summaries.map((summary) => ({
+              principalId: summary.principalId,
+              allProjectsRole: summary.allProjectsRole,
+              projects: summary.projects.map((project) => project),
+            })),
           };
         }),
       ),
     )
-    .handle("setAllProjects", ({ path, payload }) =>
+    .handle("setAllProjects", ({ params, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           // Org-wide grants are org administration (like org-wide credential
@@ -186,7 +182,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           const ctx = yield* CurrentActor;
           const repo = yield* MemberRepo;
           const target = yield* repo.findInOrg({
-            id: path.id,
+            id: params.id,
             organizationId: ctx.organizationId,
           });
           if (target === null) {
@@ -204,14 +200,14 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
             id: crypto.randomUUID(),
             organizationId: ctx.organizationId,
             principalType: "member",
-            principalId: path.id,
+            principalId: params.id,
             role: payload.role,
             now: new Date().toISOString(),
           });
           yield* logAudit({
             action: "projectMember.all_projects_set",
             resourceType: "member",
-            resourceId: path.id,
+            resourceId: params.id,
             metadata: { role: payload.role },
           });
           // Lowering the org-wide role to reporter can strip vault
@@ -220,14 +216,14 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           if (payload.role === "reporter") {
             yield* reconcileVaultAccess({
               organizationId: ctx.organizationId,
-              reason: `all-projects-role-change:${path.id}`,
+              reason: `all-projects-role-change:${params.id}`,
             });
           }
-          return { principalId: path.id, role: payload.role };
+          return { principalId: params.id, role: payload.role };
         }),
       ),
     )
-    .handle("removeAllProjects", ({ path }) =>
+    .handle("removeAllProjects", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertAccess("member", "update");
@@ -236,7 +232,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           const removed = yield* projectMembers.removeAllProjects({
             organizationId: ctx.organizationId,
             principalType: "member",
-            principalId: path.id,
+            principalId: params.id,
           });
           if (!removed) {
             return yield* new NotFound({
@@ -246,13 +242,13 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           yield* logAudit({
             action: "projectMember.all_projects_remove",
             resourceType: "member",
-            resourceId: path.id,
+            resourceId: params.id,
           });
           // Losing the org-wide role can strip vault participation — explicit
           // per-project rows may no longer clear the ≥ developer bar.
           yield* reconcileVaultAccess({
             organizationId: ctx.organizationId,
-            reason: `all-projects-remove:${path.id}`,
+            reason: `all-projects-remove:${params.id}`,
           });
           return { deleted: 1 };
         }),

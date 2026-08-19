@@ -44,7 +44,7 @@ export const devicesQueryOptions = (orgId: string, filters?: DevicesFilters) =>
       runApi(
         (api) =>
           api.devices.list({
-            urlParams: compact({
+            query: compact({
               deviceClass: filters?.deviceClass,
               appleTeamId: filters?.appleTeamId,
               page: filters?.page,
@@ -63,10 +63,10 @@ export const registerDevice = async (body: typeof RegisterDeviceBody.Type) =>
   runApi((api) => api.devices.register({ payload: body }));
 
 export const updateDevice = async (id: string, body: typeof UpdateDeviceBody.Type) =>
-  runApi((api) => api.devices.update({ path: { id }, payload: body }));
+  runApi((api) => api.devices.update({ params: { id }, payload: body }));
 
 export const deleteDevice = async (id: string) =>
-  runApi((api) => api.devices.delete({ path: { id } }));
+  runApi((api) => api.devices.delete({ params: { id } }));
 
 export const registrationRequestsQueryKey = (orgId: string) =>
   ["org", orgId, "device-registration-requests"] as const;
@@ -78,7 +78,7 @@ export const registrationRequestsQueryOptions = (orgId: string, activeOnly = tru
       runApi(
         (api) =>
           api.devices.listRegistrationRequests({
-            urlParams: { active: activeOnly ? "true" : "false" },
+            query: { active: activeOnly ? "true" : "false" },
           }),
         signal,
       ),

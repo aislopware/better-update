@@ -42,7 +42,7 @@ const applyValueUpdate = (
     const match = yield* findProjectEnvVar(api, projectId, key, environment);
 
     if (value === undefined) {
-      yield* api["env-vars"].update({ path: { id: match.id }, payload: compact({ visibility }) });
+      yield* api["env-vars"].update({ params: { id: match.id }, payload: compact({ visibility }) });
       return undefined;
     }
 
@@ -56,7 +56,7 @@ const applyValueUpdate = (
       secret: { value },
     });
     yield* api["env-vars"].update({
-      path: { id: match.id },
+      params: { id: match.id },
       payload: {
         value: {
           id: envelope.id,

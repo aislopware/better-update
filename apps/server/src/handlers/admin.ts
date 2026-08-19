@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertSuperadmin } from "../auth/permissions";
@@ -23,16 +23,16 @@ const setApprovedOrNotFound = (userId: string, approved: boolean) =>
 
 export const AdminGroupLive = HttpApiBuilder.group(ManagementApi, "admin", (handlers) =>
   handlers
-    .handle("listUsers", ({ urlParams }) =>
+    .handle("listUsers", ({ query }) =>
       toApiForbiddenEffect(
         Effect.gen(function* () {
           yield* assertSuperadmin;
           const repo = yield* AdminUsersRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { page, limit, offset } = parsePagination(query);
 
           const { items, total } = yield* repo.list({
-            search: urlParams.search,
-            status: urlParams.status,
+            search: query.search,
+            status: query.status,
             limit,
             offset,
           });
@@ -41,6 +41,10 @@ export const AdminGroupLive = HttpApiBuilder.group(ManagementApi, "admin", (hand
         }),
       ),
     )
-    .handle("approveUser", ({ path }) => toApiReadEffect(setApprovedOrNotFound(path.userId, true)))
-    .handle("revokeUser", ({ path }) => toApiReadEffect(setApprovedOrNotFound(path.userId, false))),
+    .handle("approveUser", ({ params }) =>
+      toApiReadEffect(setApprovedOrNotFound(params.userId, true)),
+    )
+    .handle("revokeUser", ({ params }) =>
+      toApiReadEffect(setApprovedOrNotFound(params.userId, false)),
+    ),
 );

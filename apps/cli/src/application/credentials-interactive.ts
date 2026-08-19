@@ -91,14 +91,14 @@ const pickExistingKeystore = (api: ApiClient) =>
 const resolveAndroidAppId = (api: ApiClient, input: AndroidSetupInput) =>
   Effect.gen(function* () {
     const apps = yield* api.androidApplicationIdentifiers.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     const existing = apps.items.find((item) => item.packageName === input.applicationIdentifier);
     if (existing !== undefined) {
       return existing.id;
     }
     const created = yield* api.androidApplicationIdentifiers.create({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
       payload: { packageName: input.applicationIdentifier },
     });
     return created.id;
@@ -114,18 +114,18 @@ export const resolveAndroidKeystoreId = (api: ApiClient, choice: "generate" | "e
 const bindAndroidKeystore = (api: ApiClient, appId: string, keystoreId: string) =>
   Effect.gen(function* () {
     const existing = yield* api.androidBuildCredentials.list({
-      path: { applicationIdentifierId: appId },
+      params: { applicationIdentifierId: appId },
     });
     const target = existing.items.find((group) => group.isDefault) ?? existing.items.at(0);
     if (target === undefined) {
       yield* api.androidBuildCredentials.create({
-        path: { applicationIdentifierId: appId },
+        params: { applicationIdentifierId: appId },
         payload: { name: "Default", isDefault: true, androidUploadKeystoreId: keystoreId },
       });
       return;
     }
     yield* api.androidBuildCredentials.update({
-      path: { id: target.id },
+      params: { id: target.id },
       payload: { androidUploadKeystoreId: keystoreId },
     });
   });
@@ -167,7 +167,7 @@ const setupAndroidInteractive = (api: ApiClient, input: AndroidSetupInput) =>
 const ensureAndroidCredentialsAvailable = (api: ApiClient, input: AndroidSetupInput) =>
   api.buildCredentials
     .resolve({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
       payload: {
         platform: "android",
         applicationIdentifier: input.applicationIdentifier,
@@ -245,7 +245,7 @@ const setupIosInteractive = (api: ApiClient, input: IosSetupInput, session?: Ios
 
 const resolveIosBuildCredentials = (api: ApiClient, input: IosSetupInput) =>
   api.buildCredentials.resolve({
-    path: { projectId: input.projectId },
+    params: { projectId: input.projectId },
     payload: {
       platform: "ios",
       bundleIdentifier: input.bundleIdentifier,

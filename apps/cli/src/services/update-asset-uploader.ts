@@ -14,14 +14,14 @@ export interface UploadUpdateAssetInput {
   readonly uploadHeaders: Record<string, string>;
 }
 
-export class UpdateAssetUploader extends Context.Tag("cli/UpdateAssetUploader")<
+export class UpdateAssetUploader extends Context.Service<
   UpdateAssetUploader,
   {
     readonly uploadAssetBinary: (
       input: UploadUpdateAssetInput,
     ) => Effect.Effect<void, UpdatePublishError>;
   }
->() {}
+>()("cli/UpdateAssetUploader") {}
 
 export const UpdateAssetUploaderLive = Layer.effect(
   UpdateAssetUploader,
@@ -58,7 +58,7 @@ export const UpdateAssetUploaderLive = Layer.effect(
               ),
             );
 
-          yield* api.assets.finalize({ path: { hash: asset.hash } }).pipe(
+          yield* api.assets.finalize({ params: { hash: asset.hash } }).pipe(
             Effect.mapError(
               (cause) =>
                 new UpdatePublishError({

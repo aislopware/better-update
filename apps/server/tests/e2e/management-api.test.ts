@@ -23,7 +23,7 @@ describe("Management API happy path", () => {
     const body = await response.json();
     expect(body.user?.email).toBe("e2e@example.com");
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -57,7 +57,7 @@ describe("Management API happy path", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     const orgs = Array.isArray(body) ? body : (body.organizations ?? body);
-    expect(orgs.some((o: { id: string }) => o.id === organizationId)).toBe(true);
+    expect(orgs.some((org: { id: string }) => org.id === organizationId)).toBe(true);
   });
 
   // ── Section 2: Session-based Management API ─────────────────────

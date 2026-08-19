@@ -1,7 +1,8 @@
-import { Invitation } from "@better-update/api";
 import { compact, toDbNull, toOptional } from "@better-update/type-guards";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
+
+import type { Invitation } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -25,15 +26,14 @@ import type { InvitationModel } from "../repositories/invitations";
 
 const DEFAULT_ROLE = "member";
 
-const toApiInvitation = (model: InvitationModel): Invitation =>
-  new Invitation({
-    id: model.id,
-    email: model.email,
-    role: model.role,
-    status: model.status,
-    expiresAt: model.expiresAt,
-    createdAt: model.createdAt,
-  });
+const toApiInvitation = (model: InvitationModel): Invitation => ({
+  id: model.id,
+  email: model.email,
+  role: model.role,
+  status: model.status,
+  expiresAt: model.expiresAt,
+  createdAt: model.createdAt,
+});
 
 // Validate the project grants an invitation carries (GITLAB-RBAC-SPEC §4c)
 // BEFORE writing anything: every project must belong to the acting org
@@ -141,7 +141,7 @@ const sendInviteEmail = (params: {
       text: rendered.text,
     });
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.sync(() => {
         structuredLog("error", "sendInvitationEmail failed", {
           invitationId: params.invitationId,
@@ -250,14 +250,14 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
         }),
       ),
     )
-    .handle("cancel", ({ path }) =>
+    .handle("cancel", ({ params }) =>
       toApiReadEffect(
         Effect.gen(function* () {
           yield* assertAccess("invitation", "cancel");
           const ctx = yield* CurrentActor;
           const repo = yield* InvitationRepo;
           const canceled = yield* repo.cancel({
-            id: path.id,
+            id: params.id,
             organizationId: ctx.organizationId,
           });
           if (!canceled) {
@@ -266,11 +266,11 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
           // Grants die with their invitation (the better-auth cancel/reject
           // hooks cover the plugin routes; this covers the IAM endpoint).
           const grantRepo = yield* InvitationProjectGrantRepo;
-          yield* grantRepo.deleteForInvitation({ invitationId: path.id });
+          yield* grantRepo.deleteForInvitation({ invitationId: params.id });
           yield* logAudit({
             action: "invitation.cancel",
             resourceType: "invitation",
-            resourceId: path.id,
+            resourceId: params.id,
           });
           return { deleted: 1 };
         }),

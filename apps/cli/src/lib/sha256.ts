@@ -27,7 +27,7 @@ const hashFile = <TDigest>(
   path: string,
   formatDigest: (digest: Buffer) => TDigest,
 ): Effect.Effect<{ digest: TDigest; byteSize: number }, BuildFailedError> =>
-  Effect.async<{ digest: TDigest; byteSize: number }, BuildFailedError>((resume) => {
+  Effect.callback<{ digest: TDigest; byteSize: number }, BuildFailedError>((resume) => {
     const hash = createHash("sha256");
     const stream = createReadStream(path);
     let byteSize = 0;

@@ -22,7 +22,9 @@ export interface RuntimeRepository {
   }) => Effect.Effect<{ readonly items: readonly RuntimeAggregateModel[]; readonly total: number }>;
 }
 
-export class RuntimeRepo extends Context.Tag("api/RuntimeRepo")<RuntimeRepo, RuntimeRepository>() {}
+export class RuntimeRepo extends Context.Service<RuntimeRepo, RuntimeRepository>()(
+  "api/RuntimeRepo",
+) {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

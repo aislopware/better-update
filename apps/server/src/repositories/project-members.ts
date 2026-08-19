@@ -119,10 +119,10 @@ export interface ProjectMemberRepository {
   }) => Effect.Effect<readonly MemberProjectMembershipSummary[]>;
 }
 
-export class ProjectMemberRepo extends Context.Tag("api/ProjectMemberRepo")<
+export class ProjectMemberRepo extends Context.Service<
   ProjectMemberRepo,
   ProjectMemberRepository
->() {}
+>()("api/ProjectMemberRepo") {}
 
 // -- D1 Adapter --------------------------------------------------------------
 

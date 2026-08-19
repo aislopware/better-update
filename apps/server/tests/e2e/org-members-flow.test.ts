@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
@@ -63,8 +63,8 @@ describe("Organization members cross-flow", () => {
     const body = await res.json();
     const invitations = Array.isArray(body) ? body : (body.invitations ?? body);
     const pending = invitations.find(
-      (i: { email: string; status: string }) =>
-        i.email === "bob@example.com" && i.status === "pending",
+      (invitation: { email: string; status: string }) =>
+        invitation.email === "bob@example.com" && invitation.status === "pending",
     );
     expect(pending).toBeDefined();
     invitationId = pending.id;
@@ -116,7 +116,7 @@ describe("Organization members cross-flow", () => {
     expect(members).toHaveLength(2);
 
     const bob = members.find(
-      (m: { user: { email: string } }) => m.user.email === "bob@example.com",
+      (member: { user: { email: string } }) => member.user.email === "bob@example.com",
     );
     expect(bob).toBeDefined();
     expect(bob.role).toBe("member");
@@ -138,7 +138,7 @@ describe("Organization members cross-flow", () => {
     const body = await res.json();
     const members = Array.isArray(body) ? body : (body.members ?? body);
     const bob = members.find(
-      (m: { user: { email: string } }) => m.user.email === "bob@example.com",
+      (member: { user: { email: string } }) => member.user.email === "bob@example.com",
     );
     expect(bob.role).toBe("member");
   });
@@ -156,7 +156,7 @@ describe("Organization members cross-flow", () => {
     const body = await list.json();
     const members = Array.isArray(body) ? body : (body.members ?? body);
     const alice = members.find(
-      (m: { user: { email: string } }) => m.user.email === "alice@example.com",
+      (member: { user: { email: string } }) => member.user.email === "alice@example.com",
     );
     const res = await del(`/api/members/${alice.id}`, { cookie: cookiesA });
     expect(res.status).toBe(409);

@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { decodeCursor } from "../../../src/lib/cursor";
@@ -10,17 +10,17 @@ import type { AuditLogResourceType } from "../../../src/models";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, AuditLogRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AuditLogRepo>) =>
   runWithLayerAndEnv(effect, AuditLogRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2024-01-01T00:00:00Z")
     .run();
 
-const insertLog = (params: {
+const insertLog = async (params: {
   readonly id: string;
   readonly createdAt: string;
   readonly projectId?: string | null;
@@ -44,7 +44,7 @@ const insertLog = (params: {
     )
     .run();
 
-const list = (params: {
+const list = async (params: {
   readonly projectId?: string;
   readonly resourceTypes?: readonly AuditLogResourceType[];
   readonly from?: string;
@@ -85,7 +85,7 @@ describe("AuditLogRepo — D1 integration (Kysely + session)", () => {
   it("lists newest-first by created_at then id, mapping to the model", async () => {
     const page = await list({});
 
-    expect(page.items.map((item) => item.id)).toEqual(["log-4", "log-3", "log-2", "log-1"]);
+    expect(page.items.map((item) => item.id)).toStrictEqual(["log-4", "log-3", "log-2", "log-1"]);
     expect(page.nextCursor).toBeNull();
     expect(page.items[0]).toMatchObject({
       organizationId: "org-audit",
@@ -98,25 +98,30 @@ describe("AuditLogRepo — D1 integration (Kysely + session)", () => {
   it("paginates via the cursor, returning the remainder on the next page", async () => {
     const first = await list({ limit: 2 });
 
-    expect(first.items.map((item) => item.id)).toEqual(["log-4", "log-3"]);
+    expect(first.items.map((item) => item.id)).toStrictEqual(["log-4", "log-3"]);
     expect(first.nextCursor).not.toBeNull();
 
     const cursor = first.nextCursor ? decodeCursor(first.nextCursor) : null;
     const second = await list({ cursor, limit: 2 });
 
-    expect(second.items.map((item) => item.id)).toEqual(["log-2", "log-1"]);
+    expect(second.items.map((item) => item.id)).toStrictEqual(["log-2", "log-1"]);
     expect(second.nextCursor).toBeNull();
   });
 
   it("filters by projectId and resource types (multi-value IN)", async () => {
     const byProject = await list({ projectId: "proj-x" });
-    expect(byProject.items.map((item) => item.id)).toEqual(["log-2"]);
+    expect(byProject.items.map((item) => item.id)).toStrictEqual(["log-2"]);
 
     const byResource = await list({ resourceTypes: ["build"] });
-    expect(byResource.items.map((item) => item.id)).toEqual(["log-3"]);
+    expect(byResource.items.map((item) => item.id)).toStrictEqual(["log-3"]);
 
     const byResources = await list({ resourceTypes: ["build", "project"] });
-    expect(byResources.items.map((item) => item.id)).toEqual(["log-4", "log-3", "log-2", "log-1"]);
+    expect(byResources.items.map((item) => item.id)).toStrictEqual([
+      "log-4",
+      "log-3",
+      "log-2",
+      "log-1",
+    ]);
   });
 
   it("filters by the created_at from/to window", async () => {
@@ -125,7 +130,7 @@ describe("AuditLogRepo — D1 integration (Kysely + session)", () => {
       to: "2026-01-03T00:00:00.000Z",
     });
 
-    expect(windowed.items.map((item) => item.id)).toEqual(["log-3", "log-2"]);
+    expect(windowed.items.map((item) => item.id)).toStrictEqual(["log-3", "log-2"]);
   });
 
   it("insert persists a row that list then returns", async () => {

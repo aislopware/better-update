@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { BaseDownloadError } from "../lib/exit-codes";
 import { sha256Namespaced } from "../lib/sha256";
@@ -31,14 +31,14 @@ export interface DownloadResult {
 // GET analog of PresignedUploadClient. No CLI download path existed before the
 // patch pipeline; this streams a URL body to a temp file and verifies its
 // SHA-256 against the expected base launch-asset content hash.
-export class PresignedDownloadClient extends Context.Tag("cli/PresignedDownloadClient")<
+export class PresignedDownloadClient extends Context.Service<
   PresignedDownloadClient,
   {
     readonly downloadToFile: (
       input: DownloadToFileInput,
     ) => Effect.Effect<DownloadResult, BaseDownloadError>;
   }
->() {}
+>()("cli/PresignedDownloadClient") {}
 
 export const PresignedDownloadClientLive = Layer.effect(
   PresignedDownloadClient,

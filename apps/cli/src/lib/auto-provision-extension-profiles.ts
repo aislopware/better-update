@@ -55,7 +55,7 @@ export const autoProvisionExtensionProfile = (
     });
 
     const binding = yield* api.iosBundleConfigurations.create({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
       payload: {
         bundleIdentifier: input.bundleIdentifier,
         distributionType: input.distributionType,

@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { syncAppleDevices } from "../application/sync-apple-devices";
@@ -108,13 +108,13 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
         }),
       ),
     )
-    .handle("list", ({ urlParams }) =>
+    .handle("list", ({ query }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
-          const { sort, order } = parseDeviceSort(urlParams.sort);
+          const { page, limit, offset } = parsePagination(query);
+          const { sort, order } = parseDeviceSort(query.sort);
 
           // Binding scope (spec §1a): admin tier sees everything; members
           // see only devices of teams bound to a project they can read.
@@ -125,33 +125,33 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
             order,
             limit,
             offset,
-            deviceClass: urlParams.deviceClass,
-            appleTeamId: urlParams.appleTeamId,
+            deviceClass: query.deviceClass,
+            appleTeamId: query.appleTeamId,
             appleTeamIdIn: readableTeams === "all" ? undefined : readableTeams,
-            query: urlParams.query,
-            synced: urlParams.synced === undefined ? undefined : urlParams.synced === "true",
+            query: query.query,
+            synced: query.synced === undefined ? undefined : query.synced === "true",
           });
 
           return { items: items.map(toApiDevice), total, page, limit };
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* DeviceRepo;
-          const device = yield* repo.findById({ id: path.id });
+          const device = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(device.organizationId);
           yield* assertDeviceAccess({ action: "read", appleTeamRowId: device.appleTeamId });
           return toApiDevice(device);
         }),
       ),
     )
-    .handle("update", ({ path, payload }) =>
+    .handle("update", ({ params, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* DeviceRepo;
-          const device = yield* repo.findById({ id: path.id });
+          const device = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(device.organizationId);
           yield* assertAppleTeamInOrg(payload.appleTeamId);
           yield* assertDeviceAccess({ action: "update", appleTeamRowId: device.appleTeamId });
@@ -164,7 +164,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
 
           const now = new Date().toISOString();
           yield* repo.update({
-            id: path.id,
+            id: params.id,
             name: payload.name,
             enabled: payload.enabled,
             appleTeamId: payload.appleTeamId,
@@ -180,7 +180,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           yield* logAudit({
             action: "device.update",
             resourceType: "device",
-            resourceId: path.id,
+            resourceId: params.id,
             metadata,
           });
 
@@ -195,19 +195,19 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
         }),
       ),
     )
-    .handle("delete", ({ path }) =>
+    .handle("delete", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* DeviceRepo;
-          const device = yield* repo.findById({ id: path.id });
+          const device = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(device.organizationId);
           yield* assertDeviceAccess({ action: "delete", appleTeamRowId: device.appleTeamId });
-          yield* repo.delete({ id: path.id });
+          yield* repo.delete({ id: params.id });
 
           yield* logAudit({
             action: "device.delete",
             resourceType: "device",
-            resourceId: path.id,
+            resourceId: params.id,
             metadata: { identifier: device.identifier },
           });
 
@@ -290,14 +290,14 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
         }),
       ),
     )
-    .handle("listRegistrationRequests", ({ urlParams }) =>
+    .handle("listRegistrationRequests", ({ query }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRegistrationRequestRepo;
           const env = yield* cloudflareEnv;
           const origin = env.PUBLIC_API_URL;
-          const activeOnly = urlParams.active === "true";
+          const activeOnly = query.active === "true";
 
           const items = yield* repo.findByOrg({
             organizationId: ctx.organizationId,

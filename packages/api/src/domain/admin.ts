@@ -18,7 +18,7 @@ export const AdminUser = Schema.Struct({
 });
 export type AdminUser = typeof AdminUser.Type;
 
-export const AdminUserStatus = Schema.Literal("all", "pending", "approved");
+export const AdminUserStatus = Schema.Literals(["all", "pending", "approved"]);
 export type AdminUserStatus = typeof AdminUserStatus.Type;
 
 export const ListAdminUsersParams = Schema.Struct({

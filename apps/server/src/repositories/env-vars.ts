@@ -92,7 +92,7 @@ export interface EnvVarRepository {
   }) => Effect.Effect<readonly EnvVarExportRow[]>;
 }
 
-export class EnvVarRepo extends Context.Tag("api/EnvVarRepo")<EnvVarRepo, EnvVarRepository>() {}
+export class EnvVarRepo extends Context.Service<EnvVarRepo, EnvVarRepository>()("api/EnvVarRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 
@@ -118,7 +118,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
           now,
         }),
       ]).pipe(
-        Effect.catchAllDefect((cause) =>
+        Effect.catchDefect((cause) =>
           String(cause).includes("UNIQUE constraint failed")
             ? Effect.fail(new Conflict({ message: conflictMessage(params.scope, params.key) }))
             : Effect.die(cause),

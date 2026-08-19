@@ -1,10 +1,9 @@
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 // @expo/apple-utils is ncc-bundled CJS; the `ApiKey` entity manager + the
 // `ApiKeyType`/`UserRole` enums are read off the default import (see
 // credentials-generator-apple-id.ts for the rationale).
 import AppleUtils from "@expo/apple-utils";
-import { Effect, Schedule } from "effect";
+import { FileSystem, Effect, Schedule } from "effect";
 
 import {
   openVaultSessionInteractive,
@@ -49,9 +48,12 @@ export const defaultAscApiKeyNickname = (): string => `[better-update] ${Date.no
 const ASC_KEY_NOT_READY_PATTERN = /no resource of type|resource does not exist/iu;
 
 // 6 retries, base 1s, factor 2 — matches eas-cli's downloadWithRetryAsync defaults.
-const ASC_KEY_DOWNLOAD_RETRY = Schedule.exponential("1 second", 2).pipe(
-  Schedule.intersect(Schedule.recurs(6)),
-);
+// v4 replaced `Schedule.intersect` with `Schedule.max`: recur only while EVERY
+// schedule still recurs, waiting the longest of their delays.
+const ASC_KEY_DOWNLOAD_RETRY = Schedule.max([
+  Schedule.exponential("1 second", 2),
+  Schedule.recurs(6),
+]);
 
 const downloadAscKeyWithRetry = (key: AppleUtils.ApiKey) =>
   Effect.tryPromise({
@@ -195,10 +197,10 @@ export const generateAndUploadAscApiKeyViaAppleId = (
     });
 
     const stored = yield* persist.pipe(
-      Effect.catchAll((cause) =>
+      Effect.catch((error) =>
         Effect.gen(function* () {
           const rescuePath = yield* writeRescueP8(key.id, p8Pem).pipe(
-            Effect.catchAll(() => Effect.succeed(null)),
+            Effect.catch(() => Effect.succeed(null)),
           );
           const where =
             rescuePath === null
@@ -206,7 +208,7 @@ export const generateAndUploadAscApiKeyViaAppleId = (
               : `was saved to ${rescuePath} — re-import with \`credentials upload-asc-key --p8 ${rescuePath} --key-id ${key.id}\` (find the issuer ID under App Store Connect → Users and Access → Integrations)`;
           return yield* new AppleIdGenerateFailedError({
             step: "store-asc-key",
-            message: `Created App Store Connect API key ${key.id} on Apple but failed to store it (${messageOf(cause)}). The downloaded .p8 ${where}.`,
+            message: `Created App Store Connect API key ${key.id} on Apple but failed to store it (${messageOf(error)}). The downloaded .p8 ${where}.`,
           });
         }),
       ),
@@ -294,7 +296,7 @@ export const revokeLocalAscApiKey = (api: ApiClient, input: RevokeLocalAscApiKey
     }
     let deletedLocally = false;
     if (input.keepLocal !== true) {
-      yield* api.ascApiKeys.delete({ path: { id: input.ascApiKeyId } });
+      yield* api.ascApiKeys.delete({ params: { id: input.ascApiKeyId } });
       deletedLocally = true;
     }
     return {

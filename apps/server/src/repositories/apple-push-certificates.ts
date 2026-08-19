@@ -52,10 +52,10 @@ export interface ApplePushCertificateRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class ApplePushCertificateRepo extends Context.Tag("api/ApplePushCertificateRepo")<
+export class ApplePushCertificateRepo extends Context.Service<
   ApplePushCertificateRepo,
   ApplePushCertificateRepository
->() {}
+>()("api/ApplePushCertificateRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

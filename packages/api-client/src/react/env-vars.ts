@@ -51,7 +51,7 @@ const fetchPages = async (
   const result = await runApi(
     (api) =>
       api["env-vars"].list({
-        urlParams: { ...urlParams, page, limit: ENV_VARS_PAGE_LIMIT },
+        query: { ...urlParams, page, limit: ENV_VARS_PAGE_LIMIT },
       }),
     signal,
   );
@@ -100,10 +100,10 @@ export const createEnvVar = async (body: typeof CreateEnvVarBody.Type) =>
   runApi((api) => api["env-vars"].create({ payload: body }));
 
 export const updateEnvVar = async (id: string, body: typeof UpdateEnvVarBody.Type) =>
-  runApi((api) => api["env-vars"].update({ path: { id }, payload: body }));
+  runApi((api) => api["env-vars"].update({ params: { id }, payload: body }));
 
 export const deleteEnvVar = async (id: string) =>
-  runApi((api) => api["env-vars"].delete({ path: { id } }));
+  runApi((api) => api["env-vars"].delete({ params: { id } }));
 
 // Upsert a variable's non-secret label + description (shared per scope + key,
 // across every environment). Unlike the value/visibility mutations above this
@@ -115,4 +115,4 @@ export const updateEnvVarDescription = async (body: typeof UpsertEnvVarDescripti
 
 /** Fetch the active value's sealed envelope for client-side decryption (reveal). */
 export const getEnvVarValue = async (id: string) =>
-  runApi((api) => api["env-vars"].getValue({ path: { id } }));
+  runApi((api) => api["env-vars"].getValue({ params: { id } }));

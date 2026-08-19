@@ -39,13 +39,13 @@ const git = (overrides: Partial<GitContext> = {}): GitContext => ({
 // served page-by-page so the drainPages-based resolution is exercised for real.
 const paged =
   <Item>(all: readonly Item[]) =>
-  ({ urlParams }: { urlParams: { page?: number; limit: number } }) => {
-    const page = urlParams.page ?? 1;
+  ({ query }: { query: { page?: number; limit: number } }) => {
+    const page = query.page ?? 1;
     return Effect.succeed({
-      items: all.slice((page - 1) * urlParams.limit, page * urlParams.limit),
+      items: all.slice((page - 1) * query.limit, page * query.limit),
       total: all.length,
       page,
-      limit: urlParams.limit,
+      limit: query.limit,
     });
   };
 
@@ -221,7 +221,7 @@ describe(resolveBranchAndMessage, () => {
 // is called out by name.
 
 const projectApi = (
-  get: (params: { path: { id: string } }) => Effect.Effect<unknown, unknown>,
+  get: (options: { params: { id: string } }) => Effect.Effect<unknown, unknown>,
 ): ApiClient => ({ projects: { get } }) as unknown as ApiClient;
 
 const captureStdout = async (effect: Effect.Effect<void>): Promise<string[]> => {
@@ -241,10 +241,12 @@ describe(describePublishTarget, () => {
   it.effect("names the project behind the linked id", () =>
     Effect.gen(function* () {
       const target = yield* describePublishTarget(
-        projectApi(({ path }) => Effect.succeed({ id: path.id, name: "Glamira", slug: "glamira" })),
+        projectApi(({ params }) =>
+          Effect.succeed({ id: params.id, name: "Acme Store", slug: "acme-store" }),
+        ),
         "proj_1",
       );
-      expect(target).toStrictEqual({ projectId: "proj_1", name: "Glamira", slug: "glamira" });
+      expect(target).toStrictEqual({ projectId: "proj_1", name: "Acme Store", slug: "acme-store" });
     }),
   );
 
@@ -266,14 +268,14 @@ describe(warnOnSlugDivergence, () => {
   it("names both slugs and both is-not-the-target facts when the config slug points elsewhere", async () => {
     const lines = await captureStdout(
       warnOnSlugDivergence({
-        target: { projectId: "proj_glamira", name: "glamira", slug: "glamira" },
+        target: { projectId: "proj_acme-store", name: "acme-store", slug: "acme-store" },
         localSlug: "jmango360",
       }).pipe(Effect.provide(makeOutputModeLayer(false))),
     );
     const output = lines.join("\n");
     expect(output).toContain('slug "jmango360"');
-    expect(output).toContain('slug "glamira"');
-    expect(output).toContain("proj_glamira");
+    expect(output).toContain('slug "acme-store"');
+    expect(output).toContain("proj_acme-store");
     // The word the old failure never printed — without it the user had no thread
     // to pull on, which is what made the cross-tenant publish take hours to find.
     expect(output).toContain("slug");
@@ -282,8 +284,8 @@ describe(warnOnSlugDivergence, () => {
   it("stays quiet when the config slug matches the project", async () => {
     const lines = await captureStdout(
       warnOnSlugDivergence({
-        target: { projectId: "proj_glamira", name: "glamira", slug: "glamira" },
-        localSlug: "glamira",
+        target: { projectId: "proj_acme-store", name: "acme-store", slug: "acme-store" },
+        localSlug: "acme-store",
       }).pipe(Effect.provide(makeOutputModeLayer(false))),
     );
     expect(lines).toStrictEqual([]);

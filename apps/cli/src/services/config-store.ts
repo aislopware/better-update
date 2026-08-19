@@ -1,8 +1,7 @@
 import path from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Context, Data, Effect, Layer } from "effect";
+import { FileSystem, Context, Data, Effect, Layer } from "effect";
 
 import { CliRuntime } from "./cli-runtime";
 // Baked in at build time from the deployment config so a fork ships a CLI that
@@ -20,7 +19,7 @@ class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/u, "");
 
-export class ConfigStore extends Context.Tag("cli/ConfigStore")<
+export class ConfigStore extends Context.Service<
   ConfigStore,
   {
     readonly getBaseUrl: Effect.Effect<string>;
@@ -35,7 +34,7 @@ export class ConfigStore extends Context.Tag("cli/ConfigStore")<
      */
     readonly getAssetCdnUrl: Effect.Effect<string>;
   }
->() {}
+>()("cli/ConfigStore") {}
 
 export const ConfigStoreLive = Layer.effect(
   ConfigStore,

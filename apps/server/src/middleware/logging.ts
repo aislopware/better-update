@@ -1,7 +1,9 @@
 import { Logger } from "effect";
 
 /** Structured JSON logger layer for Effect runtime — replaces default text logger */
-export const JsonLoggerLayer = Logger.json;
+// v4 splits the v3 `Logger.json` layer into a logger value (`consoleJson`) and
+// the `Logger.layer` constructor that installs it in place of the default.
+export const JsonLoggerLayer = Logger.layer([Logger.consoleJson]);
 
 /** Structured JSON log for imperative shell (non-Effect) code */
 export const structuredLog = (

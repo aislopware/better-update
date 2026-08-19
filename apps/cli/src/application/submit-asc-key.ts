@@ -23,7 +23,7 @@ const persist = (input: EnsureAscApiKeyForSubmitInput, keyId: string) =>
     Effect.flatMap((path) =>
       printHuman(`Saved ascApiKeyId to ${path} (submit profile "${input.profileName}") for reuse.`),
     ),
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       printHuman(
         `Note: could not write ascApiKeyId to eas.json (${error.message}). Add it manually to reuse this key.`,
       ),
@@ -50,7 +50,7 @@ export const ensureAscApiKeyForSubmit = (input: EnsureAscApiKeyForSubmitInput) =
     }
     return resolved;
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       printHuman(
         `Could not set up an App Store Connect API key (${messageOf(error)}). The submission was queued — create one with \`credentials generate asc-key\` and re-run.`,
       ).pipe(Effect.as(null)),
@@ -78,7 +78,7 @@ export const resolveAscUploadCredentials = (params: {
     }
     return yield* fetchAscCredentials(params.api, credsKeyId).pipe(
       Effect.map((creds) => ({ keyId: creds.keyId, issuerId: creds.issuerId, p8Pem: creds.p8Pem })),
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         printHuman(`Could not prepare ASC API key ${credsKeyId} (${messageOf(error)}).`).pipe(
           Effect.as(null),
         ),

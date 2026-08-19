@@ -36,7 +36,7 @@ export const adoptionQueryOptions = (orgId: string, projectId: string, period?: 
   queryOptions({
     queryKey: [...adoptionQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.adoption({ urlParams: { projectId, period } }), signal),
+      runApi((api) => api.analytics.adoption({ query: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -49,10 +49,7 @@ export const updateAnalyticsQueryOptions = (
   queryOptions({
     queryKey: [...updateAnalyticsQueryKey(orgId, projectId, updateId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi(
-        (api) => api.analytics.updates({ urlParams: { projectId, updateId, period } }),
-        signal,
-      ),
+      runApi((api) => api.analytics.updates({ query: { projectId, updateId, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -65,10 +62,7 @@ export const channelAnalyticsQueryOptions = (
   queryOptions({
     queryKey: [...channelAnalyticsQueryKey(orgId, projectId, channel), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi(
-        (api) => api.analytics.channels({ urlParams: { projectId, channel, period } }),
-        signal,
-      ),
+      runApi((api) => api.analytics.channels({ query: { projectId, channel, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -80,7 +74,7 @@ export const platformAnalyticsQueryOptions = (
   queryOptions({
     queryKey: [...platformAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } }), signal),
+      runApi((api) => api.analytics.platforms({ query: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -92,7 +86,7 @@ export const deliveryAnalyticsQueryOptions = (
   queryOptions({
     queryKey: [...deliveryAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.downloads({ urlParams: { projectId, period } }), signal),
+      runApi((api) => api.analytics.downloads({ query: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -111,7 +105,7 @@ export const projectActivityQueryOptions = (
   queryOptions({
     queryKey: [...projectActivityQueryKey(orgId, projectIds), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.projectActivity({ urlParams: { projectIds, period } }), signal),
+      runApi((api) => api.analytics.projectActivity({ query: { projectIds, period } }), signal),
     enabled: projectIds.length > 0,
     staleTime: 60_000,
   });
@@ -124,6 +118,6 @@ export const activityQueryOptions = (
   queryOptions({
     queryKey: [...activityQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
-      runApi((api) => api.analytics.activity({ urlParams: { projectId, period } }), signal),
+      runApi((api) => api.analytics.activity({ query: { projectId, period } }), signal),
     staleTime: 60_000,
   });

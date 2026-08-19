@@ -2,10 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
-import { FileSystem, HttpClient, HttpClientResponse } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Data, Effect, Exit, Layer } from "effect";
+import { FileSystem, Data, Effect, Exit, Layer } from "effect";
+import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 
 import {
   CompleteError,
@@ -38,7 +38,7 @@ interface ApiStubOptions {
     unknown
   >;
   readonly complete?: (args: {
-    path: { id: string };
+    params: { id: string };
     payload: { sha256: string; byteSize: number };
   }) => Effect.Effect<{ id: string; artifact: unknown }, unknown>;
 }
@@ -145,12 +145,12 @@ describe(reserveAndUpload, () => {
             },
           });
         },
-        complete: ({ path, payload }) => {
-          completePath = path;
+        complete: ({ params, payload }) => {
+          completePath = params;
           return Effect.succeed({
-            id: path.id,
+            id: params.id,
             artifact: {
-              r2Key: `r2/${path.id}`,
+              r2Key: `r2/${params.id}`,
               format: "ipa",
               contentType: "application/octet-stream",
               byteSize: payload.byteSize,

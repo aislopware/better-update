@@ -22,7 +22,7 @@ export const updatesCommand = defineCommand({
         const periodFilter = args.period ? { period: args.period } : {};
 
         const result = yield* api.analytics.updates({
-          urlParams: { projectId, updateId: args["update-id"], ...periodFilter },
+          query: { projectId, updateId: args["update-id"], ...periodFilter },
         });
 
         yield* warnIfUnavailable(result.unavailable);

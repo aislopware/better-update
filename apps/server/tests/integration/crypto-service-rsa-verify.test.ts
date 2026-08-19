@@ -1,6 +1,6 @@
 import { createSign } from "node:crypto";
 
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { CryptoServiceLive } from "../../src/cloudflare/crypto-service";
@@ -19,7 +19,7 @@ const PAYLOAD = '{"id":"u1","launchAsset":{"url":"https://api/x"}}';
 const signWith = (privateKeyPem: string, payload: string) =>
   createSign("RSA-SHA256").update(payload, "utf8").sign(privateKeyPem, "base64");
 
-const verify = (params: {
+const verify = async (params: {
   readonly certificatePem: string;
   readonly payload: string;
   readonly signatureBase64: string;

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -16,7 +16,7 @@ import {
   withChannelHeader,
 } from "./update-channel-native";
 
-const TestLayer = Layer.mergeAll(NodeContext.layer, makeOutputModeLayer(false));
+const TestLayer = Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false));
 
 const makeDir = (): { readonly dir: string; readonly dispose: () => void } => {
   const dir = mkdtempSync(nodePath.join(tmpdir(), "bu-update-channel-"));
@@ -173,10 +173,10 @@ describe(setAndroidUpdateChannel, () => {
       const { dir, dispose } = makeDir();
       mkdirSync(nodePath.join(dir, "android"), { recursive: true });
       const result = yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "x" }).pipe(
-        Effect.either,
+        Effect.result,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Right");
+      expect(result._tag).toBe("Success");
     }).pipe(Effect.provide(TestLayer)),
   );
 
@@ -184,10 +184,10 @@ describe(setAndroidUpdateChannel, () => {
     Effect.gen(function* () {
       const { dir, dispose } = makeDir();
       const result = yield* setAndroidUpdateChannel({ projectRoot: dir, channel: "x" }).pipe(
-        Effect.either,
+        Effect.result,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Right");
+      expect(result._tag).toBe("Success");
     }).pipe(Effect.provide(TestLayer)),
   );
 });
@@ -262,8 +262,8 @@ describe(setIosUpdateChannel, () => {
       const result = yield* setIosUpdateChannel({
         iosDir: nodePath.join(dir, "ios"),
         channel: "production",
-      }).pipe(Effect.either, Effect.ensuring(Effect.sync(dispose)));
-      expect(result._tag).toBe("Right");
+      }).pipe(Effect.result, Effect.ensuring(Effect.sync(dispose)));
+      expect(result._tag).toBe("Success");
     }).pipe(Effect.provide(TestLayer)),
   );
 });

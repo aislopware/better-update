@@ -2,9 +2,8 @@ import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
 import { compact, toOptional } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { openFromDownload, openVaultSessionInteractive } from "../../application/credential-cipher";
 import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";
@@ -72,7 +71,7 @@ const secretString = (secret: Record<string, unknown>, key: string) =>
 
 const downloadDistributionCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.appleDistributionCertificates.download({ path: { id } });
+    const data = yield* api.appleDistributionCertificates.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -107,7 +106,7 @@ const downloadDistributionCertificate = ({ api, id, cwd, output }: DownloadCtx) 
 
 const downloadProvisioningProfile = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.appleProvisioningProfiles.download({ path: { id } });
+    const data = yield* api.appleProvisioningProfiles.download({ params: { id } });
     const filePath = resolveOutputPath(cwd, output, `${data.id}.mobileprovision`);
     yield* writeBinary(filePath, fromBase64(data.profileBase64));
     return {
@@ -133,7 +132,7 @@ const downloadProvisioningProfile = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadPushKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.applePushKeys.download({ path: { id } });
+    const data = yield* api.applePushKeys.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -160,7 +159,7 @@ const downloadPushKey = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadPushCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.applePushCertificates.download({ path: { id } });
+    const data = yield* api.applePushCertificates.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -196,7 +195,7 @@ const downloadPushCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadPayCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.applePayCertificates.download({ path: { id } });
+    const data = yield* api.applePayCertificates.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -232,7 +231,7 @@ const downloadPayCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadPassTypeCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.applePassTypeCertificates.download({ path: { id } });
+    const data = yield* api.applePassTypeCertificates.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -268,7 +267,7 @@ const downloadPassTypeCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadAscApiKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.ascApiKeys.getCredentials({ path: { id } });
+    const data = yield* api.ascApiKeys.getCredentials({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -305,7 +304,7 @@ const downloadAscApiKey = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadKeystore = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.androidUploadKeystores.download({ path: { id } });
+    const data = yield* api.androidUploadKeystores.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,
@@ -336,7 +335,7 @@ const downloadKeystore = ({ api, id, cwd, output }: DownloadCtx) =>
 
 const downloadGoogleServiceAccountKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
-    const data = yield* api.googleServiceAccountKeys.download({ path: { id } });
+    const data = yield* api.googleServiceAccountKeys.download({ params: { id } });
     const session = yield* openVaultSessionInteractive(api);
     const secret = yield* openFromDownload({
       session,

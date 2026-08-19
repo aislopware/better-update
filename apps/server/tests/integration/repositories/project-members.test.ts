@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import {
@@ -7,7 +7,7 @@ import {
 } from "../../../src/repositories/project-members";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectMemberRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectMemberRepo>) =>
   runWithLayerAndEnv(effect, ProjectMemberRepoLive, env);
 
 const ORG = "pm-org";

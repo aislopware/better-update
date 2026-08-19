@@ -91,9 +91,9 @@ describe(inspectP12, () => {
         organizationalUnit: "ABCDE12345",
       });
 
-      const result = yield* Effect.either(inspectP12({ data, password: "not-the-password" }));
+      const result = yield* Effect.result(inspectP12({ data, password: "not-the-password" }));
 
-      expect(result._tag).toBe("Left");
+      expect(result._tag).toBe("Failure");
     }),
   );
 });

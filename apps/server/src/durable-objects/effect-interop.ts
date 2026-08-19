@@ -7,7 +7,7 @@ export class DurableObjectPromiseError extends Data.TaggedError("DurableObjectPr
 
 export const settlePromise = async <Value>(promise: Promise<Value>) =>
   Effect.runPromise(
-    Effect.either(
+    Effect.result(
       Effect.tryPromise({
         try: async () => promise,
         catch: (cause) =>

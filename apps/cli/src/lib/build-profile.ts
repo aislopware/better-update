@@ -1,7 +1,7 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { readEasJson, resolveEasBuildProfile } from "./eas-config";
 import { extractAppVersion, extractBuildNumber, extractRawRuntimeVersion } from "./expo-config";

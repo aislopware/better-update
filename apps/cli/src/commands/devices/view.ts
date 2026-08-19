@@ -14,7 +14,7 @@ export const viewDeviceCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const device = yield* api.devices.get({ path: { id: args.id } });
+        const device = yield* api.devices.get({ params: { id: args.id } });
         yield* printHumanKeyValue([
           ["ID", device.id],
           ["Name", device.name],

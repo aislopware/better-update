@@ -1,6 +1,7 @@
-import { CreatedRobotAccount, RobotAccount, RotatedRobotAccountBearer } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
+
+import type { RobotAccount } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -15,17 +16,16 @@ import { RobotAccountRepo } from "../repositories/robot-accounts";
 import type { CurrentActor as CurrentActorModel } from "../models";
 import type { RobotAccountModel } from "../repositories/robot-accounts";
 
-const toRobotAccount = (model: RobotAccountModel): RobotAccount =>
-  new RobotAccount({
-    id: model.id,
-    organizationId: model.organizationId,
-    name: model.name,
-    bearerStart: model.bearerStart,
-    userEncryptionKeyId: model.userEncryptionKeyId,
-    projectId: model.projectId,
-    role: model.role,
-    createdAt: model.createdAt,
-  });
+const toRobotAccount = (model: RobotAccountModel): RobotAccount => ({
+  id: model.id,
+  organizationId: model.organizationId,
+  name: model.name,
+  bearerStart: model.bearerStart,
+  userEncryptionKeyId: model.userEncryptionKeyId,
+  projectId: model.projectId,
+  role: model.role,
+  createdAt: model.createdAt,
+});
 
 // A robot is project-scoped (GITLAB-RBAC-SPEC §1b, v2): managing it requires
 // Maintainer+ on ITS project.
@@ -40,14 +40,14 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
   "robot-accounts",
   (handlers) =>
     handlers
-      .handle("list", ({ urlParams }) =>
+      .handle("list", ({ query }) =>
         toApiReadEffect(
           Effect.gen(function* () {
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
             const accounts = yield* repo.list({
               organizationId: ctx.organizationId,
-              projectId: urlParams.projectId,
+              projectId: query.projectId,
             });
             // Admin tier sees every robot; otherwise the list scopes to
             // projects the actor maintains — the same rank that could
@@ -107,7 +107,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               },
             });
 
-            return new CreatedRobotAccount({
+            return {
               id: created.model.id,
               organizationId: created.model.organizationId,
               name: created.model.name,
@@ -117,17 +117,17 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               role: payload.role,
               createdAt: created.model.createdAt,
               bearerSecret: created.bearerSecret,
-            });
+            };
           }),
         ),
       )
-      .handle("update", ({ path, payload }) =>
+      .handle("update", ({ params, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
             const target = yield* repo.findById({
-              id: path.id,
+              id: params.id,
               organizationId: ctx.organizationId,
             });
             // Rename/role change takes the same rank that could mint or rotate
@@ -139,7 +139,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
               return toRobotAccount(target);
             }
             const updated = yield* repo.update({
-              id: path.id,
+              id: params.id,
               organizationId: ctx.organizationId,
               name: payload.name,
               role: payload.role,
@@ -147,7 +147,7 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "robotAccount.update",
               resourceType: "robotAccount",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: target.projectId,
               metadata: {
                 projectId: target.projectId,
@@ -161,13 +161,13 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
           }),
         ),
       )
-      .handle("rotate", ({ path }) =>
+      .handle("rotate", ({ params }) =>
         toApiReadEffect(
           Effect.gen(function* () {
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
             const target = yield* repo.findById({
-              id: path.id,
+              id: params.id,
               organizationId: ctx.organizationId,
             });
             // Rotating hands out the robot's NEW bearer — an identity
@@ -177,37 +177,40 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
             // maintainer on the same single project.
             yield* assertRobotManageable(target);
             const rotated = yield* repo.rotateBearer({
-              id: path.id,
+              id: params.id,
               organizationId: ctx.organizationId,
             });
             yield* logAudit({
               action: "robotAccount.rotate",
               resourceType: "robotAccount",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: target.projectId,
             });
-            return new RotatedRobotAccountBearer({ bearerSecret: rotated.bearerSecret });
+            return { bearerSecret: rotated.bearerSecret };
           }),
         ),
       )
-      .handle("revoke", ({ path }) =>
+      .handle("revoke", ({ params }) =>
         toApiReadEffect(
           Effect.gen(function* () {
             const ctx = yield* CurrentActor;
             const repo = yield* RobotAccountRepo;
             const target = yield* repo.findById({
-              id: path.id,
+              id: params.id,
               organizationId: ctx.organizationId,
             });
             yield* assertRobotManageable(target);
-            const deleted = yield* repo.revoke({ id: path.id, organizationId: ctx.organizationId });
+            const deleted = yield* repo.revoke({
+              id: params.id,
+              organizationId: ctx.organizationId,
+            });
             if (!deleted) {
               return yield* new NotFound({ message: "Robot account not found" });
             }
             yield* logAudit({
               action: "robotAccount.delete",
               resourceType: "robotAccount",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: target.projectId,
             });
             return { deleted: 1 };

@@ -53,7 +53,7 @@ const openTokenContext = (ascApiKeyId: string) =>
     yield* printHuman("Registering Apple Pay Merchant ID via the App Store Connect API...");
     return context;
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       printHuman(tokenFallbackNote(ascApiKeyId, messageOf(error))).pipe(Effect.as(undefined)),
     ),
   );

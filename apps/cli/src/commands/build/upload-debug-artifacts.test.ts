@@ -2,10 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
-import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Data, Effect, Layer } from "effect";
+import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 
 import { makeOutputModeLayer } from "../../lib/output-mode";
 import { PresignedUploadClientLive } from "../../services/presigned-upload";

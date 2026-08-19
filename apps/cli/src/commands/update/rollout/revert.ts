@@ -15,7 +15,7 @@ export const revertCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const result = yield* api.updates.revertRollout({ path: { id: args.updateId } });
+        const result = yield* api.updates.revertRollout({ params: { id: args.updateId } });
         yield* printHuman(
           `Reverted rollout for ${args.updateId}. Current rollout is ${String(result.rolloutPercentage)}%.`,
         );

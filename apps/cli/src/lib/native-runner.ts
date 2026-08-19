@@ -2,11 +2,12 @@ import { Buffer } from "node:buffer";
 import path from "node:path";
 
 import { asRecord } from "@better-update/type-guards";
-import { Command, FileSystem } from "@effect/platform";
-import { Data, Effect } from "effect";
+import { FileSystem, Data, Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
+import { runExitCode, runText } from "./child-process";
 import { parsePlist } from "./plist";
 
 export class NativeRunError extends Data.TaggedError("NativeRunError")<{
@@ -17,9 +18,9 @@ export const execCapture = (
   step: string,
   bin: string,
   ...args: readonly string[]
-): Effect.Effect<string, NativeRunError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<string, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
-    const result = yield* Command.string(Command.make(bin, ...args)).pipe(
+    const result = yield* runText(ChildProcess.make(bin, args)).pipe(
       Effect.mapError(
         (cause) => new NativeRunError({ message: `${step} failed: ${String(cause)}` }),
       ),
@@ -31,10 +32,8 @@ const runInherit = (
   step: string,
   bin: string,
   ...args: readonly string[]
-): Effect.Effect<void, NativeRunError, CommandExecutor.CommandExecutor> =>
-  Command.exitCode(
-    Command.make(bin, ...args).pipe(Command.stdout("inherit"), Command.stderr("inherit")),
-  ).pipe(
+): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runExitCode(ChildProcess.make(bin, args, { stdout: "inherit", stderr: "inherit" })).pipe(
     Effect.mapError(
       (cause) => new NativeRunError({ message: `${step} failed to spawn: ${String(cause)}` }),
     ),
@@ -50,9 +49,9 @@ const runInherit = (
  */
 export const which = (
   bin: string,
-): Effect.Effect<string, NativeRunError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<string, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
-    const output = yield* Command.string(Command.make("which", bin)).pipe(
+    const output = yield* runText(ChildProcess.make("which", [bin])).pipe(
       Effect.mapError(() => new NativeRunError({ message: `${bin} not found in PATH` })),
     );
     const trimmed = output.trim();
@@ -68,7 +67,7 @@ export const which = (
 export const extractTarGz = (
   archive: string,
   destDir: string,
-): Effect.Effect<void, NativeRunError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   runInherit("tar -xzf", "tar", "-xzf", archive, "-C", destDir);
 
 /**
@@ -77,7 +76,7 @@ export const extractTarGz = (
 export const extractZip = (
   archive: string,
   destDir: string,
-): Effect.Effect<void, NativeRunError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   runInherit("unzip", "unzip", "-q", "-o", archive, "-d", destDir);
 
 /**
@@ -177,7 +176,7 @@ const parseSimctlList = (raw: string): Effect.Effect<readonly SimctlDevice[], Na
  */
 export const pickSimulator = (
   selector: string | undefined,
-): Effect.Effect<BootedSimulator, NativeRunError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<BootedSimulator, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const raw = yield* execCapture(
       "xcrun simctl list devices --json",
@@ -222,7 +221,7 @@ export interface ConnectedAndroidDevice {
  */
 export const pickAndroidDevice = (
   selector: string | undefined,
-): Effect.Effect<ConnectedAndroidDevice, NativeRunError, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<ConnectedAndroidDevice, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const raw = yield* execCapture("adb devices", "adb", "devices");
     const lines = raw
@@ -258,7 +257,7 @@ export const installAndLaunchIosSimulator = (params: {
   readonly udid: string;
   readonly appDir: string;
   readonly bundleId: string;
-}): Effect.Effect<void, NativeRunError, CommandExecutor.CommandExecutor> =>
+}): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     yield* runInherit(
       `xcrun simctl install ${params.udid}`,
@@ -282,7 +281,7 @@ export const installAndLaunchIosDevice = (params: {
   readonly udid: string;
   readonly ipaPath: string;
   readonly bundleId: string;
-}): Effect.Effect<void, NativeRunError, CommandExecutor.CommandExecutor> =>
+}): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     yield* runInherit(
       `xcrun devicectl device install app --device ${params.udid}`,
@@ -316,7 +315,7 @@ export const installAndLaunchIosDevice = (params: {
 const tryReadApkPackageWith = (
   bin: string,
   apkPath: string,
-): Effect.Effect<string | undefined, never, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<string | undefined, never, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const located = yield* which(bin).pipe(Effect.orElseSucceed((): string | null => null));
     if (!located) {
@@ -334,11 +333,13 @@ const tryReadApkPackageWith = (
 
 export const readApkPackageName = (
   apkPath: string,
-): Effect.Effect<string | undefined, never, CommandExecutor.CommandExecutor> =>
+): Effect.Effect<string | undefined, never, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const candidates = ["aapt2", "aapt"] as const;
-    return yield* Effect.reduce(candidates, undefined as string | undefined, (acc, bin) =>
-      acc === undefined ? tryReadApkPackageWith(bin, apkPath) : Effect.succeed(acc),
+    return yield* Effect.reduce(
+      candidates,
+      (): string | undefined => undefined,
+      (acc, bin) => (acc === undefined ? tryReadApkPackageWith(bin, apkPath) : Effect.succeed(acc)),
     );
   });
 
@@ -346,7 +347,7 @@ export const installAndLaunchAndroid = (params: {
   readonly serial: string;
   readonly apkPath: string;
   readonly packageName: string;
-}): Effect.Effect<void, NativeRunError, CommandExecutor.CommandExecutor> =>
+}): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     yield* runInherit(
       `adb -s ${params.serial} install`,

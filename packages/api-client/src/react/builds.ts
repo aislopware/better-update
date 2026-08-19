@@ -48,7 +48,7 @@ export const buildsQueryOptions = (orgId: string, projectId: string, filters?: B
       runApi(
         (api) =>
           api.builds.list({
-            urlParams: compact({
+            query: compact({
               projectId,
               platform: filters?.platform,
               profile: filters?.profile,
@@ -70,7 +70,7 @@ export const buildQueryOptions = (orgId: string, buildId: string) =>
   queryOptions({
     queryKey: buildQueryKey(orgId, buildId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.builds.get({ path: { id: buildId } }), signal),
+      runApi((api) => api.builds.get({ params: { id: buildId } }), signal),
     staleTime: 30_000,
   });
 
@@ -78,15 +78,15 @@ export const buildCompatibilityMatrixQueryOptions = (orgId: string, projectId: s
   queryOptions({
     queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.builds.compatibilityMatrix({ urlParams: { projectId } }), signal),
+      runApi((api) => api.builds.compatibilityMatrix({ query: { projectId } }), signal),
     staleTime: 30_000,
   });
 
 export const deleteBuild = async (id: string) =>
-  runApi((api) => api.builds.delete({ path: { id } }));
+  runApi((api) => api.builds.delete({ params: { id } }));
 
 export const fetchInstallLink = async (buildId: string) =>
-  runApi((api) => api.builds.getInstallLink({ path: { id: buildId } }));
+  runApi((api) => api.builds.getInstallLink({ params: { id: buildId } }));
 
 export const buildDebugArtifactsQueryKey = (orgId: string, buildId: string) =>
   ["org", orgId, "build", buildId, "debug-artifacts"] as const;
@@ -95,7 +95,7 @@ export const buildDebugArtifactsQueryOptions = (orgId: string, buildId: string) 
   queryOptions({
     queryKey: buildDebugArtifactsQueryKey(orgId, buildId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api.builds.listDebugArtifacts({ path: { id: buildId } }), signal),
+      runApi((api) => api.builds.listDebugArtifacts({ params: { id: buildId } }), signal),
     staleTime: 30_000,
   });
 
@@ -103,4 +103,4 @@ export const buildDebugArtifactsQueryOptions = (orgId: string, buildId: string) 
 export const fetchDebugArtifactDownload = async (
   buildId: string,
   type: typeof DebugArtifactTypeSchema.Type,
-) => runApi((api) => api.builds.getDebugArtifactDownload({ path: { id: buildId, type } }));
+) => runApi((api) => api.builds.getDebugArtifactDownload({ params: { id: buildId, type } }));

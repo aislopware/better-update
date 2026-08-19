@@ -10,16 +10,15 @@ import {
   sortParam,
 } from "./common";
 
-export const DeviceClass = Schema.Literal("IPHONE", "IPAD", "MAC", "UNKNOWN");
+export const DeviceClass = Schema.Literals(["IPHONE", "IPAD", "MAC", "UNKNOWN"]);
 export type DeviceClassValue = typeof DeviceClass.Type;
 
 const IDENTIFIER_PATTERN =
   /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/u;
 
-export const DeviceIdentifier = Schema.String.pipe(
-  Schema.pattern(IDENTIFIER_PATTERN, {
-    message: () =>
-      "Identifier must be an Apple UDID: 40 hex chars, 8-16 hex, or UUID (8-4-4-4-12 hex)",
+export const DeviceIdentifier = Schema.String.check(
+  Schema.isPattern(IDENTIFIER_PATTERN, {
+    message: "Identifier must be an Apple UDID: 40 hex chars, 8-16 hex, or UUID (8-4-4-4-12 hex)",
   }),
 );
 
@@ -35,7 +34,7 @@ export const canonicalDeviceRoster = (identifiers: readonly string[]): string =>
     .toSorted()
     .join(",");
 
-export class Device extends Schema.Class<Device>("Device")({
+export const Device = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Schema.NullOr(Id),
@@ -47,13 +46,14 @@ export class Device extends Schema.Class<Device>("Device")({
   appleDevicePortalId: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Device" });
+export type Device = typeof Device.Type;
 
 export const RegisterDeviceBody = Schema.Struct({
   identifier: DeviceIdentifier,
   name: Name120,
   deviceClass: DeviceClass,
-  model: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
+  model: Schema.optional(Schema.String.check(Schema.isMaxLength(120))),
   appleTeamId: Schema.optional(Id),
 });
 
@@ -96,7 +96,7 @@ export const SyncDevicesResult = Schema.Struct({
 
 export const DeleteDeviceResult = DeletedResult;
 
-export const DeviceSortColumn = Schema.Literal("name", "createdAt", "deviceClass");
+export const DeviceSortColumn = Schema.Literals(["name", "createdAt", "deviceClass"]);
 
 export const DeviceSort = sortParam(DeviceSortColumn);
 
@@ -110,12 +110,10 @@ export const ListDevicesParams = Schema.Struct({
    * Apple-portal sync state: "true" = registered on the Apple Developer
    * Portal (`appleDevicePortalId` set), "false" = not registered yet.
    */
-  synced: Schema.optional(Schema.Literal("true", "false")),
+  synced: Schema.optional(Schema.Literals(["true", "false"])),
 });
 
-export class DeviceRegistrationRequest extends Schema.Class<DeviceRegistrationRequest>(
-  "DeviceRegistrationRequest",
-)({
+export const DeviceRegistrationRequest = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Schema.NullOr(Id),
@@ -126,16 +124,19 @@ export class DeviceRegistrationRequest extends Schema.Class<DeviceRegistrationRe
   consumedAt: Schema.NullOr(DateTimeString),
   consumedDeviceId: Schema.NullOr(Id),
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "DeviceRegistrationRequest" });
+export type DeviceRegistrationRequest = typeof DeviceRegistrationRequest.Type;
 
 export const CreateRegistrationRequestBody = Schema.Struct({
-  deviceNameHint: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
+  deviceNameHint: Schema.optional(Schema.String.check(Schema.isMaxLength(120))),
   deviceClassHint: Schema.optional(DeviceClass),
-  ttlHours: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 168))),
+  ttlHours: Schema.optional(
+    Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 168 })),
+  ),
   appleTeamId: Schema.optional(Id),
 });
 
 export const ListRegistrationRequestsParams = Schema.Struct({
-  active: Schema.optional(Schema.Literal("true", "false")),
+  active: Schema.optional(Schema.Literals(["true", "false"])),
   appleTeamId: Schema.optional(Id),
 });

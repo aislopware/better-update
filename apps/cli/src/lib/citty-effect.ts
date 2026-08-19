@@ -53,14 +53,14 @@ const wrapWithAutoLogin = <Value, Err, Req>(effect: Effect.Effect<Value, Err, Re
   const attempt = (depth: number): Effect.Effect<Value, Err, Req> =>
     // eslint-disable-next-line typescript/no-unsafe-type-assertion -- catchAll widens Req to include the login deps which CliLive provides at runEffect boundary
     effect.pipe(
-      Effect.catchAll((cause) => {
-        if (depth >= 1 || !isAuthRequiredError(cause)) {
-          return Effect.fail(cause);
+      Effect.catch((error) => {
+        if (depth >= 1 || !isAuthRequiredError(error)) {
+          return Effect.fail(error);
         }
         return Effect.gen(function* () {
           const mode = yield* InteractiveMode;
           if (!mode.allow) {
-            return yield* Effect.fail(cause);
+            return yield* Effect.fail(error);
           }
           yield* Console.log("");
           yield* Console.log("Authentication required.");

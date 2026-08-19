@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -13,64 +13,60 @@ import {
   WebhookWithSecret,
 } from "../domain/webhook";
 
-export class WebhooksGroup extends HttpApiGroup.make("webhooks")
+export const WebhooksGroup = HttpApiGroup.make("webhooks")
   .add(
-    HttpApiEndpoint.get("list", "/api/webhooks")
-      .addSuccess(Schema.Struct({ items: Schema.Array(Webhook) }))
-      .annotateContext(
-        OpenApi.annotations({
-          title: "List webhooks",
-          description: "List webhook subscriptions in the active organization",
-        }),
-      ),
+    HttpApiEndpoint.get("list", "/api/webhooks", {
+      success: Schema.Struct({ items: Schema.Array(Webhook) }),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "List webhooks",
+        description: "List webhook subscriptions in the active organization",
+      }),
+    ),
+    HttpApiEndpoint.post("create", "/api/webhooks", {
+      payload: CreateWebhookBody,
+      success: WebhookWithSecret.pipe(HttpApiSchema.status(201)),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Create webhook",
+        description:
+          "Create a webhook subscription. The `secret` is returned once on creation — store it client-side.",
+      }),
+    ),
+    HttpApiEndpoint.get("get", "/api/webhooks/:id", {
+      params: { ...idParam },
+      success: Webhook,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({ title: "Get webhook", description: "Fetch a single webhook by ID" }),
+    ),
+    HttpApiEndpoint.patch("update", "/api/webhooks/:id", {
+      params: { ...idParam },
+      payload: UpdateWebhookBody,
+      success: Webhook,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Update webhook",
+        description: "Update webhook url, events, enabled state, or name",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("delete", "/api/webhooks/:id", {
+      params: { ...idParam },
+      success: DeleteWebhookResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Delete webhook",
+        description: "Remove a webhook subscription",
+      }),
+    ),
   )
-  .add(
-    HttpApiEndpoint.post("create", "/api/webhooks")
-      .setPayload(CreateWebhookBody)
-      .addSuccess(WebhookWithSecret, { status: 201 })
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Create webhook",
-          description:
-            "Create a webhook subscription. The `secret` is returned once on creation — store it client-side.",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.get("get")`/api/webhooks/${idParam}`
-      .addSuccess(Webhook)
-      .annotateContext(
-        OpenApi.annotations({ title: "Get webhook", description: "Fetch a single webhook by ID" }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.patch("update")`/api/webhooks/${idParam}`
-      .setPayload(UpdateWebhookBody)
-      .addSuccess(Webhook)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Update webhook",
-          description: "Update webhook url, events, enabled state, or name",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("delete")`/api/webhooks/${idParam}`
-      .addSuccess(DeleteWebhookResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Delete webhook",
-          description: "Remove a webhook subscription",
-        }),
-      ),
-  )
-  .addError(NotFound)
-  .addError(Conflict)
-  .addError(BadRequest)
-  .addError(Forbidden)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Webhooks",
       description: "User-configured HTTPS event subscriptions",
     }),
-  ) {}
+  );

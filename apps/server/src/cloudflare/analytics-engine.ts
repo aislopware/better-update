@@ -49,10 +49,9 @@ export interface AnalyticsEngineClient {
   readonly query: (sql: string) => Effect.Effect<readonly AERow[], AnalyticsUnavailable>;
 }
 
-export class AnalyticsEngine extends Context.Tag("server/AnalyticsEngine")<
-  AnalyticsEngine,
-  AnalyticsEngineClient
->() {}
+export class AnalyticsEngine extends Context.Service<AnalyticsEngine, AnalyticsEngineClient>()(
+  "server/AnalyticsEngine",
+) {}
 
 export const AnalyticsEngineLive = Layer.succeed(AnalyticsEngine, {
   datasets: Effect.gen(function* () {

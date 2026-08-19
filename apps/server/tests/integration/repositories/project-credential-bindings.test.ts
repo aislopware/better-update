@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import {
@@ -9,10 +9,10 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Setup ─────────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectCredentialBindingRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectCredentialBindingRepo>) =>
   runWithLayerAndEnv(effect, ProjectCredentialBindingRepoLive, env);
 
-const withRepo = <Ret, Err>(
+const withRepo = async <Ret, Err>(
   body: (
     repo: typeof ProjectCredentialBindingRepo.Service,
   ) => Effect.Effect<Ret, Err, ProjectCredentialBindingRepo>,
@@ -38,9 +38,9 @@ beforeAll(async () => {
 
 // ── Tests ─────────────────────────────────────────────────────────
 
-describe("ProjectCredentialBindingRepo", () => {
+describe(ProjectCredentialBindingRepo, () => {
   it("bind → boundProjectIds → listByProject roundtrip; bind is idempotent", async () => {
-    const bind = (id: string, projectId: string) =>
+    const bind = async (id: string, projectId: string) =>
       withRepo((repo) =>
         repo.bind({
           id,
@@ -52,11 +52,11 @@ describe("ProjectCredentialBindingRepo", () => {
         }),
       );
 
-    expect(await bind("bind-1", "proj-bind-a")).toBe(true);
-    expect(await bind("bind-2", "proj-bind-b")).toBe(true);
+    await expect(bind("bind-1", "proj-bind-a")).resolves.toBe(true);
+    await expect(bind("bind-2", "proj-bind-b")).resolves.toBe(true);
     // Re-binding the same (project, type, id) is a no-op reported as
     // not-inserted (callers skip the audit entry), not a constraint error.
-    expect(await bind("bind-3", "proj-bind-a")).toBe(false);
+    await expect(bind("bind-3", "proj-bind-a")).resolves.toBe(false);
 
     const bound = await withRepo((repo) =>
       repo.boundProjectIds({
@@ -65,7 +65,10 @@ describe("ProjectCredentialBindingRepo", () => {
         resourceId: "team-1",
       }),
     );
-    expect([...bound].sort()).toStrictEqual(["proj-bind-a", "proj-bind-b"]);
+    expect([...bound].toSorted((left, right) => left.localeCompare(right))).toStrictEqual([
+      "proj-bind-a",
+      "proj-bind-b",
+    ]);
 
     const listed = await withRepo((repo) =>
       repo.listByProject({ organizationId: "org-bind-1", projectId: "proj-bind-a" }),
@@ -180,7 +183,10 @@ describe("ProjectCredentialBindingRepo", () => {
         resourceId: "key-all",
       }),
     );
-    expect([...bound].sort()).toStrictEqual(["proj-bind-a", "proj-bind-b"]);
+    expect([...bound].toSorted((left, right) => left.localeCompare(right))).toStrictEqual([
+      "proj-bind-a",
+      "proj-bind-b",
+    ]);
 
     // The core promise: a project created AFTER the org-wide bind is covered
     // with zero additional writes.
@@ -195,7 +201,11 @@ describe("ProjectCredentialBindingRepo", () => {
         resourceId: "key-all",
       }),
     );
-    expect([...expanded].sort()).toStrictEqual(["proj-bind-a", "proj-bind-b", "proj-bind-late"]);
+    expect([...expanded].toSorted((left, right) => left.localeCompare(right))).toStrictEqual([
+      "proj-bind-a",
+      "proj-bind-b",
+      "proj-bind-late",
+    ]);
 
     const byResource = await withRepo((repo) =>
       repo.boundProjectIdsByResource({
@@ -203,11 +213,9 @@ describe("ProjectCredentialBindingRepo", () => {
         resourceType: "ascApiKey",
       }),
     );
-    expect([...(byResource["key-all"] ?? [])].sort()).toStrictEqual([
-      "proj-bind-a",
-      "proj-bind-b",
-      "proj-bind-late",
-    ]);
+    expect(
+      [...(byResource["key-all"] ?? [])].toSorted((left, right) => left.localeCompare(right)),
+    ).toStrictEqual(["proj-bind-a", "proj-bind-b", "proj-bind-late"]);
 
     const allIds = await withRepo((repo) =>
       repo.allProjectsResourceIds({ organizationId: "org-bind-1", resourceType: "ascApiKey" }),
@@ -297,15 +305,15 @@ describe("ProjectCredentialBindingRepo", () => {
       }),
     );
     expect(cleared).toStrictEqual([]);
-    expect(
-      await withRepo((repo) =>
+    await expect(
+      withRepo((repo) =>
         repo.findAllProjectsBinding({
           organizationId: "org-bind-1",
           resourceType: "ascApiKey",
           resourceId: "key-all",
         }),
       ),
-    ).toBeNull();
+    ).resolves.toBeNull();
   });
 
   it("project deletion cascades its binding rows (FK ON DELETE CASCADE)", async () => {

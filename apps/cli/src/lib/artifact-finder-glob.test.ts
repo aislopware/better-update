@@ -58,10 +58,10 @@ describe(findArtifactByGlob, () => {
     Effect.gen(function* () {
       const { dir, dispose } = makeDir();
       const result = yield* findArtifactByGlob({ baseDir: dir, pattern: "**/*.aab" }).pipe(
-        Effect.either,
+        Effect.result,
         Effect.ensuring(Effect.sync(dispose)),
       );
-      expect(result._tag).toBe("Left");
+      expect(result._tag).toBe("Failure");
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 });

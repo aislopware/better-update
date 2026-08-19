@@ -18,7 +18,6 @@ export interface EmailServiceImpl {
   readonly send: (message: EmailMessage) => Effect.Effect<void, EmailSendError>;
 }
 
-export class EmailService extends Context.Tag("server/EmailService")<
-  EmailService,
-  EmailServiceImpl
->() {}
+export class EmailService extends Context.Service<EmailService, EmailServiceImpl>()(
+  "server/EmailService",
+) {}

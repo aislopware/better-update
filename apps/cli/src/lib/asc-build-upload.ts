@@ -369,8 +369,8 @@ export const uploadIpaViaBuildUploadApi = (
             operations: file.operations,
             reporter: inputs.reporter,
           }).pipe(
-            Effect.zipRight(commitBuildUploadFile({ token, fetchFn, fileId: file.fileId })),
-            Effect.zipRight(pollFileDelivery({ token, fetchFn, fileId: file.fileId })),
+            Effect.andThen(commitBuildUploadFile({ token, fetchFn, fileId: file.fileId })),
+            Effect.andThen(pollFileDelivery({ token, fetchFn, fileId: file.fileId })),
             Effect.tapError((error) => inputs.reporter.fail(`Upload failed: ${error.message}`)),
           );
           yield* inputs.reporter.finish("Upload delivered to App Store Connect.");

@@ -64,7 +64,7 @@ const viewAppleCertificate = (api: ApiClient, id: string, wantMacos: boolean) =>
 
 const viewProvisioningProfile = (api: ApiClient, id: string) =>
   Effect.gen(function* () {
-    const { items } = yield* api.appleProvisioningProfiles.list({ urlParams: {} });
+    const { items } = yield* api.appleProvisioningProfiles.list({ query: {} });
     const item = items.find((entry) => entry.id === id);
     if (!item) {
       return yield* notFound(id, "provisioning-profile");

@@ -28,7 +28,7 @@ describe("Devices API flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    organizationId = (await orgRes.json()).id;
+    ({ id: organizationId } = await orgRes.json());
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -162,9 +162,9 @@ describe("Devices API flow", () => {
       expect(secondRes.status).toBe(200);
       const secondBody = await secondRes.json();
       expect(secondBody.page).toBe(2);
-      const firstIds = new Set(firstBody.items.map((d: { id: string }) => d.id));
-      secondBody.items.forEach((d: { id: string }) => {
-        expect(firstIds.has(d.id)).toBe(false);
+      const firstIds = new Set(firstBody.items.map((device: { id: string }) => device.id));
+      secondBody.items.forEach((device: { id: string }) => {
+        expect(firstIds.has(device.id)).toBe(false);
       });
     }
   });
@@ -176,7 +176,7 @@ describe("Devices API flow", () => {
       { cookie: cookies },
     );
     expect(orgBRes.status).toBe(200);
-    const orgBId = (await orgBRes.json()).id;
+    const { id: orgBId } = await orgBRes.json();
     cookies = parseCookies(orgBRes) || cookies;
 
     const activeRes = await post(
@@ -256,7 +256,7 @@ describe("Devices API flow", () => {
       const res = await get(landingPath);
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("text/html");
-      expect(await res.text()).toContain("Install profile");
+      await expect(res.text()).resolves.toContain("Install profile");
     });
 
     it("serves .mobileconfig without authentication", async () => {
@@ -282,15 +282,17 @@ describe("Devices API flow", () => {
         "content-type": "application/x-apple-aspen-config",
       });
       expect(res.status).toBe(200);
-      expect(await res.text()).toContain("Device registered");
+      await expect(res.text()).resolves.toContain("Device registered");
 
       const listRes = await get("/api/devices", { cookie: cookies });
       expect(listRes.status).toBe(200);
-      const devices = (await listRes.json()).items as Array<{
-        identifier: string;
-        name: string;
-      }>;
-      const registered = devices.find((d) => d.identifier === callbackUdid);
+      const { items: devices } = await listRes.json<{
+        items: {
+          identifier: string;
+          name: string;
+        }[];
+      }>();
+      const registered = devices.find((device) => device.identifier === callbackUdid);
       expect(registered).toBeDefined();
       expect(registered?.name).toBe("Tester's iPhone");
 
@@ -328,7 +330,9 @@ describe("Devices API flow", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.items.length).toBeGreaterThanOrEqual(1);
-      expect(body.items.some((d: { name: string }) => d.name.includes("Tester"))).toBe(true);
+      expect(body.items.some((device: { name: string }) => device.name.includes("Tester"))).toBe(
+        true,
+      );
     });
 
     it("matches by identifier substring (3+ chars)", async () => {
@@ -336,7 +340,9 @@ describe("Devices API flow", () => {
       const res = await get(`/api/devices?query=${UDID_B.slice(0, 8)}`, { cookie: cookies });
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.items.some((d: { identifier: string }) => d.identifier === UDID_B)).toBe(true);
+      expect(
+        body.items.some((device: { identifier: string }) => device.identifier === UDID_B),
+      ).toBe(true);
     });
 
     it("falls back to LIKE for short query (<3 chars)", async () => {
@@ -344,7 +350,7 @@ describe("Devices API flow", () => {
       const res = await get("/api/devices?query=QA", { cookie: cookies });
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.items.some((d: { name: string }) => d.name.includes("QA"))).toBe(true);
+      expect(body.items.some((device: { name: string }) => device.name.includes("QA"))).toBe(true);
     });
 
     it("returns no items for non-matching substring", async () => {

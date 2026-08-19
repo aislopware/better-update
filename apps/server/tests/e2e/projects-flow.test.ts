@@ -19,7 +19,7 @@ describe("Projects API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -75,7 +75,7 @@ describe("Projects API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.total).toBe(3);
-    expect(body.items.map((b: { name: string }) => b.name)).toEqual([
+    expect(body.items.map((branch: { name: string }) => branch.name)).toStrictEqual([
       "development",
       "preview",
       "production",
@@ -89,7 +89,7 @@ describe("Projects API flow", () => {
     expect(channelsRes.status).toBe(200);
     const channelsBody = await channelsRes.json();
     expect(channelsBody.total).toBe(3);
-    expect(channelsBody.items.map((c: { name: string }) => c.name)).toEqual([
+    expect(channelsBody.items.map((channel: { name: string }) => channel.name)).toStrictEqual([
       "development",
       "preview",
       "production",
@@ -100,7 +100,7 @@ describe("Projects API flow", () => {
     });
     const branchesBody = await branchesRes.json();
     const branchByName = new Map<string, string>(
-      branchesBody.items.map((b: { id: string; name: string }) => [b.name, b.id]),
+      branchesBody.items.map((branch: { id: string; name: string }) => [branch.name, branch.id]),
     );
     for (const channel of channelsBody.items as readonly { name: string; branchId: string }[]) {
       expect(channel.branchId).toBe(branchByName.get(channel.name));
@@ -186,11 +186,11 @@ describe("Projects API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.total).toBe(3);
-    expect(body.items.map((p: { name: string }) => p.name).sort()).toEqual([
-      "New Name",
-      "Project B",
-      "Project C",
-    ]);
+    expect(
+      body.items
+        .map((project: { name: string }) => project.name)
+        .toSorted((left: string, right: string) => left.localeCompare(right)),
+    ).toStrictEqual(["New Name", "Project B", "Project C"]);
   });
 
   it("filters projects by name-only term", async () => {
@@ -202,10 +202,11 @@ describe("Projects API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.total).toBe(2);
-    expect(body.items.map((p: { name: string }) => p.name).sort()).toEqual([
-      "Project B",
-      "Project C",
-    ]);
+    expect(
+      body.items
+        .map((project: { name: string }) => project.name)
+        .toSorted((left: string, right: string) => left.localeCompare(right)),
+    ).toStrictEqual(["Project B", "Project C"]);
   });
 
   it("falls back to LIKE for short query (<3 chars)", async () => {
@@ -220,7 +221,7 @@ describe("Projects API flow", () => {
     const response = await get("/api/projects?sort=name", { cookie: cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items.map((p: { name: string }) => p.name)).toEqual([
+    expect(body.items.map((project: { name: string }) => project.name)).toStrictEqual([
       "New Name",
       "Project B",
       "Project C",
@@ -234,10 +235,13 @@ describe("Projects API flow", () => {
 
   it("bumps lastActivityAt when a branch is created", async () => {
     const beforeRes = await get(`/api/projects/${projectId}`, { cookie: cookies });
-    const before: string = (await beforeRes.json()).lastActivityAt;
+    const beforeResBody = await beforeRes.json();
+    const before: string = beforeResBody.lastActivityAt;
 
     // Sleep to ensure a strictly newer ISO timestamp.
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 25);
+    });
 
     const branchRes = await post(
       "/api/branches",
@@ -247,7 +251,8 @@ describe("Projects API flow", () => {
     expect(branchRes.status).toBe(201);
 
     const afterRes = await get(`/api/projects/${projectId}`, { cookie: cookies });
-    const after: string = (await afterRes.json()).lastActivityAt;
+    const afterResBody = await afterRes.json();
+    const after: string = afterResBody.lastActivityAt;
     expect(new Date(after).getTime()).toBeGreaterThan(new Date(before).getTime());
   });
 
@@ -258,7 +263,7 @@ describe("Projects API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.id).toBe(projectId);
-    expect(typeof body.archivedAt).toBe("string");
+    expect(body.archivedAt).toBeTypeOf("string");
   });
 
   it("hides the archived project from the default list", async () => {
@@ -266,7 +271,7 @@ describe("Projects API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.total).toBe(2);
-    expect(body.items.map((p: { id: string }) => p.id)).not.toContain(projectId);
+    expect(body.items.map((project: { id: string }) => project.id)).not.toContain(projectId);
   });
 
   it("lists the archived project under status=archived", async () => {
@@ -275,7 +280,7 @@ describe("Projects API flow", () => {
     const body = await response.json();
     expect(body.total).toBe(1);
     expect(body.items[0].id).toBe(projectId);
-    expect(typeof body.items[0].archivedAt).toBe("string");
+    expect(body.items[0].archivedAt).toBeTypeOf("string");
   });
 
   it("lists every project under status=all", async () => {
@@ -288,7 +293,8 @@ describe("Projects API flow", () => {
   it("still reads the archived project by id (read is not blocked)", async () => {
     const response = await get(`/api/projects/${projectId}`, { cookie: cookies });
     expect(response.status).toBe(200);
-    expect(typeof (await response.json()).archivedAt).toBe("string");
+    const responseBody = await response.json();
+    expect(responseBody.archivedAt).toBeTypeOf("string");
   });
 
   it("blocks renaming an archived project (403, read-only — even for the owner)", async () => {
@@ -311,17 +317,20 @@ describe("Projects API flow", () => {
 
   it("archiving again is idempotent and keeps the original timestamp", async () => {
     const first = await get("/api/projects?status=archived", { cookie: cookies });
-    const firstArchivedAt: string = (await first.json()).items[0].archivedAt;
+    const firstBody = await first.json();
+    const firstArchivedAt: string = firstBody.items[0].archivedAt;
 
     const response = await post(`/api/projects/${projectId}/archive`, {}, { cookie: cookies });
     expect(response.status).toBe(200);
-    expect((await response.json()).archivedAt).toBe(firstArchivedAt);
+    const responseBody2 = await response.json();
+    expect(responseBody2.archivedAt).toBe(firstArchivedAt);
   });
 
   it("unarchives the project (clears archivedAt) and restores it to the active list", async () => {
     const response = await post(`/api/projects/${projectId}/unarchive`, {}, { cookie: cookies });
     expect(response.status).toBe(200);
-    expect((await response.json()).archivedAt).toBeNull();
+    const responseBody3 = await response.json();
+    expect(responseBody3.archivedAt).toBeNull();
 
     const listRes = await get("/api/projects", { cookie: cookies });
     const body = await listRes.json();
@@ -335,7 +344,8 @@ describe("Projects API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(200);
-    expect((await response.json()).name).toBe("New Name");
+    const responseBody4 = await response.json();
+    expect(responseBody4.name).toBe("New Name");
   });
 
   // ── Section 4: Error cases ─────────────────────────────────────
@@ -358,7 +368,7 @@ describe("Projects API flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const orgBId = (await orgRes.json()).id;
+    const { id: orgBId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(

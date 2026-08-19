@@ -66,7 +66,7 @@ export const makeCommandErrorHandler = (
     const piped = effect.pipe(
       // eslint-disable-next-line typescript/no-unsafe-type-assertion -- Effect.catchTags tag-inference requires a literal object; we accept a dynamic handler map so tags are chosen at runtime
       Effect.catchTags(handlers as never),
-      Effect.catchAll((cause) => exitWith(1, { tag: "Unknown", message: formatCause(cause) })),
+      Effect.catch((error) => exitWith(1, { tag: "Unknown", message: formatCause(error) })),
     );
     // eslint-disable-next-line typescript/no-unsafe-type-assertion -- catchTags narrowing lost when handlers is dynamic; re-narrow at the boundary
     return piped as Effect.Effect<Success, never, Requirements | CliRuntime | OutputMode>;

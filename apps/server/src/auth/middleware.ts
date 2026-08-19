@@ -1,7 +1,10 @@
-import { Authentication } from "@better-update/api";
+import { AuthContext, Authentication } from "@better-update/api";
 import { isRecord } from "@better-update/type-guards";
-import { HttpServerRequest } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
+import { HttpServerRequest } from "effect/unstable/http";
+
+import type { unhandled } from "effect/Types";
+import type { HttpServerResponse } from "effect/unstable/http";
 
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
@@ -280,7 +283,30 @@ const resolveFromSession = (_cookie: Redacted.Redacted) => resolveSession("cooki
 
 // ── Layer ──────────────────────────────────────────────────────────
 
+// v4 security middleware WRAPS the endpoint instead of just returning a context:
+// each scheme receives the endpoint's response effect plus its decoded
+// credential, and is responsible for providing the service it declares
+// (`provides: AuthContext`). Both schemes share this adapter so the resolvers
+// above stay plain `credential -> AuthContextShape` effects.
+const provideAuthContext =
+  (
+    resolve: (
+      credential: Redacted.Redacted,
+    ) => Effect.Effect<
+      AuthContextShape,
+      Forbidden | Unauthorized,
+      HttpServerRequest.HttpServerRequest
+    >,
+  ) =>
+  (
+    httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, unhandled, AuthContext>,
+    { credential }: { readonly credential: Redacted.Redacted },
+  ) =>
+    resolve(credential).pipe(
+      Effect.flatMap((context) => Effect.provideService(httpEffect, AuthContext, context)),
+    );
+
 export const AuthenticationLive = Layer.succeed(Authentication, {
-  bearer: resolveFromBearer,
-  cookie: resolveFromSession,
+  bearer: provideAuthContext(resolveFromBearer),
+  cookie: provideAuthContext(resolveFromSession),
 });

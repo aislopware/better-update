@@ -93,10 +93,10 @@ export const exportDecryptedEnvVars = (
 ): Effect.Effect<
   readonly DecryptedEnvVar[],
   EnvExportError,
-  Effect.Effect.Context<ReturnType<typeof openEnvVaultSessionInteractive>>
+  Effect.Services<ReturnType<typeof openEnvVaultSessionInteractive>>
 > =>
   Effect.gen(function* () {
-    const result = yield* api["env-vars"].export({ urlParams: { projectId, environment } }).pipe(
+    const result = yield* api["env-vars"].export({ query: { projectId, environment } }).pipe(
       Effect.mapError(
         (cause) =>
           new EnvExportError({
@@ -134,7 +134,7 @@ export const pullEnvVars = (
 ): Effect.Effect<
   Record<string, string>,
   EnvExportError,
-  OutputMode | Effect.Effect.Context<ReturnType<typeof openEnvVaultSessionInteractive>>
+  OutputMode | Effect.Services<ReturnType<typeof openEnvVaultSessionInteractive>>
 > =>
   Effect.gen(function* () {
     const validated = coerceEnvironment(environment);

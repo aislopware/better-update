@@ -61,7 +61,7 @@ describe(verifySignedUpdate, () => {
         alg: "ecdsa-p256-sha256",
       });
 
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         verifySignedUpdate({
           signature: ecdsaSig,
           certificateChain: CERT_CHAIN,
@@ -70,17 +70,17 @@ describe(verifySignedUpdate, () => {
         }).pipe(Effect.provideService(CryptoService, crypto)),
       );
 
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left._tag).toBe("BadRequest");
-        expect(result.left.message).toContain("rsa-v1_5-sha256");
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure._tag).toBe("BadRequest");
+        expect(result.failure.message).toContain("rsa-v1_5-sha256");
       }
     }),
   );
 
   it.effect("rejects a malformed SFV signature string", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         verifySignedUpdate({
           signature: "\u0000 not a valid sfv dictionary",
           certificateChain: CERT_CHAIN,
@@ -89,16 +89,16 @@ describe(verifySignedUpdate, () => {
         }).pipe(Effect.provideService(CryptoService, makeCrypto({}))),
       );
 
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain("expo-signature SFV");
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure.message).toContain("expo-signature SFV");
       }
     }),
   );
 
   it.effect("rejects when the certificate chain is missing", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         verifySignedUpdate({
           signature,
           certificateChain: null,
@@ -107,9 +107,9 @@ describe(verifySignedUpdate, () => {
         }).pipe(Effect.provideService(CryptoService, makeCrypto({}))),
       );
 
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain("certificate chain");
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure.message).toContain("certificate chain");
       }
     }),
   );
@@ -118,7 +118,7 @@ describe(verifySignedUpdate, () => {
     Effect.gen(function* () {
       const crypto = makeCrypto({ rsaPkcs1Sha256Verify: () => Effect.succeed(false) });
 
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         verifySignedUpdate({
           signature,
           certificateChain: CERT_CHAIN,
@@ -127,9 +127,9 @@ describe(verifySignedUpdate, () => {
         }).pipe(Effect.provideService(CryptoService, crypto)),
       );
 
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left.message).toContain("does not verify");
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure.message).toContain("does not verify");
       }
     }),
   );
@@ -141,7 +141,7 @@ describe(verifySignedUpdate, () => {
           Effect.fail(new CryptoError({ operation: "rsaPkcs1Sha256Verify", cause: "bad cert" })),
       });
 
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         verifySignedUpdate({
           signature,
           certificateChain: CERT_CHAIN,
@@ -150,9 +150,9 @@ describe(verifySignedUpdate, () => {
         }).pipe(Effect.provideService(CryptoService, crypto)),
       );
 
-      expect(result._tag).toBe("Left");
-      if (result._tag === "Left") {
-        expect(result.left._tag).toBe("BadRequest");
+      expect(result._tag).toBe("Failure");
+      if (result._tag === "Failure") {
+        expect(result.failure._tag).toBe("BadRequest");
       }
     }),
   );

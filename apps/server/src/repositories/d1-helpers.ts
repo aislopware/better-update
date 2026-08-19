@@ -34,7 +34,7 @@ export const d1WithUniqueCheck = <T>(
         cause,
       }),
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       isUniqueConstraintError(error)
         ? Effect.fail(new Conflict({ message: conflictMessage }))
         : Effect.die(error),

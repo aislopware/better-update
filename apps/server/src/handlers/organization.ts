@@ -1,6 +1,5 @@
-import { Organization } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -21,8 +20,12 @@ import type { OrganizationModel } from "../repositories/organizations";
 // served publicly via the asset CDN.
 const logoR2Key = (organizationId: string): string => `logos/org/${organizationId}`;
 
-const toApiOrganization = (org: OrganizationModel) =>
-  new Organization({ id: org.id, name: org.name, slug: org.slug, logoUrl: org.logoUrl });
+const toApiOrganization = (org: OrganizationModel) => ({
+  id: org.id,
+  name: org.name,
+  slug: org.slug,
+  logoUrl: org.logoUrl,
+});
 
 // Load + authorize the active org for a logo write. Shared preamble of the three
 // logo handlers; returns the org so callers can echo it back with the new state.

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result, Semaphore } from "effect";
 
 import { clearBuildCaches } from "../lib/clear-cache";
 import { InvalidArgumentError } from "../lib/exit-codes";
@@ -60,7 +60,7 @@ export const runBuildWorkflowAll = (options: RunBuildWorkflowAllOptions) =>
       yield* clearBuildCaches(userCwd);
     }
 
-    const mutex = yield* Effect.makeSemaphore(1);
+    const mutex = yield* Semaphore.make(1);
     const runPlatform = (platform: Platform) =>
       runBuildWorkflow({
         ...options,
@@ -69,7 +69,7 @@ export const runBuildWorkflowAll = (options: RunBuildWorkflowAllOptions) =>
         allowDirty: true,
         clearCache: false,
         mutex,
-      }).pipe(withLogPrefix(platformLogPrefix(platform)), Effect.either);
+      }).pipe(withLogPrefix(platformLogPrefix(platform)), Effect.result);
 
     yield* printHuman(`Building ios and android in parallel (profile "${profileName}")…`);
     const [iosOutcome, androidOutcome] = yield* Effect.all(
@@ -81,7 +81,9 @@ export const runBuildWorkflowAll = (options: RunBuildWorkflowAllOptions) =>
       { platform: "ios" as const, outcome: iosOutcome },
       { platform: "android" as const, outcome: androidOutcome },
     ].flatMap((entry) =>
-      Either.isLeft(entry.outcome) ? [{ platform: entry.platform, error: entry.outcome.left }] : [],
+      Result.isFailure(entry.outcome)
+        ? [{ platform: entry.platform, error: entry.outcome.failure }]
+        : [],
     );
     const [firstFailure] = failures;
     yield* printHuman("");

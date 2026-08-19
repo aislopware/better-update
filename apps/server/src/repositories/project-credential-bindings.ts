@@ -125,10 +125,10 @@ export interface ProjectCredentialBindingRepository {
   }) => Effect.Effect<void>;
 }
 
-export class ProjectCredentialBindingRepo extends Context.Tag("api/ProjectCredentialBindingRepo")<
+export class ProjectCredentialBindingRepo extends Context.Service<
   ProjectCredentialBindingRepo,
   ProjectCredentialBindingRepository
->() {}
+>()("api/ProjectCredentialBindingRepo") {}
 
 // -- D1 Adapter --------------------------------------------------------------
 

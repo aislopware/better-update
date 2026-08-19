@@ -12,7 +12,7 @@ import { Schema } from "effect";
  * in at all. The type is now recorded at upload time from the certificate's own
  * subject, so each kind can be listed, filtered and used on its own.
  */
-export const AppleCertificateType = Schema.Literal(
+export const AppleCertificateType = Schema.Literals([
   "IOS_DEVELOPMENT",
   "IOS_DISTRIBUTION",
   "MAC_APP_DEVELOPMENT",
@@ -20,7 +20,7 @@ export const AppleCertificateType = Schema.Literal(
   "MAC_INSTALLER_DISTRIBUTION",
   "DEVELOPER_ID_APPLICATION",
   "DEVELOPER_ID_INSTALLER",
-);
+]);
 
 export type AppleCertificateType = typeof AppleCertificateType.Type;
 

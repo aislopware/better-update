@@ -1,7 +1,6 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { findArtifactByGlob, findIosArtifact } from "../../lib/artifact-finder";
 import { BuildFailedError, MissingCredentialsError, ProvisioningError } from "../../lib/exit-codes";

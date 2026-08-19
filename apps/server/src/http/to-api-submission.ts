@@ -1,5 +1,6 @@
-import { AndroidSubmissionConfig, IosSubmissionConfig, Submission } from "@better-update/api";
 import { safeJsonParse } from "@better-update/safe-json";
+
+import type { AndroidSubmissionConfig, IosSubmissionConfig, Submission } from "@better-update/api";
 
 import type {
   AndroidSubmissionConfigModel,
@@ -19,7 +20,7 @@ const toApiIosSubmissionConfig = (config: SubmissionConfigPayload): IosSubmissio
   if (!hasIosKeys(config)) {
     return null;
   }
-  return new IosSubmissionConfig({
+  return {
     appleId: config.appleId,
     ascAppId: config.ascAppId,
     appleTeamId: config.appleTeamId,
@@ -31,7 +32,7 @@ const toApiIosSubmissionConfig = (config: SubmissionConfigPayload): IosSubmissio
     ascApiKeyId: config.ascApiKeyId,
     groups: config.groups,
     whatToTest: config.whatToTest,
-  });
+  };
 };
 
 const toApiAndroidSubmissionConfig = (
@@ -40,14 +41,14 @@ const toApiAndroidSubmissionConfig = (
   if (hasIosKeys(config)) {
     return null;
   }
-  return new AndroidSubmissionConfig({
+  return {
     applicationId: config.applicationId,
     track: config.track,
     releaseStatus: config.releaseStatus,
     changesNotSentForReview: config.changesNotSentForReview,
     rollout: config.rollout,
     googleServiceAccountKeyId: config.googleServiceAccountKeyId,
-  });
+  };
 };
 
 const parseSubmissionConfig = (json: string): SubmissionConfigPayload | null => {
@@ -65,7 +66,7 @@ export const toApiSubmission = (model: SubmissionModel): Submission => {
     model.platform === "ios" && config !== null ? toApiIosSubmissionConfig(config) : null;
   const androidConfig =
     model.platform === "android" && config !== null ? toApiAndroidSubmissionConfig(config) : null;
-  return new Submission({
+  return {
     id: model.id,
     organizationId: model.organizationId,
     projectId: model.projectId,
@@ -80,5 +81,5 @@ export const toApiSubmission = (model: SubmissionModel): Submission => {
     buildVersion: model.buildVersion,
     initiatingUserId: model.initiatingUserId,
     createdAt: model.createdAt,
-  });
+  };
 };

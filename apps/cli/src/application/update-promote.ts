@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
 
 import { UpdatePromoteError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";

@@ -74,7 +74,7 @@ beforeAll(async () => {
 
 // -- Helpers ------------------------------------------------------------------
 
-const manifestGet = (projectId: string, headers: Record<string, string>) =>
+const manifestGet = async (projectId: string, headers: Record<string, string>) =>
   get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (overrides?: Record<string, string>) => ({
@@ -92,8 +92,8 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): MultipartPart[] => {
-  const boundaryMatch = /boundary=([^\s;]+)/.exec(contentType);
-  const boundary = boundaryMatch?.[1] ?? "";
+  const boundaryMatch = /boundary=(?<boundary>[^\s;]+)/u.exec(contentType);
+  const boundary = boundaryMatch?.groups?.["boundary"] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)

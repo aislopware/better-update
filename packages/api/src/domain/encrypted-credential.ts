@@ -4,12 +4,12 @@ import { Id } from "./common";
 import { VaultVersion, VaultWrapInput } from "./org-vault";
 
 /** Base64 XChaCha20-Poly1305 ciphertext (`nonce ‖ ciphertext ‖ tag`) of a credential payload. */
-export const Ciphertext = Schema.String.pipe(Schema.minLength(1)).annotations({
+export const Ciphertext = Schema.String.check(Schema.isMinLength(1)).annotate({
   description: "Base64 XChaCha20-Poly1305 ciphertext of the credential payload",
 });
 
 /** Base64 of the per-credential DEK wrapped under the org vault key (AAD-bound). */
-export const WrappedDek = Schema.String.pipe(Schema.minLength(1)).annotations({
+export const WrappedDek = Schema.String.check(Schema.isMinLength(1)).annotate({
   description: "Base64 of the DEK wrapped under the org vault key",
 });
 
@@ -19,7 +19,7 @@ export const WrappedDek = Schema.String.pipe(Schema.minLength(1)).annotations({
  * row per environment variable value revision). Provisioning profiles are
  * plaintext and are deliberately absent.
  */
-export const CredentialType = Schema.Literal(
+export const CredentialType = Schema.Literals([
   "appleDistributionCertificate",
   "applePushKey",
   "applePushCertificate",
@@ -29,7 +29,7 @@ export const CredentialType = Schema.Literal(
   "googleServiceAccountKey",
   "androidUploadKeystore",
   "envVarValue",
-).annotations({
+]).annotate({
   description: "Which encrypted-secret table a vault-key DEK re-wrap targets",
 });
 
@@ -87,6 +87,6 @@ export const VaultCredentialDeks = Schema.Struct({
  */
 export const RotateVaultBody = Schema.Struct({
   fromVersion: VaultVersion,
-  recipientWraps: Schema.Array(VaultWrapInput).pipe(Schema.minItems(1)),
+  recipientWraps: Schema.Array(VaultWrapInput).check(Schema.isMinLength(1)),
   credentialDeks: Schema.Array(CredentialDekUpdate),
 });

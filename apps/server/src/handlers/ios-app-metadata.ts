@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -16,27 +16,27 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
   "iosAppMetadata",
   (handlers) =>
     handlers
-      .handle("list", ({ path }) =>
+      .handle("list", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertProjectOwnership(path.projectId);
+            yield* assertProjectOwnership(params.projectId);
             yield* assertAccess("iosAppMetadata", "read", {
               kind: "project",
-              projectId: path.projectId,
+              projectId: params.projectId,
             });
             const repo = yield* IosAppMetadataRepo;
-            const items = yield* repo.listByProject({ projectId: path.projectId });
+            const items = yield* repo.listByProject({ projectId: params.projectId });
             return { items: items.map(toApiIosAppMetadata) };
           }),
         ),
       )
-      .handle("create", ({ path, payload }) =>
+      .handle("create", ({ params, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertProjectOwnership(path.projectId);
+            yield* assertProjectOwnership(params.projectId);
             yield* assertAccess("iosAppMetadata", "create", {
               kind: "project",
-              projectId: path.projectId,
+              projectId: params.projectId,
             });
             const ctx = yield* CurrentActor;
             const repo = yield* IosAppMetadataRepo;
@@ -46,7 +46,7 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
             const model = {
               id,
               organizationId: ctx.organizationId,
-              projectId: path.projectId,
+              projectId: params.projectId,
               bundleIdentifier: payload.bundleIdentifier,
               ascAppId: toDbNull(payload.ascAppId),
               sku: toDbNull(payload.sku),
@@ -61,18 +61,18 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
               action: "ios.app-metadata.create",
               resourceType: "iosAppMetadata",
               resourceId: id,
-              projectId: path.projectId,
+              projectId: params.projectId,
               metadata: { bundleIdentifier: payload.bundleIdentifier },
             });
             return toApiIosAppMetadata(model);
           }),
         ),
       )
-      .handle("update", ({ path, payload }) =>
+      .handle("update", ({ params, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const repo = yield* IosAppMetadataRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAccess("iosAppMetadata", "update", {
               kind: "project",
@@ -80,7 +80,7 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
             });
             const now = new Date().toISOString();
             yield* repo.update({
-              id: path.id,
+              id: params.id,
               ascAppId: payload.ascAppId,
               sku: payload.sku,
               language: payload.language,
@@ -91,30 +91,30 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "ios.app-metadata.update",
               resourceType: "iosAppMetadata",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: existing.projectId,
               metadata: { bundleIdentifier: existing.bundleIdentifier },
             });
-            const merged = yield* repo.findById({ id: path.id });
+            const merged = yield* repo.findById({ id: params.id });
             return toApiIosAppMetadata(merged);
           }),
         ),
       )
-      .handle("delete", ({ path }) =>
+      .handle("delete", ({ params }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
             const repo = yield* IosAppMetadataRepo;
-            const existing = yield* repo.findById({ id: path.id });
+            const existing = yield* repo.findById({ id: params.id });
             yield* assertOrgOwnership(existing.organizationId);
             yield* assertAccess("iosAppMetadata", "delete", {
               kind: "project",
               projectId: existing.projectId,
             });
-            yield* repo.delete({ id: path.id });
+            yield* repo.delete({ id: params.id });
             yield* logAudit({
               action: "ios.app-metadata.delete",
               resourceType: "iosAppMetadata",
-              resourceId: path.id,
+              resourceId: params.id,
               projectId: existing.projectId,
               metadata: { bundleIdentifier: existing.bundleIdentifier },
             });

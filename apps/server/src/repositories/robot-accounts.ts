@@ -117,10 +117,9 @@ export interface RobotAccountRepository {
   } | null>;
 }
 
-export class RobotAccountRepo extends Context.Tag("api/RobotAccountRepo")<
-  RobotAccountRepo,
-  RobotAccountRepository
->() {}
+export class RobotAccountRepo extends Context.Service<RobotAccountRepo, RobotAccountRepository>()(
+  "api/RobotAccountRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

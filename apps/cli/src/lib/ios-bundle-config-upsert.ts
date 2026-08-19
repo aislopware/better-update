@@ -27,7 +27,7 @@ export interface UpsertIosBundleConfigInput {
 export const upsertIosBundleConfiguration = (api: ApiClient, input: UpsertIosBundleConfigInput) =>
   Effect.gen(function* () {
     const list = yield* api.iosBundleConfigurations.list({
-      path: { projectId: input.projectId },
+      params: { projectId: input.projectId },
     });
     const existing = list.items.find(
       (item) =>
@@ -37,7 +37,7 @@ export const upsertIosBundleConfiguration = (api: ApiClient, input: UpsertIosBun
 
     if (existing === undefined) {
       yield* api.iosBundleConfigurations.create({
-        path: { projectId: input.projectId },
+        params: { projectId: input.projectId },
         payload: {
           bundleIdentifier: input.bundleIdentifier,
           distributionType: input.distributionType,
@@ -59,7 +59,7 @@ export const upsertIosBundleConfiguration = (api: ApiClient, input: UpsertIosBun
     }
 
     yield* api.iosBundleConfigurations.update({
-      path: { id: existing.id },
+      params: { id: existing.id },
       payload: {
         appleDistributionCertificateId: input.appleDistributionCertificateId,
         appleProvisioningProfileId: input.appleProvisioningProfileId,

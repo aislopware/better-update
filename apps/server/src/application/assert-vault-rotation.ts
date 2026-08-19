@@ -42,7 +42,7 @@ export const assertVaultRotationNotPending = (params: {
  * Fail closed on an env-value read path while the vault protecting env is flagged
  * for rotation. Before the org cuts over, env values live in the credentials vault
  * so its `rotation_pending` gates them (unchanged from today); after the cutover
- * they live in the env vault, gated by `env_rotation_pending`. Either way an
+ * they live in the env vault, gated by `env_rotation_pending`. Result way an
  * env-recipient departure no longer blocks credential/build reads.
  */
 export const assertEnvVaultRotationNotPending = (params: {

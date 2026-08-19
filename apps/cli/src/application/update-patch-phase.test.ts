@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { patchR2Key } from "@better-update/expo-protocol";
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { Data, Effect, Layer } from "effect";
 
 import { makeOutputModeLayer } from "../lib/output-mode";
@@ -50,17 +50,17 @@ const makeApiLayer = (
   Layer.succeed(ApiClientService, {
     get: Effect.succeed({
       updates: {
-        listPatchBases: (request: { urlParams: ListPatchBasesUrlParams }) => {
-          recorder?.params.push(request.urlParams);
+        listPatchBases: (request: { query: ListPatchBasesUrlParams }) => {
+          recorder?.params.push(request.query);
           // Mirror the server contract: resolvePatchBaseBranchId FAILS with
           // BadRequest when BOTH branchId and channel are undefined. If the CLI
           // ever regresses to sending neither, the phase must see an empty set
           // (the real listPatchBases surfaces that BadRequest, which the phase
           // swallows to []), NOT the happy-path bases.
-          const { branchId, channel } = request.urlParams;
+          const { branchId, channel } = request.query;
           if (branchId === undefined && channel === undefined) {
             return Effect.fail(
-              new ListPatchBasesError({ message: "Either branchId or channel is required" }),
+              new ListPatchBasesError({ message: "Result branchId or channel is required" }),
             );
           }
           return Effect.succeed(bases);
@@ -147,7 +147,7 @@ const run = async (
         configLayer,
         makeFakes(recorder, opts),
         makeOutputModeLayer(false),
-        NodeContext.layer,
+        NodeServices.layer,
       ),
     ),
     Effect.runPromise,

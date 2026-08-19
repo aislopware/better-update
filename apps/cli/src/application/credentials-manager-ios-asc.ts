@@ -88,7 +88,7 @@ const bindIosAscKey = (ctx: WizardContext) =>
       keys.items.map((key) => ({ value: key.id, label: `${key.name} (${key.keyId})` })),
     );
     yield* ctx.api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: { ascApiKeyId: ascKeyId },
     });
     yield* Console.log(
@@ -158,7 +158,7 @@ const setupProjectAscApiKey = (ctx: WizardContext) =>
       );
     });
     yield* ctx.api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: { ascApiKeyId: ascKeyId },
     });
     yield* Console.log(

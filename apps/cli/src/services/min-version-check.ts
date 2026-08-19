@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CliRuntime } from "./cli-runtime";
 import { ConfigStore } from "./config-store";
@@ -29,12 +29,12 @@ interface VersionThresholdCacheEntry {
  * on-disk cache and fails OPEN (returns `undefined`) whenever the server is
  * unreachable and nothing is cached — an outage must never brick a current CLI.
  */
-export class MinVersionCheck extends Context.Tag("cli/MinVersionCheck")<
+export class MinVersionCheck extends Context.Service<
   MinVersionCheck,
   {
     readonly requireVersionAbove: Effect.Effect<string | undefined>;
   }
->() {}
+>()("cli/MinVersionCheck") {}
 
 export const MinVersionCheckLive = Layer.effect(
   MinVersionCheck,
@@ -93,7 +93,7 @@ export const MinVersionCheckLive = Layer.effect(
       return requireAbove;
     }).pipe(
       Effect.timeout(FOREGROUND_TIMEOUT_MS),
-      Effect.catchAll(() => Effect.succeed(undefined)),
+      Effect.catch(() => Effect.succeed(undefined)),
     );
 
     return {

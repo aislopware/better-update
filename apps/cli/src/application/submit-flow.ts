@@ -40,7 +40,7 @@ export const createSubmissionViaApi = (
 ): Effect.Effect<SubmissionItem, CliSubmitError> =>
   api.submissions
     .create({
-      path: { projectId: resolved.projectId },
+      params: { projectId: resolved.projectId },
       payload: {
         platform: resolved.platform,
         profileName: resolved.profileName,

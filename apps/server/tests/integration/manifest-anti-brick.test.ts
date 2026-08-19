@@ -1,6 +1,8 @@
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import worker from "../../src";
+import { incomingRequest } from "../helpers/incoming-request";
 
 // Anti-brick ingestion + manifest-filters emission, dispatched straight into
 // worker.fetch (full route + handler + repo + Cache API stack) against local D1
@@ -25,7 +27,7 @@ const fetchManifest = async (
 ): Promise<Response> => {
   const ctx = createExecutionContext();
   const response = await worker.fetch(
-    new Request(`${BASE}/manifest/${projectId}`, {
+    incomingRequest(`${BASE}/manifest/${projectId}`, {
       headers: {
         "expo-protocol-version": "1",
         "expo-platform": "ios",
@@ -45,8 +47,8 @@ const fetchManifest = async (
 // Pull the `id` out of the multipart `manifest` part body.
 const manifestIdOf = async (response: Response): Promise<string> => {
   const text = await response.text();
-  const match = /"id"\s*:\s*"([^"]+)"/u.exec(text);
-  return match?.[1] ?? "";
+  const match = /"id"\s*:\s*"(?<id>[^"]+)"/u.exec(text);
+  return match?.groups?.["id"] ?? "";
 };
 
 interface SeedTenantParams {
@@ -129,8 +131,10 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
   const skipProject = `ab-skip-${suffix}`;
   const skipScope = "https://skip.example";
   const skipBranch = `branch-skip-${suffix}`;
-  const u1 = `11111111-${suffix}`; // older good
-  const u2 = `22222222-${suffix}`; // newer (latest)
+  // older good
+  const u1 = `11111111-${suffix}`;
+  // newer (latest)
+  const u2 = `22222222-${suffix}`;
 
   // (D): filters emission tenant.
   const filterProject = `ab-filter-${suffix}`;
@@ -162,9 +166,12 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
   const fbProject = `ab-fallback-${suffix}`;
   const fbScope = "https://fallback.example";
   const fbBranch = `branch-fallback-${suffix}`;
-  const fbNewA = `5a5a5a5a-${suffix}`; // newest, rollout 0
-  const fbNewB = `5b5b5b5b-${suffix}`; // rollout 0
-  const fbFailed = `5f5f5f5f-${suffix}`; // oldest, rollout 100, reported failed
+  // newest, rollout 0
+  const fbNewA = `5a5a5a5a-${suffix}`;
+  // rollout 0
+  const fbNewB = `5b5b5b5b-${suffix}`;
+  // oldest, rollout 100, reported failed
+  const fbFailed = `5f5f5f5f-${suffix}`;
 
   beforeAll(async () => {
     await seedTenant({ projectId: skipProject, scopeKey: skipScope, branchId: skipBranch });
@@ -234,7 +241,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
   it("(C) no failed-ids header -> serves the latest update (skip is opt-in)", async () => {
     const response = await fetchManifest(skipProject, {});
     expect(response.status).toBe(200);
-    expect(await manifestIdOf(response)).toBe(u2);
+    await expect(manifestIdOf(response)).resolves.toBe(u2);
   });
 
   it("(A) device reports the latest update failed -> serves the prior good update, never the failed one", async () => {
@@ -252,7 +259,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
       "expo-recent-failed-update-ids": `"${u1}", "${u2}"`,
     });
     expect(response.status).toBe(204);
-    expect(await response.text()).toBe("");
+    await expect(response.text()).resolves.toBe("");
   });
 
   it("(A') a per-device skip result is never written into the shared per-tenant cache", async () => {
@@ -260,7 +267,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
     // update (proves the skip in (A)/(B) never poisoned the shared cache).
     const response = await fetchManifest(skipProject, {});
     expect(response.status).toBe(200);
-    expect(await manifestIdOf(response)).toBe(u2);
+    await expect(manifestIdOf(response)).resolves.toBe(u2);
   });
 
   it("(D) emits expo-manifest-filters from the store and serves a matching update", async () => {
@@ -269,7 +276,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
     expect(response.status).toBe(200);
     expect(response.headers.get("expo-manifest-filters")).toBe(`channel="prod"`);
     // metadata.channel === "prod" matches the configured filter server-side too.
-    expect(await manifestIdOf(response)).toBe(uFilter);
+    await expect(manifestIdOf(response)).resolves.toBe(uFilter);
   });
 
   it("(D') omits expo-manifest-filters when the stored row is cleared (safe empty default)", async () => {
@@ -277,7 +284,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
     const response = await fetchManifest(filterProject, {});
     expect(response.status).toBe(200);
     expect(response.headers.get("expo-manifest-filters")).toBeNull();
-    expect(await manifestIdOf(response)).toBe(uFilter);
+    await expect(manifestIdOf(response)).resolves.toBe(uFilter);
   });
 
   it("(F) rollout-fallback never serves a reported-failed update surfaced only via the fallback query", async () => {
@@ -289,7 +296,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
       "expo-recent-failed-update-ids": `"${fbFailed}"`,
     });
     expect(response.status).toBe(204);
-    expect(await response.text()).toBe("");
+    await expect(response.text()).resolves.toBe("");
   });
 
   it("(G) a fully non-SFV-conformant stored filter does NOT 500 — header omitted, update still serves", async () => {
@@ -304,7 +311,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
     const response = await fetchManifest(badProject, {});
     expect(response.status).toBe(200);
     expect(response.headers.get("expo-manifest-filters")).toBeNull();
-    expect(await manifestIdOf(response)).toBe(uBad);
+    await expect(manifestIdOf(response)).resolves.toBe(uBad);
   });
 
   it("(G') a mixed conformant + non-conformant stored filter emits ONLY the conformant subset", async () => {
@@ -319,7 +326,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
     const response = await fetchManifest(badProject, {});
     expect(response.status).toBe(200);
     expect(response.headers.get("expo-manifest-filters")).toBe(`channel="prod"`);
-    expect(await manifestIdOf(response)).toBe(uBad);
+    await expect(manifestIdOf(response)).resolves.toBe(uBad);
   });
 
   it("(E) Expo-Fatal-Error does not alter the served manifest (telemetry isolation)", async () => {
@@ -328,7 +335,7 @@ describe("manifest serving — anti-brick failed-update skip + filters emission"
       "expo-fatal-error": "TypeError: undefined is not a function (anti-brick telemetry)",
     });
     expect(without.status).toBe(withFatal.status);
-    expect(await manifestIdOf(without)).toBe(uFatal);
-    expect(await manifestIdOf(withFatal)).toBe(uFatal);
+    await expect(manifestIdOf(without)).resolves.toBe(uFatal);
+    await expect(manifestIdOf(withFatal)).resolves.toBe(uFatal);
   });
 });

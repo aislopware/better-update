@@ -17,10 +17,10 @@ export const ResolveBuildCredentialsAndroidBody = Schema.Struct({
   buildProfile: Schema.optional(Name120),
 });
 
-export const ResolveBuildCredentialsBody = Schema.Union(
+export const ResolveBuildCredentialsBody = Schema.Union([
   ResolveBuildCredentialsIosBody,
   ResolveBuildCredentialsAndroidBody,
-);
+]);
 
 /** Encrypted `.p12` envelope; the CLI decrypts to `{ p12Base64, p12Password }` during the build. */
 export const IosBuildDistributionCertificate = Schema.Struct({
@@ -71,7 +71,7 @@ export const ResolveBuildCredentialsAndroidResult = Schema.Struct({
   keystore: AndroidBuildKeystore,
 });
 
-export const ResolveBuildCredentialsResult = Schema.Union(
+export const ResolveBuildCredentialsResult = Schema.Union([
   ResolveBuildCredentialsIosResult,
   ResolveBuildCredentialsAndroidResult,
-);
+]);

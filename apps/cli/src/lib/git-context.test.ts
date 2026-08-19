@@ -1,6 +1,6 @@
-import { CommandExecutor } from "@effect/platform";
 import { it } from "@effect/vitest";
 import { Data, Effect } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import { readGitContext } from "./git-context";
 
@@ -21,15 +21,16 @@ interface StubCommand {
 
 type ArgResolver = (firstArg: string) => Effect.Effect<string, unknown>;
 
-const makeStubExecutor = (resolve: ArgResolver): CommandExecutor.CommandExecutor =>
+const makeStubExecutor = (
+  resolve: ArgResolver,
+): ChildProcessSpawner.ChildProcessSpawner["Service"] =>
   ({
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     string: (command: StubCommand) => resolve(command.args[0] ?? ""),
-  }) as unknown as CommandExecutor.CommandExecutor;
+  }) as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"];
 
 const run = async (resolve: ArgResolver) =>
   readGitContext("/repo").pipe(
-    Effect.provideService(CommandExecutor.CommandExecutor, makeStubExecutor(resolve)),
+    Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, makeStubExecutor(resolve)),
     Effect.runPromise,
   );
 

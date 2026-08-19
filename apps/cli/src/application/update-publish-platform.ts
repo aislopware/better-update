@@ -5,7 +5,8 @@ import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import type { ManifestAssetData } from "@better-update/expo-protocol";
-import type { CommandExecutor, FileSystem } from "@effect/platform";
+import type { FileSystem } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { UpdatePublishError } from "../lib/exit-codes";
@@ -128,7 +129,7 @@ const resolvePlatformFingerprintHash = (
 ): Effect.Effect<
   string | undefined,
   never,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
 > =>
   runFingerprintForPlatform(projectRoot, platform).pipe(
     Effect.map((result) => result.hash),
@@ -195,7 +196,7 @@ export const publishPlatform = (
   | ApiClientService
   | CliRuntime
   | UpdateAssetUploader
-  | CommandExecutor.CommandExecutor
+  | ChildProcessSpawner.ChildProcessSpawner
   | FileSystem.FileSystem
   | BsdiffService
   | PatchUploader
@@ -445,9 +446,9 @@ export const publishPlatform = (
               baseWindow: params.patchBaseWindow,
               concurrency: 2,
             }).pipe(
-              Effect.catchAll((cause) =>
+              Effect.catch((error) =>
                 printHuman(
-                  `Patch generation skipped for ${params.platform}: ${formatCause(cause)}`,
+                  `Patch generation skipped for ${params.platform}: ${formatCause(error)}`,
                 ).pipe(Effect.as(null)),
               ),
             ),

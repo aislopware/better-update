@@ -1,9 +1,8 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { readGradleConfig } from "./gradle-config";
 

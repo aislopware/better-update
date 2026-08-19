@@ -57,7 +57,7 @@ export const listCommand = defineCommand({
         const api = yield* apiClient;
 
         const { items } = yield* api.builds.list({
-          urlParams: {
+          query: {
             projectId,
             limit,
             ...compact({

@@ -1,12 +1,12 @@
 import { Context, Layer } from "effect";
 
-export class OutputMode extends Context.Tag("cli/OutputMode")<
+export class OutputMode extends Context.Service<
   OutputMode,
   {
     /** Emit machine-readable JSON only. Suppress spinners, progress, and human prose. */
     readonly json: boolean;
   }
->() {}
+>()("cli/OutputMode") {}
 
 export const makeOutputModeLayer = (json: boolean): Layer.Layer<OutputMode> =>
   Layer.succeed(OutputMode, { json });

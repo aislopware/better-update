@@ -59,10 +59,10 @@ export interface AppleProvisioningProfileRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class AppleProvisioningProfileRepo extends Context.Tag("api/AppleProvisioningProfileRepo")<
+export class AppleProvisioningProfileRepo extends Context.Service<
   AppleProvisioningProfileRepo,
   AppleProvisioningProfileRepository
->() {}
+>()("api/AppleProvisioningProfileRepo") {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

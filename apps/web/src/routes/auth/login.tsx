@@ -14,7 +14,7 @@ const isSafeRedirect = (value: string): boolean =>
   value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\");
 
 const loginSearchSchema = z.object({
-  // eslint-disable-next-line unicorn/prefer-top-level-await, promise/prefer-await-to-then -- zod's .catch() is a sync validator fallback, not a Promise handler
+  // eslint-disable-next-line unicorn/prefer-top-level-await -- zod's .catch() is a sync validator fallback, not a Promise handler
   redirectTo: z.string().refine(isSafeRedirect).catch("/").default("/"),
 });
 

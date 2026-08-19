@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import {
+  BooleanFromString,
   csvList,
   DateTimeString,
   DeletedResult,
@@ -10,7 +11,7 @@ import {
   sortParam,
 } from "./common";
 
-export class Update extends Schema.Class<Update>("Update")({
+export const Update = Schema.Struct({
   id: Id,
   branchId: Id,
   // Branch name resolved server-side (join at read time) so list/detail
@@ -41,14 +42,15 @@ export class Update extends Schema.Class<Update>("Update")({
   isEmbedded: Schema.Boolean,
   totalAssetSize: Schema.Number,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Update" });
+export type Update = typeof Update.Type;
 
-export const UpdateSortColumn = Schema.Literal(
+export const UpdateSortColumn = Schema.Literals([
   "createdAt",
   "runtimeVersion",
   "platform",
   "rolloutPercentage",
-);
+]);
 
 export const UpdateSort = sortParam(UpdateSortColumn);
 
@@ -60,7 +62,7 @@ export const ListUpdatesParams = Schema.Struct({
   // Case-insensitive substring match on the publish message or git commit SHA.
   query: Schema.optional(Schema.String),
   // Omitted/false = published updates only; true = embedded baselines only.
-  isEmbedded: Schema.optional(Schema.BooleanFromString),
+  isEmbedded: Schema.optional(BooleanFromString),
   ...PaginationParams.fields,
   sort: Schema.optional(UpdateSort),
 });
@@ -70,14 +72,15 @@ export const ListUpdatesParams = Schema.Struct({
  * bsdiff patch. One row per recent published update (+ the embedded baseline),
  * carrying the launch-asset hash so the CLI can fetch the exact base bytes.
  */
-export class PatchBaseCandidate extends Schema.Class<PatchBaseCandidate>("PatchBaseCandidate")({
+export const PatchBaseCandidate = Schema.Struct({
   updateId: Id,
   launchAssetHash: Schema.String,
   runtimeVersion: Schema.String,
   platform: Platform,
   isEmbedded: Schema.Boolean,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "PatchBaseCandidate" });
+export type PatchBaseCandidate = typeof PatchBaseCandidate.Type;
 
 /**
  * Query params for listing patch-base candidates. Scoped to a single
@@ -88,8 +91,8 @@ export class PatchBaseCandidate extends Schema.Class<PatchBaseCandidate>("PatchB
 export const ListPatchBasesParams = Schema.Struct({
   projectId: Id,
   branchId: Schema.optional(Id),
-  channel: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
-  runtimeVersion: Schema.String.pipe(Schema.minLength(1)),
+  channel: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
+  runtimeVersion: Schema.String.check(Schema.isMinLength(1)),
   platform: Platform,
   limit: Schema.optional(Schema.NumberFromString),
 });
@@ -109,7 +112,7 @@ export const UpdateAssetEntry = Schema.Struct({
 });
 
 export const CreateUpdateBody = Schema.Struct({
-  branch: Schema.String.pipe(Schema.minLength(1)),
+  branch: Schema.String.check(Schema.isMinLength(1)),
   // Destination project. `projectId` is AUTHORITATIVE and always wins: it is the
   // same id every read command (`status`, `branches`, `env`) resolves through, so
   // reads and writes can no longer disagree about which project is being touched.
@@ -121,13 +124,13 @@ export const CreateUpdateBody = Schema.Struct({
   // cross-tenant publish the CLI reported as success. Never resolve by slug when
   // a projectId is present, and never add a new caller that sends slug alone.
   projectId: Schema.optional(Id),
-  slug: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
-  runtimeVersion: Schema.String.pipe(Schema.minLength(1)),
+  slug: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
+  runtimeVersion: Schema.String.check(Schema.isMinLength(1)),
   platform: Platform,
   message: Schema.String,
-  groupId: Schema.String.pipe(Schema.minLength(1)),
-  metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-  extra: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+  groupId: Schema.String.check(Schema.isMinLength(1)),
+  metadata: Schema.Record(Schema.String, Schema.Unknown),
+  extra: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   assets: Schema.Array(AssetRef),
   // Client-supplied deterministic update id. Two distinct contracts share this
   // one optional field; which one applies is decided by `isEmbedded`:
@@ -156,14 +159,16 @@ export const CreateUpdateBody = Schema.Struct({
   // The FULL `expo-signature` SFV string (sig/keyid/alg), not bare base64.
   signature: Schema.optional(Schema.String),
   certificateChain: Schema.optional(Schema.String),
-  rolloutPercentage: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 100))),
-  fingerprintHash: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  rolloutPercentage: Schema.optional(
+    Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 100 })),
+  ),
+  fingerprintHash: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
   // Git provenance captured at publish time (mirrors EAS gitCommitHash +
   // isGitWorkingTreeDirty, and the builds path). Both optional — present only
   // when the project root is a readable git repo. `gitCommit` is the resolved
   // HEAD SHA; `gitDirty` flags an uncommitted working tree. Sent ALWAYS when
   // git is readable (not gated on --auto), matching EAS.
-  gitCommit: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  gitCommit: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
   gitDirty: Schema.optional(Schema.Boolean),
   // When true, this update becomes the embedded baseline for
   // (project, runtimeVersion, platform) — the patch base for first-launch
@@ -176,17 +181,17 @@ export const CreateUpdateBody = Schema.Struct({
 
 export const RepublishBody = Schema.Struct({
   sourceUpdateId: Schema.optional(Id),
-  sourceGroupId: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  sourceGroupId: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
   destinationBranchId: Schema.optional(Id),
-  destinationChannel: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  destinationChannel: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
   message: Schema.optional(Schema.String),
   signedUpdates: Schema.optional(
     Schema.Array(
       Schema.Struct({
         sourceUpdateId: Id,
-        manifestBody: Schema.String.pipe(Schema.minLength(1)),
-        signature: Schema.String.pipe(Schema.minLength(1)),
-        certificateChain: Schema.String.pipe(Schema.minLength(1)),
+        manifestBody: Schema.String.check(Schema.isMinLength(1)),
+        signature: Schema.String.check(Schema.isMinLength(1)),
+        certificateChain: Schema.String.check(Schema.isMinLength(1)),
       }),
     ),
   ),

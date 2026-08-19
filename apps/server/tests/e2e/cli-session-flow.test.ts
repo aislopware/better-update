@@ -40,7 +40,7 @@ describe("CLI session auth (bearer + one-time-token)", () => {
       { cookie: cookies },
     );
     expect(org.status).toBe(200);
-    organizationId = (await org.json()).id;
+    ({ id: organizationId } = await org.json());
     cookies = parseCookies(org) || cookies;
 
     const active = await post(
@@ -56,12 +56,12 @@ describe("CLI session auth (bearer + one-time-token)", () => {
     const generated = await get("/api/auth/one-time-token/generate", { cookie: cookies });
     expect(generated.status).toBe(200);
     const { token } = await generated.json();
-    expect(token).toBeTruthy();
+    expect(token).toMatch(/./u);
 
     const verified = await post("/api/auth/one-time-token/verify", { token });
     expect(verified.status).toBe(200);
     const headerToken = verified.headers.get("set-auth-token");
-    expect(headerToken).toBeTruthy();
+    expect(headerToken).toMatch(/./u);
     sessionToken = headerToken ?? "";
   });
 
@@ -86,7 +86,7 @@ describe("CLI session auth (bearer + one-time-token)", () => {
       { cookie: cookies },
     );
     expect(projectRes.status).toBe(201);
-    const fixtureProjectId = (await projectRes.json()).id as string;
+    const { id: fixtureProjectId } = await projectRes.json<{ id: string }>();
 
     const created = await post(
       "/api/robot-accounts",
@@ -100,7 +100,7 @@ describe("CLI session auth (bearer + one-time-token)", () => {
       { cookie: cookies },
     );
     expect(created.status).toBe(201);
-    const robotBearer = (await created.json()).bearerSecret as string;
+    const { bearerSecret: robotBearer } = await created.json<{ bearerSecret: string }>();
 
     const res = await post("/api/encryption-keys", deviceKeyBody("CI runner"), {
       authorization: `Bearer ${robotBearer}`,
@@ -112,6 +112,7 @@ describe("CLI session auth (bearer + one-time-token)", () => {
     // robot resolves no user — a request-shape error, so 400 with that exact
     // message rather than 403.
     expect(res.status).toBe(400);
-    expect((await res.json()).message).toContain("Device keys require an interactive user session");
+    const resBody = await res.json();
+    expect(resBody.message).toContain("Device keys require an interactive user session");
   });
 });

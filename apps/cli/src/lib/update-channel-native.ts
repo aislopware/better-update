@@ -2,7 +2,6 @@ import path from "node:path";
 
 import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 // `@expo/config-plugins` is a CommonJS module. A NAMED ESM import
 // (`import { AndroidConfig } from …`) fails at runtime under Node's ESM loader
 // with "Named export 'AndroidConfig' not found" because cjs-module-lexer cannot
@@ -10,7 +9,7 @@ import { FileSystem } from "@effect/platform";
 // Bun. A default import resolves to `module.exports`, from which `AndroidConfig`
 // destructures cleanly under both Node and Bun.
 import configPlugins from "@expo/config-plugins";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import { BuildFailedError } from "./exit-codes";
 import { formatCause } from "./format-error";

@@ -22,7 +22,7 @@ export const projectRobotAccountsQueryOptions = (projectId: string) =>
     queryKey: projectRobotAccountsQueryKey(projectId),
     queryFn: async ({ signal }) => {
       const result = await runApi(
-        (api) => api["robot-accounts"].list({ urlParams: { projectId } }),
+        (api) => api["robot-accounts"].list({ query: { projectId } }),
         signal,
       );
       return result.items;
@@ -38,7 +38,7 @@ export const orgRobotAccountsQueryOptions = (orgId: string) =>
   queryOptions({
     queryKey: orgRobotAccountsQueryKey(orgId),
     queryFn: async ({ signal }) => {
-      const result = await runApi((api) => api["robot-accounts"].list({ urlParams: {} }), signal);
+      const result = await runApi((api) => api["robot-accounts"].list({ query: {} }), signal);
       return result.items;
     },
     staleTime: 30_000,
@@ -47,4 +47,4 @@ export const orgRobotAccountsQueryOptions = (orgId: string) =>
 // Rename a robot and/or change its project role in place (Maintainer+ on its
 // project; audit-logged server-side). The project itself is fixed at creation.
 export const updateRobotAccount = async (id: string, body: typeof UpdateRobotAccountBody.Type) =>
-  runApi((api) => api["robot-accounts"].update({ path: { id }, payload: body }));
+  runApi((api) => api["robot-accounts"].update({ params: { id }, payload: body }));

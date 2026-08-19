@@ -2,10 +2,9 @@ import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { FileSystem, Console, Effect } from "effect";
 
-import type { PlatformError } from "@effect/platform/Error";
+import type { PlatformError } from "effect/PlatformError";
 
 import { autoProvisionExtensionProfile } from "./auto-provision-extension-profiles";
 import { decryptResolveSecret, openVaultSessionForBuild } from "./build-credential-decrypt";
@@ -156,7 +155,7 @@ const resolveOneBundleSettled = (
 ): Effect.Effect<ResolveSettled, PlatformError> =>
   api.buildCredentials
     .resolve({
-      path: { projectId: options.projectId },
+      params: { projectId: options.projectId },
       payload: {
         platform: "ios" as const,
         bundleIdentifier: options.bundleIdentifier,
@@ -197,7 +196,7 @@ const resolveOneBundleSettled = (
               context: resolved.context,
             },
           })),
-          Effect.catchAll((error): Effect.Effect<ResolveSettled> =>
+          Effect.catch((error): Effect.Effect<ResolveSettled> =>
             Effect.succeed({
               status: "failed",
               bundleIdentifier: options.bundleIdentifier,
@@ -206,11 +205,11 @@ const resolveOneBundleSettled = (
           ),
         );
       }),
-      Effect.catchAll((cause): Effect.Effect<ResolveSettled> => {
+      Effect.catch((error): Effect.Effect<ResolveSettled> => {
         // Inspect raw API-error tag before conversion — only NotFound (bundle
         // not registered) is auto-provisionable; Forbidden/BadRequest/etc
         // surface as hard failures.
-        const tag = hasTag(cause) ? cause._tag : null;
+        const tag = hasTag(error) ? error._tag : null;
         if (tag === "NotFound") {
           return Effect.succeed({
             status: "not-registered",
@@ -220,7 +219,7 @@ const resolveOneBundleSettled = (
         return Effect.succeed({
           status: "failed",
           bundleIdentifier: options.bundleIdentifier,
-          error: resolveErrorToMissingCredentials(cause, "ios", options.bundleIdentifier),
+          error: resolveErrorToMissingCredentials(error, "ios", options.bundleIdentifier),
         });
       }),
     );
@@ -446,7 +445,7 @@ export const downloadAndroidCredentials = (
 
     const resolved = yield* api.buildCredentials
       .resolve({
-        path: { projectId: options.projectId },
+        params: { projectId: options.projectId },
         payload: {
           platform: "android" as const,
           applicationIdentifier: options.applicationIdentifier,

@@ -9,5 +9,5 @@ export const failureError = <Err, Value>(exit: Exit.Exit<Value, Err>): Err | und
   if (!Exit.isFailure(exit)) {
     return undefined;
   }
-  return Option.getOrUndefined(Cause.failureOption(exit.cause));
+  return Option.getOrUndefined(Cause.findErrorOption(exit.cause));
 };

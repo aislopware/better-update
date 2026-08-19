@@ -62,7 +62,7 @@ export const updateWebhookCommand = defineCommand({
         const enabled = resolveEnabled(args.enable, args.disable);
         const api = yield* apiClient;
         const webhook = yield* api.webhooks.update({
-          path: { id: args.id },
+          params: { id: args.id },
           payload: compact({
             name: args.name,
             url: args.url,

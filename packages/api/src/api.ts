@@ -1,4 +1,4 @@
-import { HttpApi, OpenApi } from "@effect/platform";
+import { HttpApi, OpenApi } from "effect/unstable/httpapi";
 
 import { Authentication } from "./auth/middleware";
 import { AccountKeysGroup } from "./groups/account-keys";
@@ -90,7 +90,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(OrganizationGroup)
   .add(AdminGroup)
   .middleware(Authentication)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Better Update Management API",
       version: "1.0.0",

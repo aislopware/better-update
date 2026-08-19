@@ -25,7 +25,7 @@ export const deleteWebhookCommand = defineCommand({
           }
         }
         const api = yield* apiClient;
-        yield* api.webhooks.delete({ path: { id: args.id } });
+        yield* api.webhooks.delete({ params: { id: args.id } });
         yield* printHuman(`Deleted webhook ${args.id}.`);
       }),
     ),

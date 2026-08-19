@@ -312,7 +312,7 @@ export const revokeLocalDistributionCertificate = (
     let deletedLocally = false;
     if (input.keepLocal !== true) {
       yield* api.appleDistributionCertificates.delete({
-        path: { id: input.distributionCertificateId },
+        params: { id: input.distributionCertificateId },
       });
       deletedLocally = true;
     }

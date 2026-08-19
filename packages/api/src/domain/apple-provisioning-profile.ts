@@ -3,18 +3,21 @@ import { Schema } from "effect";
 import { DateTimeString, DeletedResult, Id } from "./common";
 import { credentialCreateBindingField } from "./credential-binding";
 
-export const DistributionType = Schema.Literal("APP_STORE", "AD_HOC", "ENTERPRISE", "DEVELOPMENT");
+export const DistributionType = Schema.Literals([
+  "APP_STORE",
+  "AD_HOC",
+  "ENTERPRISE",
+  "DEVELOPMENT",
+]);
 export type DistributionTypeValue = typeof DistributionType.Type;
 
-export const BundleIdentifier = Schema.String.pipe(
-  Schema.pattern(/^[A-Za-z0-9.\-_]{1,200}$/u, {
-    message: () => "Bundle identifier must be reverse-domain style (letters, digits, dot, dash)",
+export const BundleIdentifier = Schema.String.check(
+  Schema.isPattern(/^[A-Za-z0-9.\-_]{1,200}$/u, {
+    message: "Bundle identifier must be reverse-domain style (letters, digits, dot, dash)",
   }),
 );
 
-export class AppleProvisioningProfile extends Schema.Class<AppleProvisioningProfile>(
-  "AppleProvisioningProfile",
-)({
+export const AppleProvisioningProfile = Schema.Struct({
   id: Id,
   organizationId: Id,
   appleTeamId: Id,
@@ -28,11 +31,12 @@ export class AppleProvisioningProfile extends Schema.Class<AppleProvisioningProf
   protected: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "AppleProvisioningProfile" });
+export type AppleProvisioningProfile = typeof AppleProvisioningProfile.Type;
 
 export const UploadAppleProvisioningProfileBody = Schema.Struct({
   ...credentialCreateBindingField,
-  profileBase64: Schema.String.pipe(Schema.minLength(1)),
+  profileBase64: Schema.String.check(Schema.isMinLength(1)),
   appleDistributionCertificateId: Schema.optional(Id),
   /** SHA-256 hex of `canonicalDeviceRoster(udids)` for the roster baked into the profile. */
   deviceRosterHash: Schema.optional(Schema.String),

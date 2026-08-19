@@ -18,7 +18,7 @@ export const renameDeviceCommand = defineCommand({
         const api = yield* apiClient;
         const name = args.name ?? (yield* promptText("New name"));
         const device = yield* api.devices.update({
-          path: { id: args.id },
+          params: { id: args.id },
           payload: { name },
         });
         yield* printKeyValue([

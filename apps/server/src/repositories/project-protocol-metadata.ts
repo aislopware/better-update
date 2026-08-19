@@ -38,10 +38,10 @@ export interface ProjectProtocolMetadataRepository {
   }) => Effect.Effect<void>;
 }
 
-export class ProjectProtocolMetadataRepo extends Context.Tag("api/ProjectProtocolMetadataRepo")<
+export class ProjectProtocolMetadataRepo extends Context.Service<
   ProjectProtocolMetadataRepo,
   ProjectProtocolMetadataRepository
->() {}
+>()("api/ProjectProtocolMetadataRepo") {}
 
 const COLUMNS = ["server_defined_headers_json", "manifest_filters_json", "updated_at"] as const;
 

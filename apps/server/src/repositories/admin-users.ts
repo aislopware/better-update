@@ -33,10 +33,9 @@ export interface AdminUsersRepository {
   }) => Effect.Effect<AdminUserRecord | null>;
 }
 
-export class AdminUsersRepo extends Context.Tag("server/AdminUsersRepo")<
-  AdminUsersRepo,
-  AdminUsersRepository
->() {}
+export class AdminUsersRepo extends Context.Service<AdminUsersRepo, AdminUsersRepository>()(
+  "server/AdminUsersRepo",
+) {}
 
 // ── D1 Adapter ────────────────────────────────────────────────────
 

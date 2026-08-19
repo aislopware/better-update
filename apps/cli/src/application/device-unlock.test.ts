@@ -6,7 +6,7 @@ import {
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
 import { it } from "@effect/vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 
 import type { IdentityFile } from "@better-update/credentials-crypto";
 
@@ -132,16 +132,16 @@ describe("unlocking both org vaults in one command", () => {
       const fixture = yield* setup;
       mocks.promptPassword.mockReturnValueOnce("wrong").mockReturnValueOnce("pw");
       const attempts = yield* Effect.gen(function* () {
-        const failed = yield* Effect.either(
+        const failed = yield* Effect.result(
           unlockVaultKeyInteractive(fixture.api, { orgId: ORG_ID }),
         );
-        const recovered = yield* Effect.either(unlockEnvVaultKeyInteractive(fixture.api, ORG_ID));
+        const recovered = yield* Effect.result(unlockEnvVaultKeyInteractive(fixture.api, ORG_ID));
         return { failed, recovered };
       }).pipe(Effect.provide(layers(fixture.file)));
 
-      expect(Either.isLeft(attempts.failed)).toBe(true);
+      expect(Result.isFailure(attempts.failed)).toBe(true);
       expect(mocks.promptPassword).toHaveBeenCalledTimes(2);
-      expect(Either.isRight(attempts.recovered)).toBe(true);
+      expect(Result.isSuccess(attempts.recovered)).toBe(true);
     }),
   );
 });

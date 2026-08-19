@@ -117,7 +117,7 @@ export interface BuildRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }, NotFound>;
 }
 
-export class BuildRepo extends Context.Tag("api/BuildRepo")<BuildRepo, BuildRepository>() {}
+export class BuildRepo extends Context.Service<BuildRepo, BuildRepository>()("api/BuildRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

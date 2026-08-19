@@ -60,10 +60,10 @@ export interface DebugArtifactRepository {
   }) => Effect.Effect<readonly string[]>;
 }
 
-export class DebugArtifactRepo extends Context.Tag("api/DebugArtifactRepo")<
+export class DebugArtifactRepo extends Context.Service<
   DebugArtifactRepo,
   DebugArtifactRepository
->() {}
+>()("api/DebugArtifactRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

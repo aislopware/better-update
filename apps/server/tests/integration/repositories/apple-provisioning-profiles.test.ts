@@ -1,28 +1,28 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import {
   AppleProvisioningProfileRepo,
   AppleProvisioningProfileRepoLive,
 } from "../../../src/repositories/apple-provisioning-profiles";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleProvisioningProfileRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleProvisioningProfileRepo>) =>
   runWithLayerAndEnv(effect, AppleProvisioningProfileRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleProvisioningProfileRepo>) =>
-  runEitherWithLayerAndEnv(effect, AppleProvisioningProfileRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleProvisioningProfileRepo>) =>
+  runResultWithLayerAndEnv(effect, AppleProvisioningProfileRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, id, "2026-01-01T00:00:00Z")
     .run();
 
-const insertAppleTeam = (id: string, orgId: string) =>
+const insertAppleTeam = async (id: string, orgId: string) =>
   env.DB.prepare(
     `INSERT INTO "apple_teams" ("id", "organization_id", "apple_team_id", "apple_team_type") VALUES (?, ?, ?, ?)`,
   )
@@ -55,6 +55,7 @@ describe("AppleProvisioningProfileRepo — D1 integration", () => {
           validUntil: null,
           r2Key: "r2/profiles/pp-profile-1.mobileprovision",
           isManaged: true,
+          isProtected: false,
           deviceRosterHash: "abc123",
         });
       }),
@@ -83,6 +84,7 @@ describe("AppleProvisioningProfileRepo — D1 integration", () => {
           validUntil: null,
           r2Key: "r2/profiles/pp-profile-1-updated.mobileprovision",
           isManaged: true,
+          isProtected: false,
           deviceRosterHash: "def456",
         });
       }),
@@ -102,7 +104,7 @@ describe("AppleProvisioningProfileRepo — D1 integration", () => {
     );
 
     expect(rows.length).toBeGreaterThanOrEqual(1);
-    expect(rows.every((r) => r.organizationId === "pp-org-1")).toBe(true);
+    expect(rows.every((row) => row.organizationId === "pp-org-1")).toBe(true);
   });
 
   it("findById returns the profile", async () => {
@@ -118,16 +120,16 @@ describe("AppleProvisioningProfileRepo — D1 integration", () => {
   });
 
   it("findById fails with NotFound for an unknown id", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* AppleProvisioningProfileRepo;
         return yield* repo.findById({ id: "pp-does-not-exist" });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 });

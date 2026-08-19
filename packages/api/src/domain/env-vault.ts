@@ -5,14 +5,15 @@ import { WrappedDek } from "./encrypted-credential";
 import { EnvVaultRecipientKind, EnvVaultWrapInput, VaultVersion } from "./org-vault";
 
 /** One wrap of the env-vault key to a recipient (an opaque `age` blob). */
-export class OrgEnvVaultKeyWrap extends Schema.Class<OrgEnvVaultKeyWrap>("OrgEnvVaultKeyWrap")({
+export const OrgEnvVaultKeyWrap = Schema.Struct({
   organizationId: Id,
   envVaultVersion: VaultVersion,
   recipientKind: EnvVaultRecipientKind,
   recipientId: Id,
   wrappedKey: Schema.String,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "OrgEnvVaultKeyWrap" });
+export type OrgEnvVaultKeyWrap = typeof OrgEnvVaultKeyWrap.Type;
 
 /** The wrapped env-vault key for the calling recipient — fetched, then unwrapped client-side. */
 export const RecipientEnvVaultKey = Schema.Struct({
@@ -66,7 +67,7 @@ export const EnvVaultCredentialDeks = Schema.Struct({
  * re-key every env-var revision.
  */
 export const CutoverEnvVaultBody = Schema.Struct({
-  wraps: Schema.Array(EnvVaultWrapInput).pipe(Schema.minItems(1)),
+  wraps: Schema.Array(EnvVaultWrapInput).check(Schema.isMinLength(1)),
   envDeks: Schema.Array(EnvVaultDekUpdate),
 });
 
@@ -78,6 +79,6 @@ export const CutoverEnvVaultBody = Schema.Struct({
  */
 export const RotateEnvVaultBody = Schema.Struct({
   fromVersion: VaultVersion,
-  wraps: Schema.Array(EnvVaultWrapInput).pipe(Schema.minItems(1)),
+  wraps: Schema.Array(EnvVaultWrapInput).check(Schema.isMinLength(1)),
   envDeks: Schema.Array(EnvVaultDekUpdate),
 });

@@ -49,10 +49,9 @@ export interface ApplePushKeyRepository {
   }) => Effect.Effect<{ readonly r2Key: string | null }>;
 }
 
-export class ApplePushKeyRepo extends Context.Tag("api/ApplePushKeyRepo")<
-  ApplePushKeyRepo,
-  ApplePushKeyRepository
->() {}
+export class ApplePushKeyRepo extends Context.Service<ApplePushKeyRepo, ApplePushKeyRepository>()(
+  "api/ApplePushKeyRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

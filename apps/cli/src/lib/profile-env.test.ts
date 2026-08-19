@@ -1,8 +1,7 @@
 import path from "node:path";
 
-import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 
 import {
   collectProfileEnvKeys,

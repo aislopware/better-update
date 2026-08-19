@@ -14,7 +14,7 @@ export const getCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const build = yield* api.builds.get({ path: { id: args.id } });
+        const build = yield* api.builds.get({ params: { id: args.id } });
         yield* printKeyValue([
           ["ID", build.id],
           ["Platform", build.platform],

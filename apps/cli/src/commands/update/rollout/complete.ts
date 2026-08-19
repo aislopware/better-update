@@ -15,7 +15,7 @@ export const completeCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const result = yield* api.updates.completeRollout({ path: { id: args.updateId } });
+        const result = yield* api.updates.completeRollout({ params: { id: args.updateId } });
         yield* printHuman(
           `Completed rollout for ${args.updateId}. Current rollout is ${String(result.rolloutPercentage)}%.`,
         );

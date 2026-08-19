@@ -15,13 +15,13 @@ export const BUILTIN_ENVIRONMENTS = ["development", "preview", "production"] as 
  * letter. Shared by the env-var `environment` axis and the environment entity so
  * a custom environment name and an env var's `environment` use one shape.
  */
-export const EnvironmentName = Schema.String.pipe(
-  Schema.pattern(/^[a-z][a-z0-9-]*$/u),
-  Schema.maxLength(64),
+export const EnvironmentName = Schema.String.check(
+  Schema.isPattern(/^[a-z][a-z0-9-]*$/u),
+  Schema.isMaxLength(64),
 );
 
 /** An organization environment: a built-in (virtual) or a user-defined row. */
-export class Environment extends Schema.Class<Environment>("Environment")({
+export const Environment = Schema.Struct({
   id: Id,
   organizationId: Id,
   name: EnvironmentName,
@@ -33,7 +33,8 @@ export class Environment extends Schema.Class<Environment>("Environment")({
    */
   protected: Schema.Boolean,
   createdAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "Environment" });
+export type Environment = typeof Environment.Type;
 
 export const EnvironmentListResult = Schema.Struct({
   items: Schema.Array(Environment),

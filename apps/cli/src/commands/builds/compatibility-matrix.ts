@@ -16,7 +16,7 @@ export const compatibilityMatrixCommand = defineCommand({
       Effect.gen(function* () {
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const result = yield* api.builds.compatibilityMatrix({ urlParams: { projectId } });
+        const result = yield* api.builds.compatibilityMatrix({ query: { projectId } });
 
         const matrixKeys = Object.keys(result.channelStatusByKey);
 

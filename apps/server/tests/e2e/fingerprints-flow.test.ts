@@ -27,7 +27,7 @@ describe("Fingerprint detail endpoint", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates and activates the primary organization", async () => {
@@ -37,7 +37,7 @@ describe("Fingerprint detail endpoint", () => {
       { cookie: cookies },
     );
     expect(createOrgResponse.status).toBe(200);
-    organizationId = (await createOrgResponse.json()).id;
+    ({ id: organizationId } = await createOrgResponse.json());
     cookies = parseCookies(createOrgResponse) || cookies;
 
     const setActiveResponse = await post(
@@ -56,7 +56,7 @@ describe("Fingerprint detail endpoint", () => {
       { cookie: cookies },
     );
     expect(createProjectResponse.status).toBe(201);
-    projectId = (await createProjectResponse.json()).id;
+    ({ id: projectId } = await createProjectResponse.json());
 
     await seedD1(`
 -- Project create auto-provisions development/preview/production channels + branches;
@@ -103,7 +103,7 @@ VALUES
     // Only the two FP-tagged builds; OTHERFP and NULL-fp builds are excluded.
     expect(body.builds).toHaveLength(2);
     const buildIds = body.builds.map((build: { id: string }) => build.id);
-    expect(buildIds).toEqual(["fp-build-new", "fp-build-old"]);
+    expect(buildIds).toStrictEqual(["fp-build-new", "fp-build-old"]);
     expect(buildIds).not.toContain("fp-build-other");
     expect(buildIds).not.toContain("fp-build-nullfp");
 
@@ -143,8 +143,8 @@ VALUES
     const body = await response.json();
     expect(body.hash).toBe("fp-nonexistent-hash");
     expect(body.projectId).toBe(projectId);
-    expect(body.builds).toEqual([]);
-    expect(body.updates).toEqual([]);
+    expect(body.builds).toStrictEqual([]);
+    expect(body.updates).toStrictEqual([]);
   });
 
   it("returns 404 when the active organization does not own the project", async () => {
@@ -154,7 +154,7 @@ VALUES
       { cookie: cookies },
     );
     expect(createOrgResponse.status).toBe(200);
-    secondaryOrgId = (await createOrgResponse.json()).id;
+    ({ id: secondaryOrgId } = await createOrgResponse.json());
     cookies = parseCookies(createOrgResponse) || cookies;
 
     const setActiveResponse = await post(

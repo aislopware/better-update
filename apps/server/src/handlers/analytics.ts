@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { CurrentActor } from "../auth/current-actor";
@@ -15,7 +15,7 @@ import { ActivityRepo, AnalyticsRepo } from "../repositories";
 
 export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics", (handlers) =>
   handlers
-    .handle("adoption", ({ urlParams: { projectId, period } }) =>
+    .handle("adoption", ({ query: { projectId, period } }) =>
       Effect.gen(function* () {
         yield* assertProjectOwnership(projectId);
         yield* assertAccess("project", "read", { kind: "project", projectId });
@@ -34,7 +34,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
-    .handle("updates", ({ urlParams: { projectId, updateId, period } }) =>
+    .handle("updates", ({ query: { projectId, updateId, period } }) =>
       Effect.gen(function* () {
         yield* assertProjectOwnership(projectId);
         yield* assertAccess("project", "read", { kind: "project", projectId });
@@ -58,7 +58,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
-    .handle("channels", ({ urlParams: { projectId, channel, period } }) =>
+    .handle("channels", ({ query: { projectId, channel, period } }) =>
       Effect.gen(function* () {
         yield* assertProjectOwnership(projectId);
         yield* assertAccess("project", "read", { kind: "project", projectId });
@@ -78,7 +78,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
-    .handle("platforms", ({ urlParams: { projectId, period } }) =>
+    .handle("platforms", ({ query: { projectId, period } }) =>
       Effect.gen(function* () {
         yield* assertProjectOwnership(projectId);
         yield* assertAccess("project", "read", { kind: "project", projectId });
@@ -95,7 +95,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
-    .handle("downloads", ({ urlParams: { projectId, period } }) =>
+    .handle("downloads", ({ query: { projectId, period } }) =>
       Effect.gen(function* () {
         yield* assertProjectOwnership(projectId);
         yield* assertAccess("project", "read", { kind: "project", projectId });
@@ -113,7 +113,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
-    .handle("activity", ({ urlParams: { projectId, period } }) =>
+    .handle("activity", ({ query: { projectId, period } }) =>
       Effect.gen(function* () {
         const ctx = yield* CurrentActor;
         if (projectId !== undefined) {
@@ -146,7 +146,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
-    .handle("projectActivity", ({ urlParams: { projectIds, period } }) =>
+    .handle("projectActivity", ({ query: { projectIds, period } }) =>
       Effect.gen(function* () {
         const ctx = yield* CurrentActor;
         // No per-project authorization pass: `projectIds` narrows within what

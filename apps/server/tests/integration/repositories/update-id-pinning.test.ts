@@ -1,13 +1,12 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect, Layer } from "effect";
 
 import { publishUpdate } from "../../../src/application/publish-coordination";
 import { ChannelRepoLive } from "../../../src/repositories/channels";
 import { ProjectRepoLive } from "../../../src/repositories/projects";
 import { UpdateRepo, UpdateRepoLive } from "../../../src/repositories/updates";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
-import type { Conflict } from "../../../src/errors";
 import type { ChannelRepo } from "../../../src/repositories/channels";
 import type { ProjectRepo } from "../../../src/repositories/projects";
 
@@ -30,22 +29,22 @@ import type { ProjectRepo } from "../../../src/repositories/projects";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
   runWithLayerAndEnv(effect, UpdateRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
-  runEitherWithLayerAndEnv(effect, UpdateRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
+  runResultWithLayerAndEnv(effect, UpdateRepoLive, env);
 
 // publishUpdate needs UpdateRepo + ChannelRepo + ProjectRepo; the cache/activity
 // bumps it performs are plain UPDATEs that no-op when no channel/project row
 // matches, so the org/project/branch fixtures below are sufficient.
 const PublishLayer = Layer.mergeAll(UpdateRepoLive, ChannelRepoLive, ProjectRepoLive);
 
-const runPublish = <Ret, Err>(
+const runPublish = async <Ret, Err>(
   effect: Effect.Effect<Ret, Err, ChannelRepo | ProjectRepo | UpdateRepo>,
 ) => runWithLayerAndEnv(effect, PublishLayer, env);
 
-const publishEmbedded = (params: {
+const publishEmbedded = async (params: {
   readonly id: string;
   readonly branchId: string;
   readonly runtimeVersion: string;
@@ -77,35 +76,35 @@ const publishEmbedded = (params: {
     }),
   );
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, '2024-01-01T00:00:00.000Z')`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`)
     .run();
 
-const insertProject = (id: string, organizationId: string) =>
+const insertProject = async (id: string, organizationId: string) =>
   env.DB.prepare(
     `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, '2024-01-01T00:00:00.000Z')`,
   )
     .bind(id, organizationId, `Project ${id}`, `test-${id}`)
     .run();
 
-const insertBranch = (id: string, projectId: string) =>
+const insertBranch = async (id: string, projectId: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, 'main', '2024-01-02T00:00:00.000Z')`,
   )
     .bind(id, projectId)
     .run();
 
-const insertAsset = (hash: string) =>
+const insertAsset = async (hash: string) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, 'application/javascript', 'js', 2048, ?, '2024-01-10T00:00:00.000Z')`,
   )
     .bind(hash, `assets/${hash}`)
     .run();
 
-const baseInsert = (overrides: {
+const baseInsert = async (overrides: {
   readonly branchId: string;
   readonly runtimeVersion: string;
   readonly launchHash: string;
@@ -149,11 +148,11 @@ const baseInsert = (overrides: {
 
 const embeddedRowCount = async (branchId: string, runtimeVersion: string) => {
   const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
+    `SELECT COUNT(*) AS total FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
   )
     .bind(branchId, runtimeVersion)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .first<{ total: number }>();
+  return row?.total ?? 0;
 };
 
 describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
@@ -266,7 +265,7 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
       isEmbedded: true,
       message: "embedded-flip-1",
     });
-    expect(await embeddedRowCount(branchId, rtv)).toBe(1);
+    await expect(embeddedRowCount(branchId, rtv)).resolves.toBe(1);
 
     await baseInsert({
       branchId,
@@ -278,7 +277,7 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
     });
 
     // Only one embedded baseline survives, and it is the latest (pinned) id.
-    expect(await embeddedRowCount(branchId, rtv)).toBe(1);
+    await expect(embeddedRowCount(branchId, rtv)).resolves.toBe(1);
     const survivor = await env.DB.prepare(
       `SELECT "id" AS id FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
     )
@@ -312,7 +311,7 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
 
     // Second insert with the SAME id collides on the PRIMARY KEY. It must fail
     // with a typed Conflict (a recoverable value), NOT die into a 500.
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* UpdateRepo;
         return yield* repo.insert({
@@ -339,9 +338,9 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
       }),
     );
 
-    expect(result._tag).toBe("Left");
-    if (result._tag === "Left") {
-      const error = result.left as Conflict;
+    expect(result._tag).toBe("Failure");
+    if (result._tag === "Failure") {
+      const error = result.failure;
       expect(error._tag).toBe("Conflict");
       expect(error.message).toContain("already exists");
     }
@@ -354,10 +353,10 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
       .bind(dupId)
       .first<{ hash: string }>();
     expect(launch?.hash).toBe(firstHash);
-    const message = await env.DB.prepare(`SELECT "message" AS m FROM "updates" WHERE "id" = ?`)
+    const message = await env.DB.prepare(`SELECT "message" FROM "updates" WHERE "id" = ?`)
       .bind(dupId)
-      .first<{ m: string }>();
-    expect(message?.m).toBe("dup-original");
+      .first<{ message: string }>();
+    expect(message?.message).toBe("dup-original");
   });
 
   it("publishUpdate re-registers the SAME embedded id for the SAME tuple idempotently (no 500, replace)", async () => {
@@ -376,7 +375,7 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
       message: "embedded-idem-1",
     });
     expect(first.ok).toBe(true);
-    expect(await embeddedRowCount(branchId, rtv)).toBe(1);
+    await expect(embeddedRowCount(branchId, rtv)).resolves.toBe(1);
 
     // Re-upload the SAME --embedded-id (the binary's stable app.manifest UUID)
     // after a reset/retry: idempotent success, NOT a PK-collision 500.
@@ -391,14 +390,14 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
 
     // Exactly one embedded baseline remains under the pinned id, now pointing at
     // the re-uploaded bytes (the row was replaced).
-    expect(await embeddedRowCount(branchId, rtv)).toBe(1);
+    await expect(embeddedRowCount(branchId, rtv)).resolves.toBe(1);
     const survivor = await env.DB.prepare(
-      `SELECT "id" AS id, "message" AS m FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
+      `SELECT "id" AS id, "message" FROM "updates" WHERE "branch_id" = ? AND "runtime_version" = ? AND "platform" = 'ios' AND "is_embedded" = 1`,
     )
       .bind(branchId, rtv)
-      .first<{ id: string; m: string }>();
+      .first<{ id: string; message: string }>();
     expect(survivor?.id).toBe(pinnedId);
-    expect(survivor?.m).toBe("embedded-idem-2");
+    expect(survivor?.message).toBe("embedded-idem-2");
     const launch = await env.DB.prepare(
       `SELECT "asset_hash" AS hash FROM "update_assets" WHERE "update_id" = ? AND "is_launch" = 1`,
     )
@@ -441,12 +440,12 @@ describe("UpdateRepo.insert — embedded-baseline id pinning", () => {
 
     // The other project's row is untouched: still its branch, its bytes.
     const row = await env.DB.prepare(
-      `SELECT "branch_id" AS branchId, "message" AS m FROM "updates" WHERE "id" = ?`,
+      `SELECT "branch_id" AS branchId, "message" FROM "updates" WHERE "id" = ?`,
     )
       .bind(pinnedId)
-      .first<{ branchId: string; m: string }>();
+      .first<{ branchId: string; message: string }>();
     expect(row?.branchId).toBe(otherBranchId);
-    expect(row?.m).toBe("embedded-cross-owner");
+    expect(row?.message).toBe("embedded-cross-owner");
     const launch = await env.DB.prepare(
       `SELECT "asset_hash" AS hash FROM "update_assets" WHERE "update_id" = ? AND "is_launch" = 1`,
     )

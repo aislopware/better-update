@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -12,76 +12,72 @@ import {
   UploadGoogleServiceAccountKeyBody,
 } from "../domain/google-service-account-key";
 
-export class GoogleServiceAccountKeysGroup extends HttpApiGroup.make("googleServiceAccountKeys")
+export const GoogleServiceAccountKeysGroup = HttpApiGroup.make("googleServiceAccountKeys")
   .add(
-    HttpApiEndpoint.get("list", "/api/google/service-account-keys")
-      .addSuccess(Schema.Struct({ items: Schema.Array(GoogleServiceAccountKey) }))
-      .annotateContext(
-        OpenApi.annotations({
-          title: "List Google service account keys",
-          description: "List uploaded Google service account JSON keys",
-        }),
-      ),
+    HttpApiEndpoint.get("list", "/api/google/service-account-keys", {
+      success: Schema.Struct({ items: Schema.Array(GoogleServiceAccountKey) }),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "List Google service account keys",
+        description: "List uploaded Google service account JSON keys",
+      }),
+    ),
+    HttpApiEndpoint.post("upload", "/api/google/service-account-keys", {
+      payload: UploadGoogleServiceAccountKeyBody,
+      success: GoogleServiceAccountKey.pipe(HttpApiSchema.status(201)),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Upload service account key",
+        description: "Upload a Google service account JSON key",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("delete", "/api/google/service-account-keys/:id", {
+      params: { ...idParam },
+      success: DeleteGoogleServiceAccountKeyResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Delete service account key",
+        description: "Remove a stored Google service account key",
+      }),
+    ),
+    HttpApiEndpoint.get("download", "/api/google/service-account-keys/:id/download", {
+      params: { ...idParam },
+      success: DownloadGoogleServiceAccountKeyResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Download service account key",
+        description: "Fetch the decrypted JSON for local use (audit-logged)",
+      }),
+    ),
+    HttpApiEndpoint.put("protect", "/api/google/service-account-keys/:id/protection", {
+      params: { ...idParam },
+      success: GoogleServiceAccountKey,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Protect credential",
+        description:
+          "Mark the credential protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
+      }),
+    ),
+    HttpApiEndpoint.make("DELETE")("unprotect", "/api/google/service-account-keys/:id/protection", {
+      params: { ...idParam },
+      success: GoogleServiceAccountKey,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Unprotect credential",
+        description: "Remove the credential's protection. Org admin only. Idempotent.",
+      }),
+    ),
   )
-  .add(
-    HttpApiEndpoint.post("upload", "/api/google/service-account-keys")
-      .setPayload(UploadGoogleServiceAccountKeyBody)
-      .addSuccess(GoogleServiceAccountKey, { status: 201 })
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Upload service account key",
-          description: "Upload a Google service account JSON key",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("delete")`/api/google/service-account-keys/${idParam}`
-      .addSuccess(DeleteGoogleServiceAccountKeyResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Delete service account key",
-          description: "Remove a stored Google service account key",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.get("download")`/api/google/service-account-keys/${idParam}/download`
-      .addSuccess(DownloadGoogleServiceAccountKeyResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Download service account key",
-          description: "Fetch the decrypted JSON for local use (audit-logged)",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.put("protect")`/api/google/service-account-keys/${idParam}/protection`
-      .addSuccess(GoogleServiceAccountKey)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Protect credential",
-          description:
-            "Mark the credential protected (GITLAB-RBAC-SPEC §3b): reads/uses require Maintainer+. Org admin only. Idempotent.",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.del("unprotect")`/api/google/service-account-keys/${idParam}/protection`
-      .addSuccess(GoogleServiceAccountKey)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Unprotect credential",
-          description: "Remove the credential's protection. Org admin only. Idempotent.",
-        }),
-      ),
-  )
-  .addError(NotFound)
-  .addError(Conflict)
-  .addError(BadRequest)
-  .addError(Forbidden)
-  .annotateContext(
+  .annotateMerge(
     OpenApi.annotations({
       title: "Google Service Account Keys",
       description: "Manage Google Play + FCM service account JSON keys",
     }),
-  ) {}
+  );

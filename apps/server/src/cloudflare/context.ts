@@ -1,35 +1,32 @@
 import { Context, Effect, Option } from "effect";
 
-export class CloudflareEnvTag extends Context.Tag("server/CloudflareEnv")<
-  CloudflareEnvTag,
-  Env
->() {}
+export class CloudflareEnvTag extends Context.Service<CloudflareEnvTag, Env>()(
+  "server/CloudflareEnv",
+) {}
 /**
  * The per-request D1 session. Created once at the request boundary via
  * `env.DB.withSession(...)` so every query in the request shares one bookmark,
  * giving sequential consistency / read-your-writes across read replicas. Safe
  * when replication is disabled — D1 then routes the session to the primary.
  */
-export class D1SessionTag extends Context.Tag("server/D1Session")<
-  D1SessionTag,
-  D1DatabaseSession
->() {}
-class CloudflareExecutionContextTag extends Context.Tag("server/CloudflareExecutionContext")<
+export class D1SessionTag extends Context.Service<D1SessionTag, D1DatabaseSession>()(
+  "server/D1Session",
+) {}
+class CloudflareExecutionContextTag extends Context.Service<
   CloudflareExecutionContextTag,
   ExecutionContext
->() {}
-class CloudflareRequestTag extends Context.Tag("server/CloudflareRequest")<
-  CloudflareRequestTag,
-  Request
->() {}
+>()("server/CloudflareExecutionContext") {}
+class CloudflareRequestTag extends Context.Service<CloudflareRequestTag, Request>()(
+  "server/CloudflareRequest",
+) {}
 
 const fromFiberContext = <Identifier, Service>(
-  tag: Context.Tag<Identifier, Service>,
+  tag: Context.Key<Identifier, Service>,
   label: string,
 ): Effect.Effect<Service> =>
-  Effect.withFiberRuntime((fiber) =>
-    Option.match(Context.getOption(fiber.currentContext, tag), {
-      onNone: () => Effect.dieMessage(`${label} is not set`),
+  Effect.withFiber((fiber) =>
+    Option.match(Context.getOption(fiber.context, tag), {
+      onNone: () => Effect.die(new Error(`${label} is not set`)),
       onSome: Effect.succeed,
     }),
   );

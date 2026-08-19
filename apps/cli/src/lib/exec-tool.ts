@@ -54,7 +54,7 @@ export const runTool = (
         stderr: stderr === "" ? String(error) : stderr,
       };
     },
-  }).pipe(Effect.catchAll((result) => Effect.succeed(result)));
+  }).pipe(Effect.catch((error) => Effect.succeed(error)));
 
 /** Best human-readable failure detail: the combined raw streams, else a stub. */
 export const execFailureDetail = (result: ExecResult): string => {

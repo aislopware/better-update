@@ -1,10 +1,11 @@
 import { X509Certificate, createHash } from "node:crypto";
 
-import { Command } from "@effect/platform";
 import { Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
+import { runExitCode, runText } from "./child-process";
 import { BuildFailedError } from "./exit-codes";
 
 const DEFAULT_KEYSTORE_VALIDITY_DAYS = 10_000;
@@ -76,19 +77,25 @@ export const extractKeystoreCertificate = (params: {
   readonly keystorePath: string;
   readonly keyAlias: string;
   readonly storePassword: string;
-}): Effect.Effect<KeystoreCertificate, BuildFailedError, CommandExecutor.CommandExecutor> =>
-  Command.string(
-    Command.make(
+}): Effect.Effect<KeystoreCertificate, BuildFailedError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runText(
+    ChildProcess.make(
       "keytool",
-      "-list",
-      "-rfc",
-      "-keystore",
-      params.keystorePath,
-      "-alias",
-      params.keyAlias,
-      "-storepass",
-      params.storePassword,
-    ).pipe(Command.env({ LC_ALL: "C" })),
+      [
+        "-list",
+        "-rfc",
+        "-keystore",
+        params.keystorePath,
+        "-alias",
+        params.keyAlias,
+        "-storepass",
+        params.storePassword,
+      ],
+      // `extendEnv` is required: without it v4 hands the child ONLY this record,
+      // so keytool would run without a PATH. The pin itself is what keeps
+      // keytool's prose in English for the parser below.
+      { env: { LC_ALL: "C" }, extendEnv: true },
+    ),
   ).pipe(
     Effect.mapError(
       (cause) =>
@@ -100,7 +107,7 @@ export const extractKeystoreCertificate = (params: {
     ),
     Effect.flatMap((output) => {
       const pem = parseKeystoreCertificatePem(output);
-      // `Command.string` resolves with whatever landed on stdout even when keytool
+      // `runText` resolves with whatever landed on stdout even when keytool
       // exits non-zero (wrong store password, unknown alias), so a missing PEM
       // block is the only reliable signal that the certificate was never read.
       // Fail loudly here — before any credential row is created — so the user
@@ -128,35 +135,38 @@ export const extractKeystoreCertificate = (params: {
 
 export const generateAndroidKeystore = (
   input: GenerateAndroidKeystoreInput,
-): Effect.Effect<void, BuildFailedError, CommandExecutor.CommandExecutor> =>
-  Command.exitCode(
-    Command.make(
+): Effect.Effect<void, BuildFailedError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runExitCode(
+    ChildProcess.make(
       "keytool",
-      "-genkeypair",
-      "-v",
-      "-storetype",
-      "JKS",
-      "-keystore",
-      input.outputPath,
-      "-alias",
-      input.keyAlias,
-      "-keyalg",
-      "RSA",
-      "-keysize",
-      "2048",
-      "-validity",
-      String(input.validityDays ?? DEFAULT_KEYSTORE_VALIDITY_DAYS),
-      "-storepass",
-      input.storePassword,
-      "-keypass",
-      input.keyPassword,
-      "-dname",
-      renderDistinguishedName({
-        commonName: input.commonName,
-        organization: input.organization,
-      }),
-      "-noprompt",
-    ).pipe(Command.stdout("inherit"), Command.stderr("inherit")),
+      [
+        "-genkeypair",
+        "-v",
+        "-storetype",
+        "JKS",
+        "-keystore",
+        input.outputPath,
+        "-alias",
+        input.keyAlias,
+        "-keyalg",
+        "RSA",
+        "-keysize",
+        "2048",
+        "-validity",
+        String(input.validityDays ?? DEFAULT_KEYSTORE_VALIDITY_DAYS),
+        "-storepass",
+        input.storePassword,
+        "-keypass",
+        input.keyPassword,
+        "-dname",
+        renderDistinguishedName({
+          commonName: input.commonName,
+          organization: input.organization,
+        }),
+        "-noprompt",
+      ],
+      { stdout: "inherit", stderr: "inherit" },
+    ),
   ).pipe(
     Effect.mapError(
       (cause) =>

@@ -61,7 +61,7 @@ const interactiveCertLimitRecover = (api: ApiClient, ascApiKeyId: string) =>
       { required: true },
     );
     yield* Effect.forEach(toRevoke, (id) => revokeDistributionCert(context, id), {
-      concurrency: "inherit",
+      concurrency: "unbounded",
     });
     yield* Console.log(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
     return undefined;
@@ -196,7 +196,7 @@ const generateProvisioningProfileForBundle = (
 
 export const resolveIosProfileId = (api: ApiClient, input: IosSetupInput, ctx: IosSetupContext) =>
   Effect.gen(function* () {
-    const profiles = yield* api.appleProvisioningProfiles.list({ urlParams: {} });
+    const profiles = yield* api.appleProvisioningProfiles.list({ query: {} });
     const matching = profiles.items.filter(
       (profile) =>
         profile.bundleIdentifier === input.bundleIdentifier &&

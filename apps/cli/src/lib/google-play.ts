@@ -132,7 +132,7 @@ const exchangeJwtForAccessToken = (tokenUri: string, jwt: string) =>
       catch: (cause) =>
         new GooglePlayAuthError({ message: "OAuth token response is not JSON", cause }),
     });
-    const decoded = yield* Schema.decodeUnknown(TokenResponseSchema)(json).pipe(
+    const decoded = yield* Schema.decodeUnknownEffect(TokenResponseSchema)(json).pipe(
       Effect.mapError(
         (cause) =>
           new GooglePlayAuthError({
@@ -161,7 +161,7 @@ export const acquireGooglePlayAccessToken = (
           cause,
         }),
     });
-    const parsed = yield* Schema.decodeUnknown(ServiceAccountJsonSchema)(raw).pipe(
+    const parsed = yield* Schema.decodeUnknownEffect(ServiceAccountJsonSchema)(raw).pipe(
       Effect.mapError(
         (cause) =>
           new GooglePlayAuthError({
@@ -258,7 +258,7 @@ export const insertEdit = (params: {
       body: {},
       label: "edits.insert",
     });
-    return yield* Schema.decodeUnknown(AppEditSchema)(raw).pipe(
+    return yield* Schema.decodeUnknownEffect(AppEditSchema)(raw).pipe(
       Effect.mapError(
         (cause) => new GooglePlayApiError({ message: "edits.insert response missing id", cause }),
       ),
@@ -316,7 +316,7 @@ export const uploadBundle = (params: {
           cause,
         }),
     });
-    return yield* Schema.decodeUnknown(UploadedBundleSchema)(raw).pipe(
+    return yield* Schema.decodeUnknownEffect(UploadedBundleSchema)(raw).pipe(
       Effect.mapError(
         (cause) =>
           new GooglePlayApiError({

@@ -2,8 +2,8 @@ import path from "node:path";
 
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
-import type { PlatformError } from "@effect/platform/Error";
+import type { FileSystem } from "effect";
+import type { PlatformError } from "effect/PlatformError";
 
 import { findNewestFileUnder } from "./artifact-finder";
 

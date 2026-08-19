@@ -25,7 +25,7 @@ export const downloadsCommand = defineCommand({
         const periodFilter = args.period ? { period: args.period } : {};
 
         const result = yield* api.analytics.downloads({
-          urlParams: { projectId, ...periodFilter },
+          query: { projectId, ...periodFilter },
         });
 
         yield* warnIfUnavailable(result.unavailable);

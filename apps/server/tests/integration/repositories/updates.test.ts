@@ -1,5 +1,5 @@
 import { toDbNull } from "@better-update/type-guards";
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { UpdateRepo, UpdateRepoLive } from "../../../src/repositories/updates";
@@ -16,17 +16,17 @@ import type { Platform, UpdateAssetRefModel } from "../../../src/models";
 // is covered by update-git-metadata.test.ts / update-id-pinning.test.ts; here we
 // drive insert only to seed.
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
   runWithLayerAndEnv(effect, UpdateRepoLive, env);
 
-const insertAsset = (hash: string, byteSize: number) =>
+const insertAsset = async (hash: string, byteSize: number) =>
   env.DB.prepare(
     `INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, 'application/javascript', 'js', ?, ?, '2024-01-10T00:00:00.000Z')`,
   )
     .bind(hash, byteSize, `assets/${hash}`)
     .run();
 
-const seedUpdate = (params: {
+const seedUpdate = async (params: {
   readonly branchId: string;
   readonly groupId: string;
   readonly platform: Platform;
@@ -207,7 +207,7 @@ describe("UpdateRepo — Kysely read/aggregate/delete paths (real D1)", () => {
       assets: [{ key: "bundle", hash: launchHash, isLaunch: true }],
     });
 
-    const search = (query: string) =>
+    const search = async (query: string) =>
       run(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
@@ -247,7 +247,9 @@ describe("UpdateRepo — Kysely read/aggregate/delete paths (real D1)", () => {
     );
 
     expect(items).toHaveLength(2);
-    expect(items.map((item) => item.message).sort()).toEqual(["ios-a", "ios-b"]);
+    expect(
+      items.map((item) => item.message).toSorted((left, right) => left.localeCompare(right)),
+    ).toStrictEqual(["ios-a", "ios-b"]);
   });
 
   it("listByProjectAndFingerprint returns only matching-fingerprint updates", async () => {

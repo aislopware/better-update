@@ -1,3 +1,5 @@
+/* eslint-disable node/no-process-env -- the globalSetup → test-worker handoff documented below
+   is `process.env`; there is no other channel vitest snapshots into forked workers. */
 /**
  * The TEST-WORKER half of the e2e stack contract.
  *

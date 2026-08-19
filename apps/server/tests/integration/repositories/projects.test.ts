@@ -1,25 +1,25 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { ProjectRepo, ProjectRepoLive } from "../../../src/repositories/projects";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectRepo>) =>
   runWithLayerAndEnv(effect, ProjectRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectRepo>) =>
-  runEitherWithLayerAndEnv(effect, ProjectRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectRepo>) =>
+  runResultWithLayerAndEnv(effect, ProjectRepoLive, env);
 
-const insertOrg = (id: string, slug: string) =>
+const insertOrg = async (id: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${slug}`, slug, "2026-01-01T00:00:00Z")
     .run();
 
-const insertBranch = (id: string, projectId: string) =>
+const insertBranch = async (id: string, projectId: string) =>
   env.DB.prepare(
     `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, 'main', ?)`,
   )
@@ -56,10 +56,10 @@ describe("ProjectRepo — D1 integration", () => {
         .first();
 
       expect(row).not.toBeNull();
-      expect(row!.name).toBe("My App");
-      expect(row!.slug).toBe("test-insert-1");
-      expect(row!.organization_id).toBe("org-1");
-      expect(row!.last_activity_at).toBe("2026-01-01T00:00:00Z");
+      expect(row!["name"]).toBe("My App");
+      expect(row!["slug"]).toBe("test-insert-1");
+      expect(row!["organization_id"]).toBe("org-1");
+      expect(row!["last_activity_at"]).toBe("2026-01-01T00:00:00Z");
     });
 
     it("returns Conflict on duplicate slug in same org", async () => {
@@ -76,7 +76,7 @@ describe("ProjectRepo — D1 integration", () => {
         }),
       );
 
-      const result = await runEither(
+      const result = await runResult(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
           yield* repo.insert({
@@ -89,9 +89,9 @@ describe("ProjectRepo — D1 integration", () => {
         }),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "Conflict" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "Conflict" });
       }
     });
 
@@ -116,8 +116,8 @@ describe("ProjectRepo — D1 integration", () => {
         .first();
 
       expect(ftsRow).not.toBeNull();
-      expect(ftsRow!.name).toBe("Searchable Trigger Project");
-      expect(ftsRow!.slug).toBe("searchable-trigger");
+      expect(ftsRow!["name"]).toBe("Searchable Trigger Project");
+      expect(ftsRow!["slug"]).toBe("searchable-trigger");
     });
   });
 
@@ -177,7 +177,7 @@ describe("ProjectRepo — D1 integration", () => {
 
       expect(result.total).toBe(1);
       expect(result.items).toHaveLength(1);
-      expect(result.items[0]).toEqual(expect.objectContaining({ name: "Org2 App" }));
+      expect(result.items[0]).toStrictEqual(expect.objectContaining({ name: "Org2 App" }));
     });
 
     it("paginates with limit and offset", async () => {
@@ -215,8 +215,8 @@ describe("ProjectRepo — D1 integration", () => {
 
       // No overlap between pages
       const page1Ids = page1.items.map((item) => item.id);
-      const page2Ids = page2.items.map((item) => item.id);
-      const overlap = page1Ids.filter((id) => page2Ids.includes(id));
+      const page2Ids = new Set(page2.items.map((item) => item.id));
+      const overlap = page1Ids.filter((id) => page2Ids.has(id));
       expect(overlap).toHaveLength(0);
     });
 
@@ -282,7 +282,7 @@ describe("ProjectRepo — D1 integration", () => {
         }),
       );
 
-      expect(result.items.map((item) => item.name)).toEqual(["Alpha", "bravo", "charlie"]);
+      expect(result.items.map((item) => item.name)).toStrictEqual(["Alpha", "bravo", "charlie"]);
     });
   });
 
@@ -537,7 +537,7 @@ describe("ProjectRepo — D1 integration", () => {
       )
         .bind("rename-fts-proj")
         .first();
-      expect(ftsRow!.name).toBe("Updated Name");
+      expect(ftsRow!["name"]).toBe("Updated Name");
     });
   });
 
@@ -597,7 +597,7 @@ describe("ProjectRepo — D1 integration", () => {
       );
 
       expect(result.total).toBe(1);
-      expect(result.items.map((item) => item.id)).toEqual(["arch-active"]);
+      expect(result.items.map((item) => item.id)).toStrictEqual(["arch-active"]);
     });
 
     it("findByOrg status=archived returns only archived", async () => {
@@ -616,7 +616,7 @@ describe("ProjectRepo — D1 integration", () => {
       );
 
       expect(result.total).toBe(1);
-      expect(result.items.map((item) => item.id)).toEqual(["arch-archived"]);
+      expect(result.items.map((item) => item.id)).toStrictEqual(["arch-archived"]);
     });
 
     it("findByOrg status=all returns both active and archived", async () => {
@@ -635,7 +635,9 @@ describe("ProjectRepo — D1 integration", () => {
       );
 
       expect(result.total).toBe(2);
-      expect(result.items.map((item) => item.id).sort()).toEqual(["arch-active", "arch-archived"]);
+      expect(
+        result.items.map((item) => item.id).toSorted((left, right) => left.localeCompare(right)),
+      ).toStrictEqual(["arch-active", "arch-archived"]);
     });
 
     it("unarchive (setArchived null) restores the project to active listings", async () => {

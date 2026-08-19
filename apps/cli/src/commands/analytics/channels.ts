@@ -22,7 +22,7 @@ export const channelsCommand = defineCommand({
         const periodFilter = args.period ? { period: args.period } : {};
 
         const result = yield* api.analytics.channels({
-          urlParams: { projectId, channel: args.channel, ...periodFilter },
+          query: { projectId, channel: args.channel, ...periodFilter },
         });
 
         yield* warnIfUnavailable(result.unavailable);

@@ -1,12 +1,12 @@
-import { Effect, ParseResult, Schema } from "effect";
+import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect";
 
 import { InvalidArgumentError } from "./exit-codes";
 
-export const RolloutPercentage = Schema.Number.pipe(
-  Schema.int(),
-  Schema.between(1, 100),
-).annotations({
-  message: () => "Rollout percentage must be between 1 and 100.",
+export const RolloutPercentage = Schema.Number.check(
+  Schema.isInt(),
+  Schema.isBetween({ minimum: 1, maximum: 100 }),
+).annotate({
+  message: "Rollout percentage must be between 1 and 100.",
   identifier: "RolloutPercentage",
 });
 
@@ -14,30 +14,33 @@ export const KeyValuePair = Schema.Struct({
   key: Schema.String,
   value: Schema.String,
 });
-export type KeyValuePair = Schema.Schema.Type<typeof KeyValuePair>;
+export type KeyValuePair = typeof KeyValuePair.Type;
 
-export const KeyValueFromString = Schema.transformOrFail(Schema.String, KeyValuePair, {
-  strict: true,
-  decode: (input, _options, ast) => {
-    const eqIndex = input.indexOf("=");
-    if (eqIndex <= 0) {
-      return ParseResult.fail(
-        new ParseResult.Type(ast, input, "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)"),
-      );
-    }
-    return ParseResult.succeed({
-      key: input.slice(0, eqIndex),
-      value: input.slice(eqIndex + 1),
-    });
-  },
-  encode: ({ key, value }) => ParseResult.succeed(`${key}=${value}`),
-});
+// v4 replaced `Schema.transformOrFail` with `decodeTo` + a fallible
+// `SchemaGetter`; the failure channel carries a `SchemaIssue` rather than a
+// `ParseResult` error.
+const INVALID_KEY_VALUE = "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)";
+
+export const KeyValueFromString = Schema.String.pipe(
+  Schema.decodeTo(KeyValuePair, {
+    decode: SchemaGetter.transformOrFail((input: string) => {
+      const eqIndex = input.indexOf("=");
+      return eqIndex <= 0
+        ? Effect.fail(new SchemaIssue.InvalidValue({ message: INVALID_KEY_VALUE }, input))
+        : Effect.succeed({
+            key: input.slice(0, eqIndex),
+            value: input.slice(eqIndex + 1),
+          });
+    }),
+    encode: SchemaGetter.transform(({ key, value }: KeyValuePair) => `${key}=${value}`),
+  }),
+);
 
 export const parseRolloutPercentage = (
   raw: string,
   flag: string,
 ): Effect.Effect<number, InvalidArgumentError> =>
-  Schema.decodeUnknown(RolloutPercentage)(Number(raw)).pipe(
+  Schema.decodeUnknownEffect(RolloutPercentage)(Number(raw)).pipe(
     Effect.mapError(
       () =>
         new InvalidArgumentError({
@@ -47,7 +50,7 @@ export const parseRolloutPercentage = (
   );
 
 export const parseKeyValue = (raw: string): Effect.Effect<KeyValuePair, InvalidArgumentError> =>
-  Schema.decodeUnknown(KeyValueFromString)(raw).pipe(
+  Schema.decodeUnknownEffect(KeyValueFromString)(raw).pipe(
     Effect.mapError(
       () =>
         new InvalidArgumentError({

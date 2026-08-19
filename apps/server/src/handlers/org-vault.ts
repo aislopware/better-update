@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import type { AddVaultWrapBody } from "@better-update/api";
 
@@ -247,7 +247,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
       ),
     )
     .handle("addWrap", handleAddWrap)
-    .handle("getWrap", ({ path }) =>
+    .handle("getWrap", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertVaultParticipant;
@@ -255,7 +255,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const repo = yield* OrgVaultRepo;
           const keyRepo = yield* UserEncryptionKeyRepo;
 
-          const key = yield* keyRepo.findById({ id: path.keyId });
+          const key = yield* keyRepo.findById({ id: params.keyId });
           // Visible to the caller only if it's their own device or an org-owned key here.
           const isOwnDevice = ctx.userId !== null && key.userId === ctx.userId;
           const isOrgKey = key.organizationId === ctx.organizationId;
@@ -271,7 +271,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const wrap = yield* repo.findWrap({
             organizationId: ctx.organizationId,
             vaultVersion: vault.vaultVersion,
-            userEncryptionKeyId: path.keyId,
+            userEncryptionKeyId: params.keyId,
           });
           if (wrap === null) {
             return yield* new NotFound({
@@ -283,8 +283,8 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           // unlock the vault) — stamp last-used. Telemetry only: a failed
           // stamp must never fail the unlock.
           yield* keyRepo
-            .touchLastUsed({ id: path.keyId, now: new Date().toISOString() })
-            .pipe(Effect.catchAllCause(() => Effect.void));
+            .touchLastUsed({ id: params.keyId, now: new Date().toISOString() })
+            .pipe(Effect.catchCause(() => Effect.void));
 
           return { vaultVersion: wrap.vaultVersion, wrappedKey: wrap.wrappedKey };
         }),

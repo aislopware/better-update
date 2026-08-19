@@ -1,9 +1,8 @@
 import path from "node:path";
 
 import { compact, isRecord } from "@better-update/type-guards";
-import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect, Option } from "effect";
+import { FileSystem, Effect, Option } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { ensureDefaultBuildProfiles, readEasJsonRaw, writeEasJsonPatch } from "../lib/eas-json";
@@ -31,7 +30,7 @@ const checkExistingLink = (
     }
 
     const project = yield* api.projects
-      .get({ path: { id: existingId } })
+      .get({ params: { id: existingId } })
       .pipe(Effect.orElseSucceed(() => undefined));
     if (project === undefined) {
       yield* printHuman(
@@ -191,7 +190,7 @@ export const initCommand = defineCommand({
 
         // --id branch: skip slug lookup, link by explicit ID; name comes from the server.
         if (args.id !== undefined && args.id.length > 0) {
-          const project = yield* api.projects.get({ path: { id: args.id } });
+          const project = yield* api.projects.get({ params: { id: args.id } });
           yield* printHuman(`Linking project: ${project.name} (${project.id})`);
           const linked = yield* persistLink(projectRoot, project.id, hasExpoConfig);
           const buildProfiles = yield* scaffoldBuildProfiles(projectRoot);
@@ -209,7 +208,7 @@ export const initCommand = defineCommand({
           }
         }
 
-        const { items } = yield* api.projects.list({ urlParams: { page: 1, limit: 100 } });
+        const { items } = yield* api.projects.list({ query: { page: 1, limit: 100 } });
         const existing = items.find((project) => project.slug === slug);
         const linkedProjectId = yield* Effect.gen(function* () {
           if (existing) {

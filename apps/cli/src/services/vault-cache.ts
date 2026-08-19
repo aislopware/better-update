@@ -135,7 +135,7 @@ export const decodeCacheEntry = (
   };
 };
 
-export class VaultCache extends Context.Tag("cli/VaultCache")<
+export class VaultCache extends Context.Service<
   VaultCache,
   {
     /** The cached vault key for this org + recipient + vault kind, or `undefined` if absent/expired/disabled. */
@@ -149,7 +149,7 @@ export class VaultCache extends Context.Tag("cli/VaultCache")<
     /** Forget the cached vault key for this org + recipient + vault kind (the `lock` operation). */
     readonly clear: (key: VaultCacheKey) => Effect.Effect<void>;
   }
->() {}
+>()("cli/VaultCache") {}
 
 export const VaultCacheLive = Layer.effect(
   VaultCache,
@@ -178,7 +178,7 @@ export const VaultCacheLive = Layer.effect(
     // errSecDuplicateItem. The `security` CLI goes through the legacy keychain
     // API and can still find and delete such an item.
     const evictStale = (account: string) =>
-      Effect.zipRight(
+      Effect.andThen(
         deleteRaw(account),
         process.platform === "darwin"
           ? Effect.tryPromise(async () =>
@@ -197,7 +197,7 @@ export const VaultCacheLive = Layer.effect(
         new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
       });
       return write.pipe(
-        Effect.orElse(() => Effect.zipRight(evictStale(account), write)),
+        Effect.catch(() => Effect.andThen(evictStale(account), write)),
         Effect.ignore,
       );
     };
@@ -243,7 +243,7 @@ export const VaultCacheLive = Layer.effect(
       // cannot be deleted through the keyring API, and a plain best-effort delete
       // would report success while leaving the key readable to the next command.
       clear: (key) =>
-        Effect.zipRight(evictStale(cacheAccount(key)), evictStale(legacyCacheAccount(key))),
+        Effect.andThen(evictStale(cacheAccount(key)), evictStale(legacyCacheAccount(key))),
     };
   }),
 );

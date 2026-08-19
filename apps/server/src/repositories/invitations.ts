@@ -64,10 +64,9 @@ export interface InvitationRepository {
   }) => Effect.Effect<boolean>;
 }
 
-export class InvitationRepo extends Context.Tag("api/InvitationRepo")<
-  InvitationRepo,
-  InvitationRepository
->() {}
+export class InvitationRepo extends Context.Service<InvitationRepo, InvitationRepository>()(
+  "api/InvitationRepo",
+) {}
 
 // -- D1 Adapter -------------------------------------------------------------
 

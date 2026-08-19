@@ -5,8 +5,8 @@ import {
   isOtaInstallableDistribution,
   STORE_DISTRIBUTIONS,
 } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Schema } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import type { CompleteBuildBody, CreateBuildBody, BuildAudience } from "@better-update/api";
 
@@ -88,7 +88,7 @@ const resolveAudience = (
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
   projectId: Schema.String,
-  platform: Schema.Literal("ios", "android"),
+  platform: Schema.Literals(["ios", "android"]),
   profile: Schema.String,
   distribution: Distribution,
   artifactFormat: ArtifactFormat,
@@ -100,8 +100,10 @@ const ReservationSchema = Schema.Struct({
   gitCommit: Schema.NullOr(Schema.String),
   gitDirty: Schema.Boolean,
   message: Schema.NullOr(Schema.String),
-  metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-  fingerprintHash: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
+  metadata: Schema.Record(Schema.String, Schema.Unknown),
+  fingerprintHash: Schema.NullOr(Schema.String).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(null)),
+  ),
   sha256: Schema.String,
   byteSize: Schema.Number,
   checksumSha256Base64: Schema.String,
@@ -202,17 +204,17 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
   );
 
 const handleComplete = ({
-  path,
+  params,
   payload,
 }: {
-  readonly path: { readonly id: string };
+  readonly params: { readonly id: string };
   readonly payload: typeof CompleteBuildBody.Type;
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
       const runtime = yield* BuildRuntime;
 
-      const reservationJson = yield* runtime.getReservation({ id: path.id });
+      const reservationJson = yield* runtime.getReservation({ id: params.id });
       if (!reservationJson) {
         return yield* new NotFound({ message: "Build reservation not found or expired" });
       }
@@ -227,7 +229,7 @@ const handleComplete = ({
       yield* assertAccess("build", "create", {
         kind: "build",
         projectId: reservation.projectId,
-        buildId: path.id,
+        buildId: params.id,
       });
 
       if (!completionMatchesReservation(payload, reservation)) {
@@ -244,7 +246,7 @@ const handleComplete = ({
       const [repo, projectRepo] = yield* Effect.all([BuildRepo, ProjectRepo]);
       const build = yield* repo
         .insert({
-          id: path.id,
+          id: params.id,
           projectId: reservation.projectId,
           platform: reservation.platform,
           profile: reservation.profile,
@@ -277,12 +279,12 @@ const handleComplete = ({
           ),
         );
 
-      yield* runtime.deleteReservation({ id: path.id });
+      yield* runtime.deleteReservation({ id: params.id });
 
       yield* logAudit({
         action: "build.complete",
         resourceType: "build",
-        resourceId: path.id,
+        resourceId: params.id,
         projectId: reservation.projectId,
       });
 
@@ -290,57 +292,53 @@ const handleComplete = ({
     }),
   );
 
-const handleGet = ({ path }: { readonly path: { readonly id: string } }) =>
+const handleGet = ({ params }: { readonly params: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
       const repo = yield* BuildRepo;
-      const build = yield* repo.findById({ id: path.id });
+      const build = yield* repo.findById({ id: params.id });
       yield* assertProjectOwnership(build.projectId);
       yield* assertAccess("build", "read", {
         kind: "build",
         projectId: build.projectId,
-        buildId: path.id,
+        buildId: params.id,
       });
 
       return toApiBuild(build);
     }),
   );
 
-const handleCompatibilityMatrix = ({
-  urlParams,
-}: {
-  readonly urlParams: { readonly projectId: string };
-}) =>
+const handleCompatibilityMatrix = ({ query }: { readonly query: { readonly projectId: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertProjectOwnership(urlParams.projectId);
-      yield* assertAccess("build", "read", { kind: "build", projectId: urlParams.projectId });
+      yield* assertProjectOwnership(query.projectId);
+      yield* assertAccess("build", "read", { kind: "build", projectId: query.projectId });
 
       const repo = yield* CompatibilityRepo;
       return toApiBuildCompatibilityMatrix(
-        yield* repo.getBuildMatrix({ projectId: urlParams.projectId }),
+        yield* repo.getBuildMatrix({ projectId: query.projectId }),
       );
     }),
   );
 
-const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
+const handleDelete = ({ params }: { readonly params: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
       const repo = yield* BuildRepo;
-      const build = yield* repo.findById({ id: path.id });
+      const build = yield* repo.findById({ id: params.id });
       yield* assertProjectOwnership(build.projectId);
       yield* assertAccess("build", "delete", {
         kind: "build",
         projectId: build.projectId,
-        buildId: path.id,
+        buildId: params.id,
       });
 
       // Collect debug-artifact keys BEFORE the delete — the rows cascade away
       // with the build.
       const debugRepo = yield* DebugArtifactRepo;
-      const debugKeys = yield* debugRepo.listR2KeysByBuildIds({ buildIds: [path.id] });
+      const debugKeys = yield* debugRepo.listR2KeysByBuildIds({ buildIds: [params.id] });
 
-      const { r2Key } = yield* repo.deleteById({ id: path.id });
+      const { r2Key } = yield* repo.deleteById({ id: params.id });
 
       const keysToDelete = [...(r2Key ? [r2Key] : []), ...debugKeys];
       if (keysToDelete.length > 0) {
@@ -351,7 +349,7 @@ const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
       yield* logAudit({
         action: "build.delete",
         resourceType: "build",
-        resourceId: path.id,
+        resourceId: params.id,
         projectId: build.projectId,
       });
 
@@ -359,16 +357,16 @@ const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
     }),
   );
 
-const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string } }) =>
+const handleGetInstallLink = ({ params }: { readonly params: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
       const repo = yield* BuildRepo;
-      const build = yield* repo.findById({ id: path.id });
+      const build = yield* repo.findById({ id: params.id });
       yield* assertProjectOwnership(build.projectId);
       yield* assertAccess("build", "read", {
         kind: "build",
         projectId: build.projectId,
-        buildId: path.id,
+        buildId: params.id,
       });
 
       const runtime = yield* BuildRuntime;
@@ -377,14 +375,14 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
         return yield* new BadRequest({ message: "Install token secret not configured" });
       }
 
-      const { token, expires } = yield* generateInstallToken(path.id, installTokenSecret).pipe(
+      const { token, expires } = yield* generateInstallToken(params.id, installTokenSecret).pipe(
         Effect.mapError(() => new BadRequest({ message: "Failed to generate install token" })),
       );
 
       const env = yield* cloudflareEnv;
       const origin = env.PUBLIC_API_URL;
 
-      const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
+      const artifactUrl = `${origin}/api/builds/${params.id}/artifact?token=${token}&expires=${expires}`;
 
       const installUrl =
         build.platform === "ios" &&
@@ -392,7 +390,7 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
         build.artifact?.format === "ipa" &&
         build.bundleId !== null &&
         build.appVersion !== null
-          ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${path.id}/install?token=${token}&expires=${expires}`)}`
+          ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${params.id}/install?token=${token}&expires=${expires}`)}`
           : null;
 
       return { token, expires, artifactUrl, installUrl };
@@ -403,26 +401,26 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
   handlers
     .handle("reserve", handleReserve)
     .handle("complete", handleComplete)
-    .handle("list", ({ urlParams }) =>
+    .handle("list", ({ query }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertProjectOwnership(urlParams.projectId);
-          yield* assertAccess("build", "read", { kind: "build", projectId: urlParams.projectId });
+          yield* assertProjectOwnership(query.projectId);
+          yield* assertAccess("build", "read", { kind: "build", projectId: query.projectId });
 
           const repo = yield* BuildRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
-          const { sort, order } = parseBuildSort(urlParams.sort);
+          const { page, limit, offset } = parsePagination(query);
+          const { sort, order } = parseBuildSort(query.sort);
 
-          const audienceDistributions = resolveAudience(urlParams.audience);
+          const audienceDistributions = resolveAudience(query.audience);
 
           const { items, total } = yield* repo.list({
-            projectId: urlParams.projectId,
-            ...(urlParams.platform ? { platform: urlParams.platform } : {}),
-            ...(urlParams.profile ? { profile: urlParams.profile } : {}),
-            ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
-            ...(urlParams.distribution?.length ? { distribution: urlParams.distribution } : {}),
+            projectId: query.projectId,
+            ...(query.platform ? { platform: query.platform } : {}),
+            ...(query.profile ? { profile: query.profile } : {}),
+            ...(query.runtimeVersion ? { runtimeVersion: query.runtimeVersion } : {}),
+            ...(query.distribution?.length ? { distribution: query.distribution } : {}),
             ...(audienceDistributions ? { distributions: audienceDistributions } : {}),
-            ...(urlParams.query ? { query: urlParams.query } : {}),
+            ...(query.query ? { query: query.query } : {}),
             sort,
             order,
             limit,

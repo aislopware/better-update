@@ -55,10 +55,9 @@ export interface ActivityRepository {
   ) => Effect.Effect<readonly ProjectActivityDayModel[]>;
 }
 
-export class ActivityRepo extends Context.Tag("api/ActivityRepo")<
-  ActivityRepo,
-  ActivityRepository
->() {}
+export class ActivityRepo extends Context.Service<ActivityRepo, ActivityRepository>()(
+  "api/ActivityRepo",
+) {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 import { toBase64 } from "@better-update/encoding";
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
@@ -57,7 +57,7 @@ describe("Vault participation cross-flow", () => {
       { cookie: cookiesA },
     );
     expect(orgRes.status).toBe(200);
-    organizationId = (await orgRes.json()).id;
+    ({ id: organizationId } = await orgRes.json());
     cookiesA = parseCookies(orgRes) || cookiesA;
 
     const active = await post(
@@ -74,7 +74,7 @@ describe("Vault participation cross-flow", () => {
       { cookie: cookiesA },
     );
     expect(projectRes.status).toBe(201);
-    projectId = (await projectRes.json()).id;
+    ({ id: projectId } = await projectRes.json());
   });
 
   it("member B is invited and joins as a plain org member", async () => {
@@ -164,26 +164,24 @@ describe("Vault participation cross-flow", () => {
       cookie: cookiesB,
     });
     expect(res.status).toBe(201);
-    deviceB = (await res.json()).id;
+    ({ id: deviceB } = await res.json());
   });
 
   // ── Section 3: bootstrap + admin grant + member unlock ──────────
 
   it("owner bootstraps the vault and grants Bob's device", async () => {
-    deviceA = (
-      await (
-        await post("/api/encryption-keys", recipientBody("device", "Owner laptop"), {
-          cookie: cookiesA,
-        })
-      ).json()
-    ).id;
-    recovery = (
-      await (
-        await post("/api/encryption-keys", recipientBody("recovery", "Offline recovery"), {
-          cookie: cookiesA,
-        })
-      ).json()
-    ).id;
+    const deviceAResponse = await post(
+      "/api/encryption-keys",
+      recipientBody("device", "Owner laptop"),
+      { cookie: cookiesA },
+    );
+    ({ id: deviceA } = await deviceAResponse.json());
+    const recoveryResponse = await post(
+      "/api/encryption-keys",
+      recipientBody("recovery", "Offline recovery"),
+      { cookie: cookiesA },
+    );
+    ({ id: recovery } = await recoveryResponse.json());
 
     const bootstrap = await post(
       "/api/vault",
@@ -209,7 +207,8 @@ describe("Vault participation cross-flow", () => {
   it("the developer member fetches their own wrap (vault unlock)", async () => {
     const res = await get(`/api/vault/wraps/${deviceB}`, { cookie: cookiesB });
     expect(res.status).toBe(200);
-    expect(typeof (await res.json()).wrappedKey).toBe("string");
+    const resBody = await res.json();
+    expect(resBody.wrappedKey).toBeTypeOf("string");
   });
 
   it("the developer member self-links a second device (no admin needed)", async () => {
@@ -217,7 +216,7 @@ describe("Vault participation cross-flow", () => {
       cookie: cookiesB,
     });
     expect(registered.status).toBe(201);
-    deviceB2 = (await registered.json()).id;
+    ({ id: deviceB2 } = await registered.json());
 
     const res = await post(
       "/api/vault/wraps",
@@ -289,13 +288,15 @@ describe("Vault participation cross-flow", () => {
 
     // … and the reconcile dropped both of Bob's wraps + flagged rotation.
     const wraps = await get("/api/vault/wraps", { cookie: cookiesA });
-    const recipientIds = ((await wraps.json()).recipients as { userEncryptionKeyId: string }[]).map(
-      (recipient) => recipient.userEncryptionKeyId,
-    );
+    const { recipients } = await wraps.json<{
+      recipients: { userEncryptionKeyId: string }[];
+    }>();
+    const recipientIds = recipients.map((recipient) => recipient.userEncryptionKeyId);
     expect(recipientIds).not.toContain(deviceB);
     expect(recipientIds).not.toContain(deviceB2);
     const vault = await get("/api/vault", { cookie: cookiesA });
-    expect((await vault.json()).rotationPending).toBe(true);
+    const vaultBody = await vault.json();
+    expect(vaultBody.rotationPending).toBe(true);
   });
 
   it("removing the reporter row entirely keeps the gate closed", async () => {

@@ -1,12 +1,13 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { Command } from "@effect/platform";
 import { Effect } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 
-import type { CommandExecutor } from "@effect/platform";
 import type { Scope } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 
+import { runText } from "./child-process";
 import { KeychainError } from "./exit-codes";
 
 export interface AcquireKeychainOptions {
@@ -24,10 +25,10 @@ export interface KeychainHandle {
 // ── shell helpers ─────────────────────────────────────────────────
 
 const runOrFail = (
-  cmd: Command.Command,
+  cmd: ChildProcess.Command,
   step: string,
-): Effect.Effect<string, KeychainError, CommandExecutor.CommandExecutor> =>
-  Command.string(cmd).pipe(
+): Effect.Effect<string, KeychainError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runText(cmd).pipe(
     Effect.mapError(
       (cause) =>
         new KeychainError({
@@ -40,7 +41,7 @@ const listCurrentKeychains = Effect.gen(function* () {
   // `security list-keychains -d user` returns each keychain path on its own line,
   // Surrounded by double quotes and optionally preceded by whitespace.
   const output = yield* runOrFail(
-    Command.make("security", "list-keychains", "-d", "user"),
+    ChildProcess.make("security", ["list-keychains", "-d", "user"]),
     "list-keychains",
   );
   return output
@@ -78,7 +79,7 @@ export const acquireKeychain = ({
 }: AcquireKeychainOptions): Effect.Effect<
   KeychainHandle,
   KeychainError,
-  CommandExecutor.CommandExecutor | Scope.Scope
+  ChildProcessSpawner.ChildProcessSpawner | Scope.Scope
 > => {
   const keychainName = `better-update-${randomUUID()}.keychain-db`;
   const keychainPath = path.join(tempDir, keychainName);
@@ -90,23 +91,22 @@ export const acquireKeychain = ({
       const priorKeychains = yield* listCurrentKeychains;
 
       yield* runOrFail(
-        Command.make("security", "create-keychain", "-p", keychainPassword, keychainPath),
+        ChildProcess.make("security", ["create-keychain", "-p", keychainPassword, keychainPath]),
         "create-keychain",
       );
 
       yield* runOrFail(
-        Command.make("security", "unlock-keychain", "-p", keychainPassword, keychainPath),
+        ChildProcess.make("security", ["unlock-keychain", "-p", keychainPassword, keychainPath]),
         "unlock-keychain",
       );
 
       yield* runOrFail(
-        Command.make("security", "set-keychain-settings", "-t", "3600", "-l", keychainPath),
+        ChildProcess.make("security", ["set-keychain-settings", "-t", "3600", "-l", keychainPath]),
         "set-keychain-settings",
       );
 
       yield* runOrFail(
-        Command.make(
-          "security",
+        ChildProcess.make("security", [
           "import",
           p12Path,
           "-k",
@@ -115,13 +115,12 @@ export const acquireKeychain = ({
           p12Password,
           "-T",
           "/usr/bin/codesign",
-        ),
+        ]),
         "import",
       );
 
       yield* runOrFail(
-        Command.make(
-          "security",
+        ChildProcess.make("security", [
           "set-key-partition-list",
           "-S",
           "apple-tool:,apple:,codesign:",
@@ -129,27 +128,26 @@ export const acquireKeychain = ({
           "-k",
           keychainPassword,
           keychainPath,
-        ),
+        ]),
         "set-key-partition-list",
       );
 
       // Prepend our keychain to the search list while preserving the user's
       // Existing ones.
       yield* runOrFail(
-        Command.make(
-          "security",
+        ChildProcess.make("security", [
           "list-keychains",
           "-d",
           "user",
           "-s",
           keychainPath,
           ...priorKeychains,
-        ),
+        ]),
         "list-keychains -s (add)",
       );
 
       const identitiesOutput = yield* runOrFail(
-        Command.make("security", "find-identity", "-v", "-p", "codesigning", keychainPath),
+        ChildProcess.make("security", ["find-identity", "-v", "-p", "codesigning", keychainPath]),
         "find-identity",
       );
       const signingIdentity = parseSigningIdentity(identitiesOutput);
@@ -169,12 +167,12 @@ export const acquireKeychain = ({
     ({ priorKeychains }) =>
       Effect.gen(function* () {
         // Restore the original search list first, then delete our keychain.
-        yield* Command.string(
-          Command.make("security", "list-keychains", "-d", "user", "-s", ...priorKeychains),
-        ).pipe(Effect.catchAll(() => Effect.void));
+        yield* runText(
+          ChildProcess.make("security", ["list-keychains", "-d", "user", "-s", ...priorKeychains]),
+        ).pipe(Effect.catch(() => Effect.void));
 
-        yield* Command.string(Command.make("security", "delete-keychain", keychainPath)).pipe(
-          Effect.catchAll(() => Effect.void),
+        yield* runText(ChildProcess.make("security", ["delete-keychain", keychainPath])).pipe(
+          Effect.catch(() => Effect.void),
         );
       }),
   ).pipe(Effect.map(({ handle }) => handle));

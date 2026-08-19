@@ -16,10 +16,9 @@ export interface BuildStorageRepository {
   readonly deleteObjects: (params: { readonly keys: readonly string[] }) => Effect.Effect<void>;
 }
 
-export class BuildStorageRepo extends Context.Tag("api/BuildStorageRepo")<
-  BuildStorageRepo,
-  BuildStorageRepository
->() {}
+export class BuildStorageRepo extends Context.Service<BuildStorageRepo, BuildStorageRepository>()(
+  "api/BuildStorageRepo",
+) {}
 
 // -- R2 Adapter ------------------------------------------------------------
 

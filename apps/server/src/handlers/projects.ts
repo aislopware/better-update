@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -24,6 +24,7 @@ import { ProjectRepo } from "../repositories/projects";
 import { LOGO_UPLOAD_EXPIRY_SECONDS, logoRejectionReason } from "./logo-helpers";
 import { reconcileVaultAccess } from "./reconcile-vault-access";
 
+import type { BuildRuntimeService } from "../cloudflare/build-runtime";
 import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
 
 // The three built-in environments. Each new project is seeded one branch + one
@@ -117,6 +118,18 @@ const setLogoEffect = (id: string) =>
     }),
   );
 
+// Delete every object under one R2 prefix. Recursive rather than a v3
+// `Effect.iterate` loop: the delete invalidates the list cursor, so each round
+// re-lists from the start of the prefix until a page comes back untruncated.
+const purgePrefix = (runtime: BuildRuntimeService, prefix: string): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const listed = yield* runtime.listObjects({ prefix });
+    yield* runtime.deleteObjects({ keys: listed.objects.map((object) => object.key) });
+    if (listed.truncated) {
+      yield* purgePrefix(runtime, prefix);
+    }
+  });
+
 // The private builds bucket holds per-project objects whose D1 rows cascade
 // away with the project (build artifacts + debug symbols under builds/…,
 // update sourcemaps under sourcemaps/…). Their keys embed org + project ids,
@@ -127,20 +140,9 @@ const purgeProjectBuildStorage = (organizationId: string, projectId: string) =>
     const runtime = yield* BuildRuntime;
     yield* Effect.forEach(
       [`builds/${organizationId}/${projectId}/`, `sourcemaps/${organizationId}/${projectId}/`],
-      (prefix) =>
-        Effect.iterate(true, {
-          while: (hasMore) => hasMore,
-          // Deleting invalidates list cursors, so re-list from the start of
-          // the prefix each round until a non-truncated page is reached.
-          body: () =>
-            Effect.gen(function* () {
-              const listed = yield* runtime.listObjects({ prefix });
-              yield* runtime.deleteObjects({
-                keys: listed.objects.map((object) => object.key),
-              });
-              return listed.truncated;
-            }),
-        }),
+      // Deleting invalidates list cursors, so re-list from the start of the
+      // prefix each round until a non-truncated page is reached.
+      (prefix) => purgePrefix(runtime, prefix),
       { concurrency: 1 },
     );
   });
@@ -331,11 +333,11 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
-    .handle("list", ({ urlParams }) =>
+    .handle("list", ({ query }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { page, limit, offset } = parsePagination(query);
           // GitLab-style visibility (GITLAB-RBAC-SPEC §1): owner/admin (and
           // superadmin) see every project; a plain member sees exactly the
           // projects they hold a membership row on. No rows → empty list.
@@ -349,11 +351,11 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             : ({ mode: "include", ids: memberProjectIds } as const);
 
           const repo = yield* ProjectRepo;
-          const { sort, order } = parseProjectSort(urlParams.sort);
+          const { sort, order } = parseProjectSort(query.sort);
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
-            ...(urlParams.query ? { query: urlParams.query } : {}),
-            ...(urlParams.status ? { status: urlParams.status } : {}),
+            ...(query.query ? { query: query.query } : {}),
+            ...(query.status ? { status: query.status } : {}),
             ...(idFilter ? { idFilter } : {}),
             sort,
             order,
@@ -365,25 +367,25 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          const project = yield* repo.findById({ id: path.id });
+          const project = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(project.organizationId);
-          yield* assertAccess("project", "read", { kind: "project", projectId: path.id });
+          yield* assertAccess("project", "read", { kind: "project", projectId: params.id });
           return toApiProject(project);
         }),
       ),
     )
-    .handle("getBySlug", ({ path }) =>
+    .handle("getBySlug", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
           const repo = yield* ProjectRepo;
           const project = yield* repo.findBySlug({
             organizationId: ctx.organizationId,
-            slug: path.slug,
+            slug: params.slug,
           });
           yield* assertOrgOwnership(project.organizationId);
           yield* assertAccess("project", "read", { kind: "project", projectId: project.id });
@@ -391,20 +393,20 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
-    .handle("rename", ({ path, payload }) =>
+    .handle("rename", ({ params, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          const project = yield* repo.findById({ id: path.id });
+          const project = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(project.organizationId);
-          yield* assertAccess("project", "update", { kind: "project", projectId: path.id });
-          yield* repo.updateName({ id: path.id, name: payload.name });
+          yield* assertAccess("project", "update", { kind: "project", projectId: params.id });
+          yield* repo.updateName({ id: params.id, name: payload.name });
 
           yield* logAudit({
             action: "project.rename",
             resourceType: "project",
-            resourceId: path.id,
-            projectId: path.id,
+            resourceId: params.id,
+            projectId: params.id,
             metadata: { name: payload.name },
           });
 
@@ -412,36 +414,36 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
-    .handle("createLogoUploadUrl", ({ path, payload }) =>
-      createLogoUploadUrlEffect(path.id, payload.contentType),
+    .handle("createLogoUploadUrl", ({ params, payload }) =>
+      createLogoUploadUrlEffect(params.id, payload.contentType),
     )
-    .handle("setLogo", ({ path }) => setLogoEffect(path.id))
-    .handle("removeLogo", ({ path }) => removeLogoEffect(path.id))
-    .handle("delete", ({ path }) => deleteProjectEffect(path.id))
-    .handle("archive", ({ path }) =>
+    .handle("setLogo", ({ params }) => setLogoEffect(params.id))
+    .handle("removeLogo", ({ params }) => removeLogoEffect(params.id))
+    .handle("delete", ({ params }) => deleteProjectEffect(params.id))
+    .handle("archive", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          const project = yield* repo.findById({ id: path.id });
+          const project = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(project.organizationId);
           // `allowArchived` so re-archiving an already-archived project is not
           // self-blocked by the read-only guard; it stays the archive-state gate.
           yield* assertAccess(
             "project",
             "update",
-            { kind: "project", projectId: path.id },
+            { kind: "project", projectId: params.id },
             { allowArchived: true },
           );
 
           // Idempotent: keep the original timestamp if already archived.
           const archivedAt = project.archivedAt ?? new Date().toISOString();
           if (project.archivedAt === null) {
-            yield* repo.setArchived({ id: path.id, archivedAt });
+            yield* repo.setArchived({ id: params.id, archivedAt });
             yield* logAudit({
               action: "project.archive",
               resourceType: "project",
-              resourceId: path.id,
-              projectId: path.id,
+              resourceId: params.id,
+              projectId: params.id,
             });
           }
 
@@ -449,26 +451,26 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
-    .handle("unarchive", ({ path }) =>
+    .handle("unarchive", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          const project = yield* repo.findById({ id: path.id });
+          const project = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(project.organizationId);
           yield* assertAccess(
             "project",
             "update",
-            { kind: "project", projectId: path.id },
+            { kind: "project", projectId: params.id },
             { allowArchived: true },
           );
 
           if (project.archivedAt !== null) {
-            yield* repo.setArchived({ id: path.id, archivedAt: null });
+            yield* repo.setArchived({ id: params.id, archivedAt: null });
             yield* logAudit({
               action: "project.unarchive",
               resourceType: "project",
-              resourceId: path.id,
-              projectId: path.id,
+              resourceId: params.id,
+              projectId: params.id,
             });
           }
 

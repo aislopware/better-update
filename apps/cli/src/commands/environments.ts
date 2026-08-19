@@ -58,7 +58,7 @@ const renameCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const environment = yield* api.environments.rename({
-          path: { name: args.name },
+          params: { name: args.name },
           payload: { name: args.to },
         });
         yield* printHuman(`Environment renamed to "${environment.name}".`);
@@ -77,7 +77,7 @@ const deleteCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        yield* api.environments.delete({ path: { name: args.name } });
+        yield* api.environments.delete({ params: { name: args.name } });
         yield* printHuman(`Environment "${args.name}" deleted.`);
         return { name: args.name, deleted: true };
       }),

@@ -2,12 +2,12 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { HttpClient, HttpClientResponse, FileSystem } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { FileSystem, Effect, Exit, Layer } from "effect";
+import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 
-import type { HttpClientRequest } from "@effect/platform";
+import type { HttpClientRequest } from "effect/unstable/http";
 
 import { PresignedUploadClientLive } from "../services/presigned-upload";
 import { PresignedUrlExpiredError, UploadFailedError } from "./exit-codes";

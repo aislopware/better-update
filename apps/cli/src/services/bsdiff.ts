@@ -37,12 +37,12 @@ export interface BsdiffDiffInput {
   readonly outPath: string;
 }
 
-export class BsdiffService extends Context.Tag("cli/BsdiffService")<
+export class BsdiffService extends Context.Service<
   BsdiffService,
   {
     readonly diff: (input: BsdiffDiffInput) => Effect.Effect<void, BsdiffError>;
   }
->() {}
+>()("cli/BsdiffService") {}
 
 interface BsdiffBinding {
   readonly diffSync: (oldFile: string, newFile: string, patchFile: string) => unknown;

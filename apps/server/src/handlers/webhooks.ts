@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -85,26 +85,26 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
         }),
       ),
     )
-    .handle("get", ({ path }) =>
+    .handle("get", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertPermission("webhook", "read");
           const repo = yield* WebhookRepo;
-          const model = yield* repo.findById({ id: path.id });
+          const model = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(model.organizationId);
           return toApiWebhook(model);
         }),
       ),
     )
-    .handle("update", ({ path, payload }) =>
+    .handle("update", ({ params, payload }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertPermission("webhook", "update");
           const repo = yield* WebhookRepo;
-          const existing = yield* repo.findById({ id: path.id });
+          const existing = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(existing.organizationId);
           const model = yield* repo.update({
-            id: path.id,
+            id: params.id,
             updatedAt: new Date().toISOString(),
             ...compact({
               name: payload.name,
@@ -116,13 +116,13 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
           yield* logAudit({
             action: "webhook.update",
             resourceType: "webhook",
-            resourceId: path.id,
+            resourceId: params.id,
           });
           return toApiWebhook(model);
         }),
       ),
     )
-    .handle("delete", ({ path }) =>
+    .handle("delete", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertPermission("webhook", "delete");
@@ -131,11 +131,11 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
           // Org-scoped delete: stays idempotent (`deleted: 0` for a missing id)
           // AND closes the cross-org IDOR — another org's webhook id matches 0 rows
           // here, so it is neither leaked nor deletable.
-          const result = yield* repo.delete({ id: path.id, organizationId: ctx.organizationId });
+          const result = yield* repo.delete({ id: params.id, organizationId: ctx.organizationId });
           yield* logAudit({
             action: "webhook.delete",
             resourceType: "webhook",
-            resourceId: path.id,
+            resourceId: params.id,
           });
           return result;
         }),

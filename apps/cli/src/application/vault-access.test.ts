@@ -8,7 +8,7 @@ import {
 } from "@better-update/credentials-crypto";
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { it } from "@effect/vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
 import type { IdentityFile } from "@better-update/credentials-crypto";
@@ -140,14 +140,14 @@ describe("unlocking the active private key", () => {
       const file = yield* Effect.promise(async () =>
         sealIdentity({ privateKey: identity.privateKey, passphrase: "pw", kdfParams: fastKdf }),
       );
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         unlockActivePrivateKey(undefined).pipe(
           Effect.provide(Layer.mergeAll(cliRuntimeStub({}), identityStoreStub(file))),
         ),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );
@@ -158,14 +158,14 @@ describe("unlocking the active private key", () => {
       const file = yield* Effect.promise(async () =>
         sealIdentity({ privateKey: identity.privateKey, passphrase: "pw", kdfParams: fastKdf }),
       );
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         unlockActivePrivateKey("wrong").pipe(
           Effect.provide(Layer.mergeAll(cliRuntimeStub({}), identityStoreStub(file))),
         ),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );
@@ -220,7 +220,7 @@ describe("unlocking the vault key", () => {
           },
         ],
       });
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         unlockVaultKey(api, undefined).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -230,9 +230,9 @@ describe("unlocking the vault key", () => {
           ),
         ),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );
@@ -252,7 +252,7 @@ describe("unlocking the vault key", () => {
           },
         ],
       });
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         unlockVaultKey(api, undefined).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -262,9 +262,9 @@ describe("unlocking the vault key", () => {
           ),
         ),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result) && result.left._tag === "IdentityError") {
-        expect(result.left.message).toContain("identity init");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result) && result.failure._tag === "IdentityError") {
+        expect(result.failure.message).toContain("identity init");
       } else {
         expect.unreachable("expected an IdentityError pointing at `identity init`");
       }
@@ -287,7 +287,7 @@ describe("unlocking the vault key", () => {
         ],
         vault: { vaultVersion: 2 },
       });
-      const result = yield* Effect.either(
+      const result = yield* Effect.result(
         unlockVaultKey(api, undefined).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -297,9 +297,9 @@ describe("unlocking the vault key", () => {
           ),
         ),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result) && result.left._tag === "IdentityError") {
-        expect(result.left.message).toContain("access grant");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result) && result.failure._tag === "IdentityError") {
+        expect(result.failure.message).toContain("access grant");
       } else {
         expect.unreachable("expected an IdentityError pointing at a grant");
       }
@@ -365,10 +365,10 @@ describe("finding a recipient", () => {
 
   it.effect("fails when nothing matches", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.either(findRecipient(buildApi({ keys }), "nope"));
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left._tag).toBe("IdentityError");
+      const result = yield* Effect.result(findRecipient(buildApi({ keys }), "nope"));
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure._tag).toBe("IdentityError");
       }
     }),
   );

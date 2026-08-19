@@ -1,7 +1,9 @@
-import { CommandExecutor, FileSystem } from "@effect/platform";
-import { SystemError } from "@effect/platform/Error";
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
+import { systemError } from "effect/PlatformError";
+import { ChildProcessSpawner } from "effect/unstable/process";
+
+import type { PlatformError } from "effect/PlatformError";
 
 import {
   diffFingerprintSources,
@@ -36,14 +38,13 @@ const byOp = (
     return acc;
   }, {});
 
-const makeStubExecutor = (stdout: string): CommandExecutor.CommandExecutor =>
+const makeStubExecutor = (stdout: string): ChildProcessSpawner.ChildProcessSpawner["Service"] =>
   ({
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     string: () => Effect.succeed(stdout),
-  }) as unknown as CommandExecutor.CommandExecutor;
+  }) as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"];
 
 const provideStubExecutor = (stdout: string) =>
-  Effect.provideService(CommandExecutor.CommandExecutor, makeStubExecutor(stdout));
+  Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, makeStubExecutor(stdout));
 
 // ── diffFingerprintSources ────────────────────────────────────────
 
@@ -219,11 +220,11 @@ describe(fingerprintCliArgs, () => {
 
 // ── resolveExpoWorkflow ────────────────────────────────────────────
 
-const notFound = (path: string): SystemError =>
-  new SystemError({
+const notFound = (path: string): PlatformError =>
+  systemError({
+    _tag: "NotFound",
     module: "FileSystem",
     method: "stat",
-    reason: "NotFound",
     pathOrDescriptor: path,
   });
 

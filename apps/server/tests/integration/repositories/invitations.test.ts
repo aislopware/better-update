@@ -1,8 +1,10 @@
-import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import worker from "../../../src";
 import { InvitationRepo, InvitationRepoLive } from "../../../src/repositories/invitations";
+import { incomingRequest } from "../../helpers/incoming-request";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 import type { InvitationModel } from "../../../src/repositories/invitations";
@@ -17,7 +19,7 @@ import type { InvitationModel } from "../../../src/repositories/invitations";
 
 // `InvitationRepoLive` has no extra requirements (only `cloudflareEnv`), so it
 // runs straight against local D1 via `runWithLayerAndEnv`.
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, InvitationRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, InvitationRepo>) =>
   runWithLayerAndEnv(effect, InvitationRepoLive, env);
 
 // `BETTER_AUTH_URL` in the integration project; every state-changing better-auth
@@ -25,8 +27,8 @@ const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, InvitationRepo>) =>
 // with `MISSING_OR_NULL_ORIGIN` (a browser always sends one).
 const ORIGIN = "http://localhost";
 
-const request = (url: string, init?: RequestInit) => {
-  const req = new Request(`${ORIGIN}${url}`, init);
+const request = async (url: string, init?: RequestInit) => {
+  const req = incomingRequest(`${ORIGIN}${url}`, init);
   const ctx = createExecutionContext();
   return worker.fetch(req, env, ctx).then(async (response) => {
     await waitOnExecutionContext(ctx);
@@ -34,7 +36,7 @@ const request = (url: string, init?: RequestInit) => {
   });
 };
 
-const jsonPost = (url: string, body: unknown, cookie?: string) =>
+const jsonPost = async (url: string, body: unknown, cookie?: string) =>
   request(url, {
     method: "POST",
     headers: {
@@ -52,7 +54,7 @@ const parseCookies = (response: Response): string =>
     .map((cookie) => cookie.split(";")[0])
     .join("; ");
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
@@ -61,7 +63,7 @@ const insertOrg = (id: string) =>
 
 // A bare `user` row to FK-back `invitation.inviter_id` (the inviter need not be a
 // member for accept — accept builds the member from the recipient session).
-const insertUser = (id: string, email: string) =>
+const insertUser = async (id: string, email: string) =>
   env.DB.prepare(
     `INSERT INTO "user" ("id", "name", "email", "email_verified", "approved", "created_at", "updated_at")
      VALUES (?, ?, ?, 1, 1, ?, ?)`,
@@ -80,7 +82,7 @@ const signUpVerifiedUser = async (params: {
 }): Promise<{ readonly userId: string; readonly cookies: string }> => {
   const signUp = await jsonPost("/api/auth/sign-up/email", params);
   expect(signUp.status).toBe(200);
-  const signUpBody = (await signUp.json()) as { user: { id: string } };
+  const signUpBody = await signUp.json<{ user: { id: string } }>();
   const userId = signUpBody.user.id;
 
   await env.DB.prepare(`UPDATE "user" SET "email_verified" = 1, "approved" = 1 WHERE "id" = ?`)
@@ -101,7 +103,7 @@ interface MemberRow {
   readonly user_id: string;
 }
 
-const findMember = (organizationId: string, userId: string) =>
+const findMember = async (organizationId: string, userId: string) =>
   env.DB.prepare(
     `SELECT "id", "role", "user_id" FROM "member" WHERE "organization_id" = ? AND "user_id" = ?`,
   )
@@ -118,7 +120,7 @@ interface InvitationRow {
   readonly inviter_id: string;
 }
 
-const findInvitationRow = (id: string) =>
+const findInvitationRow = async (id: string) =>
   env.DB.prepare(
     `SELECT "id", "organization_id", "email", "role", "status", "expires_at", "inviter_id"
      FROM "invitation" WHERE "id" = ?`,
@@ -126,7 +128,7 @@ const findInvitationRow = (id: string) =>
     .bind(id)
     .first<InvitationRow>();
 
-const createInvitation = (params: {
+const createInvitation = async (params: {
   readonly organizationId: string;
   readonly email: string;
   readonly role: string;
@@ -279,8 +281,8 @@ describe("InvitationRepo.create — accept-precondition columns (field-by-field 
     expect(expiresAtMs).toBeGreaterThan(after);
     // 48h default expiry (matches the plugin's invitationExpiresIn), within slack.
     const fortyEightHours = 48 * 60 * 60 * 1000;
-    expect(expiresAtMs).toBeGreaterThanOrEqual(before + fortyEightHours - 5_000);
-    expect(expiresAtMs).toBeLessThanOrEqual(after + fortyEightHours + 5_000);
+    expect(expiresAtMs).toBeGreaterThanOrEqual(before + fortyEightHours - 5000);
+    expect(expiresAtMs).toBeLessThanOrEqual(after + fortyEightHours + 5000);
     // accept L249: email is stored verbatim (case preserved; accept lowercases both sides).
     expect(row?.email).toBe("invitee-cols@example.com");
     // accept L247/L290: org + role drive findOrganizationById + createMember.
@@ -341,7 +343,8 @@ describe("InvitationRepo.list / cancel — org-scoped", () => {
       }),
     );
     expect(crossOrg).toBe(false);
-    expect((await findInvitationRow(inB1.id))?.status).toBe("pending");
+    const findInvitationRowResult = await findInvitationRow(inB1.id);
+    expect(findInvitationRowResult?.status).toBe("pending");
 
     // Same-org cancel succeeds; a second cancel reports not-pending → false.
     const first = await run(
@@ -351,7 +354,8 @@ describe("InvitationRepo.list / cancel — org-scoped", () => {
       }),
     );
     expect(first).toBe(true);
-    expect((await findInvitationRow(inA1.id))?.status).toBe("canceled");
+    const findInvitationRowResult2 = await findInvitationRow(inA1.id);
+    expect(findInvitationRowResult2?.status).toBe("canceled");
 
     const again = await run(
       Effect.gen(function* () {

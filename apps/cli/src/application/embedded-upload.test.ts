@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-import { CommandExecutor } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
@@ -120,10 +120,9 @@ const makeAssetUploaderLayer = (recorder: { uploads: UploadUpdateAssetInput[] })
 // `readExpoPublicConfig` shells `bunx expo config --json` and JSON-parses the
 // stdout, so the stub returns "{}". Git commands tolerate any stdout (catchAll),
 // and runtime-version is resolved from the static app config (no fingerprint).
-const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, {
-  [CommandExecutor.TypeId]: CommandExecutor.TypeId,
+const stubCommandExecutorLayer = Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, {
   string: () => Effect.succeed("{}"),
-} as unknown as CommandExecutor.CommandExecutor);
+} as unknown as ChildProcessSpawner.ChildProcessSpawner["Service"]);
 
 const stubVaultLayer = Layer.mergeAll(
   makeInteractiveModeLayer(false),
@@ -162,7 +161,7 @@ const run = (
         makeApiClientLayer(api),
         makeAssetUploaderLayer(uploadRecorder),
         makeCliRuntimeLayer(project.dir),
-        NodeContext.layer,
+        NodeServices.layer,
         stubCommandExecutorLayer,
         stubVaultLayer,
       ),

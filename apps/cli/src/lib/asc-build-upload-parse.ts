@@ -146,7 +146,7 @@ export const BuildUploadFileResource = Schema.Struct({
 
 /** Decode a response body against `schema`, failing as a bad-response error. */
 export const decodeOr = <Decoded, Encoded>(
-  schema: Schema.Schema<Decoded, Encoded>,
+  schema: Schema.Codec<Decoded, Encoded>,
   body: unknown,
   step: string,
 ): Effect.Effect<Decoded, AscBuildUploadError> => {

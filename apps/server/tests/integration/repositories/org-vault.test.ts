@@ -1,18 +1,18 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { OrgVaultRepo, OrgVaultRepoLive } from "../../../src/repositories/org-vault";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, OrgVaultRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, OrgVaultRepo>) =>
   runWithLayerAndEnv(effect, OrgVaultRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, OrgVaultRepo>) =>
-  runEitherWithLayerAndEnv(effect, OrgVaultRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, OrgVaultRepo>) =>
+  runResultWithLayerAndEnv(effect, OrgVaultRepoLive, env);
 
-const insertOrg = (id: string, slug: string) =>
+const insertOrg = async (id: string, slug: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
@@ -21,7 +21,7 @@ const insertOrg = (id: string, slug: string) =>
 
 // Org-owned keys (recovery/machine) only need the org FK and satisfy the table
 // CHECK without seeding the user table — enough to back a wrap's FK in repo tests.
-const insertOrgKey = (id: string, organizationId: string, kind: "recovery" | "machine") =>
+const insertOrgKey = async (id: string, organizationId: string, kind: "recovery" | "machine") =>
   env.DB.prepare(
     `INSERT INTO "user_encryption_keys" ("id", "user_id", "organization_id", "kind", "public_key", "label", "fingerprint", "created_at") VALUES (?, NULL, ?, ?, ?, ?, ?, ?)`,
   )
@@ -38,23 +38,23 @@ const insertOrgKey = (id: string, organizationId: string, kind: "recovery" | "ma
 
 const countWraps = async (organizationId: string, userEncryptionKeyId: string) => {
   const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "user_encryption_key_id" = ?`,
+    `SELECT COUNT(*) AS total FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "user_encryption_key_id" = ?`,
   )
     .bind(organizationId, userEncryptionKeyId)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .first<{ total: number }>();
+  return row?.total ?? 0;
 };
 
 const countEnvWraps = async (organizationId: string, recipientId: string) => {
   const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM "org_env_vault_key_wraps" WHERE "organization_id" = ? AND "recipient_id" = ?`,
+    `SELECT COUNT(*) AS total FROM "org_env_vault_key_wraps" WHERE "organization_id" = ? AND "recipient_id" = ?`,
   )
     .bind(organizationId, recipientId)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .first<{ total: number }>();
+  return row?.total ?? 0;
 };
 
-const insertUser = (id: string) =>
+const insertUser = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "user" ("id", "name", "email", "email_verified", "created_at", "updated_at") VALUES (?, ?, ?, 1, ?, ?)`,
   )
@@ -62,7 +62,7 @@ const insertUser = (id: string) =>
     .run();
 
 // A device key is user-owned (user_id set, organization_id NULL per the table CHECK).
-const insertDeviceKey = (id: string, userId: string) =>
+const insertDeviceKey = async (id: string, userId: string) =>
   env.DB.prepare(
     `INSERT INTO "user_encryption_keys" ("id", "user_id", "organization_id", "kind", "public_key", "label", "fingerprint", "created_at") VALUES (?, ?, NULL, 'device', ?, ?, ?, ?)`,
   )
@@ -126,14 +126,14 @@ describe("OrgVaultRepo — D1 integration", () => {
 
       expect(vault.vaultVersion).toBe(1);
       expect(vault.organizationId).toBe("ov-boot");
-      expect(await countWraps("ov-boot", "ov-boot-r")).toBe(1);
-      expect(await countWraps("ov-boot", "ov-boot-m")).toBe(1);
+      await expect(countWraps("ov-boot", "ov-boot-r")).resolves.toBe(1);
+      await expect(countWraps("ov-boot", "ov-boot-m")).resolves.toBe(1);
 
       // Born forked: the env vault is stamped + wrapped at bootstrap.
       expect(vault.envVaultCutoverAt).toBe("2026-02-01T00:00:00Z");
       expect(vault.envVaultVersion).toBe(1);
-      expect(await countEnvWraps("ov-boot", "ov-boot-r")).toBe(1);
-      expect(await countEnvWraps("ov-boot", "ov-boot-m")).toBe(1);
+      await expect(countEnvWraps("ov-boot", "ov-boot-r")).resolves.toBe(1);
+      await expect(countEnvWraps("ov-boot", "ov-boot-m")).resolves.toBe(1);
 
       const reread = await run(
         Effect.gen(function* () {
@@ -146,7 +146,7 @@ describe("OrgVaultRepo — D1 integration", () => {
     });
 
     it("returns Conflict when the org vault already exists", async () => {
-      const result = await runEither(
+      const result = await runResult(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
           return yield* repo.bootstrap({
@@ -159,9 +159,9 @@ describe("OrgVaultRepo — D1 integration", () => {
           });
         }),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "Conflict" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "Conflict" });
       }
     });
   });
@@ -202,46 +202,48 @@ describe("OrgVaultRepo — D1 integration", () => {
       );
       expect(wrap.userEncryptionKeyId).toBe("ov-cas-m");
       expect(wrap.vaultVersion).toBe(1);
-      expect(await countWraps("ov-cas", "ov-cas-m")).toBe(1);
+      await expect(countWraps("ov-cas", "ov-cas-m")).resolves.toBe(1);
     });
 
     it("rejects a stale version with Conflict and inserts nothing", async () => {
-      const result = await runEither(
+      const result = await runResult(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
           return yield* repo.addWrap({
             organizationId: "ov-cas",
-            vaultVersion: 2, // current is 1 — stale
+            // current is 1 — stale
+            vaultVersion: 2,
             userEncryptionKeyId: "ov-cas-m2",
             wrappedKey: "should-not-persist",
             now: "2026-02-04T00:00:00Z",
           });
         }),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "Conflict" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "Conflict" });
       }
       // The CAS guard must have prevented the insert entirely.
-      expect(await countWraps("ov-cas", "ov-cas-m2")).toBe(0);
+      await expect(countWraps("ov-cas", "ov-cas-m2")).resolves.toBe(0);
     });
 
     it("rejects a duplicate recipient at the same version with Conflict", async () => {
-      const result = await runEither(
+      const result = await runResult(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
           return yield* repo.addWrap({
             organizationId: "ov-cas",
             vaultVersion: 1,
-            userEncryptionKeyId: "ov-cas-r", // already wrapped at v1 via bootstrap
+            // already wrapped at v1 via bootstrap
+            userEncryptionKeyId: "ov-cas-r",
             wrappedKey: "duplicate",
             now: "2026-02-05T00:00:00Z",
           });
         }),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "Conflict" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "Conflict" });
       }
     });
   });
@@ -290,7 +292,7 @@ describe("OrgVaultRepo — D1 integration", () => {
   });
 
   describe("rotate (atomic re-key)", () => {
-    const getVersion = (organizationId: string) =>
+    const getVersion = async (organizationId: string) =>
       run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
@@ -299,23 +301,25 @@ describe("OrgVaultRepo — D1 integration", () => {
         }),
       );
 
-    const wrapIdsAt = (organizationId: string, vaultVersion: number) =>
+    const wrapIdsAt = async (organizationId: string, vaultVersion: number) =>
       run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
           const wraps = yield* repo.listWraps({ organizationId, vaultVersion });
-          return wraps.map((wrap) => wrap.userEncryptionKeyId).sort();
+          return wraps
+            .map((wrap) => wrap.userEncryptionKeyId)
+            .toSorted((left, right) => left.localeCompare(right));
         }),
       );
 
-    const credentialRow = (id: string) =>
+    const credentialRow = async (id: string) =>
       env.DB.prepare(
         `SELECT "wrapped_dek", "vault_version" FROM "android_upload_keystores" WHERE "id" = ?`,
       )
         .bind(id)
         .first<{ wrapped_dek: string; vault_version: number }>();
 
-    const envVarRevisionRow = (id: string) =>
+    const envVarRevisionRow = async (id: string) =>
       env.DB.prepare(
         `SELECT "wrapped_dek", "vault_version" FROM "env_var_revisions" WHERE "id" = ?`,
       )
@@ -445,11 +449,11 @@ describe("OrgVaultRepo — D1 integration", () => {
         }),
       );
       expect(rotated.vaultVersion).toBe(2);
-      expect(await getVersion("ov-rot")).toBe(2);
+      await expect(getVersion("ov-rot")).resolves.toBe(2);
 
       // Wraps moved to v2; the old v1 wraps are gone.
-      expect(await wrapIdsAt("ov-rot", 2)).toEqual(["ov-rot-m", "ov-rot-r"]);
-      expect(await wrapIdsAt("ov-rot", 1)).toEqual([]);
+      await expect(wrapIdsAt("ov-rot", 2)).resolves.toStrictEqual(["ov-rot-m", "ov-rot-r"]);
+      await expect(wrapIdsAt("ov-rot", 1)).resolves.toStrictEqual([]);
 
       // The credential's DEK was re-wrapped and stamped to the new version.
       const ks = await credentialRow("ks-rot");
@@ -463,25 +467,26 @@ describe("OrgVaultRepo — D1 integration", () => {
     });
 
     it("rejects a stale fromVersion with Conflict and changes nothing", async () => {
-      const result = await runEither(
+      const result = await runResult(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
           return yield* repo.rotate({
             organizationId: "ov-rot",
-            fromVersion: 1, // current is 2 now — stale
+            // current is 2 now — stale
+            fromVersion: 1,
             recipientWraps: [{ userEncryptionKeyId: "ov-rot-r", wrappedKey: "rot-recovery-stale" }],
             credentialDeks: [],
             now: "2026-03-03T00:00:00Z",
           });
         }),
       );
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "Conflict" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "Conflict" });
       }
       // The lost CAS must have left the vault and its wraps untouched at v2.
-      expect(await getVersion("ov-rot")).toBe(2);
-      expect(await wrapIdsAt("ov-rot", 2)).toEqual(["ov-rot-m", "ov-rot-r"]);
+      await expect(getVersion("ov-rot")).resolves.toBe(2);
+      await expect(wrapIdsAt("ov-rot", 2)).resolves.toStrictEqual(["ov-rot-m", "ov-rot-r"]);
     });
   });
 
@@ -542,7 +547,7 @@ describe("OrgVaultRepo — D1 integration", () => {
       );
     });
 
-    const drop = (organizationId: string, userId: string, now: string) =>
+    const drop = async (organizationId: string, userId: string, now: string) =>
       run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
@@ -555,7 +560,7 @@ describe("OrgVaultRepo — D1 integration", () => {
         }),
       );
 
-    const getVault = (organizationId: string) =>
+    const getVault = async (organizationId: string) =>
       run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
@@ -565,15 +570,15 @@ describe("OrgVaultRepo — D1 integration", () => {
 
     it("drops the wrap in this org + flags rotation, keeping a key wrapped elsewhere live", async () => {
       const dropped = await drop("ov-drop", "u-a", "2026-04-02T00:00:00Z");
-      expect(dropped).toEqual(["dk-a"]);
+      expect(dropped).toStrictEqual(["dk-a"]);
 
       // Org-scoped: gone here, untouched in the other org.
-      expect(await countWraps("ov-drop", "dk-a")).toBe(0);
-      expect(await countWraps("ov-drop2", "dk-a")).toBe(1);
+      await expect(countWraps("ov-drop", "dk-a")).resolves.toBe(0);
+      await expect(countWraps("ov-drop2", "dk-a")).resolves.toBe(1);
       // Still a recipient elsewhere → NOT globally revoked.
-      expect(await keyRevokedAt("dk-a")).toBeNull();
+      await expect(keyRevokedAt("dk-a")).resolves.toBeNull();
       // A different member's wrap is untouched.
-      expect(await countWraps("ov-drop", "dk-b")).toBe(1);
+      await expect(countWraps("ov-drop", "dk-b")).resolves.toBe(1);
 
       const vault = await getVault("ov-drop");
       expect(vault?.rotationPending).toBe(true);
@@ -583,15 +588,15 @@ describe("OrgVaultRepo — D1 integration", () => {
 
     it("globally revokes a device key when this was its last org", async () => {
       const dropped = await drop("ov-drop", "u-c", "2026-04-03T00:00:00Z");
-      expect(dropped).toEqual(["dk-c"]);
-      expect(await countWraps("ov-drop", "dk-c")).toBe(0);
+      expect(dropped).toStrictEqual(["dk-c"]);
+      await expect(countWraps("ov-drop", "dk-c")).resolves.toBe(0);
       // No wrap left in any org → revoked globally.
-      expect(await keyRevokedAt("dk-c")).toBe("2026-04-03T00:00:00Z");
+      await expect(keyRevokedAt("dk-c")).resolves.toBe("2026-04-03T00:00:00Z");
     });
 
     it("preserves the first rotation reason/since on a subsequent drop", async () => {
       const dropped = await drop("ov-drop", "u-b", "2026-04-04T00:00:00Z");
-      expect(dropped).toEqual(["dk-b"]);
+      expect(dropped).toStrictEqual(["dk-b"]);
       const vault = await getVault("ov-drop");
       // coalesce keeps the earliest departure as the reason/since.
       expect(vault?.rotationPendingReason).toBe("member-removed:u-a");
@@ -600,14 +605,15 @@ describe("OrgVaultRepo — D1 integration", () => {
 
     it("is a no-op (no flag flip) when the user holds no wrap here", async () => {
       const dropped = await drop("ov-clear", "u-a", "2026-04-05T00:00:00Z");
-      expect(dropped).toEqual([]);
+      expect(dropped).toStrictEqual([]);
       const vault = await getVault("ov-clear");
       expect(vault?.rotationPending).toBe(false);
     });
 
     it("rotate clears the pending-rotation flag", async () => {
       await drop("ov-clear", "u-clr", "2026-04-06T00:00:00Z");
-      expect((await getVault("ov-clear"))?.rotationPending).toBe(true);
+      const getVaultResult = await getVault("ov-clear");
+      expect(getVaultResult?.rotationPending).toBe(true);
 
       const rotated = await run(
         Effect.gen(function* () {

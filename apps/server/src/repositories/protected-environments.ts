@@ -26,10 +26,10 @@ export interface ProtectedEnvironmentRepository {
   }) => Effect.Effect<void>;
 }
 
-export class ProtectedEnvironmentRepo extends Context.Tag("api/ProtectedEnvironmentRepo")<
+export class ProtectedEnvironmentRepo extends Context.Service<
   ProtectedEnvironmentRepo,
   ProtectedEnvironmentRepository
->() {}
+>()("api/ProtectedEnvironmentRepo") {}
 
 // -- D1 Adapter ------------------------------------------------------------
 

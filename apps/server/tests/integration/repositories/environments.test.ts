@@ -1,32 +1,37 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { EnvironmentRepo, EnvironmentRepoLive } from "../../../src/repositories/environments";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvironmentRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvironmentRepo>) =>
   runWithLayerAndEnv(effect, EnvironmentRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvironmentRepo>) =>
-  runEitherWithLayerAndEnv(effect, EnvironmentRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, EnvironmentRepo>) =>
+  runResultWithLayerAndEnv(effect, EnvironmentRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, id, "2026-01-01T00:00:00Z")
     .run();
 
-const insertEnvironment = (id: string, organizationId: string, name: string) =>
+const insertEnvironment = async (id: string, organizationId: string, name: string) =>
   env.DB.prepare(
     `INSERT INTO "environments" ("id", "organization_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, organizationId, name, "2026-01-01T00:00:00Z")
     .run();
 
-const insertGlobalVar = (id: string, organizationId: string, key: string, environment: string) =>
+const insertGlobalVar = async (
+  id: string,
+  organizationId: string,
+  key: string,
+  environment: string,
+) =>
   env.DB.prepare(
     `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "environment", "key", "visibility") VALUES (?, ?, NULL, 'global', ?, ?, 'plaintext')`,
   )
@@ -78,7 +83,7 @@ describe("EnvironmentRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(rows.map((row) => row.name)).toEqual(["alpha", "Zeta"]);
+    expect(rows.map((row) => row.name)).toStrictEqual(["alpha", "Zeta"]);
     expect(rows.every((row) => row.organizationId === "env-list")).toBe(true);
   });
 
@@ -95,28 +100,28 @@ describe("EnvironmentRepo — D1 integration (Kysely + session)", () => {
         return yield* repo.findByName({ organizationId: "env-life", name: "qa" });
       }),
     );
-    expect(found).toEqual({
+    expect(found).toStrictEqual({
       id: "e-life-1",
       organizationId: "env-life",
       name: "qa",
       createdAt: "2026-02-02T00:00:00Z",
     });
 
-    const afterDelete = await runEither(
+    const afterDelete = await runResult(
       Effect.gen(function* () {
         const repo = yield* EnvironmentRepo;
         yield* repo.deleteByName({ organizationId: "env-life", name: "qa" });
         return yield* repo.findByName({ organizationId: "env-life", name: "qa" });
       }),
     );
-    expect(Either.isLeft(afterDelete)).toBe(true);
-    if (Either.isLeft(afterDelete)) {
-      expect(afterDelete.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(afterDelete)).toBe(true);
+    if (Result.isFailure(afterDelete)) {
+      expect(afterDelete.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 
   it("fails with Conflict when inserting a duplicate name in the same org", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* EnvironmentRepo;
         yield* repo.insert({
@@ -128,9 +133,9 @@ describe("EnvironmentRepo — D1 integration (Kysely + session)", () => {
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "Conflict" });
     }
   });
 
@@ -160,25 +165,25 @@ describe("EnvironmentRepo — D1 integration (Kysely + session)", () => {
     const renamed = await env.DB.prepare(`SELECT "name" FROM "environments" WHERE "id" = ?`)
       .bind("e-rename-1")
       .first<{ name: string }>();
-    expect(renamed).toEqual({ name: "released" });
+    expect(renamed).toStrictEqual({ name: "released" });
 
     const repointed = await env.DB.prepare(`SELECT "environment" FROM "env_vars" WHERE "id" = ?`)
       .bind("v-rename-1")
       .first<{ environment: string }>();
-    expect(repointed).toEqual({ environment: "released" });
+    expect(repointed).toStrictEqual({ environment: "released" });
   });
 
   it("fails with Conflict when the rename collides with an existing var key", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* EnvironmentRepo;
         yield* repo.rename({ organizationId: "env-rconf", oldName: "staging", newName: "qa" });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "Conflict" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "Conflict" });
     }
   });
 });

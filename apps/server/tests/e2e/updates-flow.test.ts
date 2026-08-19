@@ -14,7 +14,7 @@ const { del, get, parseCookies, patch, post, postNoBody } = setupE2EWorker(
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const manifestGet = (projectId: string, headers: Record<string, string>) =>
+const manifestGet = async (projectId: string, headers: Record<string, string>) =>
   get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (
@@ -37,8 +37,8 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
-  const boundaryMatch = /boundary=([^\s;]+)/.exec(contentType);
-  const boundary = boundaryMatch?.[1] ?? "";
+  const boundaryMatch = /boundary=(?<boundary>[^\s;]+)/u.exec(contentType);
+  const boundary = boundaryMatch?.groups?.["boundary"] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)
@@ -91,7 +91,7 @@ describe("Updates & Assets API flow", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -159,14 +159,18 @@ describe("Updates & Assets API flow", () => {
     const branchesRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     expect(branchesRes.status).toBe(200);
     const branchesBody = await branchesRes.json();
-    const development = branchesBody.items.find((b: { name: string }) => b.name === "development");
+    const development = branchesBody.items.find(
+      (branch: { name: string }) => branch.name === "development",
+    );
     expect(development).toBeDefined();
     developmentBranchId = development.id;
 
     const channelsRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
     expect(channelsRes.status).toBe(200);
     const channelsBody = await channelsRes.json();
-    const production = channelsBody.items.find((c: { name: string }) => c.name === "production");
+    const production = channelsBody.items.find(
+      (channel: { name: string }) => channel.name === "production",
+    );
     expect(production).toBeDefined();
     productionChannelId = production.id;
   });
@@ -178,7 +182,8 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(200);
-    expect((await response.json()).branchId).toBe(mainBranchId);
+    const responseBody = await response.json();
+    expect(responseBody.branchId).toBe(mainBranchId);
   });
 
   it("creates rollback branch", async () => {
@@ -218,7 +223,7 @@ describe("Updates & Assets API flow", () => {
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.uploaded).toEqual(
+    expect(body.uploaded).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           hash: firstAssetHash,
@@ -266,7 +271,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(publishResponse.status).toBe(409);
-    expect(await publishResponse.json()).toEqual(
+    await expect(publishResponse.json()).resolves.toStrictEqual(
       expect.objectContaining({
         message: expect.stringContaining("Assets not uploaded"),
       }),
@@ -404,7 +409,7 @@ describe("Updates & Assets API flow", () => {
     expect(landed).toBeDefined();
     expect(landed.id).toBe(publishBody.branchId);
     // And nothing at all was created under the slug's owner.
-    expect(await named(projectId)).toBeUndefined();
+    await expect(named(projectId)).resolves.toBeUndefined();
   });
 
   it("rejects a publish that names neither projectId nor slug", async () => {
@@ -422,7 +427,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(publishResponse.status).toBe(400);
-    expect(await publishResponse.json()).toEqual(
+    await expect(publishResponse.json()).resolves.toStrictEqual(
       expect.objectContaining({ message: expect.stringContaining("Missing publish target") }),
     );
   });
@@ -434,7 +439,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(conflictingBranchResponse.status).toBe(201);
-    const conflictingBranchId = (await conflictingBranchResponse.json()).id as string;
+    const { id: conflictingBranchId } = await conflictingBranchResponse.json<{ id: string }>();
 
     const conflictingChannelResponse = await post(
       "/api/channels",
@@ -571,8 +576,12 @@ describe("Updates & Assets API flow", () => {
     const body = await response.json();
     expect(Array.isArray(body)).toBe(true);
     expect(body).toHaveLength(2);
-    const hashes = body.map((asset: { hash: string }) => asset.hash).sort();
-    expect(hashes).toStrictEqual([firstAssetHash, secondAssetHash].sort());
+    const hashes = body
+      .map((asset: { hash: string }) => asset.hash)
+      .toSorted((left: string, right: string) => left.localeCompare(right));
+    expect(hashes).toStrictEqual(
+      [firstAssetHash, secondAssetHash].toSorted((left, right) => left.localeCompare(right)),
+    );
     const launchAssets = body.filter((asset: { isLaunch: boolean }) => asset.isLaunch);
     expect(launchAssets).toHaveLength(1);
     expect(launchAssets[0].hash).toBe(firstAssetHash);
@@ -623,7 +632,7 @@ describe("Updates & Assets API flow", () => {
     );
 
     expect(directivePart).toBeDefined();
-    expect(JSON.parse(directivePart?.body ?? "")).toEqual({
+    expect(JSON.parse(directivePart?.body ?? "")).toStrictEqual({
       type: "rollBackToEmbedded",
       parameters: {
         commitTime: "2026-04-14T00:00:00.000Z",
@@ -764,7 +773,8 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    signedUpdateId = (await response.json()).id as string;
+    const responseBody2 = await response.json();
+    signedUpdateId = responseBody2.id as string;
   });
 
   it("rejects republishing a signed source update without replacement signed manifests", async () => {
@@ -777,7 +787,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({
         message: expect.stringContaining("replacement signed manifests"),
       }),
@@ -819,14 +829,14 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({ message: expect.stringContaining("does not verify") }),
     );
   });
 
   it("rejects a wrong-alg republish (ECDSA gated off) (400)", async () => {
     const validSig = signTestManifestBody(replacementManifestBody);
-    const sigBase64 = /sig="([^"]+)"/.exec(validSig)?.[1] ?? "";
+    const sigBase64 = /sig="(?<sig>[^"]+)"/u.exec(validSig)?.groups?.["sig"] ?? "";
     const ecdsaHeader = `sig="${sigBase64}", keyid="main", alg="ecdsa-p256-sha256"`;
 
     const response = await post(
@@ -846,7 +856,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({ message: expect.stringContaining("rsa-v1_5-sha256") }),
     );
   });
@@ -874,15 +884,15 @@ describe("Updates & Assets API flow", () => {
     );
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as {
-      updates: Array<{
+    const body = await response.json<{
+      updates: {
         id: string;
         branchId: string;
         signature: string | null;
         certificateChain: string | null;
         manifestBody: string | null;
-      }>;
-    };
+      }[];
+    }>();
     expect(body.updates).toHaveLength(1);
     expect(body.updates[0]?.branchId).toBe(mainBranchId);
     expect(body.updates[0]?.signature).toBe(replacementSignature);
@@ -922,7 +932,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
+    await expect(response.json()).resolves.toStrictEqual(
       expect.objectContaining({
         message: "Cannot republish a rollback directive",
       }),
@@ -947,7 +957,9 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     // group-1 had 2 updates (ios + android); only the original group is deleted
-    expect(body.items.every((u: { groupId: string }) => u.groupId !== "group-1")).toBe(true);
+    expect(body.items.every((update: { groupId: string }) => update.groupId !== "group-1")).toBe(
+      true,
+    );
   });
 
   // ── Section 8: API key auth ────────────────────────────────────
@@ -993,7 +1005,7 @@ describe("Updates & Assets API flow", () => {
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.uploaded).toEqual([
+    expect(body.uploaded).toStrictEqual([
       expect.objectContaining({
         hash: apiKeyAssetHash,
         uploadMode: "single",
@@ -1026,7 +1038,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const orgBId = (await orgRes.json()).id;
+    const { id: orgBId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -1045,7 +1057,7 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
-    projectIdB = (await projRes.json()).id;
+    ({ id: projectIdB } = await projRes.json());
 
     const branchRes = await post(
       "/api/branches",
@@ -1077,7 +1089,9 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body.items.every((u: { groupId: string }) => u.groupId !== "group-1")).toBe(true);
+    expect(body.items.every((update: { groupId: string }) => update.groupId !== "group-1")).toBe(
+      true,
+    );
   });
 
   // ── Section 10: Same-runtime publish blocking ─────────────────
@@ -1181,12 +1195,12 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(branchResponse.status).toBe(201);
-    const concurrentBranchId = (await branchResponse.json()).id as string;
+    const { id: concurrentBranchId } = await branchResponse.json<{ id: string }>();
 
     const [first, second] = await Effect.runPromise(
       Effect.all(
         [
-          Effect.promise(() =>
+          Effect.promise(async () =>
             post(
               "/api/updates",
               {
@@ -1203,7 +1217,7 @@ describe("Updates & Assets API flow", () => {
               { cookie: cookies },
             ),
           ),
-          Effect.promise(() =>
+          Effect.promise(async () =>
             post(
               "/api/updates",
               {
@@ -1225,8 +1239,8 @@ describe("Updates & Assets API flow", () => {
       ),
     );
 
-    const statuses = [first.status, second.status].sort();
-    expect(statuses).toEqual([201, 409]);
+    const statuses = [first.status, second.status].toSorted((left, right) => left - right);
+    expect(statuses).toStrictEqual([201, 409]);
 
     const updatesResponse = await get(
       `/api/updates?projectId=${projectId}&branchId=${concurrentBranchId}`,

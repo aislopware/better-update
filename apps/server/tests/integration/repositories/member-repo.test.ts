@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
 import { MemberRepo, MemberRepoLive } from "../../../src/repositories/member-repo";
@@ -6,10 +6,10 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, MemberRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, MemberRepo>) =>
   runWithLayerAndEnv(effect, MemberRepoLive, env);
 
-const withRepo = <Ret, Err>(use: (repo: MemberRepo["Type"]) => Effect.Effect<Ret, Err>) =>
+const withRepo = async <Ret, Err>(use: (repo: MemberRepo["Service"]) => Effect.Effect<Ret, Err>) =>
   run(
     Effect.gen(function* () {
       const repo = yield* MemberRepo;
@@ -17,21 +17,21 @@ const withRepo = <Ret, Err>(use: (repo: MemberRepo["Type"]) => Effect.Effect<Ret
     }),
   );
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
     .bind(id, `Org ${id}`, `${id}-slug`, "2026-01-01T00:00:00Z")
     .run();
 
-const insertUser = (id: string) =>
+const insertUser = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "user" ("id", "name", "email", "email_verified", "created_at", "updated_at") VALUES (?, ?, ?, 1, ?, ?)`,
   )
     .bind(id, `User ${id}`, `${id}@example.com`, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
     .run();
 
-const insertMember = (params: {
+const insertMember = async (params: {
   readonly id: string;
   readonly organizationId: string;
   readonly userId: string;
@@ -78,11 +78,11 @@ beforeAll(async () => {
 
 describe("MemberRepo — D1 integration", () => {
   it("countOwners counts only THIS org's owners (org-scoped)", async () => {
-    expect(await withRepo((repo) => repo.countOwners({ organizationId: ORG_A }))).toBe(1);
-    expect(await withRepo((repo) => repo.countOwners({ organizationId: ORG_B }))).toBe(1);
-    expect(await withRepo((repo) => repo.countOwners({ organizationId: "org-nonexistent" }))).toBe(
-      0,
-    );
+    await expect(withRepo((repo) => repo.countOwners({ organizationId: ORG_A }))).resolves.toBe(1);
+    await expect(withRepo((repo) => repo.countOwners({ organizationId: ORG_B }))).resolves.toBe(1);
+    await expect(
+      withRepo((repo) => repo.countOwners({ organizationId: "org-nonexistent" })),
+    ).resolves.toBe(0);
   });
 
   it("findInOrg returns the member in its own org but NULL across orgs", async () => {

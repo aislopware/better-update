@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
-import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
@@ -223,12 +223,12 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
         }),
       ),
     )
-    .handle("delete", ({ path }) =>
+    .handle("delete", ({ params }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           const artifacts = yield* CredentialArtifacts;
           const repo = yield* AscApiKeyRepo;
-          const existing = yield* repo.findById({ id: path.id });
+          const existing = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(existing.organizationId);
           yield* assertAppleCredentialAccess({
             action: "delete",
@@ -236,7 +236,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
             credentialIsProtected: existing.isProtected,
             ascApiKeyId: existing.id,
           });
-          const { r2Key } = yield* repo.delete({ id: path.id });
+          const { r2Key } = yield* repo.delete({ id: params.id });
           if (r2Key !== null) {
             yield* artifacts.delete(r2Key);
           }
@@ -250,21 +250,21 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
           yield* logAudit({
             action: "apple.asc-api-key.delete",
             resourceType: "appleCredential",
-            resourceId: path.id,
+            resourceId: params.id,
             metadata: { keyId: existing.keyId, name: existing.name },
           });
           return { deleted: 1 };
         }),
       ),
     )
-    .handle("getCredentials", ({ path }) =>
+    .handle("getCredentials", ({ params }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           const teams = yield* AppleTeamRepo;
           const repo = yield* AscApiKeyRepo;
           const artifacts = yield* CredentialArtifacts;
 
-          const key = yield* repo.findById({ id: path.id });
+          const key = yield* repo.findById({ id: params.id });
           yield* assertOrgOwnership(key.organizationId);
 
           const teamIdentifier =
@@ -302,6 +302,6 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
         }),
       ),
     )
-    .handle("protect", ({ path }) => setProtectionEffect(path.id, true))
-    .handle("unprotect", ({ path }) => setProtectionEffect(path.id, false)),
+    .handle("protect", ({ params }) => setProtectionEffect(params.id, true))
+    .handle("unprotect", ({ params }) => setProtectionEffect(params.id, false)),
 );

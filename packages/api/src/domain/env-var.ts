@@ -5,16 +5,16 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
 import { EnvironmentName } from "./environment";
 import { VaultVersion } from "./org-vault";
 
-export const EnvVarVisibility = Schema.Literal("plaintext", "sensitive");
+export const EnvVarVisibility = Schema.Literals(["plaintext", "sensitive"]);
 
-export const EnvVarScope = Schema.Literal("project", "global");
+export const EnvVarScope = Schema.Literals(["project", "global"]);
 
 // An env var's environment is any of the org's environments (built-in or
 // user-defined), so this is a free-form environment name rather than a fixed
 // enum — the server validates it against the org's environments at write time.
 export const EnvVarEnvironment = EnvironmentName;
 
-export const EnvVarListScope = Schema.Literal("all", "project", "global");
+export const EnvVarListScope = Schema.Literals(["all", "project", "global"]);
 
 /**
  * A client-sealed env var value. `id` is the revision UUID the CLI bound as the
@@ -32,15 +32,15 @@ export const EnvVarListScope = Schema.Literal("all", "project", "global");
 export const EnvVarValueEnvelope = Schema.Struct({
   id: Id,
   ...encryptedEnvelopeFields,
-  vaultKind: Schema.optional(Schema.Literal("credentials", "env")),
+  vaultKind: Schema.optional(Schema.Literals(["credentials", "env"])),
 });
 
 // Human-readable documentation for a variable (non-secret). A short label and a
 // longer description that explain what the variable is for, so non-technical
 // people can update its value in the portal with confidence. Shared per
 // (scope, key) — the same across every environment — not per revision.
-export const EnvVarLabel = Schema.String.pipe(Schema.maxLength(120));
-export const EnvVarDescriptionText = Schema.String.pipe(Schema.maxLength(500));
+export const EnvVarLabel = Schema.String.check(Schema.isMaxLength(120));
+export const EnvVarDescriptionText = Schema.String.check(Schema.isMaxLength(500));
 
 /**
  * Env var metadata. The value is **not** here — it lives encrypted in the
@@ -51,7 +51,7 @@ export const EnvVarDescriptionText = Schema.String.pipe(Schema.maxLength(500));
  * environments (keyed by scope + key); they are `null` when unset. Optional on
  * the wire for back-compat: an older server omits them entirely.
  */
-export class EnvVar extends Schema.Class<EnvVar>("EnvVar")({
+export const EnvVar = Schema.Struct({
   id: Id,
   organizationId: Id,
   projectId: Schema.NullOr(Id),
@@ -67,10 +67,14 @@ export class EnvVar extends Schema.Class<EnvVar>("EnvVar")({
   description: Schema.optional(Schema.NullOr(Schema.String)),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
-}) {}
+}).annotate({ identifier: "EnvVar" });
+export type EnvVar = typeof EnvVar.Type;
 
 // Key validation: uppercase letters, digits, underscores. Must start with letter.
-const EnvVarKey = Schema.String.pipe(Schema.pattern(/^[A-Z][A-Z0-9_]*$/u), Schema.maxLength(256));
+const EnvVarKey = Schema.String.check(
+  Schema.isPattern(/^[A-Z][A-Z0-9_]*$/u),
+  Schema.isMaxLength(256),
+);
 
 export const CreateEnvVarBody = Schema.Struct({
   scope: EnvVarScope,
@@ -129,7 +133,7 @@ export const BulkImportEntry = Schema.Struct({
 export const BulkImportEnvVarsBody = Schema.Struct({
   scope: EnvVarScope,
   projectId: Schema.optional(Id),
-  entries: Schema.Array(BulkImportEntry).pipe(Schema.minItems(1), Schema.maxItems(300)),
+  entries: Schema.Array(BulkImportEntry).check(Schema.isMinLength(1), Schema.isMaxLength(300)),
 });
 
 export const BulkImportResult = Schema.Struct({
@@ -187,12 +191,14 @@ const overrideKey = (item: EnvVar) => `${item.environment}\t${item.key}`;
 export const resolveEnvVarOverrides = (items: readonly EnvVar[]): readonly EnvVar[] => {
   const projectPairs = new Set(items.filter((item) => item.scope === "project").map(overrideKey));
   const globalPairs = new Set(items.filter((item) => item.scope === "global").map(overrideKey));
-  return items
-    .filter((item) => !(item.scope === "global" && projectPairs.has(overrideKey(item))))
-    .map((item) =>
-      item.scope === "project" && !item.overridesGlobal && globalPairs.has(overrideKey(item))
-        ? // eslint-disable-next-line typescript/no-misused-spread -- the spread feeds the class constructor, which rebuilds the EnvVar prototype
-          new EnvVar({ ...item, overridesGlobal: true })
-        : item,
-    );
+  return (
+    items
+      .filter((item) => !(item.scope === "global" && projectPairs.has(overrideKey(item))))
+      // eslint-disable-next-line oxc/no-map-spread -- copy-on-write is required: `items` belongs to the caller and the untouched rows are returned by reference
+      .map((item) =>
+        item.scope === "project" && !item.overridesGlobal && globalPairs.has(overrideKey(item))
+          ? { ...item, overridesGlobal: true }
+          : item,
+      )
+  );
 };

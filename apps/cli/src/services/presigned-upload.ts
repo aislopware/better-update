@@ -1,5 +1,5 @@
-import { FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { FileSystem, Context, Effect, Layer } from "effect";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { PresignedUrlExpiredError, UploadFailedError } from "../lib/exit-codes";
 
@@ -13,14 +13,14 @@ export interface PutToPresignedUrlInput {
   readonly headers?: Record<string, string>;
 }
 
-export class PresignedUploadClient extends Context.Tag("cli/PresignedUploadClient")<
+export class PresignedUploadClient extends Context.Service<
   PresignedUploadClient,
   {
     readonly putToPresignedUrl: (
       input: PutToPresignedUrlInput,
     ) => Effect.Effect<void, PresignedUrlExpiredError | UploadFailedError>;
   }
->() {}
+>()("cli/PresignedUploadClient") {}
 
 export const PresignedUploadClientLive = Layer.effect(
   PresignedUploadClient,

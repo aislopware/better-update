@@ -72,7 +72,7 @@ export const decryptResolveSecret = <Field extends string>(params: {
         // The reduce fully populates every requested field below (failing if any
         // is absent), so the empty seed is the typed accumulator for the result.
         // eslint-disable-next-line typescript/no-unsafe-type-assertion -- typed empty accumulator for a reduce that populates all `fields`
-        {} as Record<Field, string>,
+        () => ({}) as Record<Field, string>,
         (acc, field) =>
           Effect.gen(function* () {
             const value = yield* requireSecretString(

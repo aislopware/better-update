@@ -14,7 +14,7 @@ export const deleteCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        yield* api.builds.delete({ path: { id: args.id } });
+        yield* api.builds.delete({ params: { id: args.id } });
         yield* printHuman(`Build ${args.id} deleted.`);
         return { id: args.id, deleted: true };
       }),

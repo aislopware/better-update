@@ -39,10 +39,10 @@ export interface InvitationProjectGrantRepository {
   readonly deleteForInvitation: (params: { readonly invitationId: string }) => Effect.Effect<void>;
 }
 
-export class InvitationProjectGrantRepo extends Context.Tag("api/InvitationProjectGrantRepo")<
+export class InvitationProjectGrantRepo extends Context.Service<
   InvitationProjectGrantRepo,
   InvitationProjectGrantRepository
->() {}
+>()("api/InvitationProjectGrantRepo") {}
 
 // -- D1 Adapter --------------------------------------------------------------
 

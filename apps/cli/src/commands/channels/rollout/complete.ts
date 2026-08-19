@@ -16,7 +16,7 @@ export const completeCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const channel = yield* api.channels.completeBranchRollout({
-          path: { id: args.channelId },
+          params: { id: args.channelId },
         });
         yield* printHuman(`Completed rollout on channel "${channel.name}".`);
         return channel;

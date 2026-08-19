@@ -4,14 +4,14 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
-import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { FileSystem, Effect, Layer } from "effect";
 
 import type { Identity } from "@better-update/credentials-crypto";
 import type { RequestContext } from "@expo/apple-utils";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory accepts a partial of the entire module shape; namespace import is the only way to satisfy ModuleMockFactoryWithHelper at compile time
 import type * as AppleUtilsModule from "@expo/apple-utils";
+import type { Context, Exit } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
@@ -22,6 +22,7 @@ import {
   listAscApiKeysViaAppleId,
 } from "./credentials-generator-asc-key";
 import { makeInteractiveModeLayer } from "./interactive-mode";
+import { failureError } from "./test-utils";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -108,7 +109,7 @@ const fsStubLayer = Layer.succeed(FileSystem.FileSystem, {
     Effect.sync(() => {
       recordedWrites.push({ path, content });
     }),
-} as unknown as FileSystem.FileSystem);
+} as unknown as Context.Service.Shape<typeof FileSystem.FileSystem>);
 
 /** CliRuntime surfacing the env identity so the vault unlocks without a passphrase. */
 const vaultLayer = (privateKey: string) =>
@@ -144,13 +145,10 @@ const makeKey = () => ({
   downloadAsync: mocks.apiKeyDownloadAsync,
 });
 
-const failureTag = (exit: Exit.Exit<unknown, unknown>): string | undefined => {
-  if (!Exit.isFailure(exit)) {
-    return undefined;
-  }
-  const json = exit.cause.toJSON() as { failure?: { _tag?: string } };
-  return json.failure?._tag;
-};
+// v4 flattened `Cause` into `reasons`, so the old `cause.toJSON().failure`
+// shape is gone; the first `Fail` value is read through `failureError`.
+const failureTag = (exit: Exit.Exit<unknown, { readonly _tag: string }>): string | undefined =>
+  failureError(exit)?._tag;
 
 beforeEach(() => {
   vi.clearAllMocks();

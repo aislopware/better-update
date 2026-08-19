@@ -63,7 +63,7 @@ const recordExtraParams = (params: {
         serverDefinedHeadersJson: JSON.stringify({ "expo-extra-params": params.extraParams }),
       });
     }).pipe(
-      Effect.catchAllCause(() => Effect.void),
+      Effect.catchCause(() => Effect.void),
       Effect.provide(context),
     );
     // @effect-diagnostics-next-line effect/runEffectInsideEffect:off -- legit Cloudflare boundary: ctx.waitUntil needs a Promise for detached fire-and-forget off the manifest-serving critical path (see block comment above); `yield* write` would await inline and change behavior

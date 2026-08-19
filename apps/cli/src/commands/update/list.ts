@@ -31,7 +31,7 @@ export const listCommand = defineCommand({
         const api = yield* apiClient;
         const branches = yield* drainPages((cursor) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, page: cursor },
+            query: { projectId, limit: 100, page: cursor },
           }),
         );
 
@@ -44,7 +44,7 @@ export const listCommand = defineCommand({
           : undefined;
 
         const { items } = yield* api.updates.list({
-          urlParams: {
+          query: {
             projectId,
             limit,
             ...compact({

@@ -84,7 +84,7 @@ const useExistingIosDistributionCert = (ctx: WizardContext) =>
       setupCtx,
     );
     yield* ctx.api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: {
         appleDistributionCertificateId: certId,
         appleProvisioningProfileId: profileId,
@@ -199,7 +199,7 @@ const bindIosPushKey = (ctx: WizardContext) =>
       keys.items.map((key) => pushKeyChoice(key, teamLabel(key.appleTeamId))),
     );
     yield* ctx.api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: { applePushKeyId: pushKeyId },
     });
     yield* Console.log(
@@ -229,7 +229,7 @@ const setupProjectPushNotifications = (ctx: WizardContext) =>
             keys.items.map((key) => pushKeyChoice(key, teamLabel(key.appleTeamId))),
           );
     yield* ctx.api.iosBundleConfigurations.update({
-      path: { id: config.id },
+      params: { id: config.id },
       payload: { applePushKeyId: pushKeyId },
     });
     yield* Console.log(

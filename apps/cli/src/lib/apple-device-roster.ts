@@ -5,7 +5,7 @@
  * the same roster.
  */
 import AppleUtils from "@expo/apple-utils";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import { wrapConnect } from "./apple-asc-connect";
 
@@ -89,7 +89,7 @@ export const listTeamRosterDevices = (api: ApiClient, appleTeamId: string) =>
     let total = Number.POSITIVE_INFINITY;
     while (fetched < total) {
       const result = yield* api.devices.list({
-        urlParams: { page, limit: LIST_LIMIT, appleTeamId: [appleTeamId] },
+        query: { page, limit: LIST_LIMIT, appleTeamId: [appleTeamId] },
       });
       ({ total } = result);
       if (result.items.length === 0) {
@@ -160,7 +160,7 @@ export const collectProfileDeviceSet = (
     for (const device of desired) {
       let records = byUdid.get(device.identifier.trim().toLowerCase()) ?? [];
       if (records.length === 0) {
-        const created = yield* Effect.either(
+        const created = yield* Effect.result(
           wrapConnect("apple-create-device", async () =>
             AppleUtils.Device.createAsync(ctx, {
               name: device.name,
@@ -169,7 +169,7 @@ export const collectProfileDeviceSet = (
             }),
           ),
         );
-        records = Either.isRight(created) ? [toAppleDevice(created.right)] : [];
+        records = Result.isSuccess(created) ? [toAppleDevice(created.success)] : [];
       }
       // tvOS devices cannot join iOS profile types; skip rather than fail.
       const attachable = records.filter((record) => record.deviceClass !== "APPLE_TV");

@@ -5,7 +5,7 @@ const { get, parseCookies, post } = setupE2EWorker();
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-const runSeedSql = (sql: string) => seedD1(sql);
+const runSeedSql = async (sql: string) => seedD1(sql);
 
 describe("Build compatibility matrix endpoint", () => {
   let cookies: string;
@@ -26,7 +26,7 @@ describe("Build compatibility matrix endpoint", () => {
     });
     expect(response.status).toBe(200);
     cookies = parseCookies(response);
-    expect(cookies).toBeTruthy();
+    expect(cookies).toMatch(/./u);
   });
 
   it("creates and activates the primary organization", async () => {
@@ -36,7 +36,7 @@ describe("Build compatibility matrix endpoint", () => {
       { cookie: cookies },
     );
     expect(createOrgResponse.status).toBe(200);
-    primaryOrgId = (await createOrgResponse.json()).id;
+    ({ id: primaryOrgId } = await createOrgResponse.json());
     cookies = parseCookies(createOrgResponse) || cookies;
 
     const setActiveResponse = await post(
@@ -55,7 +55,7 @@ describe("Build compatibility matrix endpoint", () => {
       { cookie: cookies },
     );
     expect(createProjectResponse.status).toBe(201);
-    projectId = (await createProjectResponse.json()).id;
+    ({ id: projectId } = await createProjectResponse.json());
 
     const rolloutMapping = JSON.stringify({
       data: [
@@ -108,7 +108,7 @@ VALUES
 
     const body = await response.json();
 
-    expect(body.channels).toEqual(
+    expect(body.channels).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           channelName: "production",
@@ -132,7 +132,7 @@ VALUES
 
     expect(body.channelStatusByKey).toHaveProperty("ios:1.0.0");
 
-    expect(body.missingRuntimeVersions).toEqual(
+    expect(body.missingRuntimeVersions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           channelName: "production",
@@ -175,7 +175,7 @@ VALUES
 
     const body = await response.json();
     expect(body.total).toBe(2);
-    expect(body.items.map((item: { id: string }) => item.id)).toEqual([
+    expect(body.items.map((item: { id: string }) => item.id)).toStrictEqual([
       "build-next-ios",
       "build-old-ios",
     ]);
@@ -188,7 +188,9 @@ VALUES
     expect(firstPage.status).toBe(200);
     const firstBody = await firstPage.json();
     expect(firstBody.total).toBe(2);
-    expect(firstBody.items.map((item: { id: string }) => item.id)).toEqual(["build-next-ios"]);
+    expect(firstBody.items.map((item: { id: string }) => item.id)).toStrictEqual([
+      "build-next-ios",
+    ]);
 
     const secondPage = await get(
       "/api/channels/channel-production/compatible-builds?limit=1&page=2",
@@ -196,7 +198,9 @@ VALUES
     );
     expect(secondPage.status).toBe(200);
     const secondBody = await secondPage.json();
-    expect(secondBody.items.map((item: { id: string }) => item.id)).toEqual(["build-old-ios"]);
+    expect(secondBody.items.map((item: { id: string }) => item.id)).toStrictEqual([
+      "build-old-ios",
+    ]);
   });
 
   it("returns 404 for compatible builds of an unknown channel", async () => {
@@ -213,7 +217,7 @@ VALUES
       { cookie: cookies },
     );
     expect(createOrgResponse.status).toBe(200);
-    secondaryOrgId = (await createOrgResponse.json()).id;
+    ({ id: secondaryOrgId } = await createOrgResponse.json());
     cookies = parseCookies(createOrgResponse) || cookies;
 
     const setActiveResponse = await post(

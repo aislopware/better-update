@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop -- projects are created serially so the ids come back in the order the later binding assertions expect. */
 import { credentialEnvelope } from "../helpers/credential-envelope";
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
@@ -36,7 +37,7 @@ describe("Credential bindings flow", () => {
       { cookie: cookies },
     );
     expect(orgRes.status).toBe(200);
-    const organizationId = (await orgRes.json()).id;
+    const { id: organizationId } = await orgRes.json();
     cookies = parseCookies(orgRes) || cookies;
 
     const activeRes = await post(
@@ -53,7 +54,7 @@ describe("Credential bindings flow", () => {
     ] as const) {
       const projRes = await post("/api/projects", { name, slug }, { cookie: cookies });
       expect(projRes.status).toBe(201);
-      const id = (await projRes.json()).id;
+      const { id } = await projRes.json();
       if (slug === "bind-a") {
         projectAId = id;
       } else {
@@ -85,7 +86,7 @@ describe("Credential bindings flow", () => {
       cookie: cookies,
     });
     expect(listRes.status).toBe(200);
-    const bindings = (await listRes.json()).items;
+    const { items: bindings } = await listRes.json();
     expect(bindings).toHaveLength(1);
     expect(bindings[0]).toMatchObject({
       projectId: projectAId,
@@ -96,9 +97,8 @@ describe("Credential bindings flow", () => {
     // The team row surfaces its bound projects.
     const teamsRes = await get("/api/apple-teams", { cookie: cookies });
     expect(teamsRes.status).toBe(200);
-    const team = (await teamsRes.json()).items.find(
-      (item: { id: string }) => item.id === appleTeamRowId,
-    );
+    const { items: teamItems } = await teamsRes.json();
+    const team = teamItems.find((item: { id: string }) => item.id === appleTeamRowId);
     expect(team.boundProjectIds).toStrictEqual([projectAId]);
   });
 
@@ -115,19 +115,21 @@ describe("Credential bindings flow", () => {
       { cookie: cookies },
     );
     expect(robotRes.status).toBe(201);
-    robotBBearer = (await robotRes.json()).bearerSecret;
+    ({ bearerSecret: robotBBearer } = await robotRes.json());
 
     const teamsRes = await get("/api/apple-teams", {
       authorization: `Bearer ${robotBBearer}`,
     });
     expect(teamsRes.status).toBe(200);
-    expect((await teamsRes.json()).items).toHaveLength(0);
+    const teamsResBody = await teamsRes.json();
+    expect(teamsResBody.items).toHaveLength(0);
 
     const certsRes = await get("/api/apple/distribution-certificates", {
       authorization: `Bearer ${robotBBearer}`,
     });
     expect(certsRes.status).toBe(200);
-    expect((await certsRes.json()).items).toHaveLength(0);
+    const certsResBody = await certsRes.json();
+    expect(certsResBody.items).toHaveLength(0);
   });
 
   it("admin binds the team to project B via the route; the robot now sees it", async () => {
@@ -148,19 +150,23 @@ describe("Credential bindings flow", () => {
       { cookie: cookies },
     );
     expect(again.status).toBe(201);
-    expect((await again.json()).id).toBe(binding.id);
+    const againBody = await again.json();
+    expect(againBody.id).toBe(binding.id);
 
     const teamsRes = await get("/api/apple-teams", {
       authorization: `Bearer ${robotBBearer}`,
     });
-    const items = (await teamsRes.json()).items;
+    const { items } = await teamsRes.json();
     expect(items).toHaveLength(1);
-    expect([...items[0].boundProjectIds].sort()).toStrictEqual([projectAId, projectBId].sort());
+    expect(
+      [...items[0].boundProjectIds].toSorted((left, right) => left.localeCompare(right)),
+    ).toStrictEqual([projectAId, projectBId].toSorted((left, right) => left.localeCompare(right)));
 
     const certsRes = await get("/api/apple/distribution-certificates", {
       authorization: `Bearer ${robotBBearer}`,
     });
-    expect((await certsRes.json()).items).toHaveLength(1);
+    const certsResBody2 = await certsRes.json();
+    expect(certsResBody2.items).toHaveLength(1);
   });
 
   it("a robot cannot manage bindings (org administration)", async () => {
@@ -178,7 +184,8 @@ describe("Credential bindings flow", () => {
       { cookie: cookies },
     );
     expect(unbindRes.status).toBe(200);
-    expect((await unbindRes.json()).deleted).toBe(1);
+    const unbindResBody = await unbindRes.json();
+    expect(unbindResBody.deleted).toBe(1);
 
     const again = await del(
       `/api/projects/${projectBId}/credential-bindings/appleTeam/${appleTeamRowId}`,
@@ -189,7 +196,8 @@ describe("Credential bindings flow", () => {
     const teamsRes = await get("/api/apple-teams", {
       authorization: `Bearer ${robotBBearer}`,
     });
-    expect((await teamsRes.json()).items).toHaveLength(0);
+    const teamsResBody2 = await teamsRes.json();
+    expect(teamsResBody2.items).toHaveLength(0);
   });
 
   it("a team-scoped ASC key cannot be bound directly (bind the team instead)", async () => {
@@ -205,7 +213,7 @@ describe("Credential bindings flow", () => {
       { cookie: cookies },
     );
     expect(ascRes.status).toBe(201);
-    teamAscKeyId = (await ascRes.json()).id;
+    ({ id: teamAscKeyId } = await ascRes.json());
 
     const bindRes = await put(
       `/api/projects/${projectAId}/credential-bindings/ascApiKey/${teamAscKeyId}`,
@@ -228,12 +236,12 @@ describe("Credential bindings flow", () => {
       { cookie: cookies },
     );
     expect(ascRes.status).toBe(201);
-    const teamlessId = (await ascRes.json()).id;
+    const { id: teamlessId } = await ascRes.json();
 
     const listRes = await get(`/api/projects/${projectBId}/credential-bindings`, {
       cookie: cookies,
     });
-    const bindings = (await listRes.json()).items;
+    const { items: bindings } = await listRes.json();
     expect(
       bindings.some(
         (item: { resourceType: string; resourceId: string }) =>
@@ -246,7 +254,8 @@ describe("Credential bindings flow", () => {
     const keysRes = await get("/api/apple/asc-api-keys", {
       authorization: `Bearer ${robotBBearer}`,
     });
-    const visibleIds = ((await keysRes.json()).items as { id: string }[]).map((k) => k.id);
+    const keysResBody = await keysRes.json();
+    const visibleIds = (keysResBody.items as { id: string }[]).map((key) => key.id);
     expect(visibleIds).toContain(teamlessId);
     expect(visibleIds).not.toContain(teamAscKeyId);
   });
@@ -256,11 +265,13 @@ describe("Credential bindings flow", () => {
       cookie: cookies,
     });
     expect(auditRes.status).toBe(200);
-    const entries = (await auditRes.json()).items as {
-      action: string;
-      resourceId: string | null;
-      metadata: string | null;
-    }[];
+    const { items: entries } = await auditRes.json<{
+      items: {
+        action: string;
+        resourceId: string | null;
+        metadata: string | null;
+      }[];
+    }>();
 
     const teamEntries = entries.filter((entry) => entry.resourceId === appleTeamRowId);
     // Exactly two creates: the auto-bind at upload (project A) and the manual
@@ -306,12 +317,14 @@ describe("Credential bindings flow", () => {
 
     const planRes = await get("/api/credential-bindings/plan", { cookie: cookies });
     expect(planRes.status).toBe(200);
-    const items = (await planRes.json()).items as {
-      projectId: string;
-      resourceType: string;
-      resourceId: string;
-      alreadyBound: boolean;
-    }[];
+    const { items } = await planRes.json<{
+      items: {
+        projectId: string;
+        resourceType: string;
+        resourceId: string;
+        alreadyBound: boolean;
+      }[];
+    }>();
     const teamItem = items.find(
       (item) => item.resourceType === "appleTeam" && item.resourceId === appleTeamRowId,
     );

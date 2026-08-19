@@ -1,18 +1,18 @@
-import { env } from "cloudflare:test";
-import { Effect, Either } from "effect";
+import { env } from "cloudflare:workers";
+import { Effect, Result } from "effect";
 
 import { AppleTeamRepo, AppleTeamRepoLive } from "../../../src/repositories/apple-teams";
-import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
+import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleTeamRepo>) =>
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleTeamRepo>) =>
   runWithLayerAndEnv(effect, AppleTeamRepoLive, env);
 
-const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleTeamRepo>) =>
-  runEitherWithLayerAndEnv(effect, AppleTeamRepoLive, env);
+const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AppleTeamRepo>) =>
+  runResultWithLayerAndEnv(effect, AppleTeamRepoLive, env);
 
-const insertOrg = (id: string) =>
+const insertOrg = async (id: string) =>
   env.DB.prepare(
     `INSERT INTO "organization" ("id", "name", "slug", "created_at") VALUES (?, ?, ?, ?)`,
   )
@@ -45,7 +45,7 @@ describe("AppleTeamRepo — D1 integration (Kysely + session)", () => {
     expect(model.appleTeamId).toBe("TEAM0000001");
     expect(model.appleTeamType).toBe("COMPANY_ORGANIZATION");
     expect(model.name).toBe("Acme Corp");
-    expect(typeof model.id).toBe("string");
+    expect(model.id).toBeTypeOf("string");
   });
 
   it("updates type and preserves name when upserted with null name", async () => {
@@ -104,16 +104,16 @@ describe("AppleTeamRepo — D1 integration (Kysely + session)", () => {
   });
 
   it("findById fails with NotFound for an unknown id", async () => {
-    const result = await runEither(
+    const result = await runResult(
       Effect.gen(function* () {
         const repo = yield* AppleTeamRepo;
         return yield* repo.findById({ id: "00000000-0000-0000-0000-000000000000" });
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "NotFound" });
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "NotFound" });
     }
   });
 

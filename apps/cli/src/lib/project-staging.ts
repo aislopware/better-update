@@ -3,10 +3,10 @@ import { promises as fsp } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { FileSystem, Effect } from "effect";
 import ignore from "ignore";
 
+import type { Semaphore } from "effect";
 import type { Ignore } from "ignore";
 
 import { runStep } from "../commands/build/run-step";
@@ -422,7 +422,7 @@ export interface PrepareStagingProjectInput {
    * user-tree writes (app.json autoIncrement) during parallel `--platform all`
    * builds, so the snapshot never catches a file mid-write.
    */
-  readonly copyMutex?: Effect.Semaphore;
+  readonly copyMutex?: Semaphore.Semaphore;
 }
 
 /**

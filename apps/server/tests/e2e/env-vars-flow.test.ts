@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 
 import { MAX_VARS_PER_PROJECT } from "../../src/handlers/env-vars-helpers";
 import { credentialEnvelope } from "../helpers/credential-envelope";
@@ -46,7 +46,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     });
     expect(response.status).toBe(200);
     state.cookies = parseCookies(response);
-    expect(state.cookies).toBeTruthy();
+    expect(state.cookies).toMatch(/./u);
   });
 
   it("creates an organization", async () => {
@@ -102,7 +102,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(body.projectId).toBeNull();
     expect(body.environment).toBe("production");
     expect(body.value).toBeUndefined();
-    expect(body.currentRevisionId).toBeTruthy();
+    expect(body.currentRevisionId).toMatch(/./u);
     expect(body.revisionNumber).toBe(1);
     expect(body.revisionCount).toBe(1);
   });
@@ -271,8 +271,10 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    const keys = [...new Set(body.items.map((item: { key: string }) => item.key))].toSorted();
-    expect(keys).toEqual(["EXPO_PUBLIC_API_URL", "SENTRY_AUTH_TOKEN"]);
+    const keys = [...new Set<string>(body.items.map((item: { key: string }) => item.key))].toSorted(
+      (left, right) => left.localeCompare(right),
+    );
+    expect(keys).toStrictEqual(["EXPO_PUBLIC_API_URL", "SENTRY_AUTH_TOKEN"]);
   });
 
   it("filters by search", async () => {
@@ -282,7 +284,9 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items.map((item: { key: string }) => item.key)).toEqual(["SENTRY_AUTH_TOKEN"]);
+    expect(body.items.map((item: { key: string }) => item.key)).toStrictEqual([
+      "SENTRY_AUTH_TOKEN",
+    ]);
   });
 
   it("lists global env vars from org scope", async () => {
@@ -303,7 +307,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(body.id).toBe(state.sensitiveVarId);
     expect(body.key).toBe("SENTRY_AUTH_TOKEN");
     expect(body.scope).toBe("project");
-    expect(body.currentRevisionId).toBeTruthy();
+    expect(body.currentRevisionId).toMatch(/./u);
     expect(body.value).toBeUndefined();
   });
 
@@ -381,9 +385,9 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toHaveLength(2);
-    expect(body.items.map((item: { revisionNumber: number }) => item.revisionNumber)).toEqual([
-      2, 1,
-    ]);
+    expect(body.items.map((item: { revisionNumber: number }) => item.revisionNumber)).toStrictEqual(
+      [2, 1],
+    );
     expect(body.items[0].isCurrent).toBe(true);
     expect(body.items[1].isCurrent).toBe(false);
     // Metadata only — never the ciphertext.
@@ -394,7 +398,8 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     const history = await get(`/api/env-vars/${state.sensitiveVarId}/revisions`, {
       cookie: state.cookies,
     });
-    const items = (await history.json()).items as { id: string; revisionNumber: number }[];
+    const historyBody = await history.json();
+    const items = historyBody.items as { id: string; revisionNumber: number }[];
     const first = items.find((item) => item.revisionNumber === 1);
     expect(first).toBeDefined();
 
@@ -503,7 +508,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ created: 4, updated: 0, skipped: 1 });
+    await expect(response.json()).resolves.toStrictEqual({ created: 4, updated: 0, skipped: 1 });
   });
 
   it("re-importing an existing (key, environment) counts as an update", async () => {
@@ -532,7 +537,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ created: 1, updated: 1, skipped: 0 });
+    await expect(response.json()).resolves.toStrictEqual({ created: 1, updated: 1, skipped: 0 });
   });
 
   it("bulk imports global-scoped entries", async () => {
@@ -558,7 +563,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ created: 2, updated: 0, skipped: 0 });
+    await expect(response.json()).resolves.toStrictEqual({ created: 2, updated: 0, skipped: 0 });
   });
 
   it("rejects export from a browser cookie session", async () => {
@@ -577,7 +582,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     const verified = await post("/api/auth/one-time-token/verify", { token });
     expect(verified.status).toBe(200);
     const sessionToken = verified.headers.get("set-auth-token");
-    expect(sessionToken).toBeTruthy();
+    expect(sessionToken).toMatch(/./u);
 
     const response = await get(
       `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
@@ -594,7 +599,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       cookie: state.cookies,
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ id: state.overrideVarId });
+    await expect(response.json()).resolves.toStrictEqual({ id: state.overrideVarId });
   });
 
   it("returns 404 for deleted env vars", async () => {
@@ -619,7 +624,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       { cookie: state.cookies },
     );
     expect(projectResponse.status).toBe(201);
-    const limitProjectId = (await projectResponse.json()).id as string;
+    const { id: limitProjectId } = await projectResponse.json<{ id: string }>();
 
     // A single bulk import past the cap is rejected wholesale — the guard runs on
     // the entry count before any row is written, so we assert the rejection
@@ -675,7 +680,8 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);
-    expect((await response.json()).environment).toBe("qa");
+    const responseBody = await response.json();
+    expect(responseBody.environment).toBe("qa");
   });
 
   it("rejects deleting an environment that still has bound variables (409)", async () => {
