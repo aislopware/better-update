@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.1](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.10.0...%40better-update%2Fui%400.10.1) (2026-08-19)
+
+### Bug Fixes
+
+* **ui:** reconcile the app's surfaces with kumo 2.9.2 through 2.11 ([84c5a82](https://gitlab.jmango360.com/mobile/better-update/commit/84c5a82061c9d77d50ea6f52413c5c4875c78623))
+
 ## [0.10.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fui%400.9.2...%40better-update%2Fui%400.10.0) (2026-08-19)
 
 ### Features

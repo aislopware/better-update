@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.79.1](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.79.0...%40better-update%2Fweb%400.79.1) (2026-08-19)
+
+### Bug Fixes
+
+* **ui:** reconcile the app's surfaces with kumo 2.9.2 through 2.11 ([84c5a82](https://github.com/better-update/better-update/commit/84c5a82061c9d77d50ea6f52413c5c4875c78623))
+
 ## [0.79.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.78.0...%40better-update%2Fweb%400.79.0) (2026-08-19)
 
 ### Features
