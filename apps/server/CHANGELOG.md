@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.64.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.63.0...%40better-update%2Fserver%400.64.0) (2026-08-19)
+
+### Features
+
+* cut over to effect 4.0.0-rc.110 and update every workspace dependency ([3082ecb](https://github.com/better-update/better-update/commit/3082ecb9ff6e6a9b43b23dde30968c2f0956f62d))
+
 ## [0.63.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.62.0...%40better-update%2Fserver%400.63.0) (2026-08-18)
 
 ### Features
