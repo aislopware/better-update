@@ -70,6 +70,9 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
       {status === "error" ? (
         <Banner
           variant="error"
+          // The only banner the app draws inside a dialog: the compact size is
+          // Kumo's answer for exactly that, and it sizes the Retry down with it.
+          size="sm"
           icon={<WarningCircleIcon weight="fill" />}
           title="Could not generate install link"
           description={getApiError(fetchInstallLinkMutation.error)}

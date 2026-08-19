@@ -56,7 +56,14 @@ export const Table = ({
         // rows sit on top of it — a row's own colour is what a cell inherits,
         // which is what lets a rounded corner clip it and still follow the row
         // through hover.
+        //
+        // Kumo 2.11 stripes its default row (`even:bg-kumo-tint`), which groups
+        // the rows a second time on top of the rules below — two bands of
+        // colour *and* a line between every pair, saying the same thing twice.
+        // The reset carries the `:nth-child` the striping does, so it outranks
+        // it whichever order the two rules land in the stylesheet.
         "[&_tbody]:bg-kumo-elevated [&_tbody_tr]:bg-kumo-base [&_tbody_td]:bg-inherit",
+        "[&_tbody_tr:nth-child(even)]:bg-kumo-base",
         "[&_tbody_tr:first-child_td:first-child]:rounded-tl-lg",
         "[&_tbody_tr:first-child_td:last-child]:rounded-tr-lg",
         "[&_tbody_tr:last-child_td:first-child]:rounded-bl-lg",
@@ -69,8 +76,10 @@ export const Table = ({
         // below it; the first row draws the one above it too, in the same
         // declaration, so a table of exactly one row is still closed on both
         // sides. `--color-kumo-fill` is the colour Kumo gives the border they
-        // replace, and the border keeps its width so nothing shifts.
-        "[&_tbody_td]:border-b-transparent",
+        // replace, and the border keeps its width so nothing shifts — Kumo 2.11
+        // dropped the `border-b` it used to set on every cell, so the width is
+        // declared here rather than only being recoloured.
+        "[&_tbody_td]:border-b [&_tbody_td]:border-b-transparent",
         "[&_tbody_td]:shadow-[inset_0_-1px_0_var(--color-kumo-fill)]",
         "[&_tbody_tr:first-child_td]:shadow-[inset_0_1px_0_var(--color-kumo-fill),inset_0_-1px_0_var(--color-kumo-fill)]",
         // Kumo leaves rows inert. A dashboard table is scanned row-wise, so the

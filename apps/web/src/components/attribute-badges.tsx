@@ -27,14 +27,14 @@ type BadgeVariant = "outline" | "secondary" | "info" | "success" | "warning";
 type BadgeSize = "sm" | "default" | "lg";
 
 /**
- * Kumo's Badge is a bare pill: it sets no gap between its children and nothing
- * that sizes an icon inside it — only the `dot` appearance gets a gap, and it
- * draws its own dot. Both are ours to say, per size, so the mark keeps its
- * distance from the word at every scale.
+ * Kumo 2.11 gives the pill a base `gap-1` and an `icon` prop, so two of these
+ * three sizes have nothing left to say about the gap. The prop stays unused: it
+ * draws the mark at a fixed `size-3`, which is only right at the default text
+ * size — these badges are set at three, and the icon tracks each.
  */
 const SIZE_CLASSES: Record<BadgeSize, string> = {
-  sm: "h-4 gap-1 px-1.5 text-[0.65rem]",
-  default: "gap-1",
+  sm: "h-4 px-1.5 text-[0.65rem]",
+  default: "",
   lg: "h-6 gap-1.5 px-2.5 text-sm",
 };
 

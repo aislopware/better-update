@@ -30,7 +30,7 @@ export const FingerprintCell = ({ value, label }: { value: string | null; label:
 // project-scoped credential views; the org tables render the toggle instead.
 export const ProtectedBadgeCell = ({ isProtected }: { isProtected: boolean }) =>
   isProtected ? (
-    <Badge variant="outline" className="gap-1">
+    <Badge variant="outline">
       <LockIcon weight="bold" className="size-3" />
       Protected
     </Badge>
@@ -42,7 +42,7 @@ export const ProtectedBadgeCell = ({ isProtected }: { isProtected: boolean }) =>
 // nothing is protected, and the few that are are what a reader came to find.
 export const ProtectedMark = ({ isProtected }: { isProtected: boolean }) =>
   isProtected ? (
-    <Badge variant="outline" className="gap-1">
+    <Badge variant="outline">
       <LockIcon weight="bold" className="size-3" />
       Protected
     </Badge>

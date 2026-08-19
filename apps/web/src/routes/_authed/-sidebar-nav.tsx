@@ -307,22 +307,31 @@ const NavSection = ({
     <Sidebar.Group>
       <Sidebar.GroupLabel>{label}</Sidebar.GroupLabel>
       <Sidebar.Menu>
-        {items.map((item) => (
-          // No `tooltip`: the sidebar peeks open on hover while collapsed, so
-          // the label is already there — and Kumo's tooltip wrapper forces
-          // `cursor-default` onto the row even when the tooltip never fires.
-          <Sidebar.MenuButton
-            key={item.href}
-            href={item.href}
-            icon={item.icon}
-            active={isCurrent(item.href, item.exact)}
-            onClick={() => {
-              setOpenMobile(false);
-            }}
-          >
-            {item.label}
-          </Sidebar.MenuButton>
-        ))}
+        {items.map((item) => {
+          const current = isCurrent(item.href, item.exact);
+          return (
+            // No `tooltip`: the sidebar peeks open on hover while collapsed, so
+            // the label is already there — and Kumo's tooltip wrapper forces
+            // `cursor-default` onto the row even when the tooltip never fires.
+            <Sidebar.MenuButton
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              active={current}
+              // Kumo draws the lit row from `active` but marks it `data-active`
+              // only, which is a styling hook and says nothing to a screen
+              // reader. Since 2.10 the menu button forwards the props it is
+              // given down to the link, so the row that is lit can also be the
+              // one announced as the page you are on.
+              aria-current={current ? "page" : undefined}
+              onClick={() => {
+                setOpenMobile(false);
+              }}
+            >
+              {item.label}
+            </Sidebar.MenuButton>
+          );
+        })}
       </Sidebar.Menu>
     </Sidebar.Group>
   );

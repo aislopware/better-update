@@ -19,7 +19,6 @@ const OUT = join(import.meta.dirname, "..", "packages", "ui", "src", "components
 /** Styled Kumo components. */
 const COMPONENTS = [
   "autocomplete",
-  "badge",
   "banner",
   "breadcrumbs",
   "button",
@@ -57,21 +56,23 @@ const COMPONENTS = [
   "toolbar",
   "tooltip",
 ];
-// `avatar`, `card`, `date-range-picker`, `dialog`, `field`, `item`, `kbd`,
-// `separator`, `skeleton`, `table` and `toast` are deliberately absent: all
-// eleven are hand-written. Kumo has no avatar, no list row (`LayerCard` is the
-// nearest surface, and its card padding is wrong for a row that repeats down a
-// page) and no keycap (its menu `Shortcut` is bare dimmed text). Its own
+// `avatar`, `badge`, `card`, `date-range-picker`, `dialog`, `field`, `item`,
+// `kbd`, `separator`, `skeleton`, `table` and `toast` are deliberately absent:
+// all twelve are hand-written. Kumo has no avatar, no list row (`LayerCard` is
+// the nearest surface, and its card padding is wrong for a row that repeats
+// down a page) and no keycap (its menu `Shortcut` is bare dimmed text). Its own
 // `DateRangePicker` keeps the range in local state with no way to seed or read
 // it, so ours composes the controlled calendar behind it instead. It ships no
 // default toast
 // manager and no `toast.success` / `toast.error` sugar, its `Field` takes only
 // the structured error shape its `Input` normalizes, its `Dialog` is the bare
 // popup — no header, footer, dismiss control or padding — its `Table` leaves
-// the scroll container and the row hover to the caller, its `Separator` is Base
-// UI's unstyled primitive (a zero-height element until someone draws the rule),
-// it has no block placeholder at all (`SkeletonLine` is a fixed-height text line
-// of random width, which SSR cannot hydrate), and `card` is the app's
+// the scroll container and the row hover to the caller, its `Badge` rings
+// itself whenever any ancestor link is hovered (ours are status markers inside
+// linked rows and cards, never links), its `Separator` is Base UI's unstyled
+// primitive (a zero-height element until someone draws the rule), it has no
+// block placeholder at all (`SkeletonLine` is a fixed-height text line of
+// random width, which SSR cannot hydrate), and `card` is the app's
 // header/content/footer anatomy composed over the bare `LayerCard` surface
 // generated above.
 

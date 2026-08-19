@@ -13,6 +13,7 @@ export default defineConfig({
   ignorePatterns: [
     "src/components/*.tsx",
     "!src/components/avatar.tsx",
+    "!src/components/badge.tsx",
     "!src/components/card.tsx",
     "!src/components/date-range-picker.tsx",
     "!src/components/dialog.tsx",

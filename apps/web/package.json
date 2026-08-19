@@ -40,7 +40,7 @@
     "@better-update/safe-json": "workspace:*",
     "@better-update/type-guards": "workspace:*",
     "@better-update/ui": "workspace:*",
-    "@cloudflare/kumo": "^2.10.0",
+    "@cloudflare/kumo": "^2.11.0",
     "@cloudflare/vite-plugin": "^1.52.1",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
