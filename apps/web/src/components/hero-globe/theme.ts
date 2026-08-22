@@ -27,7 +27,8 @@ const usedColor = (expression: string): string => {
   probe.style.color = expression;
   probe.style.position = "absolute";
   probe.style.visibility = "hidden";
-  document.body.append(probe);
+  // eslint-disable-next-line unicorn/prefer-dom-node-append -- the Workers runtime types merge HTMLRewriter's `Element` into the DOM's, and its `append` only accepts string/stream/Response, so `Node#append` does not typecheck in this app.
+  document.body.appendChild(probe);
   const used = globalThis.getComputedStyle(probe).color;
   probe.remove();
   return used;
