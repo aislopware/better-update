@@ -55,7 +55,7 @@ export const Route = createFileRoute("/pending-approval")({
     /* eslint-disable functional/no-try-statements, functional/no-let, functional/no-promise-reject, functional/no-throw-statements, typescript/only-throw-error, init-declarations -- TanStack Router idiom: beforeLoad throws redirect Responses; coerce non-Error rejects so the CatchBoundary renders */
     let session;
     try {
-      session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+      session = await context.queryClient.query({ ...sessionQueryOptions, staleTime: "static" });
     } catch (error) {
       if (isRedirect(error)) {
         throw error;

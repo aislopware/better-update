@@ -123,7 +123,7 @@ const PasskeysPagePending = () => (
 
 export const Route = createFileRoute("/_authed/_app/account/passkeys")({
   beforeLoad: async ({ context }) => {
-    await context.queryClient.ensureQueryData(passkeysQueryOptions);
+    await context.queryClient.query({ ...passkeysQueryOptions, staleTime: "static" });
   },
   pendingComponent: PasskeysPagePending,
   pendingMs: 0,

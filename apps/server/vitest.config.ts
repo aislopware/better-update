@@ -20,7 +20,9 @@ const parseEnvFile = (filePath: string): Record<string, string> =>
  * `bun run test:integrations` works without the caller exporting them manually.
  */
 const hydrateCloudflareProcessEnv = () => {
-  const envFile = parseEnvFile(path.join(__dirname, ".env.local"));
+  // `import.meta.dirname`, not `__dirname`: Vite's native config loader (the
+  // planned default) does not define the CJS global.
+  const envFile = parseEnvFile(path.join(import.meta.dirname, ".env.local"));
   if (!process.env["CLOUDFLARE_ACCOUNT_ID"] && envFile["E2E_CF_ACCOUNT_ID"]) {
     process.env["CLOUDFLARE_ACCOUNT_ID"] = envFile["E2E_CF_ACCOUNT_ID"];
   }
@@ -43,7 +45,7 @@ const R2_E2E = ["tests/e2e/direct-upload-flow.test.ts"];
 
 export default defineConfig(async () => {
   hydrateCloudflareProcessEnv();
-  const migrations = await readD1Migrations(path.join(__dirname, "migrations"));
+  const migrations = await readD1Migrations(path.join(import.meta.dirname, "migrations"));
 
   // Shared Workers-runtime pool options for the integration + pool-backed e2e
   // projects: same local D1 (migrations applied via setup-d1.ts) + miniflare
@@ -82,7 +84,7 @@ export default defineConfig(async () => {
   // `bucket_name` in the dev/test path, keeping these off the production buckets.
   // Real Cloudflare creds come from `.env.local` (E2E_*); the remote proxy auth
   // (CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN) is hydrated above.
-  const envLocal = parseEnvFile(path.join(__dirname, ".env.local"));
+  const envLocal = parseEnvFile(path.join(import.meta.dirname, ".env.local"));
   const realR2TestOptions = {
     wrangler: { configPath: "./wrangler.jsonc" },
     remoteBindings: true,

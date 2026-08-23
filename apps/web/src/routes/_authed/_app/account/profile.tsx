@@ -240,7 +240,7 @@ const ProfilePagePending = () => (
 
 export const Route = createFileRoute("/_authed/_app/account/profile")({
   beforeLoad: async ({ context }) => {
-    await context.queryClient.ensureQueryData(sessionQueryOptions);
+    await context.queryClient.query({ ...sessionQueryOptions, staleTime: "static" });
   },
   pendingComponent: ProfilePagePending,
   pendingMs: 0,

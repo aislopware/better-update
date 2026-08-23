@@ -17,9 +17,10 @@ const ProjectShellSkeleton = () => (
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug")({
   beforeLoad: async ({ context, params }) => {
-    const project = await context.queryClient.ensureQueryData(
-      projectBySlugQueryOptions(context.activeOrg.id, params.projectSlug),
-    );
+    const project = await context.queryClient.query({
+      ...projectBySlugQueryOptions(context.activeOrg.id, params.projectSlug),
+      staleTime: "static",
+    });
     return { project };
   },
   pendingComponent: ProjectShellSkeleton,

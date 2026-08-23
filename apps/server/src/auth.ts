@@ -10,6 +10,7 @@ import {
   sweepInvitationGrants,
 } from "./auth/org-lifecycle";
 import { hashPassword, verifyPassword } from "./auth/password";
+import { createKvSecondaryStorage } from "./auth/secondary-storage";
 import { isSuperadminEmail, parseSuperadminEmails, roleIsSuperadmin } from "./auth/superadmin";
 import { provideCloudflareEnv } from "./cloudflare/context";
 import { EmailServiceLive } from "./cloudflare/email-service";
@@ -245,12 +246,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
       },
     },
 
-    secondaryStorage: {
-      get: async (key) => env.SESSION_KV.get(key),
-      set: async (key, value, ttl) =>
-        env.SESSION_KV.put(key, value, ttl ? { expirationTtl: ttl } : undefined),
-      delete: async (key) => env.SESSION_KV.delete(key),
-    },
+    secondaryStorage: createKvSecondaryStorage(env.SESSION_KV),
 
     plugins: [
       organization({

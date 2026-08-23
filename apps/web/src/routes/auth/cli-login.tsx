@@ -82,7 +82,7 @@ export const Route = createFileRoute("/auth/cli-login")({
       });
     }
 
-    const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions);
+    const orgs = await context.queryClient.query({ ...orgsQueryOptions, staleTime: "static" });
     const activeOrganizationId = context.session.session.activeOrganizationId ?? orgs[0]?.id;
 
     if (!activeOrganizationId) {

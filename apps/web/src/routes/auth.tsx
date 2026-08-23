@@ -10,7 +10,7 @@ export const Route = createFileRoute("/auth")({
     /* eslint-disable functional/no-try-statements, functional/no-let, functional/no-promise-reject, functional/no-throw-statements, init-declarations -- TanStack Router CatchBoundary uses `if (error)` truthy check that drops `undefined`/`null`/falsy errors; coerce non-Error rejects to a real Error so the boundary can render */
     let session;
     try {
-      session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+      session = await context.queryClient.query({ ...sessionQueryOptions, staleTime: "static" });
     } catch (error) {
       if (isRedirect(error)) {
         throw error;

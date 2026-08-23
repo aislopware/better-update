@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authed")({
     /* eslint-disable functional/no-try-statements, functional/no-let, functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error, init-declarations -- TanStack Router idiom: beforeLoad must throw redirect Response; defensive try/catch coerces non-Error rejects (e.g. `throw undefined`) into Error/redirect so React error boundaries can render instead of crashing render */
     let session;
     try {
-      session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+      session = await context.queryClient.query({ ...sessionQueryOptions, staleTime: "static" });
     } catch (error) {
       if (isRedirect(error)) {
         throw error;
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authed")({
     }
     let orgs;
     try {
-      orgs = await context.queryClient.ensureQueryData(orgsQueryOptions);
+      orgs = await context.queryClient.query({ ...orgsQueryOptions, staleTime: "static" });
     } catch (error) {
       if (isRedirect(error)) {
         throw error;

@@ -136,7 +136,7 @@ const SessionsPagePending = () => (
 
 export const Route = createFileRoute("/_authed/_app/account/sessions")({
   beforeLoad: async ({ context }) => {
-    await context.queryClient.ensureQueryData(sessionsQueryOptions);
+    await context.queryClient.query({ ...sessionsQueryOptions, staleTime: "static" });
   },
   pendingComponent: SessionsPagePending,
   pendingMs: 0,

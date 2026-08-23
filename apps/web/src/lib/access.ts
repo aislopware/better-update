@@ -46,7 +46,7 @@ export const assertCapability = async (
   queryClient: QueryClient,
   capability: MeCapability,
 ): Promise<void> => {
-  const me = await queryClient.ensureQueryData(meQueryOptions());
+  const me = await queryClient.query({ ...meQueryOptions(), staleTime: "static" });
   if (!me[capability]) {
     // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error -- TanStack Router idiom: throw redirect preserves typed `to` inference
     throw redirect({ to: "/projects" });

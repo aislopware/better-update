@@ -39,9 +39,11 @@ const ConnectionsList = () => {
   const queryClient = useQueryClient();
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions);
 
+  // Better Auth 1.7 keys an account on (issuer, accountId) rather than its provider id, so
+  // unlinking selects the local account row by its own id instead of naming the provider.
   const unlinkMutation = useApiMutation({
-    mutationFn: async (providerId: string) =>
-      rejectOnAuthClientError(authClient.unlinkAccount({ providerId }), "Failed to unlink account"),
+    mutationFn: async (accountId: string) =>
+      rejectOnAuthClientError(authClient.unlinkAccount({ accountId }), "Failed to unlink account"),
     onSuccess: async () => {
       toast.success("Account unlinked");
       await queryClient.resetQueries({ queryKey: accountsQueryOptions.queryKey });
@@ -59,7 +61,7 @@ const ConnectionsList = () => {
       ),
   });
 
-  const unlinkingProvider = unlinkMutation.isPending ? unlinkMutation.variables : undefined;
+  const unlinkingAccountId = unlinkMutation.isPending ? unlinkMutation.variables : undefined;
 
   return (
     <>
@@ -71,7 +73,7 @@ const ConnectionsList = () => {
         {PROVIDERS.map((provider) => {
           const linked = accounts.find((account) => account.providerId === provider.id);
           const isLinked = Boolean(linked);
-          const isUnlinking = unlinkingProvider === provider.id;
+          const isUnlinking = linked !== undefined && unlinkingAccountId === linked.id;
           const canUnlink = isLinked && provider.id !== "credential" && accounts.length > 1;
           return (
             <ListPanelRow
@@ -92,11 +94,11 @@ const ConnectionsList = () => {
                       Connect
                     </Button>
                   ) : null}
-                  {canUnlink ? (
+                  {canUnlink && linked ? (
                     <Button
                       variant="ghost"
                       onClick={() => {
-                        unlinkMutation.mutate(provider.id);
+                        unlinkMutation.mutate(linked.id);
                       }}
                       disabled={isUnlinking || unlinkMutation.isPending}
                       loading={isUnlinking}
@@ -129,7 +131,7 @@ const ConnectionsPagePending = () => (
 
 export const Route = createFileRoute("/_authed/_app/account/connections")({
   beforeLoad: async ({ context }) => {
-    await context.queryClient.ensureQueryData(accountsQueryOptions);
+    await context.queryClient.query({ ...accountsQueryOptions, staleTime: "static" });
   },
   pendingComponent: ConnectionsPagePending,
   pendingMs: 0,

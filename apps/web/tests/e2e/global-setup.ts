@@ -119,7 +119,8 @@ interface SharedStack {
  */
 export default async function setup(): Promise<() => Promise<void>> {
   const host = globalThis as unknown as Record<string, SharedStack | undefined>;
-  const shared = (host[SHARED_STACK_KEY] ??= { ready: startStack(), refCount: 0 });
+  const shared = host[SHARED_STACK_KEY] ?? { ready: startStack(), refCount: 0 };
+  host[SHARED_STACK_KEY] = shared;
   shared.refCount += 1;
   const stop = await shared.ready;
 

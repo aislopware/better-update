@@ -117,7 +117,7 @@ export const Route = createFileRoute("/accept-invitation")({
   ssr: false,
   beforeLoad: async ({ context, location }) => {
     const session = await context.queryClient
-      .ensureQueryData(sessionQueryOptions)
+      .query({ ...sessionQueryOptions, staleTime: "static" })
       .catch(() => null);
     if (!session?.user) {
       // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error -- TanStack Router idiom: throw redirect preserves typed search-param inference
