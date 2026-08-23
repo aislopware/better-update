@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.80.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.79.2...%40better-update%2Fweb%400.80.0) (2026-08-23)
+
+### Features
+
+* **web:** rebuild the login hero globe on three.js ([374af0f](https://github.com/better-update/better-update/commit/374af0fd875a70baa361f69f74d7c534aa62f49c))
+
+### Bug Fixes
+
+* **web:** append the hero-globe colour probe via appendChild ([a073e88](https://github.com/better-update/better-update/commit/a073e885d3254a4a8961359a302828d5162f7226))
+
 ## [0.79.2](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.79.1...%40better-update%2Fweb%400.79.2) (2026-08-19)
 
 ### Bug Fixes
