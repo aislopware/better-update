@@ -12,7 +12,6 @@ import { UsersIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useMemo } from "react";
 import { z } from "zod";
 
 import type { AdminUserItem } from "@better-update/api-client/react";
@@ -191,15 +190,11 @@ const AdminUsers = () => {
 
   const pendingUserId = setApproval.isPending ? setApproval.variables.userId : undefined;
 
-  const columns = useMemo(
-    () =>
-      buildColumns((variables) => {
-        setApproval.mutate(variables);
-      }, pendingUserId),
-    [setApproval, pendingUserId],
-  );
+  const columns = buildColumns((variables) => {
+    setApproval.mutate(variables);
+  }, pendingUserId);
 
-  const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
+  const tableData = [...(data?.items ?? [])];
 
   const table = useDataTable({
     data: tableData,

@@ -13,7 +13,6 @@ import {
 import { toast } from "@better-update/ui/components/toast";
 import { FingerprintIcon, GearIcon, LockKeyIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
 import { z } from "zod";
 
 import type { EnvVar } from "@better-update/api";
@@ -110,10 +109,10 @@ const EnvironmentsFilter = ({
   onChange: (next: readonly string[]) => void;
 }) => {
   const environmentNames = useEnvironmentNames(orgId);
-  const options = useMemo(
-    () => environmentNames.map((env) => ({ value: env, label: formatEnvironmentLabel(env) })),
-    [environmentNames],
-  );
+  const options = environmentNames.map((env) => ({
+    value: env,
+    label: formatEnvironmentLabel(env),
+  }));
   return (
     <DataTableFacetedFilter
       title="Environment"
@@ -324,18 +323,15 @@ export const EnvVarsView = ({
   // global vars are merged into each project's view, so a global-scope mutation
   // (or editing an inherited global row from a project view) can change any of
   // them. Scoped to env-var list keys so unrelated org queries aren't refetched.
-  const invalidateEnvVars = useCallback(
-    async () =>
-      queryClient.invalidateQueries({
-        predicate: ({ queryKey: key }) => {
-          if (key[0] !== "org" || key[1] !== mode.orgId) {
-            return false;
-          }
-          return key[2] === "global-env-vars" || (key[2] === "projects" && key[4] === "env-vars");
-        },
-      }),
-    [queryClient, mode.orgId],
-  );
+  const invalidateEnvVars = async () =>
+    queryClient.invalidateQueries({
+      predicate: ({ queryKey: key }) => {
+        if (key[0] !== "org" || key[1] !== mode.orgId) {
+          return false;
+        }
+        return key[2] === "global-env-vars" || (key[2] === "projects" && key[4] === "env-vars");
+      },
+    });
 
   const { draft: searchDraft, setDraft: onSearchDraftChange } = useDebouncedSearch({
     initial: query,
@@ -345,16 +341,14 @@ export const EnvVarsView = ({
     },
   });
 
-  const filters = useMemo<EnvVarsFilters>(() => {
-    const filteredEnvs = environments.length > 0 ? environments : undefined;
-    // Both scopes selected ≡ no scope filter — the API keeps its tri-state param.
-    const scopeParam = scope.length === 1 ? scope[0] : "all";
-    return {
-      ...(mode.kind === "project" ? { scope: scopeParam } : {}),
-      ...(filteredEnvs ? { environments: filteredEnvs } : {}),
-      ...(query.trim() ? { search: query.trim() } : {}),
-    };
-  }, [environments, mode.kind, scope, query]);
+  const filteredEnvs = environments.length > 0 ? environments : undefined;
+  // Both scopes selected ≡ no scope filter — the API keeps its tri-state param.
+  const scopeParam = scope.length === 1 ? scope[0] : "all";
+  const filters: EnvVarsFilters = {
+    ...(mode.kind === "project" ? { scope: scopeParam } : {}),
+    ...(filteredEnvs ? { environments: filteredEnvs } : {}),
+    ...(query.trim() ? { search: query.trim() } : {}),
+  };
 
   const queryOptions =
     mode.kind === "project"

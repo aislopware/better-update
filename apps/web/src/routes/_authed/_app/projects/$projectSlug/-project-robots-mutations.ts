@@ -1,7 +1,7 @@
 import { projectRobotAccountsQueryKey, updateRobotAccount } from "@better-update/api-client/react";
 import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import type { RobotAccountRoleValue } from "@better-update/api-client/react";
 
@@ -42,27 +42,24 @@ export const useProjectRobotsHandlers = (projectId: string) => {
 
   const { mutate: editMutate } = edit;
 
-  const handleEditRequest = useCallback((target: EditTarget) => {
+  const handleEditRequest = (target: EditTarget) => {
     setEditTarget(target);
     setEditOpen(true);
-  }, []);
+  };
 
-  const handleEditSubmit = useCallback(
-    (changes: RobotAccountChanges) => {
-      if (editTarget) {
-        editMutate({ id: editTarget.id, changes });
-      }
-    },
-    [editTarget, editMutate],
-  );
+  const handleEditSubmit = (changes: RobotAccountChanges) => {
+    if (editTarget) {
+      editMutate({ id: editTarget.id, changes });
+    }
+  };
 
   return {
     editTarget,
     editOpen,
     handleEditOpenChange: setEditOpen,
-    handleEditClosed: useCallback(() => {
+    handleEditClosed: () => {
       setEditTarget(null);
-    }, []),
+    },
     handleEditRequest,
     handleEditSubmit,
     isEditing: edit.isPending,

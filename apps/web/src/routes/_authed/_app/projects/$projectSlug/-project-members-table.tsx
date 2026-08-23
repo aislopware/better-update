@@ -2,7 +2,6 @@ import { Badge } from "@better-update/ui/components/badge";
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { Select } from "@better-update/ui/components/select";
 import { UserMinusIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
 import type { SortingState } from "@tanstack/react-table";
@@ -214,11 +213,8 @@ export const ProjectMembersTableView = ({
   onRoleChange: (row: ProjectMemberItem, role: ProjectMemberRoleValue) => void;
   onRemove: (target: RemoveTarget) => void;
 }) => {
-  const tableData = useMemo(() => [...items], [items]);
-  const columns = useMemo(
-    () => buildColumns({ canManage, pendingPrincipalId, onRoleChange, onRemove }),
-    [canManage, pendingPrincipalId, onRoleChange, onRemove],
-  );
+  const tableData = [...items];
+  const columns = buildColumns({ canManage, pendingPrincipalId, onRoleChange, onRemove });
 
   const table = useDataTable({
     data: tableData,

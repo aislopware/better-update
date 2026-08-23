@@ -32,6 +32,10 @@ export const useDataTableSearch = <TColumn extends string>({
   sort,
   navigate,
 }: UseDataTableSearchOptions<TColumn>): UseDataTableSearchResult<TColumn> => {
+  // The one manual memo left in the app. React Compiler only compiles a hook
+  // that itself calls a hook, and every other value here is a plain closure —
+  // so without this the sorting array would be a fresh reference each render
+  // and TanStack Table would rebuild its sorted row model for every list page.
   const sorting = useMemo(() => sortParamToSortingState(sort), [sort]);
   const apiSort = normalizeSortParam(sort, sortColumns, defaultSort);
 

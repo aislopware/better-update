@@ -62,10 +62,15 @@ export default defineConfig({
     // New in oxlint 1.71. Targets i18n-mandated codebases where all copy must route through a
     // translation function; this dashboard ships English literals directly, so it just floods.
     "react/jsx-no-literals": "off",
-    // New in oxlint 1.71. React Compiler isn't in this app's build pipeline, and the diagnostics
-    // are almost all non-actionable "Compilation Skipped: incompatible library" notices about
-    // TanStack APIs that return functions — advisory noise rather than real defects here.
-    "react/react-compiler": "off",
+    // oxlint 1.79 split the monolithic `react/react-compiler` rule into one rule per React
+    // Compiler diagnostic, and the compiler now runs in the web build (vite.config.ts). Every
+    // one of those rules flags a component the compiler bails out of — i.e. one that silently
+    // keeps re-rendering unmemoized — so they all stay on, including the "incompatible library"
+    // notices that made the old monolithic rule too noisy to keep. `react/todo` names syntax
+    // oxc has not implemented yet, which reads like someone else's to-do but costs the same
+    // bail-out, and the one case it found (`import()` inside a component) was fixable by
+    // hoisting — so it stays on too.
+    "react/todo": "warn",
     // Expressions over statements: components are arrow functions. New in oxlint 1.75.
     "react/function-component-definition": [
       "warn",
@@ -73,6 +78,15 @@ export default defineConfig({
     ],
   },
   overrides: [
+    {
+      // The one place a React rule is legitimately suppressed: useMountEffect exists precisely
+      // to hold the empty dependency array that exhaustive-deps objects to, and no phrasing of
+      // it satisfies the rule (a hoisted deps constant is reported the same way). React Compiler
+      // therefore skips this hook -- which costs nothing, since a one-line `useEffect(effect, [])`
+      // wrapper has no render work to memoize.
+      files: ["**/use-mount-effect.ts"],
+      rules: { "react/rule-suppression": "off" },
+    },
     {
       files: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
       rules: {

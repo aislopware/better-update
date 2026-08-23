@@ -5,7 +5,7 @@ import { DeviceMobileIcon, WarningIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { z } from "zod";
 
 import type { DeviceClassValue, DeviceSortColumn } from "@better-update/api-client/react";
@@ -183,11 +183,11 @@ const DevicesContent = () => {
   };
 
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
-  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
-  const teamOptions = useMemo(
-    () => teams.items.map((team) => ({ value: team.id, label: formatAppleTeamLabel(team) })),
-    [teams.items],
-  );
+  const teamsById = indexAppleTeamsById(teams.items);
+  const teamOptions = teams.items.map((team) => ({
+    value: team.id,
+    label: formatAppleTeamLabel(team),
+  }));
 
   // Selecting both sync states filters nothing, so only a single selection
   // narrows the list (the API param is a boolean).
@@ -208,16 +208,12 @@ const DevicesContent = () => {
 
   // buildDeviceColumns returns fresh column objects per call, so assigning the
   // hideable flag in place is safe (no shared defs are mutated).
-  const columns = useMemo(
-    () =>
-      buildDeviceColumns(orgId, teamsById).map((column) =>
-        column.id !== undefined && HIDEABLE_COLUMN_IDS.has(column.id)
-          ? Object.assign(column, { enableHiding: true })
-          : column,
-      ),
-    [orgId, teamsById],
+  const columns = buildDeviceColumns(orgId, teamsById).map((column) =>
+    column.id !== undefined && HIDEABLE_COLUMN_IDS.has(column.id)
+      ? Object.assign(column, { enableHiding: true })
+      : column,
   );
-  const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
+  const tableData = [...(data?.items ?? [])];
 
   const table = useDataTable({
     data: tableData,

@@ -23,7 +23,7 @@ import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
 import { PlusIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
 import {
@@ -76,9 +76,8 @@ const CreateForm = ({
   envNames: readonly string[];
   onSuccess: () => void;
 }) => {
-  const environmentItems = useMemo<Record<string, string>>(
-    () => Object.fromEntries(envNames.map((name) => [name, formatEnvironmentLabel(name)])),
-    [envNames],
+  const environmentItems: Record<string, string> = Object.fromEntries(
+    envNames.map((name) => [name, formatEnvironmentLabel(name)]),
   );
   const [environment, setEnvironment] = useState<string>(envNames[0] ?? "production");
   const [visibility, setVisibility] = useState<Visibility>("sensitive");

@@ -71,6 +71,11 @@ interface Runtime {
   disposed: boolean;
 }
 
+// Hoisted out of the effect below: React Compiler bails out of any function
+// holding an `import()` expression, and this one sits inside the component that
+// owns the whole login hero.
+const loadScene = async () => import("./hero-globe/scene");
+
 const loadLandPoints = async (): Promise<Int16Array> => {
   const response = await fetch(LAND_POINTS_URL);
   return new Int16Array(await response.arrayBuffer());
@@ -149,10 +154,7 @@ export const HeroMotion = () => {
     };
 
     const boot = async () => {
-      const [{ createHeroGlobe }, landPoints] = await Promise.all([
-        import("./hero-globe/scene"),
-        loadLandPoints(),
-      ]);
+      const [{ createHeroGlobe }, landPoints] = await Promise.all([loadScene(), loadLandPoints()]);
       if (runtime.disposed) {
         return;
       }

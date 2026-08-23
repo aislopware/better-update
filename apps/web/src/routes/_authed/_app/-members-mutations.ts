@@ -5,7 +5,7 @@ import {
 } from "@better-update/api-client/react";
 import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
@@ -62,20 +62,20 @@ export const useMembersHandlers = (orgId: string) => {
   );
   const [manageProjectsOpen, setManageProjectsOpen] = useState(false);
 
-  const openManageProjects = useCallback((target: ManageProjectsTarget) => {
+  const openManageProjects = (target: ManageProjectsTarget) => {
     setManageProjectsTarget(target);
     setManageProjectsOpen(true);
-  }, []);
-  const closeManageProjects = useCallback(() => {
+  };
+  const closeManageProjects = () => {
     setManageProjectsOpen(false);
-  }, []);
-  const clearManageProjects = useCallback(() => {
+  };
+  const clearManageProjects = () => {
     setManageProjectsTarget(null);
-  }, []);
+  };
 
-  const handleMemberRemoved = useCallback(() => {
+  const handleMemberRemoved = () => {
     setRemoveMemberId(null);
-  }, []);
+  };
 
   const { removeMember, updateMemberRole, cancelInvitation } = useMembersMutations(
     orgId,
@@ -86,25 +86,19 @@ export const useMembersHandlers = (orgId: string) => {
   const { mutate: updateMemberRoleMutate } = updateMemberRole;
   const { mutate: cancelInvitationMutate } = cancelInvitation;
 
-  const handleRemove = useCallback(() => {
+  const handleRemove = () => {
     if (removeMemberId) {
       removeMemberMutate(removeMemberId);
     }
-  }, [removeMemberId, removeMemberMutate]);
+  };
 
-  const handleRoleChange = useCallback(
-    (memberId: string, role: EditableOrgRole) => {
-      updateMemberRoleMutate({ memberId, role });
-    },
-    [updateMemberRoleMutate],
-  );
+  const handleRoleChange = (memberId: string, role: EditableOrgRole) => {
+    updateMemberRoleMutate({ memberId, role });
+  };
 
-  const handleCancelInvitation = useCallback(
-    (invitationId: string) => {
-      cancelInvitationMutate(invitationId);
-    },
-    [cancelInvitationMutate],
-  );
+  const handleCancelInvitation = (invitationId: string) => {
+    cancelInvitationMutate(invitationId);
+  };
 
   const memberPendingId = removeMember.isPending ? removeMember.variables : undefined;
   const rolePendingId = updateMemberRole.isPending

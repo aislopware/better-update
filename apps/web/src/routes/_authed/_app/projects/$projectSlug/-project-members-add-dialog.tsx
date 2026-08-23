@@ -15,7 +15,7 @@ import { Select } from "@better-update/ui/components/select";
 import { toast } from "@better-update/ui/components/toast";
 import { UserPlusIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { ProjectMemberItem, ProjectMemberRoleValue } from "@better-update/api-client/react";
 
@@ -54,9 +54,8 @@ const AddMemberForm = ({
   const [principalId, setPrincipalId] = useState<string | null>(null);
   const [role, setRole] = useState<ProjectMemberRoleValue>("developer");
 
-  const principalItems = useMemo<Record<string, string>>(
-    () => Object.fromEntries(principals.map((principal) => [principal.id, principal.label])),
-    [principals],
+  const principalItems: Record<string, string> = Object.fromEntries(
+    principals.map((principal) => [principal.id, principal.label]),
   );
   const selected = principals.find((principal) => principal.id === principalId);
 
@@ -127,19 +126,17 @@ export const AddProjectMemberDialog = ({
 
   const { data: orgMembers = [] } = useQuery(membersQueryOptions(orgId));
 
-  const principals = useMemo<PrincipalOption[]>(() => {
-    const taken = new Set(existingMembers.map((member) => member.principalId));
-    // Org owners/admins are implicit maintainers on every project
-    // (GITLAB-RBAC-SPEC §1) — a project_member row for them would be inert,
-    // so only baseline members are offered.
-    return orgMembers
-      .filter((member) => member.role !== "owner" && member.role !== "admin")
-      .map((member) => ({
-        id: member.id,
-        label: `${member.user.name} (${member.user.email})`,
-      }))
-      .filter((option) => !taken.has(option.id));
-  }, [existingMembers, orgMembers]);
+  const taken = new Set(existingMembers.map((member) => member.principalId));
+  // Org owners/admins are implicit maintainers on every project
+  // (GITLAB-RBAC-SPEC §1) — a project_member row for them would be inert,
+  // so only baseline members are offered.
+  const principals: PrincipalOption[] = orgMembers
+    .filter((member) => member.role !== "owner" && member.role !== "admin")
+    .map((member) => ({
+      id: member.id,
+      label: `${member.user.name} (${member.user.email})`,
+    }))
+    .filter((option) => !taken.has(option.id));
 
   return (
     <Dialog

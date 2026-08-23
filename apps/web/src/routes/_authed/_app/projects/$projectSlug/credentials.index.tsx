@@ -9,7 +9,7 @@ import { Badge } from "@better-update/ui/components/badge";
 import { Empty } from "@better-update/ui/components/empty";
 import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 
 import type {
   AndroidApplicationIdentifierItem,
@@ -287,8 +287,8 @@ const AndroidSection = ({
   });
 
   const pagination = useClientPagination(items, "identifier");
-  const columns = useMemo(() => androidColumns(orgId), [orgId]);
-  const tableData = useMemo(() => [...pagination.pageItems], [pagination.pageItems]);
+  const columns = androidColumns(orgId);
+  const tableData = [...pagination.pageItems];
   const table = useDataTable({
     data: tableData,
     columns: [...columns],
@@ -336,10 +336,10 @@ const IosSection = ({
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
   const { data: teamsResult } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
 
-  const groups = useMemo(() => groupIosConfigs(data.items), [data.items]);
+  const groups = groupIosConfigs(data.items);
   const pagination = useClientPagination(groups, "bundle identifier");
-  const columns = useMemo(() => iosColumns(teamsResult.items), [teamsResult.items]);
-  const tableData = useMemo(() => [...pagination.pageItems], [pagination.pageItems]);
+  const columns = iosColumns(teamsResult.items);
+  const tableData = [...pagination.pageItems];
   const table = useDataTable({
     data: tableData,
     columns: [...columns],

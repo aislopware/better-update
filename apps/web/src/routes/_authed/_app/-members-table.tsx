@@ -1,5 +1,4 @@
 import { Select } from "@better-update/ui/components/select";
-import { useMemo } from "react";
 
 import type { MemberProjectMembershipsItem } from "@better-update/api-client/react";
 import type { SortingState } from "@tanstack/react-table";
@@ -307,38 +306,21 @@ export const MembersTableView = ({
   onRoleChange: (memberId: string, role: EditableOrgRole) => void;
   onManageProjects?: (target: ManageProjectsTarget) => void;
 }) => {
-  const tableData = useMemo(() => buildRows(members, invitations), [members, invitations]);
-  const columns = useMemo(
-    () =>
-      buildColumns({
-        currentUserId,
-        canRemoveMembers,
-        canEditOrgRoles,
-        canManageProjects,
-        membershipsByPrincipal,
-        pendingMemberId,
-        pendingInvitationId,
-        pendingRoleMemberId,
-        onRemove,
-        onCancelInvitation,
-        onRoleChange,
-        onManageProjects,
-      }),
-    [
-      currentUserId,
-      canRemoveMembers,
-      canEditOrgRoles,
-      canManageProjects,
-      membershipsByPrincipal,
-      pendingMemberId,
-      pendingInvitationId,
-      pendingRoleMemberId,
-      onRemove,
-      onCancelInvitation,
-      onRoleChange,
-      onManageProjects,
-    ],
-  );
+  const tableData = buildRows(members, invitations);
+  const columns = buildColumns({
+    currentUserId,
+    canRemoveMembers,
+    canEditOrgRoles,
+    canManageProjects,
+    membershipsByPrincipal,
+    pendingMemberId,
+    pendingInvitationId,
+    pendingRoleMemberId,
+    onRemove,
+    onCancelInvitation,
+    onRoleChange,
+    onManageProjects,
+  });
 
   const table = useDataTable({
     data: tableData,

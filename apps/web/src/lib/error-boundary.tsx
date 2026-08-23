@@ -1,6 +1,6 @@
 import { Button } from "@better-update/ui/components/button";
 import { useRouterState } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
 
 import type { ReactNode } from "react";
@@ -57,27 +57,30 @@ export const ErrorBoundary = ({ children }: { children: ReactNode }) => {
   const href = useRouterState({ select: (state) => state.location.href });
   const [resetTick, setResetTick] = useState(0);
   const [exhausted, setExhausted] = useState(false);
-  const transientResets = useRef(0);
-  const lastHref = useRef(href);
+  const [transientResets, setTransientResets] = useState(0);
+  const [lastHref, setLastHref] = useState(href);
 
   // Navigation is the natural recovery point: forget past transient resets.
-  if (lastHref.current !== href) {
-    lastHref.current = href;
-    transientResets.current = 0;
-    if (exhausted) {
-      setExhausted(false);
-    }
+  // This is React's adjust-state-on-prop-change pattern rather than a ref
+  // written during render — a ref read in render makes React Compiler bail out
+  // of the whole component, and this one is on every page.
+  if (lastHref !== href) {
+    setLastHref(href);
+    setTransientResets(0);
+    setExhausted(false);
   }
 
   const onCaught = (error: unknown) => {
     if (error instanceof Error) {
       return;
     }
-    if (transientResets.current >= MAX_TRANSIENT_RESETS) {
+    if (transientResets >= MAX_TRANSIENT_RESETS) {
       setExhausted(true);
       return;
     }
-    transientResets.current += 1;
+    // Every reset goes through `resetTick`, so the next throw can only reach
+    // this handler after a re-render has published the incremented count.
+    setTransientResets((count) => count + 1);
     setTimeout(() => {
       setResetTick((tick) => tick + 1);
     }, TRANSIENT_RESET_DELAY_MS);

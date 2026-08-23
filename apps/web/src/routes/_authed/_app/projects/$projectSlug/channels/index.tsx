@@ -5,7 +5,7 @@ import { BroadcastIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { z } from "zod";
 
 import type { Channel } from "@better-update/api";
@@ -176,8 +176,8 @@ const ChannelsContent = () => {
     placeholderData: keepPreviousData,
   });
 
-  const columns = useMemo(() => buildColumns(orgId, projectId), [orgId, projectId]);
-  const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
+  const columns = buildColumns(orgId, projectId);
+  const tableData = [...(data?.items ?? [])];
 
   const table = useDataTable({
     data: tableData,

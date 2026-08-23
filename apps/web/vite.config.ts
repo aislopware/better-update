@@ -72,7 +72,11 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       cloudflare({ viteEnvironment: { name: "ssr" }, inspectorPort: 9230 }),
       tanstackStart(),
-      viteReact(),
+      // React Compiler (the Rust `oxc-transform-react` port) auto-memoizes
+      // components and hooks, so hand-written useMemo/useCallback/memo wrappers
+      // stop being the way to keep renders cheap. React 19 ships the required
+      // `react/compiler-runtime`, so no extra runtime package is needed.
+      viteReact({ compiler: true }),
     ],
     server: {
       port: Number(env["PORT"]) || 6780,

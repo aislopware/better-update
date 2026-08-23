@@ -10,7 +10,6 @@ import {
   meQueryOptions,
 } from "@better-update/api-client/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 
 import { TablePanel } from "../../../components/table-panel";
 import { isOrgAdmin } from "../../../lib/access";
@@ -42,7 +41,7 @@ import { indexAppleTeamsById } from "./-credentials-utils";
 // switches (GITLAB-RBAC-SPEC §3b).
 const useAppleChildSection = (orgId: string) => {
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
-  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
+  const teamsById = indexAppleTeamsById(teams.items);
   const { data: me } = useSuspenseQuery(meQueryOptions());
   return { teamsById, canManageProtection: isOrgAdmin(me.orgRole) };
 };
@@ -53,10 +52,7 @@ export const DistributionCertificatesSection = ({ orgId }: { orgId: string }) =>
   // One endpoint, two panels: a Developer ID certificate signs no iOS build and
   // an iOS certificate signs no macOS app, so listing them together made the
   // count above each useless for deciding whether anything was missing.
-  const items = useMemo(
-    () => data.items.filter((cert) => !isMacosCertificateType(cert.certificateType)),
-    [data.items],
-  );
+  const items = data.items.filter((cert) => !isMacosCertificateType(cert.certificateType));
 
   return (
     <CredentialPanel
@@ -81,10 +77,7 @@ export const DistributionCertificatesSection = ({ orgId }: { orgId: string }) =>
 export const MacosCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const { teamsById, canManageProtection } = useAppleChildSection(orgId);
-  const items = useMemo(
-    () => data.items.filter((cert) => isMacosCertificateType(cert.certificateType)),
-    [data.items],
-  );
+  const items = data.items.filter((cert) => isMacosCertificateType(cert.certificateType));
 
   return (
     <CredentialPanel

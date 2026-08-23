@@ -12,7 +12,7 @@ import { Popover } from "@better-update/ui/components/popover";
 import { CaretUpDownIcon, CheckIcon, FolderIcon, PlusIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import type { ReactNode } from "react";
 
@@ -75,13 +75,8 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
     enabled: isSearching,
     placeholderData: keepPreviousData,
   });
-  // Memoised so the `?? []` fallback does not hand the groups below a fresh
-  // array on every render.
   const searchedItems = searchResults.data?.items;
-  const projects = useMemo(
-    () => (isSearching ? searchedItems : recent.items) ?? [],
-    [isSearching, recent.items, searchedItems],
-  );
+  const projects = (isSearching ? searchedItems : recent.items) ?? [];
 
   const currentProject = currentProjectSlug
     ? recent.items.find((project) => project.slug === currentProjectSlug)
@@ -89,70 +84,66 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
   const displayName =
     currentProject?.name ?? (currentProjectSlug ? "Unknown project" : "All Projects");
 
-  const groups = useMemo<SwitcherGroup[]>(
-    () =>
-      [
+  const groups: SwitcherGroup[] = [
+    {
+      id: "all",
+      items: [
         {
-          id: "all",
-          items: [
-            {
-              id: "all-projects",
-              label: "All Projects",
-              icon: <FolderIcon weight="bold" className="size-4" />,
-              checked: !currentProjectSlug,
-              run: () => {
-                fireAndForget(router.navigate({ to: "/projects" }));
-              },
-            },
-          ],
+          id: "all-projects",
+          label: "All Projects",
+          icon: <FolderIcon weight="bold" className="size-4" />,
+          checked: !currentProjectSlug,
+          run: () => {
+            fireAndForget(router.navigate({ to: "/projects" }));
+          },
         },
+      ],
+    },
+    {
+      id: "projects",
+      label: "Projects",
+      items: projects.map((project) => ({
+        id: project.id,
+        label: project.name,
+        icon: (
+          <EntityAvatar
+            name={project.name}
+            seed={project.slug}
+            image={project.logoUrl}
+            size="sm"
+            shape="square"
+          />
+        ),
+        checked: project.slug === currentProjectSlug,
+        run: () => {
+          if (project.slug !== currentProjectSlug) {
+            fireAndForget(
+              router.navigate({
+                to: "/projects/$projectSlug",
+                params: { projectSlug: project.slug },
+              }),
+            );
+          }
+        },
+      })),
+    },
+    {
+      id: "create",
+      items: [
         {
-          id: "projects",
-          label: "Projects",
-          items: projects.map((project) => ({
-            id: project.id,
-            label: project.name,
-            icon: (
-              <EntityAvatar
-                name={project.name}
-                seed={project.slug}
-                image={project.logoUrl}
-                size="sm"
-                shape="square"
-              />
-            ),
-            checked: project.slug === currentProjectSlug,
-            run: () => {
-              if (project.slug !== currentProjectSlug) {
-                fireAndForget(
-                  router.navigate({
-                    to: "/projects/$projectSlug",
-                    params: { projectSlug: project.slug },
-                  }),
-                );
-              }
-            },
-          })),
+          id: "create-project",
+          label: "Create project",
+          icon: <PlusIcon weight="bold" className="size-4" />,
+          checked: false,
+          run: () => {
+            setCreateOpen(true);
+          },
         },
-        {
-          id: "create",
-          items: [
-            {
-              id: "create-project",
-              label: "Create project",
-              icon: <PlusIcon weight="bold" className="size-4" />,
-              checked: false,
-              run: () => {
-                setCreateOpen(true);
-              },
-            },
-          ],
-        },
-        // A group with no entries still draws its heading, so drop it and let
-        // the manual empty state below explain why the list is short.
-      ].filter((group) => group.items.length > 0),
-    [currentProjectSlug, projects, router],
-  );
+      ],
+    },
+    // A group with no entries still draws its heading, so drop it and let
+    // the manual empty state below explain why the list is short.
+  ].filter((group) => group.items.length > 0);
 
   const select = (item: SwitcherItem): void => {
     setOpen(false);

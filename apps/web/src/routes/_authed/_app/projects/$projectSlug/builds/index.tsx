@@ -7,7 +7,7 @@ import { PackageIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { z } from "zod";
 
 import type {
@@ -118,16 +118,12 @@ const useBuildColumns = ({
   readonly audienceIsPinned: boolean;
   readonly runtimeIsPinned: boolean;
 }) =>
-  useMemo(
-    () =>
-      withoutPinnedColumns(buildBuildsColumns(orgId, projectId), {
-        platform: platformIsPinned,
-        distribution: distributionIsPinned,
-        audience: audienceIsPinned,
-        runtimeVersion: runtimeIsPinned,
-      }),
-    [orgId, projectId, platformIsPinned, distributionIsPinned, audienceIsPinned, runtimeIsPinned],
-  );
+  withoutPinnedColumns(buildBuildsColumns(orgId, projectId), {
+    platform: platformIsPinned,
+    distribution: distributionIsPinned,
+    audience: audienceIsPinned,
+    runtimeVersion: runtimeIsPinned,
+  });
 
 const BuildsContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
@@ -237,7 +233,7 @@ const BuildsContent = () => {
     audienceIsPinned: audience.length === 1,
     runtimeIsPinned: runtimeVersion !== undefined,
   });
-  const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
+  const tableData = [...(data?.items ?? [])];
 
   const table = useDataTable({
     data: tableData,

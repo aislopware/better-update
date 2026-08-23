@@ -1,6 +1,5 @@
 import { DropdownMenu } from "@better-update/ui/components/dropdown";
 import { PencilSimpleIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 
 import type { RobotAccountItem } from "@better-update/api-client/react";
 
@@ -111,8 +110,8 @@ export const ProjectRobotsTableView = ({
   onEdit: (target: EditTarget) => void;
   pagination?: ListPaginationFooter | undefined;
 }) => {
-  const columns = useMemo(() => robotColumns(pendingRobotId, onEdit), [pendingRobotId, onEdit]);
-  const data = useMemo(() => [...items], [items]);
+  const columns = robotColumns(pendingRobotId, onEdit);
+  const data = [...items];
   const table = useDataTable({
     data,
     columns: [...columns],

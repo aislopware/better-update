@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import { clearEnvVaultKey } from "./cache";
 import { isVaultHost } from "./host";
@@ -47,20 +47,17 @@ export const useEnvVault = (orgId: string): EnvVaultController => {
     setTracked({ orgId, unlocked: enabled ? getUnlockedEnvVault(orgId) : null });
   }
 
-  const onUnlocked = useCallback(
-    (vault: UnlockedEnvVault) => {
-      setTracked({ orgId, unlocked: vault });
-    },
-    [orgId],
-  );
+  const onUnlocked = (vault: UnlockedEnvVault) => {
+    setTracked({ orgId, unlocked: vault });
+  };
 
-  const lock = useCallback(() => {
+  const lock = () => {
     clearEnvVaultKey(orgId);
     // The step-up is session-scoped (not per-org); locking the vault is the user
     // signalling "done", so drop the freshness window too — the next unlock re-proves it.
     clearStepUp();
     setTracked({ orgId, unlocked: null });
-  }, [orgId]);
+  };
 
   return { enabled, unlocked: tracked.unlocked, onUnlocked, lock };
 };

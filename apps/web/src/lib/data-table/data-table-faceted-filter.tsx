@@ -5,7 +5,7 @@ import { Separator } from "@better-update/ui/components/separator";
 import { Toolbar } from "@better-update/ui/components/toolbar";
 import { cn } from "@better-update/ui/lib/utils";
 import { CheckIcon, PlusCircleIcon } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { Icon } from "@phosphor-icons/react";
 
@@ -108,51 +108,43 @@ export const DataTableFacetedFilter = ({
   const serverSearched = onSearchChange !== undefined;
   const query = serverSearched ? search : localSearch;
 
-  const visible = useMemo(() => {
-    if (serverSearched) {
-      return options;
-    }
-    const needle = localSearch.trim().toLowerCase();
-    return needle === ""
+  const needle = serverSearched ? "" : localSearch.trim().toLowerCase();
+  const visible =
+    needle === ""
       ? options
       : options.filter((option) => option.label.toLowerCase().includes(needle));
-  }, [localSearch, options, serverSearched]);
 
-  const groups = useMemo<FilterGroup[]>(
-    () =>
-      [
-        {
-          id: "options",
-          items: visible.map((option) => ({
-            id: option.value,
-            option,
-            run: () => {
-              onChange(
-                selected.includes(option.value)
-                  ? selected.filter((entry) => entry !== option.value)
-                  : [...selected, option.value],
-              );
-            },
-          })),
+  const groups: FilterGroup[] = [
+    {
+      id: "options",
+      items: visible.map((option) => ({
+        id: option.value,
+        option,
+        run: () => {
+          onChange(
+            selected.includes(option.value)
+              ? selected.filter((entry) => entry !== option.value)
+              : [...selected, option.value],
+          );
         },
-        {
-          id: "clear",
-          items:
-            selected.length > 0
-              ? [
-                  {
-                    id: "clear-filters",
-                    run: () => {
-                      onChange([]);
-                      setOpen(false);
-                    },
-                  },
-                ]
-              : [],
-        },
-      ].filter((group) => group.items.length > 0),
-    [visible, selected, onChange],
-  );
+      })),
+    },
+    {
+      id: "clear",
+      items:
+        selected.length > 0
+          ? [
+              {
+                id: "clear-filters",
+                run: () => {
+                  onChange([]);
+                  setOpen(false);
+                },
+              },
+            ]
+          : [],
+    },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <Popover

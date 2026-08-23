@@ -5,7 +5,7 @@ import { UsersIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { z } from "zod";
 
 import { PageHeader } from "../../../components/page-header";
@@ -81,10 +81,7 @@ const InviteHeaderAction = () => {
 // One map lookup per row: principalId (org member.id) → membership summary.
 const useMembershipsByPrincipal = (orgId: string) => {
   const { data: memberships } = useSuspenseQuery(memberProjectMembershipsQueryOptions(orgId));
-  return useMemo(
-    () => new Map(memberships.map((summary) => [summary.principalId, summary] as const)),
-    [memberships],
-  );
+  return new Map(memberships.map((summary) => [summary.principalId, summary] as const));
 };
 
 // Everything that narrows the roster, read from and written back to the URL:
@@ -184,19 +181,15 @@ const MembersContent = () => {
   // The IAM list endpoint returns invitations with ISO-string `expiresAt` and a
   // nullable `role`; map them to the table's `InvitationInput` shape (Date +
   // baseline "member" role) here so the table stays decoupled from the wire type.
-  const pendingInvitations = useMemo(
-    () =>
-      invitations
-        .filter((inv) => inv.status === "pending")
-        .map((inv) => ({
-          id: inv.id,
-          email: inv.email,
-          role: inv.role ?? "member",
-          createdAt: new Date(inv.createdAt),
-          expiresAt: new Date(inv.expiresAt),
-        })),
-    [invitations],
-  );
+  const pendingInvitations = invitations
+    .filter((inv) => inv.status === "pending")
+    .map((inv) => ({
+      id: inv.id,
+      email: inv.email,
+      role: inv.role ?? "member",
+      createdAt: new Date(inv.createdAt),
+      expiresAt: new Date(inv.expiresAt),
+    }));
 
   const {
     removeMemberId,
@@ -215,20 +208,12 @@ const MembersContent = () => {
     clearManageProjects,
   } = useMembersHandlers(orgId);
 
-  const filteredMembers = useMemo(
-    () =>
-      pendingOnly
-        ? []
-        : members.filter((member) => matchesQuery(needle, member.user.name, member.user.email)),
-    [pendingOnly, members, needle],
-  );
-  const filteredInvitations = useMemo(
-    () =>
-      activeOnly
-        ? []
-        : pendingInvitations.filter((invitation) => matchesQuery(needle, invitation.email)),
-    [activeOnly, pendingInvitations, needle],
-  );
+  const filteredMembers = pendingOnly
+    ? []
+    : members.filter((member) => matchesQuery(needle, member.user.name, member.user.email));
+  const filteredInvitations = activeOnly
+    ? []
+    : pendingInvitations.filter((invitation) => matchesQuery(needle, invitation.email));
   const inviteCta = canInviteMembers ? (
     <InviteDialog orgId={orgId} isOwner={isOwner} canGrantAllProjects={canManageMembers} />
   ) : undefined;

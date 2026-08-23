@@ -2,7 +2,7 @@ import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-clie
 import { CloudArrowUpIcon, PackageIcon, StackIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { TablePanelSkeleton } from "../../../../../../components/skeletons";
@@ -86,18 +86,17 @@ const RuntimeDetailContent = () => {
 
   const buildsCount = buildsData.total;
   const updatesCount = updatesData.total;
-  const latestActivity = useMemo(() => {
-    const buildTimes = buildsData.items.map((build) => build.createdAt);
-    const updateTimes = updatesData.items.map((update) => update.createdAt);
-    const candidates = [...buildTimes, ...updateTimes];
-    if (candidates.length === 0) {
-      return null;
-    }
-    return candidates.reduce((acc, value) => (value > acc ? value : acc));
-  }, [buildsData.items, updatesData.items]);
+  const activityTimes = [
+    ...buildsData.items.map((build) => build.createdAt),
+    ...updatesData.items.map((update) => update.createdAt),
+  ];
+  const latestActivity =
+    activityTimes.length === 0
+      ? null
+      : activityTimes.reduce((acc, value) => (value > acc ? value : acc));
 
-  const buildColumns = useMemo(() => buildBuildsColumns(orgId, projectId), [orgId, projectId]);
-  const buildsTableData = useMemo(() => [...buildsData.items], [buildsData.items]);
+  const buildColumns = buildBuildsColumns(orgId, projectId);
+  const buildsTableData = [...buildsData.items];
   const buildsTable = useDataTable({
     data: buildsTableData,
     columns: [...buildColumns],
@@ -110,11 +109,8 @@ const RuntimeDetailContent = () => {
     },
   });
 
-  const updateColumns = useMemo(
-    () => buildUpdateColumns(projectSlug, orgId, projectId),
-    [projectSlug, orgId, projectId],
-  );
-  const updatesTableData = useMemo(() => [...updatesData.items], [updatesData.items]);
+  const updateColumns = buildUpdateColumns(projectSlug, orgId, projectId);
+  const updatesTableData = [...updatesData.items];
   const updatesTable = useDataTable({
     data: updatesTableData,
     columns: [...updateColumns],

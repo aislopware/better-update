@@ -4,7 +4,7 @@ import { CommandPalette as Palette } from "@better-update/ui/components/command-
 import { Kbd } from "@better-update/ui/components/kbd";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import type { ReactNode } from "react";
 
@@ -54,9 +54,19 @@ const useNavigationItems = (
 ): PaletteItem[] => {
   const navigate = useNavigate();
   const orgSections = useOrgNavSections(isSuperadmin);
-  return useMemo(() => {
-    if (projectSlug !== undefined) {
-      return PROJECT_NAV.flatMap((section) => section.items).map((item) => ({
+  return projectSlug === undefined
+    ? orgSections
+        .flatMap((section) => section.items)
+        .map((item) => ({
+          id: item.to,
+          label: item.label,
+          haystack: item.label.toLowerCase(),
+          icon: <item.icon weight="bold" className="size-4" />,
+          run: () => {
+            fireAndForget(navigate({ to: item.to }));
+          },
+        }))
+    : PROJECT_NAV.flatMap((section) => section.items).map((item) => ({
         id: item.to,
         label: item.label,
         haystack: item.label.toLowerCase(),
@@ -65,19 +75,6 @@ const useNavigationItems = (
           fireAndForget(navigate({ to: item.to, params: { projectSlug } }));
         },
       }));
-    }
-    return orgSections
-      .flatMap((section) => section.items)
-      .map((item) => ({
-        id: item.to,
-        label: item.label,
-        haystack: item.label.toLowerCase(),
-        icon: <item.icon weight="bold" className="size-4" />,
-        run: () => {
-          fireAndForget(navigate({ to: item.to }));
-        },
-      }));
-  }, [navigate, orgSections, projectSlug]);
 };
 
 const useProjectItems = (orgId: string, enabled: boolean, query: string): PaletteItem[] => {
@@ -96,48 +93,40 @@ const useProjectItems = (orgId: string, enabled: boolean, query: string): Palett
     placeholderData: keepPreviousData,
   });
   const data = isSearching ? searched.data : base.data;
-  return useMemo(
-    () =>
-      (data?.items ?? []).map((project) => ({
-        id: project.id,
-        label: project.name,
-        // Already narrowed server-side; the local pass must not drop a hit the
-        // server made on a field we do not carry here.
-        haystack: "",
-        icon: (
-          <EntityAvatar
-            name={project.name}
-            seed={project.slug}
-            image={project.logoUrl}
-            size="sm"
-            shape="square"
-          />
-        ),
-        run: () => {
-          fireAndForget(
-            navigate({ to: "/projects/$projectSlug", params: { projectSlug: project.slug } }),
-          );
-        },
-      })),
-    [data, navigate],
-  );
+  return (data?.items ?? []).map((project) => ({
+    id: project.id,
+    label: project.name,
+    // Already narrowed server-side; the local pass must not drop a hit the
+    // server made on a field we do not carry here.
+    haystack: "",
+    icon: (
+      <EntityAvatar
+        name={project.name}
+        seed={project.slug}
+        image={project.logoUrl}
+        size="sm"
+        shape="square"
+      />
+    ),
+    run: () => {
+      fireAndForget(
+        navigate({ to: "/projects/$projectSlug", params: { projectSlug: project.slug } }),
+      );
+    },
+  }));
 };
 
 const useThemeItems = (): PaletteItem[] => {
   const { updateTheme } = useTheme();
-  return useMemo(
-    () =>
-      THEME_CHOICES.map((item) => ({
-        id: `theme:${item.value}`,
-        label: `${item.label} theme`,
-        haystack: `theme ${item.label.toLowerCase()}`,
-        icon: <item.icon weight="bold" className="size-4" />,
-        run: () => {
-          updateTheme(item.value);
-        },
-      })),
-    [updateTheme],
-  );
+  return THEME_CHOICES.map((item) => ({
+    id: `theme:${item.value}`,
+    label: `${item.label} theme`,
+    haystack: `theme ${item.label.toLowerCase()}`,
+    icon: <item.icon weight="bold" className="size-4" />,
+    run: () => {
+      updateTheme(item.value);
+    },
+  }));
 };
 
 const PaletteFooter = () => (
@@ -181,21 +170,17 @@ export const CommandPalette = ({
   const projectItems = useProjectItems(orgId, open, query);
   const themeItems = useThemeItems();
 
-  const groups = useMemo<PaletteGroup[]>(
-    () =>
-      [
-        {
-          id: "navigation",
-          label: "Navigation",
-          items: navigationItems.filter((item) => matches(item, query)),
-        },
-        { id: "projects", label: "Projects", items: projectItems },
-        { id: "theme", label: "Theme", items: themeItems.filter((item) => matches(item, query)) },
-        // An empty group would still draw its heading, so drop it and let
-        // Palette.Empty take over once every group is gone.
-      ].filter((group) => group.items.length > 0),
-    [navigationItems, projectItems, themeItems, query],
-  );
+  const groups: PaletteGroup[] = [
+    {
+      id: "navigation",
+      label: "Navigation",
+      items: navigationItems.filter((item) => matches(item, query)),
+    },
+    { id: "projects", label: "Projects", items: projectItems },
+    { id: "theme", label: "Theme", items: themeItems.filter((item) => matches(item, query)) },
+    // An empty group would still draw its heading, so drop it and let
+    // Palette.Empty take over once every group is gone.
+  ].filter((group) => group.items.length > 0);
 
   // Mount-only listener is safe: `onOpenChange` is a stable useState setter.
   useMountEffect(() => {

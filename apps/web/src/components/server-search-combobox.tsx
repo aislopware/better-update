@@ -2,7 +2,7 @@ import { Button } from "@better-update/ui/components/button";
 import { Combobox } from "@better-update/ui/components/combobox";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import type { QueryFunction } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -128,14 +128,10 @@ export const ServerSearchCombobox = ({
   // state) that is beyond the fetched page falls back to the raw value —
   // honest, if less pretty than a label.
   const [picked, setPicked] = useState<ComboboxOption | null>(null);
-  const selected = useMemo(
-    () =>
-      value
-        ? (options.find((option) => option.value === value) ??
-          (picked?.value === value ? picked : { value, label: value }))
-        : null,
-    [value, options, picked],
-  );
+  const selected = value
+    ? (options.find((option) => option.value === value) ??
+      (picked?.value === value ? picked : { value, label: value }))
+    : null;
 
   return (
     <Combobox

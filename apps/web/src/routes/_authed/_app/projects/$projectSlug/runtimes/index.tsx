@@ -4,7 +4,6 @@ import { StackIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useMemo } from "react";
 import { z } from "zod";
 
 import type { RuntimeAggregate } from "@better-update/api";
@@ -115,7 +114,7 @@ const RuntimesContent = () => {
     placeholderData: keepPreviousData,
   });
 
-  const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
+  const tableData = [...(data?.items ?? [])];
 
   const table = useDataTable({
     data: tableData,

@@ -4,7 +4,7 @@ import { CloudArrowUpIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { z } from "zod";
 
 import type { UpdateSortColumn } from "@better-update/api-client/react";
@@ -125,15 +125,11 @@ const useUpdatesData = ({
 
   const branchIsPinned = branchId.length === 1;
   const platformIsPinned = platform.length === 1;
-  const columns = useMemo(
-    () =>
-      withoutPinnedColumns(buildUpdateColumns(slug, orgId, projectId), {
-        branch: branchIsPinned,
-        platform: platformIsPinned,
-        runtimeVersion: runtimeVersion !== undefined,
-      }),
-    [slug, orgId, projectId, branchIsPinned, platformIsPinned, runtimeVersion],
-  );
+  const columns = withoutPinnedColumns(buildUpdateColumns(slug, orgId, projectId), {
+    branch: branchIsPinned,
+    platform: platformIsPinned,
+    runtimeVersion: runtimeVersion !== undefined,
+  });
 
   return { updatesQuery, columns };
 };
@@ -214,7 +210,7 @@ const UpdatesContent = () => {
   });
 
   const { data, error, isPlaceholderData, isLoading, refetch } = updatesQuery;
-  const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
+  const tableData = [...(data?.items ?? [])];
   const table = useDataTable({
     data: tableData,
     columns: [...columns],

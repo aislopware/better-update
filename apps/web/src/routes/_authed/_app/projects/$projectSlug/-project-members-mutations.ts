@@ -5,7 +5,7 @@ import {
 } from "@better-update/api-client/react";
 import { toast } from "@better-update/ui/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import type { ProjectMemberRoleValue } from "@better-update/api-client/react";
 
@@ -49,18 +49,15 @@ export const useProjectMembersHandlers = (projectId: string) => {
   const { mutate: updateRoleMutate } = updateRole;
   const { mutate: removeMutate } = remove;
 
-  const handleRoleChange = useCallback(
-    (principalId: string, role: ProjectMemberRoleValue) => {
-      updateRoleMutate({ principalId, role });
-    },
-    [updateRoleMutate],
-  );
+  const handleRoleChange = (principalId: string, role: ProjectMemberRoleValue) => {
+    updateRoleMutate({ principalId, role });
+  };
 
-  const handleRemove = useCallback(() => {
+  const handleRemove = () => {
     if (removeTarget) {
       removeMutate({ principalId: removeTarget.principalId });
     }
-  }, [removeTarget, removeMutate]);
+  };
 
   const rolePendingId = updateRole.isPending ? updateRole.variables.principalId : undefined;
   const removePendingId = remove.isPending ? remove.variables.principalId : undefined;

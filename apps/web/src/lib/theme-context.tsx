@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import type { ReactNode } from "react";
 
@@ -50,21 +50,13 @@ export const ThemeProvider = ({
 
   const resolvedTheme = resolveTheme(theme, systemPreference === "dark");
 
-  const updateTheme = useCallback(
-    (next: Theme) => {
-      const nextResolvedTheme = resolveTheme(next, getSystemPreference() === "dark");
-      setTheme(next);
-      setThemeCookie(next, nextResolvedTheme);
-      queryClient.setQueryData(["theme"], next);
-      applyTheme(nextResolvedTheme);
-    },
-    [queryClient],
-  );
+  const updateTheme = (next: Theme) => {
+    const nextResolvedTheme = resolveTheme(next, getSystemPreference() === "dark");
+    setTheme(next);
+    setThemeCookie(next, nextResolvedTheme);
+    queryClient.setQueryData(["theme"], next);
+    applyTheme(nextResolvedTheme);
+  };
 
-  const value = useMemo(
-    () => ({ theme, resolvedTheme, updateTheme }),
-    [theme, resolvedTheme, updateTheme],
-  );
-
-  return <ThemeContext value={value}>{children}</ThemeContext>;
+  return <ThemeContext value={{ theme, resolvedTheme, updateTheme }}>{children}</ThemeContext>;
 };
