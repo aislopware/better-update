@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.65.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.64.1...%40better-update%2Fserver%400.65.0) (2026-08-23)
+
+### Features
+
+* **server:** upgrade to better-auth 1.7 ([f57c0c7](https://github.com/better-update/better-update/commit/f57c0c797217970e41654ce2cd2bc51874e4c5aa))
+
 ## [0.64.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.64.0...%40better-update%2Fserver%400.64.1) (2026-08-23)
 
 **Note:** Version bump only for package @better-update/server

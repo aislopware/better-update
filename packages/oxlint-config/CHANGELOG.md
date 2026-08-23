@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Foxlint-config%400.5.0...%40better-update%2Foxlint-config%400.6.0) (2026-08-23)
+
+### Features
+
+* **web:** adopt React Compiler and drop manual memoization ([9b64700](https://gitlab.jmango360.com/mobile/better-update/-/commit/9b647000b0c0c51d6b8f11ac5095632f3ad6a7c6))
+
 ## [0.5.0](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Foxlint-config%400.4.1...%40better-update%2Foxlint-config%400.5.0) (2026-08-19)
 
 ### Features

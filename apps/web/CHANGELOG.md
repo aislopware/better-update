@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.81.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.80.0...%40better-update%2Fweb%400.81.0) (2026-08-23)
+
+### Features
+
+* **server:** upgrade to better-auth 1.7 ([f57c0c7](https://github.com/better-update/better-update/commit/f57c0c797217970e41654ce2cd2bc51874e4c5aa))
+* **web:** adopt React Compiler and drop manual memoization ([9b64700](https://github.com/better-update/better-update/commit/9b647000b0c0c51d6b8f11ac5095632f3ad6a7c6))
+
 ## [0.80.0](https://github.com/better-update/better-update/compare/%40better-update%2Fweb%400.79.2...%40better-update%2Fweb%400.80.0) (2026-08-23)
 
 ### Features
