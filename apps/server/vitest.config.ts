@@ -141,6 +141,11 @@ export default defineConfig(async () => {
             globals: true,
             include: ["tests/integration/**/*.test.ts"],
             setupFiles: ["./tests/setup-d1.ts"],
+            // Seeding hooks here drive real D1 one statement at a time — the OTA
+            // reaper's parameter-ceiling suite writes ~725 rows before its first
+            // assertion — so the 10s default is a CI-speed lottery, not a
+            // meaningful bound.
+            hookTimeout: 60_000,
           },
         },
         // ── Pool-backed E2E (Workers runtime, worker.fetch in-process) ──
