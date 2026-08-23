@@ -39,7 +39,7 @@
   "dependencies": {
     "@better-update/bsdiff": "workspace:*",
     "@clack/prompts": "^1.7.0",
-    "@effect/platform-node": "4.0.0-rc.110",
+    "@effect/platform-node": "4.0.0-rc.111",
     "@expo/apple-utils": "^2.1.22",
     "@expo/config": "^57.0.8",
     "@expo/config-plugins": "~57.0.8",
@@ -50,7 +50,7 @@
     "bplist-parser": "^0.3.2",
     "chalk": "^6.0.0",
     "citty": "^0.2.2",
-    "effect": "4.0.0-rc.110",
+    "effect": "4.0.0-rc.111",
     "es-toolkit": "^1.51.0",
     "gradle-to-js": "^2.0.1",
     "ignore": "^7.0.6",

@@ -14,7 +14,7 @@
     "lint:check": "oxlint"
   },
   "dependencies": {
-    "effect": "4.0.0-rc.110"
+    "effect": "4.0.0-rc.111"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
