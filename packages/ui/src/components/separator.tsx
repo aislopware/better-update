@@ -3,7 +3,7 @@
 // element. The rule below is the one Kumo draws inside its own menus
 // (`h-px bg-kumo-hairline`), lifted out so page- and toolbar-level dividers
 // match the ones the popups already draw.
-import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
+import { Separator as SeparatorPrimitive } from "@cloudflare/kumo/primitives/separator";
 
 import { cn } from "#/lib/utils";
 

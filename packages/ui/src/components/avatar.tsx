@@ -1,4 +1,7 @@
-import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar";
+// Base UI comes in through Kumo's `primitives/*` re-export rather than a
+// direct `@base-ui/react` dependency, so this file can never end up on a
+// different copy of Base UI than the Kumo components it sits beside.
+import { Avatar as AvatarPrimitive } from "@cloudflare/kumo/primitives/avatar";
 
 import { cn } from "#/lib/utils";
 
