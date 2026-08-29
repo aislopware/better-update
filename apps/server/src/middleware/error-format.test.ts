@@ -40,14 +40,18 @@ describe(rewriteErrorResponse, () => {
     expect(parseBody(result)).toStrictEqual({ data: "ok" });
   });
 
-  it("transforms TaggedError to { code, message }", async () => {
+  it("transforms TaggedError to { _tag, code, message }", async () => {
     const original = HttpServerResponse.jsonUnsafe(
       { _tag: "Unauthorized", message: "Invalid session" },
       { status: 401 },
     );
     const result = await run(original);
     expect(result.status).toBe(401);
-    expect(parseBody(result)).toStrictEqual({ code: "UNAUTHORIZED", message: "Invalid session" });
+    expect(parseBody(result)).toStrictEqual({
+      _tag: "Unauthorized",
+      code: "UNAUTHORIZED",
+      message: "Invalid session",
+    });
   });
 
   it("transforms multi-word PascalCase tag", async () => {
@@ -57,6 +61,7 @@ describe(rewriteErrorResponse, () => {
     );
     const result = await run(original);
     expect(parseBody(result)).toStrictEqual({
+      _tag: "OrgRequired",
       code: "ORG_REQUIRED",
       message: "No active organization",
     });
@@ -70,6 +75,7 @@ describe(rewriteErrorResponse, () => {
     );
     const result = await run(original);
     expect(parseBody(result)).toStrictEqual({
+      _tag: "HttpApiDecodeError",
       code: "VALIDATION_ERROR",
       message: "Validation failed",
       issues,
@@ -88,6 +94,10 @@ describe(rewriteErrorResponse, () => {
   it("provides default message when missing", async () => {
     const original = HttpServerResponse.jsonUnsafe({ _tag: "NotFound" }, { status: 404 });
     const result = await run(original);
-    expect(parseBody(result)).toStrictEqual({ code: "NOT_FOUND", message: "An error occurred" });
+    expect(parseBody(result)).toStrictEqual({
+      _tag: "NotFound",
+      code: "NOT_FOUND",
+      message: "An error occurred",
+    });
   });
 });

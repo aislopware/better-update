@@ -175,6 +175,11 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(404);
+    // The CLI decodes this body against the declared `NotFound` schema to tell
+    // "not configured yet" from "broken". Losing `_tag` makes it fatal.
+    const body = await res.json();
+    expect(body._tag).toBe("NotFound");
+    expect(body.code).toBe("NOT_FOUND");
   });
 
   it("falls back to org+team ASC key when bundle config has none bound", async () => {
@@ -341,6 +346,11 @@ describe("Build credentials resolve flow", () => {
       { cookie: cookies },
     );
     expect(res.status).toBe(404);
+    // First-run Android setup hinges on this tag: the CLI catches `NotFound`
+    // here and falls through to the interactive keystore setup.
+    const body = await res.json();
+    expect(body._tag).toBe("NotFound");
+    expect(body.code).toBe("NOT_FOUND");
   });
 
   it("rejects cross-project access", async () => {

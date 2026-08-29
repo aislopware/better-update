@@ -1,5 +1,6 @@
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Layer } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 
 import type { Context } from "effect";
 
@@ -9,7 +10,7 @@ import { AppleAuth } from "../services/apple-auth";
 import { CliRuntime } from "../services/cli-runtime";
 import { DeviceUnlockMemoLive } from "../services/device-unlock-memo";
 import { IdentityStore } from "../services/identity-store";
-import { ensureIosCredentials } from "./credentials-interactive";
+import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
 
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory return must satisfy the full module namespace type
 import type * as GeneratorModule from "../lib/credentials-generator-apple";
@@ -184,5 +185,66 @@ describe(ensureIosCredentials, () => {
         { params: { id: "config-1" }, payload: { appleProvisioningProfileId: "profile-new-1" } },
       ]);
     }).pipe(Effect.provide(stubLayer(true))),
+  );
+});
+
+// ── Android resolve-error classification ─────────────────────────
+//
+// `ensureAndroidCredentials` only reaches first-run setup when it recognises
+// the resolve failure as "not configured yet". A server that reshapes its
+// error bodies makes the client report an undecodable `HttpClientError`
+// instead of a tagged `NotFound`, which used to slip past the guard and leave
+// no way to configure Android credentials at all (BU-38).
+
+const androidInput = {
+  projectId: "project-1",
+  applicationIdentifier: "com.example.app",
+};
+
+const failingAndroidApi = (error: unknown) =>
+  ({ buildCredentials: { resolve: () => Effect.fail(error) } }) as unknown as ApiClient;
+
+/** Freeze mode never reaches keystore generation, so the spawner is unused. */
+const androidStubLayer = Layer.merge(
+  stubLayer(false),
+  Layer.succeed(
+    ChildProcessSpawner.ChildProcessSpawner,
+    "unused" as unknown as Context.Service.Shape<typeof ChildProcessSpawner.ChildProcessSpawner>,
+  ),
+);
+
+const statusCodeError = (status: number) => ({
+  _tag: "HttpClientError",
+  reason: { _tag: "StatusCodeError", response: { status } },
+});
+
+describe(ensureAndroidCredentials, () => {
+  it.effect.each([
+    ["tagged NotFound", { _tag: "NotFound", message: "no android app id" }],
+    ["tagged BadRequest", { _tag: "BadRequest", message: "bad request" }],
+    ["undecodable 404", statusCodeError(404)],
+    ["undecodable 400", statusCodeError(400)],
+  ])("treats %s as missing credentials", ([, cause]) =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        ensureAndroidCredentials(failingAndroidApi(cause), androidInput, {
+          freezeCredentials: true,
+        }),
+      );
+
+      expect(error._tag).toBe("MissingCredentialsError");
+    }).pipe(Effect.provide(androidStubLayer)),
+  );
+
+  it.effect("leaves an unrelated failure alone", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        ensureAndroidCredentials(failingAndroidApi(statusCodeError(500)), androidInput, {
+          freezeCredentials: true,
+        }),
+      );
+
+      expect(error._tag).toBe("HttpClientError");
+    }).pipe(Effect.provide(androidStubLayer)),
   );
 });

@@ -91,6 +91,31 @@ describe("Management API happy path", () => {
     expect(response.status).toBe(401);
   });
 
+  // ── Section 2b: Error body contract ─────────────────────────────
+  //
+  // The CLI decodes error bodies against the `Schema.TaggedError` types the
+  // `HttpApi` declares, so `_tag` is what separates a recoverable failure from
+  // a fatal one; the dashboard and Better Auth read `code`. `error-format.ts`
+  // emits both — assert the wire shape, not just the status, because a status
+  // code alone let a broken error contract ship (BU-38).
+
+  it("404 carries both _tag and code", async () => {
+    const response = await get(`/api/projects/${crypto.randomUUID()}`, { cookie: cookies });
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body._tag).toBe("NotFound");
+    expect(body.code).toBe("NOT_FOUND");
+    expect(body.message).toBeTypeOf("string");
+  });
+
+  it("401 carries both _tag and code", async () => {
+    const response = await get("/api/projects");
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body._tag).toBe("Unauthorized");
+    expect(body.code).toBe("UNAUTHORIZED");
+  });
+
   // ── Section 3: Robot bearer lifecycle ───────────────────────────
 
   it("creates a project robot account", async () => {
@@ -129,6 +154,9 @@ describe("Management API happy path", () => {
       { authorization: `Bearer ${apiKeyValue}` },
     );
     expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body._tag).toBe("Forbidden");
+    expect(body.code).toBe("FORBIDDEN");
   });
 
   it("rejects requests with an invalid robot bearer", async () => {

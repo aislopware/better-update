@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import { asRecord } from "@better-update/type-guards";
 import { Console, Effect, Ref } from "effect";
 
 import { keystoreChoice } from "../lib/credential-choices";
@@ -33,8 +34,34 @@ interface TaggedCause {
 const hasTag = (cause: unknown): cause is TaggedCause =>
   typeof cause === "object" && cause !== null && "_tag" in cause;
 
-const isMissingResolveError = (cause: unknown) =>
-  hasTag(cause) && (cause._tag === "NotFound" || cause._tag === "BadRequest");
+/**
+ * Status of a response whose error body failed to decode against the declared
+ * error schemas — the client reports those as
+ * `HttpClientError { reason: StatusCodeError }` with the raw response attached.
+ * Reading the status directly keeps a server that reshapes its error bodies
+ * from turning "not configured yet" into a fatal error with no way to
+ * bootstrap (BU-38).
+ */
+const undecodedErrorStatus = (cause: unknown): number | undefined => {
+  const error = asRecord(cause);
+  if (error?.["_tag"] !== "HttpClientError") {
+    return undefined;
+  }
+  const reason = asRecord(error["reason"]);
+  if (reason?.["_tag"] !== "StatusCodeError") {
+    return undefined;
+  }
+  const status = asRecord(reason["response"])?.["status"];
+  return typeof status === "number" ? status : undefined;
+};
+
+const isMissingResolveError = (cause: unknown) => {
+  if (hasTag(cause) && (cause._tag === "NotFound" || cause._tag === "BadRequest")) {
+    return true;
+  }
+  const status = undecodedErrorStatus(cause);
+  return status === 404 || status === 400;
+};
 
 // ── Android ────────────────────────────────────────────────────────
 

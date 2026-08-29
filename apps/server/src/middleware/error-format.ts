@@ -15,7 +15,15 @@ const isTaggedObject = (value: unknown): value is Record<string, unknown> & { _t
 const toUnifiedBody = (obj: Record<string, unknown>): Record<string, unknown> => {
   const tag = String(obj["_tag"]);
   const code = tag === "HttpApiDecodeError" ? "VALIDATION_ERROR" : pascalToUpperSnake(tag);
-  const body: Record<string, unknown> = { code, message: obj["message"] ?? "An error occurred" };
+  // `_tag` is kept alongside `code`: the dashboard and Better Auth read `code`,
+  // while the CLI decodes the body against the declared `HttpApi` error schemas,
+  // which are `Schema.TaggedError` and therefore require `_tag`. Dropping it
+  // turned every recoverable CLI error into a fatal decode failure.
+  const body: Record<string, unknown> = {
+    _tag: tag,
+    code,
+    message: obj["message"] ?? "An error occurred",
+  };
   if (tag === "HttpApiDecodeError" && Array.isArray(obj["issues"])) {
     body["issues"] = obj["issues"];
   }
