@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.23](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Freact-hooks%400.2.22...%40better-update%2Freact-hooks%400.2.23) (2026-08-29)
+
+**Note:** Version bump only for package @better-update/react-hooks
+
 ## [0.2.22](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Freact-hooks%400.2.21...%40better-update%2Freact-hooks%400.2.22) (2026-08-23)
 
 **Note:** Version bump only for package @better-update/react-hooks
