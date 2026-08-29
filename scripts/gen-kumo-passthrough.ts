@@ -40,7 +40,6 @@ const COMPONENTS = [
   "layer-card",
   "link",
   "loader",
-  "menubar",
   "meter",
   "pagination",
   "popover",
@@ -50,7 +49,6 @@ const COMPONENTS = [
   "sidebar",
   "surface",
   "switch",
-  "table-of-contents",
   "tabs",
   "text",
   "toolbar",
@@ -75,6 +73,12 @@ const COMPONENTS = [
 // random width, which SSR cannot hydrate), and `card` is the app's
 // header/content/footer anatomy composed over the bare `LayerCard` surface
 // generated above.
+
+// `menubar` and `table-of-contents` were dropped rather than left unimported:
+// Kumo deprecated `MenuBar` in 2.12 in favour of `Tabs variant="segmented"`, so
+// a pass-through to it is a trap that disappears at the next major, and
+// `TableOfContents` only has meaning on a long prose page — the docs site this
+// app once had is gone, and the dashboard has none.
 
 /** Base UI primitives Kumo re-exports without styling them. */
 const PRIMITIVES = ["scroll-area", "toggle", "toggle-group"];
