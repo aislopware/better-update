@@ -14,14 +14,14 @@
   "dependencies": {
     "@better-update/api": "workspace:*",
     "@better-update/type-guards": "workspace:*",
-    "effect": "4.0.0-rc.111"
+    "effect": "4.0.0-rc.112"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*"
   },
   "peerDependencies": {
-    "@tanstack/react-query": "^5.102.0",
+    "@tanstack/react-query": "^5.102.8",
     "react": "^19.2.8"
   }
 }

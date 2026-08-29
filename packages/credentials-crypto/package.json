@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@better-update/encoding": "workspace:*",
-    "@noble/ciphers": "^2.3.0",
-    "@noble/curves": "^2.3.0",
-    "@noble/hashes": "^2.3.0",
-    "age-encryption": "^0.3.0"
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "age-encryption": "^0.3.1"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
