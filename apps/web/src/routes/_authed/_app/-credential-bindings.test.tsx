@@ -130,7 +130,12 @@ describe(BindingRowActions, () => {
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
   });
 
-  it("narrows a long checklist through the server-side search", async () => {
+  // Drives 21 `userEvent` keystrokes across two searches, each re-rendering a
+  // nine-row checklist through `useDeferredValue`. That lands at ~5.2s on a
+  // loaded CI runner — just past the 5s default — and the timeout then surfaces
+  // on the *next* test, as the abandoned `findByText` rejects after teardown.
+  // The rest of the component suite keeps the tight default.
+  it("narrows a long checklist through the server-side search", { timeout: 20_000 }, async () => {
     const manyProjects = Array.from({ length: 9 }, (_, index) => ({
       id: `project-${index + 1}`,
       name: index === 0 ? "Needle App" : `Haystack ${index + 1}`,
