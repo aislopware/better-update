@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.65.1](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.65.0...%40better-update%2Fserver%400.65.1) (2026-08-29)
+
+### Bug Fixes
+
+* **server:** keep _tag in unified error bodies ([5a55594](https://github.com/better-update/better-update/commit/5a555947792865bab4ba34c09b8923ca2906d2d1))
+
 ## [0.65.0](https://github.com/better-update/better-update/compare/%40better-update%2Fserver%400.64.1...%40better-update%2Fserver%400.65.0) (2026-08-23)
 
 ### Features
