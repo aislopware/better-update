@@ -130,6 +130,28 @@ The `runtimeVersion` side is **best-effort**: no Expo config, an unreadable one,
 no `runtimeVersion` all leave the field empty and print a warning at most — a project that does not
 publish OTA never gets a red build over bookkeeping.
 
+### Android App Bundle → universal APK (device installs)
+
+A `play-store` profile produces an `.aab`. Google Play takes it; a phone cannot install one. So for
+every `aab` build the CLI **also assembles a universal APK** in the same Gradle run
+(`bundleRelease assembleRelease` share every compile/dex/resource task — one extra packaging step,
+not a second build), signed with the **same upload key**, and attaches it to the uploaded build.
+The dashboard's **Install** button / QR, `builds run` and `builds download --apk` then use that
+APK; **Download** still hands out the `.aab` for Play.
+
+- Opt out per profile with `"android": { "universalApk": false }` in `eas.json`.
+- Custom-command builds and profiles pinning an explicit `gradleTask` cannot ride along on Gradle:
+  the CLI converts the produced `.aab` with **bundletool** instead (`brew install bundletool`, or
+  set `BUNDLETOOL_JAR` to the release jar). No bundletool → the build still succeeds, with a
+  warning and no APK.
+- Attaching is best-effort: the `.aab` is the deliverable, an APK failure only warns. The build
+  summary's `Universal APK` line says `attached` / `none` / `upload failed`.
+- `--output <path>` also copies the APK beside the bundle as `<name>.universal.apk`.
+- The APK is signed with the **upload** key. If Play App Signing re-signs your releases, a device
+  that installed the app from Play holds a different signature — uninstall it before installing the
+  APK, or it will refuse the "update".
+- Builds uploaded by an older CLI have no APK: the dashboard says so and the fix is to rebuild.
+
 ### Flags
 
 | Flag                                | Default      | Notes                                                                                                                                                           |
@@ -199,8 +221,14 @@ better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]
   captures the embedded-bundle sourcemap from that path instead of overriding it.
 - `builds run` downloads the artifact and installs + launches it on a simulator/emulator or a real
   device. With no `<id>`, pass `--latest --platform <p>`. `--device` forces a real-device iOS install.
-- `builds install-link` returns `artifactUrl`, an iOS `installUrl` (an `itms-services://` manifest),
-  and an `expires` timestamp. Send to QA for ad-hoc installs; the signed URL expires.
+  For an `.aab` build it installs the attached universal APK (see above); an `.aab` uploaded
+  without one cannot be run.
+- `builds download --apk` fetches the universal APK of an `.aab` build (`./<id>.universal.apk`)
+  instead of the bundle.
+- `builds install-link` returns `artifactUrl` (always the primary artifact), `installUrl` — what a
+  device opens: an `itms-services://` manifest on iOS, the universal APK for an `.aab` build, the
+  APK itself for an `apk` build, `null` when nothing is installable — and an `expires` timestamp.
+  Send to QA for ad-hoc installs; the signed URL expires.
 - `builds compatibility-matrix` answers "if I publish to channel X today, will any device receive
   it?" — prints runtime-version coverage per channel and flags gaps. Run before a publish if unsure.
 - `builds resign` prints step-by-step instructions (fastlane sigh / codesign) for re-signing an iOS

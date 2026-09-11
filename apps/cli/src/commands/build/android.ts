@@ -7,6 +7,11 @@ import { renderSigningGradle } from "../../lib/android-signing-gradle";
 import { applyAndroidVersion } from "../../lib/android-version-sync";
 import { findAndroidArtifact, findArtifactByGlob } from "../../lib/artifact-finder";
 import { runBuildHook } from "../../lib/build-hooks";
+import {
+  BUNDLETOOL_MISSING_HINT,
+  buildUniversalApk,
+  resolveBundletool,
+} from "../../lib/bundletool";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
 import { collectAndroidDebugArtifacts } from "../../lib/debug-artifacts";
 import { BuildFailedError } from "../../lib/exit-codes";
@@ -67,6 +72,53 @@ interface AndroidSigningCredentials {
   readonly keyAlias: string;
   readonly keyPassword: string;
 }
+
+/**
+ * The universal APK produced next to an `.aab` so the build can be installed
+ * on a device (Play takes the bundle; a phone will not). Same signing key as
+ * the bundle. Absent for `apk` builds, for `universalApk: false` profiles, and
+ * when the fallback converter is unavailable.
+ */
+export interface AndroidInstallArtifact {
+  readonly path: string;
+  readonly sha256: string;
+  readonly byteSize: number;
+}
+
+const wantsUniversalApk = (profile: AndroidProfile): boolean =>
+  profile.format === "aab" && profile.universalApk !== false;
+
+/**
+ * bundletool fallback for builds where Gradle could not assemble the APK
+ * itself (custom commands, explicit `gradleTask`). Best-effort: a missing
+ * bundletool or a conversion failure warns and leaves the bundle without a
+ * companion — the `.aab` is still the deliverable.
+ */
+const deriveUniversalApkWithBundletool = (params: {
+  readonly aabPath: string;
+  readonly tempDir: string;
+  readonly credentials: AndroidSigningCredentials | undefined;
+}) =>
+  Effect.gen(function* () {
+    const tool = yield* resolveBundletool;
+    if (tool === null) {
+      yield* printWarn(`Universal APK skipped: ${BUNDLETOOL_MISSING_HINT}`);
+      return undefined;
+    }
+    const apkPath = yield* buildUniversalApk(tool, {
+      aabPath: params.aabPath,
+      workDir: params.tempDir,
+      signing: params.credentials,
+    });
+    const { sha256, byteSize } = yield* sha256File(apkPath);
+    return { path: apkPath, sha256, byteSize } satisfies AndroidInstallArtifact;
+  }).pipe(
+    Effect.catch((error) =>
+      printWarn(`Universal APK skipped: ${formatCause(error)}`).pipe(
+        Effect.as<AndroidInstallArtifact | undefined>(undefined),
+      ),
+    ),
+  );
 
 /**
  * Compose the Gradle task name from flavor, format, and buildType.
@@ -173,12 +225,24 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
             return ["--init-script", signingGradlePath];
           });
 
-    const taskName = input.androidProfile.gradleTask ?? gradleTaskName(format, flavor, buildType);
-    const taskArg = taskName.startsWith(":") ? taskName : `:${moduleName}:${taskName}`;
+    const explicitTask = input.androidProfile.gradleTask;
+    const taskName = explicitTask ?? gradleTaskName(format, flavor, buildType);
+    const toTaskArg = (task: string) => (task.startsWith(":") ? task : `:${moduleName}:${task}`);
+    // An `.aab` build assembles the universal APK in the SAME Gradle
+    // invocation: `bundleRelease assembleRelease` share every compile/dex/
+    // resource task, so the APK costs one packaging step, not a second build.
+    // An explicit `gradleTask` has no derivable assemble twin — that case
+    // falls back to bundletool after the build.
+    const universalApkViaGradle =
+      wantsUniversalApk(input.androidProfile) && explicitTask === undefined;
+    const taskArgs = [
+      toTaskArg(taskName),
+      ...(universalApkViaGradle ? [toTaskArg(gradleTaskName("apk", flavor, buildType))] : []),
+    ];
     yield* runStep(
       {
         command: "./gradlew",
-        args: [...gradleArgs, taskArg, "--profile"],
+        args: [...gradleArgs, ...taskArgs, "--profile"],
         cwd: androidDir,
         // Gradle needs a UTF-8 locale for tool output — same value EAS sets.
         env: { ...commandEnv, LC_ALL: "C.UTF-8" },
@@ -196,6 +260,15 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
     });
 
     const { sha256, byteSize } = yield* sha256File(artifactPath);
+    const installArtifact = yield* resolveGradleInstallArtifact({
+      input,
+      viaGradle: universalApkViaGradle,
+      aabPath: artifactPath,
+      buildType,
+      buildStartMs,
+      moduleName,
+      credentials,
+    });
     // Best-effort: R8 mapping, RN sourcemap and NDK symbols only exist for
     // some configurations — a capture failure never fails the build.
     const debugArtifacts = yield* collectAndroidDebugArtifacts({
@@ -209,8 +282,69 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
         ),
       ),
     );
-    return { artifactPath, byteSize, sha256, debugArtifacts };
+    return { artifactPath, byteSize, sha256, debugArtifacts, installArtifact };
   });
+
+/** Which universal-APK path applies after a Gradle build, if any. */
+const resolveGradleInstallArtifact = (params: {
+  readonly input: RunAndroidBuildInput;
+  readonly viaGradle: boolean;
+  readonly aabPath: string;
+  readonly buildType: "debug" | "release";
+  readonly buildStartMs: number;
+  readonly moduleName: string;
+  readonly credentials: AndroidSigningCredentials | undefined;
+}) => {
+  if (params.viaGradle) {
+    return findGradleUniversalApk({
+      projectRoot: params.input.projectRoot,
+      buildType: params.buildType,
+      minMtimeMs: params.buildStartMs,
+      module: params.moduleName,
+      flavor: params.input.androidProfile.flavor,
+    });
+  }
+  if (wantsUniversalApk(params.input.androidProfile)) {
+    return deriveUniversalApkWithBundletool({
+      aabPath: params.aabPath,
+      tempDir: params.input.tempDir,
+      credentials: params.credentials,
+    });
+  }
+  // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (AndroidInstallArtifact | undefined); Effect.void breaks the declared return type
+  return Effect.succeed(undefined);
+};
+
+/**
+ * The APK that `assemble<Variant>` wrote next to the bundle. Gradle already
+ * succeeded, so a missing file means an unusual output layout — warn rather
+ * than fail a build whose `.aab` is in hand.
+ */
+const findGradleUniversalApk = (params: {
+  readonly projectRoot: string;
+  readonly buildType: "debug" | "release";
+  readonly minMtimeMs: number;
+  readonly module: string;
+  readonly flavor: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    const apkPath = yield* findAndroidArtifact({
+      projectRoot: params.projectRoot,
+      format: "apk",
+      buildType: params.buildType,
+      minMtimeMs: params.minMtimeMs,
+      module: params.module,
+      ...compact({ flavor: params.flavor }),
+    });
+    const { sha256, byteSize } = yield* sha256File(apkPath);
+    return { path: apkPath, sha256, byteSize } satisfies AndroidInstallArtifact;
+  }).pipe(
+    Effect.catch((error) =>
+      printWarn(`Universal APK skipped: ${formatCause(error)}`).pipe(
+        Effect.as<AndroidInstallArtifact | undefined>(undefined),
+      ),
+    ),
+  );
 
 /**
  * Custom-command build. We can't inject signing into an arbitrary build, so the
@@ -266,11 +400,21 @@ const runAndroidCustom = (input: RunAndroidBuildInput, commandEnv: Record<string
       minMtimeMs: buildStartMs,
     });
     const { sha256, byteSize } = yield* sha256File(artifactPath);
+    // The command owns its Gradle invocation, so the APK cannot ride along —
+    // convert the bundle it produced instead.
+    const installArtifact = wantsUniversalApk(input.androidProfile)
+      ? yield* deriveUniversalApkWithBundletool({
+          aabPath: artifactPath,
+          tempDir: input.tempDir,
+          credentials,
+        })
+      : undefined;
     return {
       artifactPath,
       byteSize,
       sha256,
       debugArtifacts: [] as readonly CapturedDebugArtifact[],
+      installArtifact,
     };
   });
 

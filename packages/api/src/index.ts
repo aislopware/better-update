@@ -267,6 +267,13 @@ export {
   MissingRuntimeVersionBuild,
 } from "./domain/build-compatibility";
 export {
+  BuildInstallArtifact,
+  CompleteInstallArtifactBody,
+  CompleteInstallArtifactResult,
+  InstallArtifactUploadReservation,
+  ReserveInstallArtifactBody,
+} from "./domain/install-artifact";
+export {
   BuildDebugArtifact,
   CompleteDebugArtifactBody,
   CompleteSourcemapBody,

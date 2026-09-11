@@ -10,6 +10,7 @@ import {
   sortParam,
   UploadHeaders,
 } from "./common";
+import { BuildInstallArtifact } from "./install-artifact";
 
 export const Distribution = Schema.Literals([
   "app-store",
@@ -117,6 +118,8 @@ export const BuildWithArtifact = Schema.Struct({
       sha256: Schema.String,
     }),
   ),
+  /** Universal APK attached to an `aab` build — see {@link BuildInstallArtifact}. */
+  installArtifact: Schema.NullOr(BuildInstallArtifact),
 }).annotate({ identifier: "BuildWithArtifact" });
 export type BuildWithArtifact = typeof BuildWithArtifact.Type;
 
@@ -185,6 +188,14 @@ export const ReserveBuildResult = Schema.Struct({
 
 export const DeleteBuildResult = DeletedResult;
 
+/**
+ * `artifactUrl` always downloads the primary artifact (the `.ipa` / `.apk` /
+ * `.aab` / simulator tarball). `installUrl` is what a device opens to install:
+ * an `itms-services://` manifest for OTA-installable iOS builds, the signed
+ * universal-APK route for `aab` builds carrying an install artifact, the
+ * artifact itself for `apk` builds, and `null` where nothing is installable
+ * (App Store / simulator builds, an `aab` uploaded without its APK).
+ */
 export const InstallLinkResult = Schema.Struct({
   token: Schema.String,
   expires: Schema.Number,

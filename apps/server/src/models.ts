@@ -417,8 +417,21 @@ export interface BuildModel {
   readonly createdAt: string;
 }
 
+/**
+ * Universal APK attached to an `aab` build so a device can install it. Same
+ * upload key as the bundle, produced by the CLI from the same Gradle run.
+ */
+export interface BuildInstallArtifactModel {
+  readonly r2Key: string;
+  readonly contentType: string;
+  readonly byteSize: number;
+  readonly sha256: string;
+  readonly createdAt: string;
+}
+
 export interface BuildWithArtifactModel extends BuildModel {
   readonly artifact: BuildArtifactModel | null;
+  readonly installArtifact: BuildInstallArtifactModel | null;
 }
 
 // Debug artifact (crash-symbolication) models live in ./debug-artifact-models

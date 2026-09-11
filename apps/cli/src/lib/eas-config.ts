@@ -50,6 +50,12 @@ export interface EasAndroidProfile {
   readonly gradleCommand?: string;
   readonly format?: "apk" | "aab";
   readonly distribution?: "play-store" | "direct";
+  /**
+   * For `aab` builds: also produce a device-installable universal APK signed
+   * with the same key and attach it to the uploaded build. Defaults to true —
+   * set false to skip the extra Gradle assemble step.
+   */
+  readonly universalApk?: boolean;
   readonly autoIncrement?: EasAndroidAutoIncrement;
   // ── Generic (non-Expo) Android fields ──
   /** Gradle module that produces the artifact. Drives `:<module>:` prefix; default "app". */
@@ -234,6 +240,7 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
   const gradleCommand = asStringValue(record["gradleCommand"]);
   const format = asAndroidFormat(record["format"]);
   const distribution = asAndroidDistribution(record["distribution"]);
+  const universalApk = asBooleanValue(record["universalApk"]);
   const autoIncrement = asAndroidAutoIncrement(record["autoIncrement"]);
   const module = asStringValue(record["module"]);
   const gradleTask = asStringValue(record["gradleTask"]);
@@ -246,6 +253,7 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
     gradleCommand,
     format,
     distribution,
+    universalApk,
     autoIncrement,
     module,
     gradleTask,

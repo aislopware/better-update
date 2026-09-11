@@ -23,6 +23,7 @@ const builds = [
     fingerprintHash: null,
     createdAt: "2026-01-01T00:00:00Z",
     artifact: null,
+    installArtifact: null,
   },
   {
     id: "build-2",
@@ -42,6 +43,7 @@ const builds = [
     fingerprintHash: null,
     createdAt: "2026-01-03T00:00:00Z",
     artifact: null,
+    installArtifact: null,
   },
 ];
 

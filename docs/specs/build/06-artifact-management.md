@@ -147,6 +147,24 @@ When a valid signed token is present, the endpoint bypasses auth and returns the
 
 User flow: open QR code on Android → browser downloads APK → installs (must enable "Install from unknown sources").
 
+### Android App Bundle (AAB) + universal APK
+
+An `.aab` is Play-only; a device cannot install one. The server cannot derive an APK either: the
+upload keystore is sealed in the zero-knowledge vault (the server never sees it) and Workers have no
+JVM for bundletool. So the **CLI** produces a universal APK next to the bundle — assembled in the
+same Gradle run for the managed strategies, converted with bundletool for custom commands — signed
+with the same upload key, and attaches it to the build after the primary upload:
+
+- `POST /api/builds/:id/install-artifact` → presigned PUT (reserve), then
+  `POST /api/builds/:id/install-artifact/complete`; same reserve → PUT → complete trust model as the
+  primary artifact. Only `android` + `aab` builds accept one; at most one per build.
+- Stored beside the bundle as `builds/{org}/{project}/{buildId}.universal.apk`
+  (`build_install_artifacts`, one row per build), deleted with the build and by retention GC.
+- Served by `GET /api/builds/:id/install-apk?token=&expires=` — the same HMAC token / session gate as
+  `/artifact`. `install-link` returns it as `installUrl`; `artifactUrl` stays the `.aab`.
+- An `.aab` uploaded without an APK (older CLI, `universalApk: false`, bundletool missing) keeps
+  `installUrl: null`; the dashboard says so instead of handing out a link a phone cannot install.
+
 ### QR Code
 
 Dashboard shows a QR code for each build. The QR encodes:
@@ -154,7 +172,7 @@ Dashboard shows a QR code for each build. The QR encodes:
 - iOS ad-hoc/enterprise: `itms-services://` URL (signed token)
 - iOS App Store: not applicable (install from TestFlight)
 - Android APK: signed public download URL (same HMAC token mechanism)
-- Android AAB: not applicable (install from Play Store)
+- Android AAB: the attached universal APK's signed URL (`/install-apk`); no APK attached → no install link
 
 ## Dashboard UI
 

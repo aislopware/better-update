@@ -24,6 +24,12 @@ import {
   ReserveDebugArtifactBody,
 } from "../domain/debug-artifact";
 import { BadRequest, Conflict } from "../domain/errors";
+import {
+  CompleteInstallArtifactBody,
+  CompleteInstallArtifactResult,
+  InstallArtifactUploadReservation,
+  ReserveInstallArtifactBody,
+} from "../domain/install-artifact";
 
 const debugTypeParam = { type: DebugArtifactType };
 
@@ -99,7 +105,31 @@ export const BuildsGroup = HttpApiGroup.make("builds")
     }).annotateMerge(
       OpenApi.annotations({
         title: "Get install link",
-        description: "Generate a signed install link for a build artifact",
+        description:
+          "Generate signed download + install links for a build (the install link is the itms-services manifest on iOS, the universal APK on Android)",
+      }),
+    ),
+    HttpApiEndpoint.post("reserveInstallArtifact", "/api/builds/:id/install-artifact", {
+      params: { ...idParam },
+      payload: ReserveInstallArtifactBody,
+      success: InstallArtifactUploadReservation.pipe(HttpApiSchema.status(201)),
+      error: [NotFound, Forbidden, BadRequest],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Reserve install artifact",
+        description:
+          "Get a presigned upload URL for the universal APK that makes an Android App Bundle build device-installable",
+      }),
+    ),
+    HttpApiEndpoint.post("completeInstallArtifact", "/api/builds/:id/install-artifact/complete", {
+      params: { ...idParam },
+      payload: CompleteInstallArtifactBody,
+      success: CompleteInstallArtifactResult,
+      error: [NotFound, Forbidden, BadRequest],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Complete install artifact",
+        description: "Finalize the universal APK after upload",
       }),
     ),
     HttpApiEndpoint.post("reserveDebugArtifact", "/api/builds/:id/debug-artifacts", {

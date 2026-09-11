@@ -255,6 +255,15 @@ export interface BuildDebugArtifacts {
   type: string;
 }
 
+export interface BuildInstallArtifacts {
+  build_id: string;
+  byte_size: number;
+  content_type: Generated<string>;
+  created_at: Generated<string>;
+  r2_key: string;
+  sha256: string;
+}
+
 export interface Builds {
   app_version: string | null;
   build_number: string | null;
@@ -725,6 +734,7 @@ export interface DB {
   branches: Branches;
   build_artifacts: BuildArtifacts;
   build_debug_artifacts: BuildDebugArtifacts;
+  build_install_artifacts: BuildInstallArtifacts;
   builds: Builds;
   channels: Channels;
   device_registration_requests: DeviceRegistrationRequests;

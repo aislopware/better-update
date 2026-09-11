@@ -5,7 +5,8 @@ import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } f
 
 /**
  * Base build projection: every stored column plus the LEFT-joined artifact
- * columns aliased `a_*`. Shared by every read so the `toBuildWithArtifact`
+ * columns aliased `a_*` and the LEFT-joined install-artifact (universal APK)
+ * columns aliased `i_*`. Shared by every read so the `toBuildWithArtifact`
  * mapper always sees an identical row shape. The domain-narrowed columns
  * (`platform`, `distribution`, `a_format`) and the non-null `id` are `$castTo`'d
  * from their wider schema types so the inferred row matches the mapper input.
@@ -15,6 +16,7 @@ export const selectBuildsWithArtifact = (db: Kysely<DB>) =>
   db
     .selectFrom("builds as b")
     .leftJoin("build_artifacts as a", "a.build_id", "b.id")
+    .leftJoin("build_install_artifacts as i", "i.build_id", "b.id")
     .select((eb) => [
       eb.ref("b.id").$castTo<string>().as("id"),
       "b.project_id",
@@ -37,6 +39,11 @@ export const selectBuildsWithArtifact = (db: Kysely<DB>) =>
       eb.ref("a.content_type").as("a_content_type"),
       eb.ref("a.byte_size").as("a_byte_size"),
       eb.ref("a.sha256").as("a_sha256"),
+      eb.ref("i.r2_key").as("i_r2_key"),
+      eb.ref("i.content_type").as("i_content_type"),
+      eb.ref("i.byte_size").as("i_byte_size"),
+      eb.ref("i.sha256").as("i_sha256"),
+      eb.ref("i.created_at").as("i_created_at"),
     ]);
 
 interface BuildWithArtifactRow {
@@ -61,6 +68,11 @@ interface BuildWithArtifactRow {
   a_content_type: string | null;
   a_byte_size: number | null;
   a_sha256: string | null;
+  i_r2_key: string | null;
+  i_content_type: string | null;
+  i_byte_size: number | null;
+  i_sha256: string | null;
+  i_created_at: string | null;
 }
 
 export const toBuildWithArtifact = (row: BuildWithArtifactRow): BuildWithArtifactModel => ({
@@ -88,6 +100,16 @@ export const toBuildWithArtifact = (row: BuildWithArtifactRow): BuildWithArtifac
           contentType: row.a_content_type ?? "application/octet-stream",
           byteSize: row.a_byte_size,
           sha256: row.a_sha256,
+        }
+      : null,
+  installArtifact:
+    row.i_r2_key && row.i_sha256 && row.i_byte_size !== null && row.i_created_at
+      ? {
+          r2Key: row.i_r2_key,
+          contentType: row.i_content_type ?? "application/vnd.android.package-archive",
+          byteSize: row.i_byte_size,
+          sha256: row.i_sha256,
+          createdAt: row.i_created_at,
         }
       : null,
 });

@@ -68,12 +68,18 @@ export interface BuildRepository {
     readonly r2Key: string;
   } | null>;
 
+  /**
+   * Builds past the retention cutoff that still hold an artifact. `r2Keys`
+   * lists every builds-bucket object the build owns (primary artifact plus
+   * the universal APK when one is attached) so GC removes them together.
+   */
   readonly findExpiredArtifactBatch: (params: {
     readonly profile: string;
     readonly cutoff: string;
     readonly limit: number;
-  }) => Effect.Effect<readonly { readonly id: string; readonly r2Key: string }[]>;
+  }) => Effect.Effect<readonly { readonly id: string; readonly r2Keys: readonly string[] }[]>;
 
+  /** Drop the artifact + install-artifact rows of GC'd builds (the build row stays). */
   readonly deleteArtifactMetadataBatch: (params: {
     readonly buildIds: readonly string[];
   }) => Effect.Effect<void>;
@@ -112,9 +118,10 @@ export interface BuildRepository {
     readonly total: number;
   }>;
 
+  /** Delete a build; returns every builds-bucket key it owned for R2 cleanup. */
   readonly deleteById: (params: {
     readonly id: string;
-  }) => Effect.Effect<{ readonly r2Key: string | null }, NotFound>;
+  }) => Effect.Effect<{ readonly r2Keys: readonly string[] }, NotFound>;
 }
 
 export class BuildRepo extends Context.Service<BuildRepo, BuildRepository>()("api/BuildRepo") {}
@@ -191,6 +198,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           byteSize: params.artifact.byteSize,
           sha256: params.artifact.sha256,
         },
+        installArtifact: null,
       } satisfies BuildWithArtifactModel;
     }),
 
@@ -274,14 +282,22 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         db
           .selectFrom("builds as b")
           .innerJoin("build_artifacts as a", "a.build_id", "b.id")
-          .select((eb) => [eb.ref("b.id").$castTo<string>().as("id"), "a.r2_key"])
+          .leftJoin("build_install_artifacts as i", "i.build_id", "b.id")
+          .select((eb) => [
+            eb.ref("b.id").$castTo<string>().as("id"),
+            "a.r2_key",
+            eb.ref("i.r2_key").as("install_r2_key"),
+          ])
           .where("b.profile", "=", params.profile)
           .where("b.created_at", "<", params.cutoff)
           .limit(params.limit)
           .execute(),
       );
 
-      return rows.map((row) => ({ id: row.id, r2Key: row.r2_key }));
+      return rows.map((row) => ({
+        id: row.id,
+        r2Keys: [row.r2_key, ...(row.install_r2_key ? [row.install_r2_key] : [])],
+      }));
     }),
 
   deleteArtifactMetadataBatch: (params) =>
@@ -292,7 +308,10 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
 
       const db = yield* kyselyDb;
       yield* d1Batch(
-        params.buildIds.map((id) => db.deleteFrom("build_artifacts").where("build_id", "=", id)),
+        params.buildIds.flatMap((id) => [
+          db.deleteFrom("build_artifacts").where("build_id", "=", id),
+          db.deleteFrom("build_install_artifacts").where("build_id", "=", id),
+        ]),
       );
     }),
 
@@ -450,11 +469,15 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
 
-      const artifact = yield* Effect.promise(async () =>
+      // Collect the owned object keys BEFORE the delete — both rows cascade
+      // away with the build. An install artifact only ever exists next to a
+      // primary artifact, so the LEFT JOIN from build_artifacts sees it.
+      const keys = yield* Effect.promise(async () =>
         db
-          .selectFrom("build_artifacts")
-          .select("r2_key")
-          .where("build_id", "=", params.id)
+          .selectFrom("build_artifacts as a")
+          .leftJoin("build_install_artifacts as i", "i.build_id", "a.build_id")
+          .select((eb) => ["a.r2_key", eb.ref("i.r2_key").as("install_r2_key")])
+          .where("a.build_id", "=", params.id)
           .executeTakeFirst(),
       );
 
@@ -466,6 +489,8 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         return yield* new NotFound({ message: "Build not found" });
       }
 
-      return { r2Key: toDbNull(artifact?.r2_key) };
+      return {
+        r2Keys: keys ? [keys.r2_key, ...(keys.install_r2_key ? [keys.install_r2_key] : [])] : [],
+      };
     }),
 });

@@ -1,13 +1,19 @@
 import { env } from "cloudflare:workers";
-import { Effect, Result } from "effect";
+import { Effect, Layer, Result } from "effect";
 
 import { BuildRepo, BuildRepoLive } from "../../../src/repositories/builds";
+import {
+  InstallArtifactRepo,
+  InstallArtifactRepoLive,
+} from "../../../src/repositories/install-artifacts";
 import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo>) =>
-  runWithLayerAndEnv(effect, BuildRepoLive, env);
+const repoLayer = Layer.mergeAll(BuildRepoLive, InstallArtifactRepoLive);
+
+const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo | InstallArtifactRepo>) =>
+  runWithLayerAndEnv(effect, repoLayer, env);
 
 const runResult = async <Ret, Err>(effect: Effect.Effect<Ret, Err, BuildRepo>) =>
   runResultWithLayerAndEnv(effect, BuildRepoLive, env);
@@ -263,7 +269,7 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
         return yield* repo.deleteById({ id: "b-del" });
       }),
     );
-    expect(deleted).toStrictEqual({ r2Key: "builds/b-del.ipa" });
+    expect(deleted).toStrictEqual({ r2Keys: ["builds/b-del.ipa"] });
 
     const afterDelete = await runResult(
       Effect.gen(function* () {
@@ -275,5 +281,53 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
     if (Result.isFailure(afterDelete)) {
       expect(afterDelete.failure).toMatchObject({ _tag: "NotFound" });
     }
+  });
+
+  it("surfaces an attached universal APK on reads and returns its key on delete", async () => {
+    await run(
+      Effect.gen(function* () {
+        const repo = yield* BuildRepo;
+        yield* repo.insert(insertParams("b-apk", "p-mut"));
+        const installRepo = yield* InstallArtifactRepo;
+        yield* installRepo.upsert({
+          buildId: "b-apk",
+          r2Key: "builds/b-apk.universal.apk",
+          contentType: "application/vnd.android.package-archive",
+          byteSize: 2048,
+          sha256: "cafebabe",
+        });
+      }),
+    );
+
+    const reread = await run(
+      Effect.gen(function* () {
+        const repo = yield* BuildRepo;
+        return yield* repo.findById({ id: "b-apk" });
+      }),
+    );
+    expect(reread.installArtifact).toMatchObject({
+      r2Key: "builds/b-apk.universal.apk",
+      byteSize: 2048,
+      sha256: "cafebabe",
+    });
+
+    const deleted = await run(
+      Effect.gen(function* () {
+        const repo = yield* BuildRepo;
+        return yield* repo.deleteById({ id: "b-apk" });
+      }),
+    );
+    expect(deleted).toStrictEqual({
+      r2Keys: ["builds/b-apk.ipa", "builds/b-apk.universal.apk"],
+    });
+
+    // The install row cascaded away with the build.
+    const key = await run(
+      Effect.gen(function* () {
+        const installRepo = yield* InstallArtifactRepo;
+        return yield* installRepo.findR2KeyByBuildId({ buildId: "b-apk" });
+      }),
+    );
+    expect(key).toBeNull();
   });
 });

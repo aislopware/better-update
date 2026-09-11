@@ -144,6 +144,7 @@ export const toApiBuild = (build: BuildWithArtifactModel) => ({
   fingerprintHash: build.fingerprintHash,
   createdAt: build.createdAt,
   artifact: build.artifact,
+  installArtifact: build.installArtifact,
 });
 
 const toApiBuildCompatibilityChannel = (channel: BuildCompatibilityChannelModel) => ({

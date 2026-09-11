@@ -168,7 +168,7 @@ const runAndroid = (params: AndroidRunParams) =>
     if (params.format === "aab") {
       return yield* new InvalidArgumentError({
         message:
-          ".aab artifacts cannot be installed directly. Use bundletool to convert to apks, or download the play-store APK.",
+          "This App Bundle build has no universal APK attached, and an .aab cannot be installed directly. Rebuild with the current CLI (the APK is attached automatically), or convert locally: bundletool build-apks --mode=universal.",
       });
     }
     if (params.format !== "apk") {
@@ -252,12 +252,22 @@ export const runCommand = defineCommand({
             });
           }
           const link = yield* api.builds.getInstallLink({ params: { id: build.id } });
+          // An `.aab` build installs through its universal APK companion when
+          // one was attached; the bundle itself is Play-only.
+          const installable =
+            artifact.format === "aab" && build.installArtifact && link.installUrl
+              ? {
+                  url: link.installUrl,
+                  format: "apk" as const,
+                  byteSize: build.installArtifact.byteSize,
+                }
+              : { url: link.artifactUrl, format: artifact.format, byteSize: artifact.byteSize };
           const tempDir = yield* acquireBuildTempDir;
-          const artifactPath = path.join(tempDir, `artifact.${artifact.format}`);
+          const artifactPath = path.join(tempDir, `artifact.${installable.format}`);
           yield* printHuman(
-            `Downloading ${artifact.format} artifact (${String(artifact.byteSize)} bytes)...`,
+            `Downloading ${installable.format} artifact (${String(installable.byteSize)} bytes)...`,
           );
-          const bytes = yield* fetchBytes(link.artifactUrl, "artifact");
+          const bytes = yield* fetchBytes(installable.url, "artifact");
           const fs = yield* FileSystem.FileSystem;
           yield* fs.writeFile(artifactPath, bytes);
 
@@ -265,21 +275,21 @@ export const runCommand = defineCommand({
             ? runIos({
                 tempDir,
                 artifactPath,
-                format: artifact.format,
+                format: installable.format,
                 simulatorSelector: args.simulator,
                 deviceSelector: args["device-id"],
                 useDevice: args.device ?? false,
               })
             : runAndroid({
                 artifactPath,
-                format: artifact.format,
+                format: installable.format,
                 emulatorSelector: args.emulator,
                 packageOverride: args.package,
               });
           return {
             buildId: build.id,
             platform: build.platform,
-            format: artifact.format,
+            format: installable.format,
             installed: true,
           };
         }),

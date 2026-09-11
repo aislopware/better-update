@@ -21,6 +21,7 @@ export { BuildRepo, BuildRepoLive } from "./builds";
 export { BuildStorageRepo, BuildStorageRepoLive } from "./build-storage";
 export { BundleRepo, BundleRepoLive } from "./bundle";
 export { DebugArtifactRepo, DebugArtifactRepoLive } from "./debug-artifacts";
+export { InstallArtifactRepo, InstallArtifactRepoLive } from "./install-artifacts";
 export { ChannelRepo, ChannelRepoLive } from "./channels";
 export { CompatibilityRepo, CompatibilityRepoLive } from "./compatibility";
 export { DeviceRepo, DeviceRepoLive } from "./devices";

@@ -9,7 +9,7 @@ import { provideCloudflareEnv } from "../cloudflare/context";
 import { verifyInstallToken } from "../domain/install-token";
 import { ServerInfrastructureLayer } from "../infrastructure-layer";
 import { escapeXml } from "../lib/xml";
-import { BuildRepo } from "../repositories";
+import { BuildRepo, InstallArtifactRepo } from "../repositories";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
 
@@ -23,11 +23,55 @@ const runBuildRouteEffect = async <Success, Failure>(
     ),
   );
 
-const findArtifactAccessInfoByIdAndOrg = (buildId: string, organizationId: string) =>
-  Effect.gen(function* () {
-    const repo = yield* BuildRepo;
-    return yield* repo.findArtifactAccessInfoByIdAndOrg({ id: buildId, organizationId });
-  });
+interface ArtifactAccessInfo {
+  readonly projectId: string;
+  readonly r2Key: string;
+}
+
+/**
+ * Which builds-bucket object a download route serves. The primary artifact
+ * and the universal APK attached to an `aab` build share one authorization
+ * story (signed install token, or a session holding `build:read` on the
+ * project); only the lookups differ.
+ */
+interface ArtifactSource {
+  readonly notFoundMessage: string;
+  readonly findR2KeyById: (
+    buildId: string,
+  ) => Effect.Effect<string | null, never, ServerInfrastructure>;
+  readonly findAccessInfoByIdAndOrg: (
+    buildId: string,
+    organizationId: string,
+  ) => Effect.Effect<ArtifactAccessInfo | null, never, ServerInfrastructure>;
+}
+
+const primaryArtifactSource: ArtifactSource = {
+  notFoundMessage: "Build artifact not found",
+  findR2KeyById: (buildId) =>
+    Effect.gen(function* () {
+      const repo = yield* BuildRepo;
+      return yield* repo.findArtifactR2KeyById({ id: buildId });
+    }),
+  findAccessInfoByIdAndOrg: (buildId, organizationId) =>
+    Effect.gen(function* () {
+      const repo = yield* BuildRepo;
+      return yield* repo.findArtifactAccessInfoByIdAndOrg({ id: buildId, organizationId });
+    }),
+};
+
+const installApkSource: ArtifactSource = {
+  notFoundMessage: "Build has no universal APK install artifact",
+  findR2KeyById: (buildId) =>
+    Effect.gen(function* () {
+      const repo = yield* InstallArtifactRepo;
+      return yield* repo.findR2KeyByBuildId({ buildId });
+    }),
+  findAccessInfoByIdAndOrg: (buildId, organizationId) =>
+    Effect.gen(function* () {
+      const repo = yield* InstallArtifactRepo;
+      return yield* repo.findAccessInfoByBuildIdAndOrg({ buildId, organizationId });
+    }),
+};
 
 // Session-fallback authorization for the artifact download (the signed-token
 // path is device-facing and already scoped by the token). This raw route runs
@@ -63,12 +107,6 @@ const isBuildReadAuthorized = (params: {
       projectId: params.projectId,
       buildId: params.buildId,
     });
-  });
-
-const findArtifactR2KeyById = (buildId: string) =>
-  Effect.gen(function* () {
-    const repo = yield* BuildRepo;
-    return yield* repo.findArtifactR2KeyById({ id: buildId });
   });
 
 const findInstallInfoById = (buildId: string) =>
@@ -130,6 +168,7 @@ const handleArtifactDownloadViaSession = async (
   request: Request,
   env: Env,
   buildId: string,
+  source: ArtifactSource,
 ): Promise<Response> => {
   const auth = createAuth(env);
   const session = await auth.api.getSession({ headers: request.headers });
@@ -157,12 +196,9 @@ const handleArtifactDownloadViaSession = async (
     );
   }
 
-  const access = await runBuildRouteEffect(findArtifactAccessInfoByIdAndOrg(buildId, orgId), env);
+  const access = await runBuildRouteEffect(source.findAccessInfoByIdAndOrg(buildId, orgId), env);
   if (!access) {
-    return Response.json(
-      { code: "NOT_FOUND", message: "Build artifact not found" },
-      { status: 404 },
-    );
+    return Response.json({ code: "NOT_FOUND", message: source.notFoundMessage }, { status: 404 });
   }
 
   const authorized = await runBuildRouteEffect(
@@ -191,6 +227,7 @@ export const handleBuildArtifactDownload = async (
   request: Request,
   env: Env,
   buildId: string,
+  source: ArtifactSource,
 ): Promise<Response> => {
   const url = new URL(request.url);
   const tokenValid = env.INSTALL_TOKEN_SECRET
@@ -204,15 +241,12 @@ export const handleBuildArtifactDownload = async (
     : false;
 
   if (!tokenValid) {
-    return handleArtifactDownloadViaSession(request, env, buildId);
+    return handleArtifactDownloadViaSession(request, env, buildId, source);
   }
 
-  const r2Key = await runBuildRouteEffect(findArtifactR2KeyById(buildId), env);
+  const r2Key = await runBuildRouteEffect(source.findR2KeyById(buildId), env);
   if (!r2Key) {
-    return Response.json(
-      { code: "NOT_FOUND", message: "Build artifact not found" },
-      { status: 404 },
-    );
+    return Response.json({ code: "NOT_FOUND", message: source.notFoundMessage }, { status: 404 });
   }
 
   const downloadUrl = await resolveBuildDownloadUrl(request, env, r2Key);
@@ -376,7 +410,14 @@ export const matchBuildRoute = async (
 
   const artifactMatch = /^\/api\/builds\/(?<buildId>[^/]+)\/artifact$/u.exec(pathname);
   if (artifactMatch?.[1] && request.method === "GET") {
-    return handleBuildArtifactDownload(request, env, artifactMatch[1]);
+    return handleBuildArtifactDownload(request, env, artifactMatch[1], primaryArtifactSource);
+  }
+
+  // The universal APK of an `aab` build: same token/session gate as the
+  // primary artifact, different object.
+  const installApkMatch = /^\/api\/builds\/(?<buildId>[^/]+)\/install-apk$/u.exec(pathname);
+  if (installApkMatch?.[1] && request.method === "GET") {
+    return handleBuildArtifactDownload(request, env, installApkMatch[1], installApkSource);
   }
 
   const installMatch = /^\/api\/builds\/(?<buildId>[^/]+)\/install$/u.exec(pathname);

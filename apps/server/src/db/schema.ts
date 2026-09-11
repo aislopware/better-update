@@ -86,6 +86,7 @@ export type BuildArtifacts = WithNonNullId<Narrow<Gen.BuildArtifacts, { format: 
 export type BuildDebugArtifacts = WithNonNullId<
   Narrow<Gen.BuildDebugArtifacts, { type: DebugArtifactType }>
 >;
+export type BuildInstallArtifacts = WithNonNullId<Gen.BuildInstallArtifacts>;
 export type Builds = WithNonNullId<
   Narrow<Gen.Builds, { distribution: Distribution; platform: Platform }>
 >;
@@ -181,6 +182,7 @@ export interface DB {
   branches: Branches;
   build_artifacts: BuildArtifacts;
   build_debug_artifacts: BuildDebugArtifacts;
+  build_install_artifacts: BuildInstallArtifacts;
   builds: Builds;
   channels: Channels;
   device_registration_requests: DeviceRegistrationRequests;

@@ -7,7 +7,6 @@ import type { Semaphore } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { runStep } from "../commands/build/run-step";
-import { uploadDebugArtifacts } from "../commands/build/upload-debug-artifacts";
 import { runBuildHook } from "../lib/build-hooks";
 import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
@@ -31,8 +30,8 @@ import { acquireBuildTempDir } from "../lib/temp-dir";
 import { printWarn } from "../lib/warning-style";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
-import { exportArtifact } from "./build-artifact-output";
 import { runAutoSubmit } from "./build-auto-submit";
+import { attachBuildCompanions, exportBuildOutputs, universalApkRow } from "./build-companions";
 import { runPlatformBuild } from "./platform-build";
 import { resolveExpoBuildMeta } from "./resolve-expo-build-meta";
 import { resolveNativeBuildMeta } from "./resolve-native-build-meta";
@@ -360,18 +359,16 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
 
       yield* printHuman(`Artifact produced: ${build.artifactPath}`);
 
-      const exportedArtifactPath =
-        options.output === undefined
-          ? undefined
-          : yield* exportArtifact({
-              artifactPath: build.artifactPath,
-              userCwd,
-              output: options.output,
-            });
+      const exportedArtifactPath = yield* exportBuildOutputs({
+        build,
+        userCwd,
+        output: options.output,
+      });
 
       if (options.noUpload) {
         yield* printKeyValue([
           ["Artifact", build.artifactPath],
+          ...universalApkRow(target, build.installArtifact?.path ?? "none"),
           ...(exportedArtifactPath ? [["Exported to", exportedArtifactPath] as const] : []),
           ["SHA-256", build.sha256],
           ["Bytes", String(build.byteSize)],
@@ -406,16 +403,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         }),
       });
 
-      // Best-effort: attach the captured crash-symbolication files (dSYM,
-      // JS sourcemap, R8 mapping, NDK symbols) to the build record so a
-      // future crash can be symbolicated by downloading them again.
-      const storedDebugArtifacts =
-        build.debugArtifacts.length === 0
-          ? []
-          : yield* uploadDebugArtifacts(api, {
-              buildId: result.id,
-              artifacts: build.debugArtifacts,
-            });
+      const companions = yield* attachBuildCompanions(api, { buildId: result.id, build });
 
       yield* printHuman("");
       yield* printKeyValue([
@@ -425,11 +413,12 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         ["Profile", profile.name],
         ...(runtimeVersion === undefined ? [] : [["Runtime version", runtimeVersion] as const]),
         ["Artifact", build.artifactPath],
+        ...universalApkRow(target, companions.universalApk),
         ["SHA-256", build.sha256],
         ["Bytes", String(build.byteSize)],
         [
           "Debug artifacts",
-          storedDebugArtifacts.length === 0 ? "none" : storedDebugArtifacts.join(", "),
+          companions.debugArtifacts.length === 0 ? "none" : companions.debugArtifacts.join(", "),
         ],
       ]);
 

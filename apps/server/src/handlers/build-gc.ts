@@ -39,7 +39,7 @@ const processProfileRetention = (
     }
 
     const runtime = yield* BuildRuntime;
-    yield* runtime.deleteObjects({ keys: batch.map((row) => row.r2Key) });
+    yield* runtime.deleteObjects({ keys: batch.flatMap((row) => row.r2Keys) });
     yield* repo.deleteArtifactMetadataBatch({ buildIds: batch.map((row) => row.id) });
 
     return yield* processProfileRetention(profile, cutoff, totalDeleted + batch.length);

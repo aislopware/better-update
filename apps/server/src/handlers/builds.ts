@@ -32,6 +32,10 @@ import {
   handleReserveDebugArtifact,
 } from "./build-debug-artifacts";
 import {
+  handleCompleteInstallArtifact,
+  handleReserveInstallArtifact,
+} from "./build-install-artifacts";
+import {
   completionMatchesReservation,
   KV_RESERVATION_TTL,
   parseReservation,
@@ -40,6 +44,7 @@ import {
   uploadExpiresAtIso,
 } from "./upload-reservation";
 
+import type { BuildWithArtifactModel } from "../models";
 import type { BuildSortKey, BuildSortOrder } from "../repositories/builds";
 
 const parseBuildSort = (
@@ -338,9 +343,9 @@ const handleDelete = ({ params }: { readonly params: { readonly id: string } }) 
       const debugRepo = yield* DebugArtifactRepo;
       const debugKeys = yield* debugRepo.listR2KeysByBuildIds({ buildIds: [params.id] });
 
-      const { r2Key } = yield* repo.deleteById({ id: params.id });
+      const { r2Keys } = yield* repo.deleteById({ id: params.id });
 
-      const keysToDelete = [...(r2Key ? [r2Key] : []), ...debugKeys];
+      const keysToDelete = [...r2Keys, ...debugKeys];
       if (keysToDelete.length > 0) {
         const runtime = yield* BuildRuntime;
         yield* runtime.deleteObjects({ keys: keysToDelete });
@@ -356,6 +361,34 @@ const handleDelete = ({ params }: { readonly params: { readonly id: string } }) 
       return { deleted: 1 };
     }),
   );
+
+/**
+ * What a device opens to install the build, or `null` when nothing is
+ * installable — see `InstallLinkResult` in `@better-update/api`. iOS needs
+ * the itms-services manifest (and a provisioning profile that allows a direct
+ * install); Android installs the universal APK attached to an `aab` build, or
+ * the `apk` artifact itself.
+ */
+const resolveInstallUrl = (params: {
+  readonly build: BuildWithArtifactModel;
+  readonly origin: string;
+  readonly artifactUrl: string;
+  readonly signed: string;
+}): string | null => {
+  const { build, origin, artifactUrl, signed } = params;
+  if (build.platform === "ios") {
+    return isOtaInstallableDistribution(build.distribution) &&
+      build.artifact?.format === "ipa" &&
+      build.bundleId !== null &&
+      build.appVersion !== null
+      ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${build.id}/install?${signed}`)}`
+      : null;
+  }
+  if (build.installArtifact) {
+    return `${origin}/api/builds/${build.id}/install-apk?${signed}`;
+  }
+  return build.artifact?.format === "apk" ? artifactUrl : null;
+};
 
 const handleGetInstallLink = ({ params }: { readonly params: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
@@ -382,18 +415,15 @@ const handleGetInstallLink = ({ params }: { readonly params: { readonly id: stri
       const env = yield* cloudflareEnv;
       const origin = env.PUBLIC_API_URL;
 
-      const artifactUrl = `${origin}/api/builds/${params.id}/artifact?token=${token}&expires=${expires}`;
+      const signed = `token=${token}&expires=${expires}`;
+      const artifactUrl = `${origin}/api/builds/${params.id}/artifact?${signed}`;
 
-      const installUrl =
-        build.platform === "ios" &&
-        isOtaInstallableDistribution(build.distribution) &&
-        build.artifact?.format === "ipa" &&
-        build.bundleId !== null &&
-        build.appVersion !== null
-          ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${params.id}/install?token=${token}&expires=${expires}`)}`
-          : null;
-
-      return { token, expires, artifactUrl, installUrl };
+      return {
+        token,
+        expires,
+        artifactUrl,
+        installUrl: resolveInstallUrl({ build, origin, artifactUrl, signed }),
+      };
     }),
   );
 
@@ -435,6 +465,8 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
     .handle("compatibilityMatrix", handleCompatibilityMatrix)
     .handle("delete", handleDelete)
     .handle("getInstallLink", handleGetInstallLink)
+    .handle("reserveInstallArtifact", handleReserveInstallArtifact)
+    .handle("completeInstallArtifact", handleCompleteInstallArtifact)
     .handle("reserveDebugArtifact", handleReserveDebugArtifact)
     .handle("completeDebugArtifact", handleCompleteDebugArtifact)
     .handle("listDebugArtifacts", handleListDebugArtifacts)

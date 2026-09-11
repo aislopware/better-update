@@ -362,6 +362,126 @@ describe("Builds API flow", () => {
     await expect(plistResponse.text()).resolves.toContain("software-package");
   });
 
+  // -- Android App Bundle + universal APK ----------------------------------
+
+  let aabBuildId: string;
+  const apkBytes = Buffer.from("e2e universal apk");
+  const apkSha256 = createHash("sha256").update(apkBytes).digest("hex");
+
+  it("uploads an .aab build that is not installable on its own", async () => {
+    const reserve = await post(
+      "/api/builds",
+      {
+        projectId,
+        platform: "android",
+        distribution: "play-store",
+        artifactFormat: "aab",
+        appVersion: "1.0.0",
+        buildNumber: "7",
+        bundleId: "com.example.app",
+        message: "Play Store build",
+        sha256: artifactSha256,
+        byteSize: artifactBytes.byteLength,
+      },
+      { cookie: cookies },
+    );
+    expect(reserve.status).toBe(201);
+    const reserved = await reserve.json<{ id: string }>();
+    aabBuildId = reserved.id;
+
+    const complete = await post(
+      `/api/builds/${aabBuildId}/complete`,
+      { sha256: artifactSha256, byteSize: artifactBytes.byteLength },
+      { cookie: cookies },
+    );
+    expect(complete.status).toBe(200);
+    const build = await complete.json();
+    expect(build.artifact.format).toBe("aab");
+    expect(build.installArtifact).toBeNull();
+
+    // No APK attached yet: the bundle downloads, but nothing installs.
+    const linkResponse = await get(`/api/builds/${aabBuildId}/install-link`, { cookie: cookies });
+    expect(linkResponse.status).toBe(200);
+    const links = await linkResponse.json();
+    expect(links.artifactUrl).toContain(`/api/builds/${aabBuildId}/artifact?token=`);
+    expect(links.installUrl).toBeNull();
+
+    const missing = await get(
+      `/api/builds/${aabBuildId}/install-apk?token=${String(links.token)}&expires=${String(links.expires)}`,
+    );
+    expect(missing.status).toBe(404);
+  });
+
+  it("rejects a universal APK on a non-aab build", async () => {
+    const response = await post(
+      `/api/builds/${buildId}/install-artifact`,
+      { sha256: apkSha256, byteSize: apkBytes.byteLength },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("attaches the universal APK and turns it into the install link", async () => {
+    const reserve = await post(
+      `/api/builds/${aabBuildId}/install-artifact`,
+      { sha256: apkSha256, byteSize: apkBytes.byteLength },
+      { cookie: cookies },
+    );
+    expect(reserve.status).toBe(201);
+    const reservation = await reserve.json();
+    expect(reservation.uploadUrl).toMatch(/./u);
+    expect(reservation.uploadHeaders["content-type"]).toBe(
+      "application/vnd.android.package-archive",
+    );
+
+    // The completion must restate the reservation exactly.
+    const mismatch = await post(
+      `/api/builds/${aabBuildId}/install-artifact/complete`,
+      { sha256: apkSha256, byteSize: apkBytes.byteLength + 1 },
+      { cookie: cookies },
+    );
+    expect(mismatch.status).toBe(400);
+
+    const complete = await post(
+      `/api/builds/${aabBuildId}/install-artifact/complete`,
+      { sha256: apkSha256, byteSize: apkBytes.byteLength },
+      { cookie: cookies },
+    );
+    expect(complete.status).toBe(200);
+    const attached = await complete.json();
+    expect(attached).toMatchObject({
+      buildId: aabBuildId,
+      byteSize: apkBytes.byteLength,
+      sha256: apkSha256,
+    });
+
+    const getResponse = await get(`/api/builds/${aabBuildId}`, { cookie: cookies });
+    const build = await getResponse.json();
+    expect(build.installArtifact).toMatchObject({ byteSize: apkBytes.byteLength });
+
+    const linkResponse = await get(`/api/builds/${aabBuildId}/install-link`, { cookie: cookies });
+    const links = await linkResponse.json();
+    expect(links.installUrl).toContain(`/api/builds/${aabBuildId}/install-apk?token=`);
+
+    // Same signed-token gate as the primary artifact; 302 to the presigned GET.
+    const install = new URL(links.installUrl, "http://localhost");
+    const redirect = await get(`${install.pathname}${install.search}`);
+    expect(redirect.status).toBe(302);
+
+    const unauthenticated = await get(`/api/builds/${aabBuildId}/install-apk`);
+    expect(unauthenticated.status).toBe(401);
+
+    // The session path honours the same project scoping as the artifact.
+    const viaSession = await get(`/api/builds/${aabBuildId}/install-apk`, { cookie: cookies });
+    expect(viaSession.status).toBe(302);
+  });
+
+  it("deletes the .aab build together with its universal APK", async () => {
+    const response = await del(`/api/builds/${aabBuildId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toStrictEqual({ deleted: 1 });
+  });
+
   it("deletes the build and its artifact record", async () => {
     const response = await del(`/api/builds/${buildId}`, {
       cookie: cookies,

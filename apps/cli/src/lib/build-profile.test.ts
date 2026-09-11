@@ -178,6 +178,16 @@ describe(fromGenericProfile, () => {
     });
   });
 
+  it("threads android.universalApk through, leaving it undefined (= on) by default", () => {
+    const optedOut = fromGenericProfile(
+      { android: { format: "aab", distribution: "play-store", universalApk: false } },
+      "store-no-apk",
+    );
+    expect(optedOut.android?.universalApk).toBe(false);
+    const defaulted = fromGenericProfile({ distribution: "store" }, "store");
+    expect(defaulted.android?.universalApk).toBeUndefined();
+  });
+
   it("threads the custom-command block onto customCommand", () => {
     const profile = fromGenericProfile(
       {

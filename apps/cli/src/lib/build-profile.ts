@@ -57,6 +57,8 @@ export interface AndroidProfile {
   readonly format: "apk" | "aab";
   readonly flavor?: string;
   readonly distribution: AndroidDistribution;
+  /** `aab` only: attach a universal APK for device installs. Default true. */
+  readonly universalApk?: boolean;
   readonly gradleCommand?: string;
   readonly autoIncrement?: AndroidAutoIncrement;
   /** Gradle module that produces the artifact. Default "app". */
@@ -257,6 +259,7 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
     distribution,
     buildType,
     flavor: android.flavor,
+    universalApk: android.universalApk,
     gradleCommand: android.gradleCommand,
     autoIncrement,
     module: android.module,

@@ -114,7 +114,9 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
     const target: BuildTarget = isSimulator
       ? { platform: "ios", distribution: "simulator", artifactFormat: "tar.gz" }
       : { platform: "ios", distribution: iosProfile.distribution, artifactFormat: "ipa" };
-    return { build, target, bundleId: iosBundleId };
+    // Only an Android App Bundle carries a universal-APK companion; both
+    // branches still hand the workflow one result shape.
+    return { build: { ...build, installArtifact: undefined }, target, bundleId: iosBundleId };
   });
 
 const runAndroidPlatformBuild = (input: PlatformBuildInput) =>

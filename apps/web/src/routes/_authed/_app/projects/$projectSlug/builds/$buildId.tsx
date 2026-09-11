@@ -164,6 +164,20 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
           </span>
           <CopyButton value={build.artifact.r2Key} label="Storage key" />
         </DetailStat>
+        {/* An App Bundle is Play-only; the universal APK beside it is what a
+            device installs, so its presence (or absence) belongs with the file. */}
+        {build.artifact.format === "aab" ? (
+          <DetailStat label="Universal APK">
+            {build.installArtifact ? (
+              <>
+                APK · {formatBytes(build.installArtifact.byteSize)}
+                <CopyButton value={build.installArtifact.sha256} label="Universal APK SHA-256" />
+              </>
+            ) : (
+              <span className="text-kumo-subtle">Not attached — rebuild with the current CLI</span>
+            )}
+          </DetailStat>
+        ) : null}
       </DetailStatStrip>
     ) : (
       <ListPanelFooter>

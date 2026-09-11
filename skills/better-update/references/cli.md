@@ -274,13 +274,13 @@ better-update builds list [--platform <ios|android>] [--profile <name>] [--runti
                           [--distribution <app-store|ad-hoc|development|enterprise|simulator|play-store|direct>] \
                           [--sort <createdAt|platform|distribution|runtimeVersion|appVersion>] [--limit <n>=10]
 better-update builds get <id>
-better-update builds download <id> [--output <path>]          # download artifact (.ipa/.apk/.aab); default ./<id>.<ext>
+better-update builds download <id> [--output <path>] [--apk]  # download artifact (.ipa/.apk/.aab); --apk = universal APK of an .aab build
 better-update builds download-symbols <id> [--type <dsym|js-sourcemap|proguard-mapping|native-symbols>] \
                                       [--output <dir>]        # download stored debug symbols for crash symbolication
 better-update builds run [<id>] [--latest] [--platform <ios|android>] [--simulator <name|udid>] \
                          [--device-id <udid>] [--device] [--emulator <serial>] [--package <name>]   # install + launch on a sim/emulator/device
 better-update builds delete <id>
-better-update builds install-link <id>                        # → artifactUrl, installUrl (iOS itms-services), expires
+better-update builds install-link <id>                        # → artifactUrl, installUrl (iOS itms-services / Android APK / null), expires
 better-update builds compatibility-matrix                     # runtime-version coverage per channel; flags gaps
 better-update builds upload <artifact-path> --platform <ios|android> [--profile <name>=production] [--message <text>]
 better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]   # re-sign an iOS build with a new profile (iOS only)

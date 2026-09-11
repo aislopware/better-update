@@ -44,9 +44,28 @@ const ExpiryBadge = ({ expires }: { expires: number }) => {
   );
 };
 
-const InstallLinkBody = ({ buildId }: { buildId: string }) => {
+/**
+ * What the primary link does, so the badge and the QR caption tell the truth:
+ * an iOS install manifest, an Android APK a device installs on tap, or a bare
+ * download of something a device cannot install (an App Store `.ipa`, a
+ * simulator tarball, or an App Bundle uploaded without its universal APK).
+ */
+const linkKind = (build: BuildWithArtifact, installUrl: string | null) => {
+  if (installUrl === null) {
+    return "download" as const;
+  }
+  return build.platform === "ios" ? ("ios-install" as const) : ("android-apk" as const);
+};
+
+const LINK_BADGES = {
+  "ios-install": { variant: "secondary", label: "iOS Install" },
+  "android-apk": { variant: "secondary", label: "Android APK" },
+  download: { variant: "outline", label: "Download link" },
+} as const;
+
+const InstallLinkBody = ({ build }: { build: BuildWithArtifact }) => {
   const fetchInstallLinkMutation = useApiMutation({
-    mutationFn: async () => fetchInstallLink(buildId),
+    mutationFn: async () => fetchInstallLink(build.id),
   });
 
   useMountEffect(() => {
@@ -56,7 +75,15 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
   const { status } = fetchInstallLinkMutation;
   const data = status === "success" ? fetchInstallLinkMutation.data : null;
   const primaryUrl = data ? (data.installUrl ?? data.artifactUrl) : "";
-  const isIosInstall = data !== null && data.installUrl !== null;
+  const kind = data ? linkKind(build, data.installUrl) : "download";
+  const badge = LINK_BADGES[kind];
+  // An `.aab` with no universal APK is the one case where the link looks
+  // installable and is not: the file downloads fine and then will not install.
+  const isBareAab = kind === "download" && build.artifact?.format === "aab";
+  // The bundle itself is still worth a link next to the APK — it is what
+  // gets submitted to Play.
+  const showArtifactUrl =
+    data !== null && data.installUrl !== null && data.installUrl !== data.artifactUrl;
 
   return (
     <>
@@ -91,16 +118,22 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
 
       {data ? (
         <div className="flex flex-col items-center gap-4">
+          {isBareAab ? (
+            <Banner
+              variant="alert"
+              size="sm"
+              icon={<WarningCircleIcon weight="fill" />}
+              title="Not installable on a device"
+              description="This App Bundle has no universal APK attached, and a phone cannot install an .aab. Rebuild with the current CLI to attach one, or convert it locally with bundletool."
+            />
+          ) : null}
+
           <div className="rounded-md border bg-white p-4">
             <QRCodeSVG value={primaryUrl} size={200} level="M" />
           </div>
 
           <div className="flex items-center gap-2">
-            {isIosInstall ? (
-              <Badge variant="secondary">iOS Install</Badge>
-            ) : (
-              <Badge variant="outline">Download link</Badge>
-            )}
+            <Badge variant={badge.variant}>{badge.label}</Badge>
             <ExpiryBadge expires={data.expires} />
           </div>
 
@@ -112,7 +145,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
               </InputGroup.Addon>
             </InputGroup>
 
-            {isIosInstall ? (
+            {showArtifactUrl ? (
               <InputGroup>
                 <InputGroup.Input readOnly value={data.artifactUrl} className="font-mono text-xs" />
                 <InputGroup.Addon align="end">
@@ -195,7 +228,7 @@ export const InstallLinkDialog = ({
               Scan the QR code on a device, or copy the link to share.
             </DialogDescription>
           </DialogHeader>
-          <InstallLinkBody key={resetKey} buildId={build.id} />
+          <InstallLinkBody key={resetKey} build={build} />
         </DialogContent>
       </Dialog>
     </>

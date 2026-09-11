@@ -23,6 +23,11 @@ export const downloadCommand = defineCommand({
       type: "string",
       description: "Output path (default: ./<id>.<ext> inferred from artifact format)",
     },
+    apk: {
+      type: "boolean",
+      description:
+        "For an .aab build, download the attached universal APK (device-installable) instead of the bundle",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -41,10 +46,22 @@ export const downloadCommand = defineCommand({
         }
 
         const link = yield* api.builds.getInstallLink({ params: { id: args.id } });
-        const ext = artifact.format;
+        const wantsApk = args.apk === true;
+        if (wantsApk && (artifact.format !== "aab" || !build.installArtifact || !link.installUrl)) {
+          return yield* new UploadFailedError({
+            message:
+              artifact.format === "aab"
+                ? `Build ${args.id} has no universal APK attached. Rebuild with the current CLI to get one.`
+                : `--apk only applies to .aab builds; build ${args.id} is ${artifact.format}.`,
+          });
+        }
+        const ext = wantsApk ? "universal.apk" : artifact.format;
         const outputPath = args.output ?? path.join(cwd, `${args.id}.${ext}`);
 
-        const bytes = yield* fetchBytes(link.artifactUrl, "artifact");
+        const bytes = yield* fetchBytes(
+          wantsApk ? (link.installUrl ?? link.artifactUrl) : link.artifactUrl,
+          "artifact",
+        );
         yield* fs.writeFile(outputPath, bytes);
 
         yield* printKeyValue([
