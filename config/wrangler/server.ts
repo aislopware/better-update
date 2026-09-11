@@ -128,7 +128,12 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
-    // 0.75.0 and older mis-file every macOS signing certificate. They send no
+    // 0.77.3 and older upload an Android App Bundle build bare: no universal
+    // APK beside it, so the dashboard's Install link, `builds run` and QA have
+    // nothing a device can install — an `.aab` is Play-only. The APK must be
+    // built by the CLI (same Gradle run, same upload key); the server cannot
+    // derive it because the keystore is sealed in the zero-knowledge vault.
+    // (0.75.0 and older mis-file every macOS signing certificate. They send no
     // certificate kind at all and never read the `UID` subject attribute that
     // identifies a Developer ID certificate (node-forge has no name for that
     // OID, so the lookup silently found nothing), so a Developer ID or Mac App
@@ -157,7 +162,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // org, reported as success. 0.71.4 and older never baked
     // `expo-channel-name` or a runtimeVersion into non-Expo builds, so their
     // updates published green and reached nobody. All covered by this bound.)
-    REQUIRE_CLI_VERSION_ABOVE: "0.75.0",
+    REQUIRE_CLI_VERSION_ABOVE: "0.77.3",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
