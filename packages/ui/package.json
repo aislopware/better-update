@@ -15,7 +15,7 @@
     "lint:check": "oxlint"
   },
   "dependencies": {
-    "@cloudflare/kumo": "^2.12.0",
+    "@cloudflare/kumo": "^2.13.2",
     "@phosphor-icons/react": "^2.1.10",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -25,10 +25,10 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8"
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0"
   },
   "peerDependencies": {
-    "react": ">=19.2.8"
+    "react": ">=19.3.0"
   }
 }

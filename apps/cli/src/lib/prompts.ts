@@ -27,8 +27,12 @@ const ensureInteractive = (
     return undefined;
   });
 
+// @clack/prompts 1.8 types `isCancel` as a guard for its `CANCEL_SYMBOL` while
+// every prompt still resolves `Value | symbol`, so the guard alone no longer
+// narrows the union. The cancel symbol is the only symbol a prompt ever yields,
+// which is what the `typeof` check states for the type system.
 const handleCancel = <T>(value: T | symbol): T => {
-  if (isCancel(value)) {
+  if (isCancel(value) || typeof value === "symbol") {
     cancel("Operation cancelled.");
     // eslint-disable-next-line eslint-plugin-unicorn/no-process-exit -- SIGINT at a CLI prompt must terminate the process; throwing would leave Effect runtime stuck
     process.exit(130);
@@ -141,3 +145,19 @@ export const promptConfirm = (
     );
     return handleCancel(value);
   });
+
+/**
+ * Ask for an App Store Connect issuer ID. Team keys have one; an individual
+ * key does not, so an empty answer means "no issuer" rather than a retry.
+ */
+export const promptIssuerId = (): Effect.Effect<
+  string | undefined,
+  InteractiveProhibitedError,
+  InteractiveMode
+> =>
+  promptText("ASC issuer ID (UUID) — leave empty for an individual key").pipe(
+    Effect.map((value) => {
+      const trimmed = value.trim();
+      return trimmed.length === 0 ? undefined : trimmed;
+    }),
+  );

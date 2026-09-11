@@ -57,7 +57,8 @@ export const Table = ({
         // which is what lets a rounded corner clip it and still follow the row
         // through hover.
         //
-        // Kumo 2.11 stripes its default row (`even:bg-kumo-tint`), which groups
+        // Kumo stripes its default row (`even:bg-kumo-tint` since 2.11,
+        // `even:bg-kumo-elevated` since 2.13), which groups
         // the rows a second time on top of the rules below — two bands of
         // colour *and* a line between every pair, saying the same thing twice.
         // The reset carries the `:nth-child` the striping does, so it outranks

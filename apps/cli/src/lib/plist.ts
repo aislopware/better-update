@@ -1,8 +1,7 @@
 import plistMod from "@expo/plist";
+import { parseBuffer as parseBplistBuffer } from "bplist-parser";
 
 import type { PlistObject } from "@expo/plist";
-// eslint-disable-next-line import-plugin/no-namespace -- bplist-parser typings have no named export; used only as `typeof BplistParser` for the CJS require result
-import type * as BplistParser from "bplist-parser";
 
 export type { PlistObject } from "@expo/plist";
 
@@ -31,16 +30,13 @@ export const buildPlistXml = (value: PlistObject): string => plist.build(value);
 
 /**
  * Parse a binary plist buffer into a typed object.
- * Uses bplist-parser for Apple's binary plist format.
+ * Uses bplist-parser for Apple's binary plist format. The parser returns the
+ * top-level object wrapped in a one-element array; `PlistObject` is the shape
+ * every caller consumes, so it is the type argument rather than a cast.
  */
 export const parsePlistBinary = (buffer: Buffer): PlistObject => {
-  const bplistParser =
-    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- CJS require returns `any`; narrow to the package's own typings at the boundary
-    require("bplist-parser") as typeof BplistParser;
-  // eslint-disable-next-line typescript/no-unsafe-assignment -- bplist-parser typings declare parseBuffer<T>(): T[] with T=any in the shipped .d.ts
-  const [result] = bplistParser.parseBuffer(buffer);
-  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- bplist-parser typings return `any[]`; PlistObject is the superset shape we consume
-  return result as PlistObject;
+  const [result] = parseBplistBuffer<PlistObject>(buffer);
+  return result;
 };
 
 const BPLIST_MAGIC = Buffer.from("bplist00");

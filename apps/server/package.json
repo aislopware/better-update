@@ -34,7 +34,7 @@
     "typegen:cf": "bun run config:gen && wrangler types"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.7.2",
+    "@better-auth/passkey": "^1.7.4",
     "@better-update/api": "workspace:*",
     "@better-update/dotenv": "workspace:*",
     "@better-update/encoding": "workspace:*",
@@ -44,22 +44,22 @@
     "@better-update/type-guards": "workspace:*",
     "@noble/hashes": "^2.4.0",
     "@xmldom/xmldom": "^0.9.12",
-    "better-auth": "^1.7.2",
-    "effect": "4.0.0-rc.112",
+    "better-auth": "^1.7.4",
+    "effect": "4.0.0-rc.113",
     "es-toolkit": "^1.52.0",
     "kysely": "^0.29.5",
-    "s3mini": "^1.0.0",
-    "structured-headers": "^2.0.3"
+    "s3mini": "^1.0.1",
+    "structured-headers": "^2.1.0"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.54.2",
+    "@cloudflare/vite-plugin": "^1.54.8",
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@vitest/coverage-istanbul": "^4.1.11",
     "kysely-bun-sqlite": "^0.4.0",
     "kysely-codegen": "^0.20.0",
-    "vite": "^8.2.2",
-    "wrangler": "^4.127.1"
+    "vite": "^8.3.0",
+    "wrangler": "^4.131.1"
   }
 }

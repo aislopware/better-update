@@ -53,8 +53,13 @@ export const DialogContent = ({ className, children, ...props }: KumoDialogPopup
     // eslint-disable-next-line react/jsx-props-no-spreading -- chrome wrapper over Kumo's Dialog popup
     {...props}
     // The cap keeps a tall dialog inside the viewport rather than running off
-    // both ends of it.
-    className={cn("flex max-h-[calc(100dvh-4rem)] flex-col text-sm", className)}
+    // the bottom of it. Kumo 2.13 anchors the popup near the top (`top-8`,
+    // `sm:top-16`) instead of centring it, so the cap is the viewport less the
+    // top offset and an equal margin below.
+    className={cn(
+      "flex max-h-[calc(100dvh-4rem)] flex-col text-sm sm:max-h-[calc(100dvh-8rem)]",
+      className,
+    )}
   >
     <div
       data-slot="dialog-body"

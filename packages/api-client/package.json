@@ -14,7 +14,7 @@
   "dependencies": {
     "@better-update/api": "workspace:*",
     "@better-update/type-guards": "workspace:*",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0-rc.113"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
@@ -22,6 +22,6 @@
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.102.8",
-    "react": "^19.2.8"
+    "react": "^19.3.0"
   }
 }

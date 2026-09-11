@@ -3,7 +3,6 @@
   "workspaces": {
     ".": {
       "ignoreDependencies": [
-        "@effect/tsgo",
         "@lerna-lite/publish",
         "@tanstack/eslint-plugin-router",
         "@tanstack/react-query",
@@ -31,7 +30,7 @@
     "apps/cli": {
       "entry": ["tests/interactive/harness/**/*.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": ["expo"],
+      "ignoreDependencies": ["expo", "@effect/platform-node-shared"],
       "ignoreBinaries": ["openssl", "keytool"]
     },
     "packages/api": {

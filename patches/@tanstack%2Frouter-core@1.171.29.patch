@@ -1,8 +1,8 @@
 diff --git a/dist/cjs/load-client.cjs b/dist/cjs/load-client.cjs
-index 8043b37cc6a79144ba5d346e20db6fb4162bb7f2..f0f2de0aa0e5fe75d79ac5b2864ee3a52d973eba 100644
+index 6284b2353bd2acb96dc6a191f9b7bb6c8648f0e0..5752a6fc7cc0bb0d6038101676c1298eaf1b8129 100644
 --- a/dist/cjs/load-client.cjs
 +++ b/dist/cjs/load-client.cjs
-@@ -700,10 +700,17 @@ function offerPending(router, tx) {
+@@ -719,10 +719,17 @@ function offerPending(router, tx) {
  			}
  			session[2] = 0;
  		}
@@ -25,10 +25,10 @@ index 8043b37cc6a79144ba5d346e20db6fb4162bb7f2..f0f2de0aa0e5fe75d79ac5b2864ee3a5
  		const ack = session[4] = router.startTransition(() => router.stores.setMatches(offered), offered).then((rendered) => {
  			if (rendered && router._pending === session && session[4] === ack && !session[2]) session[2] = Date.now() + min;
 diff --git a/dist/esm/load-client.js b/dist/esm/load-client.js
-index 4272c2ecff7760177655f22e2a528062759e265d..4525fc6109adcb13aa0edc8dad2ee1eec7f13477 100644
+index 3393414e381935d65e48efc9c681afabf05c4490..6c85476333476a3c1a611eab62a5bf349210604f 100644
 --- a/dist/esm/load-client.js
 +++ b/dist/esm/load-client.js
-@@ -700,10 +700,17 @@ function offerPending(router, tx) {
+@@ -719,10 +719,17 @@ function offerPending(router, tx) {
  			}
  			session[2] = 0;
  		}

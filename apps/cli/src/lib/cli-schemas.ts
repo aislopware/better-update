@@ -23,7 +23,7 @@ const INVALID_KEY_VALUE = "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)";
 
 export const KeyValueFromString = Schema.String.pipe(
   Schema.decodeTo(KeyValuePair, {
-    decode: SchemaGetter.transformOrFail((input: string) => {
+    decode: SchemaGetter.transformEffect((input: string) => {
       const eqIndex = input.indexOf("=");
       return eqIndex <= 0
         ? Effect.fail(new SchemaIssue.InvalidValue({ message: INVALID_KEY_VALUE }, input))

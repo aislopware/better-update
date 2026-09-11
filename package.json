@@ -40,38 +40,36 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
-    "@tanstack/react-router": "^1.170.32",
+    "@tanstack/react-router": "^1.170.35",
     "kysely": "^0.29.5"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@effect/language-service": "^0.87.2",
-    "@effect/tsgo": "^0.38.0",
-    "@effect/vitest": "4.0.0-rc.112",
+    "@effect/vitest": "4.0.0-rc.113",
     "@lerna-lite/cli": "^5.6.1",
     "@lerna-lite/publish": "^5.6.1",
     "@tanstack/eslint-plugin-router": "^1.162.0",
     "@types/node": "^26.4.0",
     "conventional-changelog-conventionalcommits": "^10.4.0",
-    "knip": "^6.33.0",
+    "knip": "^6.35.1",
     "lefthook": "^2.1.12",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0",
-    "oxlint-plugin-eslint": "1.80.0",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "oxlint-plugin-eslint": "1.82.0",
     "oxlint-tsgolint": "^7.0.2001",
     "portless": "^0.15.6",
     "turbo": "^2.10.12",
-    "type-fest": "^5.8.0",
+    "type-fest": "^5.9.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "overrides": {
     "kysely": "0.29.5"
   },
-  "packageManager": "bun@1.4.0",
+  "packageManager": "bun@1.4.2",
   "patchedDependencies": {
-    "@tanstack/react-router@1.170.32": "patches/@tanstack%2Freact-router@1.170.32.patch",
-    "@tanstack/router-core@1.171.27": "patches/@tanstack%2Frouter-core@1.171.27.patch"
+    "@tanstack/router-core@1.171.29": "patches/@tanstack%2Frouter-core@1.171.29.patch"
   }
 }
