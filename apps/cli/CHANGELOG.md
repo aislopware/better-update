@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.78.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.77.3...%40better-update%2Fcli%400.78.0) (2026-09-11)
+
+### Features
+
+* **build:** attach a universal APK to Android App Bundle builds ([621ff9b](https://github.com/better-update/better-update/commit/621ff9b8afe830ecd1062847d8c03b9b47e72a32))
+
 ## [0.77.3](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.77.2...%40better-update%2Fcli%400.77.3) (2026-08-29)
 
 **Note:** Version bump only for package @better-update/cli

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.53.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi%400.52.2...%40better-update%2Fapi%400.53.0) (2026-09-11)
+
+### Features
+
+* **build:** attach a universal APK to Android App Bundle builds ([621ff9b](https://gitlab.jmango360.com/mobile/better-update/-/commit/621ff9b8afe830ecd1062847d8c03b9b47e72a32))
+
 ## [0.52.2](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi%400.52.1...%40better-update%2Fapi%400.52.2) (2026-08-29)
 
 **Note:** Version bump only for package @better-update/api
