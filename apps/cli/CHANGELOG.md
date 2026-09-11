@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.78.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.78.0...%40better-update%2Fcli%400.78.1) (2026-09-11)
+
+### Bug Fixes
+
+* **cli:** pin @effect/platform-node-shared to the effect rc ([6e9a386](https://github.com/better-update/better-update/commit/6e9a3860e87583d54b20eb01e8bb55d85d8f7387))
+
 ## [0.78.0](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.77.3...%40better-update%2Fcli%400.78.0) (2026-09-11)
 
 ### Features
