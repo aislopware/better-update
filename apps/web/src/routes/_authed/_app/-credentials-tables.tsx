@@ -166,8 +166,13 @@ export const AscApiKeysTable = ({
                   sub-line in the Google service account table. */}
               <span className="text-kumo-subtle flex min-w-0 items-center gap-1 overflow-hidden font-mono text-xs">
                 <CopyableId value={key.keyId} label="Key ID" length={10} />
-                <span aria-hidden>·</span>
-                <CopyableId value={key.issuerId} label="Issuer ID" />
+                {/* An individual App Store Connect key has no issuer. */}
+                {key.issuerId ? (
+                  <>
+                    <span aria-hidden>·</span>
+                    <CopyableId value={key.issuerId} label="Issuer ID" />
+                  </>
+                ) : null}
               </span>
             </div>
           </TableCell>

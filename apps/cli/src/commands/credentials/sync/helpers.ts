@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import type { FileSystem } from "effect";
@@ -145,13 +146,14 @@ export const buildIosFromMeta = (
   }
   if (params.ascFirst) {
     const asc = params.storage.get(params.ascFirst.id);
-    if (asc?.extras?.["keyId"] && asc.extras["issuerId"]) {
+    // The issuer is absent for an individual App Store Connect key.
+    if (asc?.extras?.["keyId"]) {
       return {
         ...result,
         ascApiKey: {
           path: asc.relPath,
           keyId: asc.extras["keyId"],
-          issuerId: asc.extras["issuerId"],
+          ...compact({ issuerId: asc.extras["issuerId"] }),
         },
       };
     }

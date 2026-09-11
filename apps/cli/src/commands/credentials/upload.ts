@@ -31,7 +31,7 @@ export const uploadCommand = defineCommand({
     "key-alias": { type: "string", description: "Keystore alias" },
     "key-password": { type: "string", description: "Keystore key password" },
     "key-id": { type: "string", description: "ASC API key ID" },
-    "issuer-id": { type: "string", description: "ASC API issuer ID" },
+    "issuer-id": { type: "string", description: "ASC API issuer ID (team keys only)" },
     "apple-team-identifier": { type: "string", description: "Apple Team ID" },
     "bundle-identifier": {
       type: "string",

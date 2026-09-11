@@ -49,7 +49,8 @@ export type StagedNotaryCredentials =
       /** Path of the staged `.p8`. */
       readonly p8Path: string;
       readonly keyId: string;
-      readonly issuerId: string;
+      /** `null` for an individual key — `notarytool` then takes no `--issuer`. */
+      readonly issuerId: string | null;
     }
   | {
       readonly kind: "app-specific-password";
@@ -61,7 +62,13 @@ export type StagedNotaryCredentials =
 /** Build the notarytool auth argv for staged credentials. Exported for tests. */
 export const buildNotaryAuthArgs = (staged: StagedNotaryCredentials): readonly string[] =>
   staged.kind === "asc-api-key"
-    ? ["--key", staged.p8Path, "--key-id", staged.keyId, "--issuer", staged.issuerId]
+    ? [
+        "--key",
+        staged.p8Path,
+        "--key-id",
+        staged.keyId,
+        ...(staged.issuerId === null ? [] : ["--issuer", staged.issuerId]),
+      ]
     : ["--apple-id", staged.appleId, "--team-id", staged.teamId, "--password", staged.password];
 
 /**

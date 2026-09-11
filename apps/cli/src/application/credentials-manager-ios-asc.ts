@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Console, Effect } from "effect";
 
 import {
@@ -7,7 +8,7 @@ import {
 import { uploadCredential } from "../lib/credentials-manager";
 import { MissingCredentialsError } from "../lib/exit-codes";
 import { printKeyValue } from "../lib/output";
-import { promptSelect, promptText } from "../lib/prompts";
+import { promptIssuerId, promptSelect, promptText } from "../lib/prompts";
 import { AppleAuth } from "../services/apple-auth";
 import {
   announce,
@@ -26,7 +27,7 @@ const uploadIosAscKey = (ctx: WizardContext) =>
     const keyId = (yield* promptText("ASC key ID (10 uppercase alphanumeric)"))
       .trim()
       .toUpperCase();
-    const issuerId = yield* promptText("ASC issuer ID (UUID)");
+    const issuerId = yield* promptIssuerId();
     const p8Path = yield* promptText("Path to the ASC AuthKey_XXXXXXXXXX.p8 file");
     const rawName = yield* promptText("Display name", { defaultValue: keyId });
     const name = rawName.length === 0 ? keyId : rawName;
@@ -36,7 +37,7 @@ const uploadIosAscKey = (ctx: WizardContext) =>
       name,
       filePath: p8Path,
       keyId,
-      issuerId,
+      ...compact({ issuerId }),
     });
     yield* Console.log("ASC API key uploaded.");
     yield* printKeyValue([
@@ -102,7 +103,7 @@ const uploadNewAscKey = (ctx: WizardContext) =>
     const keyId = (yield* promptText("ASC key ID (10 uppercase alphanumeric)"))
       .trim()
       .toUpperCase();
-    const issuerId = yield* promptText("ASC issuer ID (UUID)");
+    const issuerId = yield* promptIssuerId();
     const p8Path = yield* promptText("Path to the ASC AuthKey_XXXXXXXXXX.p8 file");
     const rawName = yield* promptText("Display name", { defaultValue: keyId });
     const name = rawName.length === 0 ? keyId : rawName;
@@ -112,7 +113,7 @@ const uploadNewAscKey = (ctx: WizardContext) =>
       name,
       filePath: p8Path,
       keyId,
-      issuerId,
+      ...compact({ issuerId }),
     });
     yield* Console.log(`ASC API key ${keyId} uploaded.`);
     return created.id;

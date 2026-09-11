@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { uploadCredential } from "../../lib/credentials-manager";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
-import { promptText } from "../../lib/prompts";
+import { promptIssuerId, promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
 export const uploadAscKeyCommand = defineCommand({
@@ -17,7 +17,10 @@ export const uploadAscKeyCommand = defineCommand({
   args: {
     p8: { type: "string", required: true, description: "Path to the AuthKey_XXXXXXXXXX.p8 file" },
     "key-id": { type: "string", description: "ASC key ID (10 uppercase alphanumeric)" },
-    "issuer-id": { type: "string", description: "ASC issuer ID (UUID)" },
+    "issuer-id": {
+      type: "string",
+      description: "ASC issuer ID (UUID) — team keys only; omit for an individual key",
+    },
     "apple-team-identifier": {
       type: "string",
       description: "Apple Team identifier (optional, derived from token at first use)",
@@ -30,7 +33,7 @@ export const uploadAscKeyCommand = defineCommand({
         const api = yield* apiClient;
         const keyId =
           args["key-id"] ?? (yield* promptText("ASC key ID (10 uppercase alphanumeric)"));
-        const issuerId = args["issuer-id"] ?? (yield* promptText("ASC issuer ID (UUID)"));
+        const issuerId = args["issuer-id"] ?? (yield* promptIssuerId());
         const name = args.name ?? keyId;
         const credential = yield* uploadCredential(api, {
           platform: "ios",
@@ -38,8 +41,7 @@ export const uploadAscKeyCommand = defineCommand({
           name,
           filePath: args.p8,
           keyId,
-          issuerId,
-          ...compact({ appleTeamIdentifier: args["apple-team-identifier"] }),
+          ...compact({ issuerId, appleTeamIdentifier: args["apple-team-identifier"] }),
         });
         yield* printHuman("ASC API key uploaded.");
         yield* printHumanKeyValue([

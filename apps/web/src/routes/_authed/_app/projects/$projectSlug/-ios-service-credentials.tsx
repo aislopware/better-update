@@ -74,7 +74,12 @@ const AscKeyCard = ({
           <CopyableMono value={ascKey.keyId} label="Key ID" />
         </DetailStat>
         <DetailStat label="Issuer ID">
-          <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
+          {ascKey.issuerId ? (
+            <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
+          ) : (
+            // An individual App Store Connect key has no issuer.
+            <span className="text-kumo-subtle">Individual key</span>
+          )}
         </DetailStat>
         {team ? (
           <DetailStat label="Apple Team">

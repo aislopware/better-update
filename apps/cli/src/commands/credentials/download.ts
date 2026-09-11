@@ -291,13 +291,15 @@ const downloadAscApiKey = ({ api, id, cwd, output }: DownloadCtx) =>
         ["Path", filePath],
         ["Type", "App Store Connect API key (.p8)"],
         ["Key ID", data.keyId],
-        ["Issuer ID", data.issuerId],
+        ["Issuer ID", data.issuerId ?? "- (individual key)"],
         ["Apple team", data.appleTeamIdentifier ?? "-"],
       ] as const,
       metadata: {
         keyId: data.keyId,
-        issuerId: data.issuerId,
-        ...compact({ appleTeamIdentifier: toOptional(data.appleTeamIdentifier) }),
+        ...compact({
+          issuerId: toOptional(data.issuerId),
+          appleTeamIdentifier: toOptional(data.appleTeamIdentifier),
+        }),
       },
     } satisfies DownloadResult;
   });

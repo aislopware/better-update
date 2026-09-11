@@ -19,7 +19,8 @@ export interface IosPushKeyEntry {
 export interface IosAscApiKeyEntry {
   readonly path: string;
   readonly keyId: string;
-  readonly issuerId: string;
+  /** Absent for an individual App Store Connect key, which has no issuer. */
+  readonly issuerId?: string;
 }
 
 export interface IosAdditionalProvisioningProfileEntry {
@@ -73,6 +74,13 @@ const asString = (value: unknown, field: string): Effect.Effect<string, Credenti
         }),
       );
 
+/** Like {@link asString}, but an absent field is `undefined` rather than an error. */
+const asOptionalString = (
+  value: unknown,
+  field: string,
+): Effect.Effect<string | undefined, CredentialsJsonError> =>
+  value === undefined || value === null ? Effect.succeed(undefined) : asString(value, field);
+
 const parseIosDistributionCertificate = (
   raw: unknown,
 ): Effect.Effect<IosDistributionCertificateEntry, CredentialsJsonError> =>
@@ -115,7 +123,9 @@ const parseIosAscApiKey = (raw: unknown): Effect.Effect<IosAscApiKeyEntry, Crede
     return {
       path: yield* asString(record["path"], "ios.ascApiKey.path"),
       keyId: yield* asString(record["keyId"], "ios.ascApiKey.keyId"),
-      issuerId: yield* asString(record["issuerId"], "ios.ascApiKey.issuerId"),
+      ...compact({
+        issuerId: yield* asOptionalString(record["issuerId"], "ios.ascApiKey.issuerId"),
+      }),
     } satisfies IosAscApiKeyEntry;
   });
 

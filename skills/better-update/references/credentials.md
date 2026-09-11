@@ -30,6 +30,8 @@ better-update credentials upload --platform macos --type macos-certificate \
   --name "Developer ID Application" --file ./DeveloperID.p12 --password "p12-password"
 
 better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --issuer-id <id>
+# Individual API keys (Users and Access → Integrations → Individual Keys) have no issuer: omit --issuer-id
+better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id>
 ```
 
 `--type` values and their required extra flags:
@@ -40,7 +42,7 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 | macOS    | `macos-certificate`          | `--password` (Apple Team ID is derived from the cert)                       |
 | iOS      | `provisioning-profile`       | (none)                                                                      |
 | iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`                                       |
-| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id` (or `upload-asc-key`, or `generate asc-key`)      |
+| iOS      | `asc-api-key`                | `--key-id`; `--issuer-id` for a team key, omit for an individual key        |
 | iOS      | `push-certificate`           | `--password` (`--bundle-identifier` only if not derivable from the cert CN) |
 | iOS      | `apple-pay-certificate`      | `--password`, `--merchant-identifier`                                       |
 | iOS      | `pass-type-certificate`      | `--password`, `--pass-type-identifier`                                      |

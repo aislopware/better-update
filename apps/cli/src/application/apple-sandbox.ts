@@ -14,7 +14,7 @@ import { compact, toDbNull, toOptional } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Effect, Schema } from "effect";
 
-import { AppleConnectError, messageOf, wrapConnect } from "../lib/apple-asc-connect";
+import { AppleConnectError, buildAscToken, messageOf, wrapConnect } from "../lib/apple-asc-connect";
 import { formatAscErrors, parseAscErrors } from "../lib/asc-build-upload";
 
 import type { FetchFn } from "../lib/asc-build-upload";
@@ -138,11 +138,7 @@ export const listSandboxTestersV2 = (params: {
   readonly fetchFn?: FetchFn;
 }): Effect.Effect<readonly SandboxTesterView[], AppleConnectError> => {
   const fetchFn: FetchFn = params.fetchFn ?? (async (input, init) => fetch(input, init));
-  const token = new AppleUtils.Token({
-    key: params.credentials.p8Pem,
-    keyId: params.credentials.keyId,
-    issuerId: params.credentials.issuerId,
-  });
+  const token = buildAscToken(params.credentials);
   const getPage = (url: string) =>
     Effect.tryPromise({
       try: async () => {

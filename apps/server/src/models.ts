@@ -283,7 +283,8 @@ export interface AscApiKeyModel {
   readonly organizationId: string;
   readonly appleTeamId: string | null;
   readonly keyId: string;
-  readonly issuerId: string;
+  /** `null` for an individual App Store Connect key, which has no issuer. */
+  readonly issuerId: string | null;
   readonly name: string;
   readonly roles: string;
   readonly r2Key: string;

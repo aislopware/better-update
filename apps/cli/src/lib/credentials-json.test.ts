@@ -24,6 +24,24 @@ describe(parseCredentialsJson, () => {
     }),
   );
 
+  it.effect("accepts an ios.ascApiKey without issuerId (individual key)", () =>
+    Effect.gen(function* () {
+      const parsed = yield* parseCredentialsJson(
+        JSON.stringify({
+          ios: {
+            provisioningProfilePath: "build/main.mobileprovision",
+            distributionCertificate: { path: "build/dist.p12", password: "secret" },
+            ascApiKey: { path: "build/AuthKey_ABC123DEF4.p8", keyId: "ABC123DEF4" },
+          },
+        }),
+      );
+      expect(parsed.ios?.ascApiKey).toStrictEqual({
+        path: "build/AuthKey_ABC123DEF4.p8",
+        keyId: "ABC123DEF4",
+      });
+    }),
+  );
+
   it.effect("parses additionalProvisioningProfiles entries", () =>
     Effect.gen(function* () {
       const parsed = yield* parseCredentialsJson(

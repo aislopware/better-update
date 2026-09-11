@@ -13,7 +13,11 @@ import type { ApiClient } from "../services/api-client";
  */
 export interface AscCredentials {
   readonly keyId: string;
-  readonly issuerId: string;
+  /**
+   * `null` for an individual App Store Connect key: only team keys carry an
+   * issuer, and the JWT then identifies the caller by `sub: "user"` instead.
+   */
+  readonly issuerId: string | null;
   readonly p8Pem: string;
 }
 

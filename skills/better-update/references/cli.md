@@ -319,7 +319,7 @@ better-update credentials remove [--platform <ios|android|macos>] [--type <type>
 | `macos-certificate`          | `--password`                                  |
 | `provisioning-profile`       | (none)                                        |
 | `push-key`                   | `--key-id`, `--apple-team-identifier`         |
-| `asc-api-key`                | `--key-id`, `--issuer-id`                     |
+| `asc-api-key`                | `--key-id` (`--issuer-id` team keys only)     |
 | `push-certificate`           | `--bundle-identifier`                         |
 | `apple-pay-certificate`      | `--merchant-identifier`                       |
 | `pass-type-certificate`      | `--pass-type-identifier`                      |

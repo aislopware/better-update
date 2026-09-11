@@ -22,9 +22,11 @@ import { open, stat } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 
-import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
 
+import type AppleUtils from "@expo/apple-utils";
+
+import { buildAscToken } from "./apple-asc-connect";
 import { pollBuildUploadState, pollFileDelivery, requestJson } from "./asc-build-upload-http";
 import {
   AscBuildUploadError,
@@ -331,11 +333,7 @@ export const uploadIpaViaBuildUploadApi = (
 > =>
   Effect.gen(function* () {
     const fetchFn: FetchFn = inputs.fetchFn ?? (async (input, init) => fetch(input, init));
-    const token = new AppleUtils.Token({
-      key: inputs.credentials.p8Pem,
-      keyId: inputs.credentials.keyId,
-      issuerId: inputs.credentials.issuerId,
-    });
+    const token = buildAscToken(inputs.credentials);
 
     const reserved = yield* createBuildUpload({
       token,

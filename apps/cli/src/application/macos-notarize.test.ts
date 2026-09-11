@@ -18,6 +18,16 @@ describe(buildNotaryAuthArgs, () => {
     ]);
   });
 
+  it("omits --issuer for an individual key, which has no issuer", () => {
+    const args = buildNotaryAuthArgs({
+      kind: "asc-api-key",
+      p8Path: "/tmp/x/AuthKey_ABC123.p8",
+      keyId: "ABC123",
+      issuerId: null,
+    });
+    expect(args).toStrictEqual(["--key", "/tmp/x/AuthKey_ABC123.p8", "--key-id", "ABC123"]);
+  });
+
   it("builds the Apple ID + app-specific password argv", () => {
     const args = buildNotaryAuthArgs({
       kind: "app-specific-password",

@@ -277,6 +277,32 @@ describe("Credentials Apple flow", () => {
     expect(teams[0]?.ascApiKeyCount).toBe(1);
   });
 
+  it("uploads an individual ASC API key (no issuer) and reads it back as null", async () => {
+    const res = await post(
+      "/api/apple/asc-api-keys",
+      {
+        ...credentialEnvelope(),
+        name: "Individual Key",
+        keyId: "ASCKEY5678",
+        appleTeamIdentifier: TEAM_A,
+      },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.issuerId).toBeNull();
+
+    const creds = await get(`/api/apple/asc-api-keys/${String(body.id)}/credentials`, {
+      cookie: cookies,
+    });
+    expect(creds.status).toBe(200);
+    const credsBody = await creds.json();
+    expect(credsBody.issuerId).toBeNull();
+
+    const deleted = await del(`/api/apple/asc-api-keys/${String(body.id)}`, { cookie: cookies });
+    expect(deleted.status).toBe(200);
+  });
+
   it("lists all apple credentials", async () => {
     const certsResponse = await get("/api/apple/distribution-certificates", { cookie: cookies });
     const certs = await certsResponse.json();

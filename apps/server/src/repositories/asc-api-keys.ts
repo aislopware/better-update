@@ -17,7 +17,7 @@ export interface AscApiKeyRepository {
     readonly organizationId: string;
     readonly appleTeamId: string | null;
     readonly keyId: string;
-    readonly issuerId: string;
+    readonly issuerId: string | null;
     readonly name: string;
     readonly roles: string;
     readonly r2Key: string;
@@ -75,12 +75,18 @@ const COLUMNS = [
   "updated_at",
 ] as const;
 
+// `issuer_id` is `TEXT NOT NULL DEFAULT ''` (migration 0042): an individual
+// App Store Connect key has no issuer, and the empty string is how the column
+// spells that. The translation lives here so the rest of the server only ever
+// sees `string | null`.
+const NO_ISSUER = "";
+
 const toModel = (row: Selectable<AscApiKeys>): AscApiKeyModel => ({
   id: row.id,
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
   keyId: row.key_id,
-  issuerId: row.issuer_id,
+  issuerId: row.issuer_id === NO_ISSUER ? null : row.issuer_id,
   name: row.name,
   roles: row.roles,
   r2Key: row.r2_key,
@@ -104,7 +110,7 @@ export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
               organization_id: params.organizationId,
               apple_team_id: params.appleTeamId,
               key_id: params.keyId,
-              issuer_id: params.issuerId,
+              issuer_id: params.issuerId ?? NO_ISSUER,
               name: params.name,
               roles: params.roles,
               r2_key: params.r2Key,

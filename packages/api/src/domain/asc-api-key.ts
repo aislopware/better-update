@@ -7,6 +7,12 @@ import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const AscApiKeyId = tenCharPortalId("ASC API Key ID");
 
+/**
+ * App Store Connect Issuer ID. Only *team* API keys carry one; an *individual*
+ * API key (Users and Access → Integrations → Individual Keys) has no issuer and
+ * signs its JWT with `sub: "user"` instead of `iss`, so every read model
+ * exposes the issuer as nullable and the upload body makes it optional.
+ */
 export const IssuerId = Schema.String.check(
   Schema.isPattern(
     /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u,
@@ -22,7 +28,7 @@ export const AscApiKey = Schema.Struct({
   organizationId: Id,
   appleTeamId: Schema.NullOr(Id),
   keyId: Schema.String,
-  issuerId: IssuerId,
+  issuerId: Schema.NullOr(IssuerId),
   name: Schema.String,
   roles: Schema.Array(Schema.String),
   /**
@@ -42,7 +48,7 @@ export const UploadAscApiKeyBody = Schema.Struct({
   ...encryptedEnvelopeFields,
   name: Name120,
   keyId: AscApiKeyId,
-  issuerId: IssuerId,
+  issuerId: Schema.optional(IssuerId),
   appleTeamIdentifier: Schema.optional(AppleTeamIdentifier),
   ...appleTeamMetadataFields,
   roles: Schema.optional(Schema.Array(Schema.String)),
@@ -56,7 +62,7 @@ export const DownloadAscApiKeyResult = Schema.Struct({
   ...encryptedEnvelopeFields,
   name: Schema.String,
   keyId: AscApiKeyId,
-  issuerId: IssuerId,
+  issuerId: Schema.NullOr(IssuerId),
   appleTeamIdentifier: Schema.NullOr(AppleTeamIdentifier),
 });
 
@@ -70,7 +76,7 @@ export const AscApiKeyCredentials = Schema.Struct({
   ascApiKeyId: Id,
   ...encryptedEnvelopeFields,
   keyId: AscApiKeyId,
-  issuerId: IssuerId,
+  issuerId: Schema.NullOr(IssuerId),
   appleTeamIdentifier: Schema.NullOr(AppleTeamIdentifier),
 }).annotate({ identifier: "AscApiKeyCredentials" });
 export type AscApiKeyCredentials = typeof AscApiKeyCredentials.Type;

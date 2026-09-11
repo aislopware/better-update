@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
-import { compact } from "@better-update/type-guards";
+import { compact, toOptional } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { FileSystem, Effect } from "effect";
 
@@ -191,7 +191,7 @@ const downloadAscApiKey = (ctx: PullCtx, id: string) =>
     const p8Pem = yield* secretField(secret, "p8Pem", "ASC API key");
     const rel = path.join(ctx.keysDir, `${data.ascApiKeyId}-asc.p8`);
     yield* writeText(ctx.fs, ctx.projectRoot, rel, p8Pem);
-    return { rel, keyId: data.keyId, issuerId: data.issuerId, id: data.ascApiKeyId };
+    return { rel, keyId: data.keyId, issuerId: toOptional(data.issuerId), id: data.ascApiKeyId };
   });
 
 const pullIos = (
@@ -234,7 +234,7 @@ const pullIos = (
       const result = yield* downloadAscApiKey(ctx, listing.ascFirst.id);
       storage.set(listing.ascFirst.id, {
         relPath: result.rel,
-        extras: { keyId: result.keyId, issuerId: result.issuerId },
+        extras: compact({ keyId: result.keyId, issuerId: result.issuerId }),
       });
       rows.push({ type: "ios:asc-api-key", path: result.rel, id: result.id });
     }

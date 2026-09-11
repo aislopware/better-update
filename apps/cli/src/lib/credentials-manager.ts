@@ -270,9 +270,8 @@ const uploadIosAscApiKey = (api: ApiClient, input: UploadCredentialInput, bytes:
     if (!input.keyId) {
       return yield* missing("key-id");
     }
-    if (!input.issuerId) {
-      return yield* missing("issuer-id");
-    }
+    // No issuer check: an individual App Store Connect key has none, and the
+    // sealed metadata simply omits the field for it.
     const metadata = compact({
       name: input.name,
       keyId: input.keyId,

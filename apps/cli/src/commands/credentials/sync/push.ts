@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -110,7 +111,7 @@ const pushIos = (
         name: "credentials.json: asc api key",
         filePath: resolveCredentialPath(projectRoot, ios.ascApiKey.path),
         keyId: ios.ascApiKey.keyId,
-        issuerId: ios.ascApiKey.issuerId,
+        ...compact({ issuerId: ios.ascApiKey.issuerId }),
       }).pipe(
         Effect.mapError(
           (cause) =>

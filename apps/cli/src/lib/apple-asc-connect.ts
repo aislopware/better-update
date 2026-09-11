@@ -9,6 +9,7 @@
  */
 // @expo/apple-utils is ncc-bundled CJS; the entity managers + `Token` are read
 // off the default import (see credentials-generator-apple-id.ts for the rationale).
+import { compact, toOptional } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Data, Effect } from "effect";
 
@@ -33,18 +34,27 @@ export const isCertificateLimitMessage = (message: string): boolean =>
   CERT_LIMIT_PATTERN.test(message);
 
 /**
- * Build a headless ASC `RequestContext` from a vault `.p8` key. The `Token`
- * signs ES256 JWTs on demand (apple-utils refreshes them); no `providerId`/
- * `teamId` is needed because the JWT's issuer selects the provider.
+ * The JWT signer for a vault `.p8` key. apple-utils signs ES256 tokens on demand
+ * and refreshes them; a team key names its provider through `iss`, an
+ * individual key (no issuer) signs with `sub: "user"` instead, which apple-utils
+ * selects by the `issuerId` option being absent — hence `compact`, never
+ * `issuerId: undefined`.
+ */
+export const buildAscToken = (credentials: AscCredentials): AppleUtils.Token =>
+  new AppleUtils.Token({
+    key: credentials.p8Pem,
+    keyId: credentials.keyId,
+    ...compact({ issuerId: toOptional(credentials.issuerId) }),
+  });
+
+/**
+ * Build a headless ASC `RequestContext` from a vault `.p8` key. No `providerId`/
+ * `teamId` is needed because the JWT itself selects the provider.
  */
 export const buildTokenRequestContext = (
   credentials: AscCredentials,
 ): AppleUtils.RequestContext => ({
-  token: new AppleUtils.Token({
-    key: credentials.p8Pem,
-    keyId: credentials.keyId,
-    issuerId: credentials.issuerId,
-  }),
+  token: buildAscToken(credentials),
 });
 
 /** Run an apple-utils promise, tagging any rejection as an {@link AppleConnectError}. */

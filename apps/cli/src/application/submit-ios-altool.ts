@@ -86,6 +86,17 @@ const buildAltoolArgs = (params: {
         message: "ASC API key is required for an asc-api-key upload but was not resolved.",
       });
     }
+    // `altool --apiKey` demands `--apiIssuer`, and an individual App Store
+    // Connect key has no issuer to give it: such a key only uploads through the
+    // Build Upload API (the primary path), so reaching altool with one is a
+    // dead end rather than a retry.
+    if (params.ascCredentials.issuerId === null) {
+      return yield* new CliSubmitError({
+        code: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
+        message:
+          "altool cannot upload with an individual App Store Connect API key (no issuer ID). Use a team API key, or retry once the Build Upload API is reachable.",
+      });
+    }
     // The `.p8` is located by name via `$API_PRIVATE_KEYS_DIR`, set when running altool.
     return [
       ...baseAltoolArgs(params.ipaPath),
