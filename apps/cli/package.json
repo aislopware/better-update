@@ -40,6 +40,7 @@
     "@better-update/bsdiff": "workspace:*",
     "@clack/prompts": "^1.7.0",
     "@effect/platform-node": "4.0.0-rc.112",
+    "@effect/platform-node-shared": "4.0.0-rc.112",
     "@expo/apple-utils": "^2.1.22",
     "@expo/config": "^57.0.9",
     "@expo/config-plugins": "~57.0.9",
