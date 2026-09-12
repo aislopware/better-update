@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.67.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fserver%400.67.0...%40better-update%2Fserver%400.67.1) (2026-09-12)
+
+### Bug Fixes
+
+* **server:** collapse same-user duplicate OAuth accounts in the issuer-drop migration ([23b5120](https://github.com/aislopware/better-update/commit/23b51209048e60f1f27eddb9c057e1b3f6be973a))
+
 ## [0.67.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fserver%400.66.0...%40better-update%2Fserver%400.67.0) (2026-09-12)
 
 ### ⚠ BREAKING CHANGES

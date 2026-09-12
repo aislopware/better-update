@@ -34,7 +34,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.79.0",
+      "version": "0.79.1",
       "bin": {
         "better-update": "./dist/index.mjs",
       },
@@ -77,7 +77,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.67.0",
+      "version": "0.67.1",
       "dependencies": {
         "@better-auth/passkey": "^1.7.4",
         "@better-update/api": "workspace:*",
