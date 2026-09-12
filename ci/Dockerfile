@@ -17,7 +17,7 @@
 # strips those vars — a redirected home would be invisible to napi's cargo.
 FROM node:24-bookworm
 
-ARG BUN_VERSION=1.4.0
+ARG BUN_VERSION=1.4.2
 ARG ZIG_VERSION=0.16.0
 ARG RUST_TARGETS="x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-musl"
 
