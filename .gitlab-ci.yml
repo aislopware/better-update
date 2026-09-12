@@ -326,8 +326,8 @@ conformance:
         - packages/bsdiff/**/*
   script:
     - bun_ci_install
-    - bun --filter @better-update/bsdiff run build
-    - bun --filter @better-update/bsdiff run test:conformance
+    - bun --filter @better-update/bsdiff build
+    - bun --filter @better-update/bsdiff test:conformance
 
 conformance-macos:
   extends: .macos-rust
@@ -339,8 +339,8 @@ conformance-macos:
   script:
     - brew install bzip2
     - bun_ci_install
-    - bun --filter @better-update/bsdiff run build
-    - bun --filter @better-update/bsdiff run test:conformance
+    - bun --filter @better-update/bsdiff build
+    - bun --filter @better-update/bsdiff test:conformance
 
 # ---------------------------------------------------------------------------
 # release (manual, default branch) — Lerna independent version + tag push +
@@ -509,7 +509,7 @@ build-cli-apple:
   script:
     - bun_ci_install
     - rustup target add "$TARGET"
-    - bun --filter @better-update/bsdiff run build --target "$TARGET"
+    - cd packages/bsdiff && bun run build --target "$TARGET" && cd -
     # The CLI bakes its default server URL + release repo in at build time, so
     # a published binary must never be built on placeholders.
     - bun run config:gen:strict
