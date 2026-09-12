@@ -361,6 +361,10 @@ release:
     LEFTHOOK: "0"
     # Set DRY_RUN=true when running the manual job to preview without pushing.
     DRY_RUN: "false"
+    # Set FORCE_PUBLISH to a package name (e.g. @better-update/cli) to cut a
+    # patch release for it even when no conventional commit touched it — used
+    # to re-run a tag pipeline after a CI-only fix.
+    FORCE_PUBLISH: ""
   script:
     - bun_ci_install
     - bun run typegen:cf
@@ -380,7 +384,7 @@ release:
         exit 0
       fi
 
-    - bun run release:version
+    - bun run release:version ${FORCE_PUBLISH:+--force-publish="$FORCE_PUBLISH"}
 
     # Authenticated push URL (CI's default origin uses a read-only job token).
     - git remote set-url --push origin "https://oauth2:${GITLAB_RELEASE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
