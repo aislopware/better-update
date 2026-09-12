@@ -12,12 +12,17 @@
 -- is what better-auth writes for that provider under either identity scheme.
 --
 -- The UNIQUE index on ("provider_id", "account_id") restores the constraint
--- 0102 enforced through the issuer: the issuer was derived from "provider_id"
--- for every provider configured here ('local:credential' / 'local:oauth:<id>'),
--- so the two keys are equivalent over the rows this database can hold. If two
--- rows somehow share a (provider_id, account_id) pair the migration fails here
--- rather than letting better-auth resolve a sign-in to an arbitrary one of
--- them; reconcile by hand and re-run.
+-- 0102 enforced through the issuer. The two keys are NOT equivalent over the
+-- rows a database that ran 1.7.1 / 1.7.2 holds: 0102 backfilled OAuth rows
+-- with 'local:oauth:<provider>', but those releases looked accounts up by the
+-- provider's real issuer (e.g. 'https://accounts.google.com'), missed the
+-- backfilled row and inserted a second one for the same user on the next
+-- sign-in. Such pairs share "user_id", so the copy keeps only the most
+-- recently updated row per ("provider_id", "account_id", "user_id") — the one
+-- carrying the freshest tokens. Rows sharing a (provider_id, account_id) pair
+-- across DIFFERENT users are all kept, so the index creation fails here rather
+-- than letting better-auth resolve a sign-in to an arbitrary one of them;
+-- reconcile by hand and re-run.
 CREATE TABLE "account_v3" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "account_id" TEXT NOT NULL,
@@ -52,7 +57,16 @@ SELECT
   "password",
   "created_at",
   "updated_at"
-FROM "account";
+FROM "account" AS "a"
+WHERE "a"."id" = (
+  SELECT "b"."id"
+  FROM "account" AS "b"
+  WHERE "b"."provider_id" = "a"."provider_id"
+    AND "b"."account_id" = "a"."account_id"
+    AND "b"."user_id" = "a"."user_id"
+  ORDER BY "b"."updated_at" DESC, "b"."created_at" DESC, "b"."id" DESC
+  LIMIT 1
+);
 
 DROP TABLE "account";
 
