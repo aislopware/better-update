@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.54.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi%400.53.0...%40better-update%2Fapi%400.54.0) (2026-09-12)
+
+### Features
+
+* **credentials:** accept individual App Store Connect API keys without an issuer ID ([e83adcf](https://gitlab.jmango360.com/mobile/better-update/-/commit/e83adcf35808a39b7a7a97628ca357f5998de67b))
+
+### Bug Fixes
+
+* **deps:** update every package to latest and drop account.issuer for better-auth 1.7.3 ([422accf](https://gitlab.jmango360.com/mobile/better-update/-/commit/422accf9abf66d9ebe6a2a6799c0e793df9946c5)), closes [#8209](https://gitlab.jmango360.com/mobile/better-update/-/issues/8209)
+
 ## [0.53.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi%400.52.2...%40better-update%2Fapi%400.53.0) (2026-09-11)
 
 ### Features

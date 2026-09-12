@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.79.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.78.1...%40better-update%2Fcli%400.79.0) (2026-09-12)
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** `--enabled false` style values become `--no-enabled`; `--wizard` is gone;
+  `fingerprint compare --build-id a,b` also accepts repeated flags; unknown flags/values are usage
+  errors (exit 2) instead of being ignored.
+* **cli:** `@better-update/cli` on npm is now a launcher for the
+  platform binary packages (macOS arm64 + Linux only, optional dependencies
+  must stay enabled); the CLI itself no longer runs under Node.
+
+### Features
+
+* **cli:** rebuild the CLI on effect/unstable/cli and add an integration tier ([989c272](https://github.com/aislopware/better-update/commit/989c272125675322afd279cf069ae86979f5b91a))
+* **cli:** ship the CLI as a bun-compiled standalone binary ([6e83cf7](https://github.com/aislopware/better-update/commit/6e83cf7c236d12969b637e5c19aea47d3f6e382f))
+* **credentials:** accept individual App Store Connect API keys without an issuer ID ([e83adcf](https://github.com/aislopware/better-update/commit/e83adcf35808a39b7a7a97628ca357f5998de67b))
+
+### Bug Fixes
+
+* **deps:** update every package to latest and drop account.issuer for better-auth 1.7.3 ([422accf](https://github.com/aislopware/better-update/commit/422accf9abf66d9ebe6a2a6799c0e793df9946c5)), closes [#8209](https://github.com/aislopware/better-update/issues/8209)
+
 ## [0.78.1](https://github.com/better-update/better-update/compare/%40better-update%2Fcli%400.78.0...%40better-update%2Fcli%400.78.1) (2026-09-11)
 
 ### Bug Fixes

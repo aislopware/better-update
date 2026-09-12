@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.39.4](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi-client%400.39.3...%40better-update%2Fapi-client%400.39.4) (2026-09-12)
+
+### Bug Fixes
+
+* **deps:** update every package to latest and drop account.issuer for better-auth 1.7.3 ([422accf](https://gitlab.jmango360.com/mobile/better-update/-/commit/422accf9abf66d9ebe6a2a6799c0e793df9946c5)), closes [#8209](https://gitlab.jmango360.com/mobile/better-update/-/issues/8209)
+
 ## [0.39.3](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi-client%400.39.2...%40better-update%2Fapi-client%400.39.3) (2026-09-11)
 
 **Note:** Version bump only for package @better-update/api-client

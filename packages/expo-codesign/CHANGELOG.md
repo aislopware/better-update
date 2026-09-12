@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.16](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fexpo-codesign%400.1.15...%40better-update%2Fexpo-codesign%400.1.16) (2026-09-12)
+
+### Bug Fixes
+
+* **deps:** update every package to latest and drop account.issuer for better-auth 1.7.3 ([422accf](https://gitlab.jmango360.com/mobile/better-update/-/commit/422accf9abf66d9ebe6a2a6799c0e793df9946c5)), closes [#8209](https://gitlab.jmango360.com/mobile/better-update/-/issues/8209)
+
 ## [0.1.15](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fexpo-codesign%400.1.14...%40better-update%2Fexpo-codesign%400.1.15) (2026-08-29)
 
 **Note:** Version bump only for package @better-update/expo-codesign

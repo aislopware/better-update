@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fbsdiff%400.3.2...%40better-update%2Fbsdiff%400.4.0) (2026-09-12)
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** `@better-update/cli` on npm is now a launcher for the
+  platform binary packages (macOS arm64 + Linux only, optional dependencies
+  must stay enabled); the CLI itself no longer runs under Node.
+
+### Features
+
+* **cli:** ship the CLI as a bun-compiled standalone binary ([6e83cf7](https://gitlab.jmango360.com/mobile/better-update/-/commit/6e83cf7c236d12969b637e5c19aea47d3f6e382f))
+
+### Bug Fixes
+
+* **deps:** update every package to latest and drop account.issuer for better-auth 1.7.3 ([422accf](https://gitlab.jmango360.com/mobile/better-update/-/commit/422accf9abf66d9ebe6a2a6799c0e793df9946c5)), closes [#8209](https://gitlab.jmango360.com/mobile/better-update/-/issues/8209)
+
 ## [0.3.2](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fbsdiff%400.3.1...%40better-update%2Fbsdiff%400.3.2) (2026-08-29)
 
 **Note:** Version bump only for package @better-update/bsdiff

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.4](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fui%400.10.3...%40better-update%2Fui%400.10.4) (2026-09-12)
+
+### Bug Fixes
+
+* **deps:** update every package to latest and drop account.issuer for better-auth 1.7.3 ([422accf](https://gitlab.jmango360.com/mobile/better-update/-/commit/422accf9abf66d9ebe6a2a6799c0e793df9946c5)), closes [#8209](https://gitlab.jmango360.com/mobile/better-update/-/issues/8209)
+
 ## [0.10.3](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fui%400.10.2...%40better-update%2Fui%400.10.3) (2026-08-29)
 
 **Note:** Version bump only for package @better-update/ui
