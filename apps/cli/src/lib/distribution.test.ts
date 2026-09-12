@@ -39,7 +39,7 @@ describe(pickLatestCliVersion, () => {
 
 describe(detectInstaller, () => {
   it("standalone binary outside any node_modules", () => {
-    expect(detectInstaller("/Users/me/.better-update/bin/better-update")).toBe("standalone");
+    expect(detectInstaller("/Users/me/.local/bin/better-update")).toBe("standalone");
     expect(detectInstaller("/usr/local/bin/better-update")).toBe("standalone");
   });
 

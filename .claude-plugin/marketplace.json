@@ -8,7 +8,7 @@
       "name": "better-update",
       "source": "./skills/better-update",
       "description": "Drive the better-update CLI: OTA updates, local iOS/Android builds, the encrypted credential vault, env vars, channels, rollouts and rollbacks.",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "author": { "name": "Công Trần" },
       "license": "MIT",
       "category": "mobile",

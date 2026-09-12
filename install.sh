@@ -5,14 +5,16 @@
 #
 # Environment:
 #   BETTER_UPDATE_VERSION      version to install (default: latest CLI release)
-#   BETTER_UPDATE_INSTALL_DIR  where the binary goes (default: ~/.better-update/bin)
+#   BETTER_UPDATE_INSTALL_DIR  where the binary goes (default: $XDG_BIN_HOME, else
+#                              ~/.local/bin — the per-user bin dir uv, pipx and
+#                              friends already use)
 #   BETTER_UPDATE_REPO         GitHub owner/repo to download from
 #                              (default: aislopware/better-update; a fork that
 #                              ships its own binaries points this at itself)
 set -eu
 
 REPO="${BETTER_UPDATE_REPO:-aislopware/better-update}"
-INSTALL_DIR="${BETTER_UPDATE_INSTALL_DIR:-$HOME/.better-update/bin}"
+INSTALL_DIR="${BETTER_UPDATE_INSTALL_DIR:-${XDG_BIN_HOME:-$HOME/.local/bin}}"
 TAG_PREFIX="@better-update/cli@"
 
 log() { printf '%s\n' "$*" >&2; }

@@ -25,7 +25,7 @@ optional dependency holding the binary; the package manager picks the right one.
 dependencies enabled (`--no-optional` / `omit=optional` leaves you with a launcher that only prints
 the install-script command).
 
-The install script downloads from the project's GitHub Releases into `~/.better-update/bin` (add it
+The install script downloads from the project's GitHub Releases into `~/.local/bin` (or `$XDG_BIN_HOME`; add it
 to `PATH` if the script says so). Knobs, all via environment:
 
 | Variable                    | Effect                                                            |
