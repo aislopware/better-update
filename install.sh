@@ -52,7 +52,7 @@ if [ -z "$version" ]; then
   # CLI tag is the latest CLI.
   version="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
     "https://api.github.com/repos/$REPO/releases?per_page=30" |
-    grep -o "\"tag_name\": *\"$TAG_PREFIX[^\"]*\"" | head -n 1 | sed "s/.*$TAG_PREFIX//; s/\"$//")"
+    grep -o "\"tag_name\": *\"$TAG_PREFIX[^\"]*\"" | head -n 1 | sed "s|.*$TAG_PREFIX||; s|\"\$||")"
   [ -n "$version" ] || die "could not determine the latest release of $REPO"
 fi
 version="${version#v}"
