@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.79.2](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.1...%40better-update%2Fcli%400.79.2) (2026-09-12)
+
+### Bug Fixes
+
+* **cli:** drop the sibling .map bun compile leaves next to the binary ([12301c3](https://github.com/aislopware/better-update/commit/12301c3ad4cc779523651d03fc472b6ad44aa6c9))
+* **install:** put the binary in ~/.local/bin instead of a bespoke ~/.better-update/bin ([25ffd04](https://github.com/aislopware/better-update/commit/25ffd0492f5440a516a2b222d9ec907ea95f93a0))
+
 ## [0.79.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.0...%40better-update%2Fcli%400.79.1) (2026-09-12)
 
 **Note:** Version bump only for package @better-update/cli

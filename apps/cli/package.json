@@ -1,6 +1,6 @@
 {
   "name": "@better-update/cli",
-  "version": "0.79.1",
+  "version": "0.79.2",
   "private": true,
   "description": "The better-update CLI, shipped as a `bun build --compile` single binary (see scripts/build.ts).",
   "homepage": "https://github.com/aislopware/better-update",
