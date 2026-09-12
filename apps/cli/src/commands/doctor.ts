@@ -1,10 +1,9 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 
-import { defineCommand } from "citty";
 import { Data, Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
-import { runEffect } from "../lib/citty-effect";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import {
   BETTER_UPDATE_PROJECT_ID_ENV,
@@ -14,6 +13,7 @@ import {
 } from "../lib/eas-json";
 import { printHumanTable } from "../lib/output";
 import { readProjectId } from "../lib/project-link";
+import { runCommand } from "../lib/run-command";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
@@ -191,23 +191,24 @@ const renderHuman = (checks: readonly CheckResult[]) => {
 const computeExitCode = (checks: readonly CheckResult[]): number =>
   checks.some((check) => check.status === "fail") ? 6 : 0;
 
-export const doctorCommand = defineCommand({
-  meta: {
-    name: "doctor",
-    description: "Run diagnostic checks (Node, signing tools, server reachability, auth, config)",
-  },
-  run: async () =>
-    runEffect(
-      Effect.gen(function* () {
-        const runtime = yield* CliRuntime;
-        const checks = yield* runChecks;
-        yield* renderHuman(checks);
-        const exitCode = computeExitCode(checks);
-        if (exitCode !== 0) {
-          yield* runtime.setExitCode(exitCode);
-        }
-        return { checks };
-      }),
-      { json: "value" },
-    ),
-});
+export const doctorCommand = Command.make(
+  "doctor",
+  {},
+  Effect.fn(
+    function* () {
+      const runtime = yield* CliRuntime;
+      const checks = yield* runChecks;
+      yield* renderHuman(checks);
+      const exitCode = computeExitCode(checks);
+      if (exitCode !== 0) {
+        yield* runtime.setExitCode(exitCode);
+      }
+      return { checks };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Run diagnostic checks (Node, signing tools, server reachability, auth, config)",
+  ),
+);

@@ -10,7 +10,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
-import { NodeFileSystem } from "@effect/platform-node";
+import { NodeFileSystem, NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Data, Effect, Exit, Layer } from "effect";
 
@@ -172,7 +172,7 @@ describe(pullEnvVars, () => {
       ];
       const api = buildApi(vault, () => Effect.succeed({ environment: "production", items }));
       const result = yield* pullEnvVars(api, { projectId: "p_1", environment: "production" }).pipe(
-        Effect.provide(vaultLayer(vault.identity.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
       );
       expect(result).toStrictEqual({ API_URL: "https://api.example.com", SECRET: "xyz" });
     }),
@@ -183,7 +183,7 @@ describe(pullEnvVars, () => {
       const vault = yield* makeTestVault;
       const api = buildApi(vault, () => Effect.succeed({ environment: "development", items: [] }));
       const result = yield* pullEnvVars(api, { projectId: "p_1", environment: "development" }).pipe(
-        Effect.provide(vaultLayer(vault.identity.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
       );
       expect(result).toStrictEqual({});
     }),
@@ -194,7 +194,7 @@ describe(pullEnvVars, () => {
       const vault = yield* makeTestVault;
       const api = buildApi(vault, () => Effect.fail(new TestApiError({ message: "boom" })));
       const exit = yield* pullEnvVars(api, { projectId: "p_1", environment: "production" }).pipe(
-        Effect.provide(vaultLayer(vault.identity.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);
@@ -229,7 +229,12 @@ describe(pullEnvVars, () => {
           ];
           const api = buildApi(vault, () => Effect.succeed({ environment: "production", items }));
           yield* pullEnvVars(api, { projectId: "p_1", environment: "production" }).pipe(
-            Effect.provide(vaultLayer(vault.identity.privateKey, { json: false })),
+            Effect.provide(
+              Layer.mergeAll(
+                NodeServices.layer,
+                vaultLayer(vault.identity.privateKey, { json: false }),
+              ),
+            ),
           );
         }),
       );
@@ -255,7 +260,12 @@ describe(pullEnvVars, () => {
             Effect.succeed({ environment: "development", items: [] }),
           );
           yield* pullEnvVars(api, { projectId: "p_1", environment: "development" }).pipe(
-            Effect.provide(vaultLayer(vault.identity.privateKey, { json: false })),
+            Effect.provide(
+              Layer.mergeAll(
+                NodeServices.layer,
+                vaultLayer(vault.identity.privateKey, { json: false }),
+              ),
+            ),
           );
         }),
       );
@@ -273,7 +283,7 @@ describe(pullEnvVars, () => {
       // environments exist. A name that breaks the format (uppercase + space) is
       // still rejected locally.
       const exit = yield* pullEnvVars(api, { projectId: "p_1", environment: "Bad Env" }).pipe(
-        Effect.provide(vaultLayer(vault.identity.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);

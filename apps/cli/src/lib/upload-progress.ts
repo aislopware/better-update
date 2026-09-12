@@ -3,7 +3,7 @@
  * Build Upload API). Three render modes, picked once at construction:
  *
  * - JSON mode: silent — the stdout stream stays machine-parseable.
- * - Interactive TTY (no log prefix): a live clack progress bar (via the
+ * - Interactive TTY (no log prefix): a live stderr progress bar (via the
  *   `lib/prompts` re-export, the single allowed prompt-library importer).
  * - Everything else (CI, piped output, `[ios]`-prefixed parallel builds): one
  *   `printHuman` line per 10% step, so logs show progress without redraws.
@@ -14,7 +14,9 @@ import { InteractiveMode } from "./interactive-mode";
 import { currentLogPrefix } from "./log-prefix";
 import { printHuman } from "./output";
 import { OutputMode } from "./output-mode";
-import { clackProgress } from "./prompts";
+import { makeProgressBar } from "./progress-bar";
+
+import type { ProgressBar } from "./progress-bar";
 
 export interface UploadProgressReporter {
   readonly start: (totalBytes: number) => Effect.Effect<void>;
@@ -57,30 +59,22 @@ const makeTtyReporter = (label: string): Effect.Effect<UploadProgressReporter> =
     const counter = yield* Ref.make<ByteCounter>({ uploaded: 0, total: 0 });
     // The bar is created lazily in `start` so a reporter that never starts
     // (e.g. duplicate build short-circuits the upload) draws nothing.
-    const bar = yield* Ref.make<ReturnType<typeof clackProgress> | null>(null);
+    const bar = yield* Ref.make<ProgressBar | null>(null);
     const stopWith = (message: string, failed: boolean) =>
       Effect.gen(function* () {
         const active = yield* Ref.getAndSet(bar, null);
         if (active === null) {
           return;
         }
-        yield* Effect.sync(() => {
-          if (failed) {
-            active.error(message);
-          } else {
-            active.stop(message);
-          }
-        });
+        yield* failed ? active.error(message) : active.stop(message);
       });
     return {
       start: (totalBytes) =>
         Effect.gen(function* () {
           yield* Ref.set(counter, { uploaded: 0, total: totalBytes });
-          const created = clackProgress({ max: Math.max(1, totalBytes), size: 30 });
+          const created = yield* makeProgressBar({ max: Math.max(1, totalBytes), size: 30 });
           yield* Ref.set(bar, created);
-          yield* Effect.sync(() => {
-            created.start(formatUploadProgressLine(label, 0, totalBytes));
-          });
+          yield* created.start(formatUploadProgressLine(label, 0, totalBytes));
         }),
       advance: (deltaBytes) =>
         Effect.gen(function* () {
@@ -92,9 +86,10 @@ const makeTtyReporter = (label: string): Effect.Effect<UploadProgressReporter> =
           if (active === null) {
             return;
           }
-          yield* Effect.sync(() => {
-            active.advance(deltaBytes, formatUploadProgressLine(label, next.uploaded, next.total));
-          });
+          yield* active.advance(
+            deltaBytes,
+            formatUploadProgressLine(label, next.uploaded, next.total),
+          );
         }),
       finish: (message) => stopWith(message, false),
       fail: (message) => stopWith(message, true),

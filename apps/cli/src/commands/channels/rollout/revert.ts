@@ -1,26 +1,24 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../../lib/citty-effect";
 import { printHuman } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 import { apiClient } from "../../../services/api-client";
-import { channelErrorExtras } from "../helpers";
 
-export const revertCommand = defineCommand({
-  meta: { name: "revert", description: "Revert the active branch rollout" },
-  args: {
-    channelId: { type: "positional", required: true, description: "Channel ID" },
+export const revertCommand = Command.make(
+  "revert",
+  {
+    channelId: Argument.String("channelId").pipe(Argument.withDescription("Channel ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const channel = yield* api.channels.revertBranchRollout({
-          params: { id: args.channelId },
-        });
-        yield* printHuman(`Reverted rollout on channel "${channel.name}".`);
-        return channel;
-      }),
-      { exits: channelErrorExtras, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const channel = yield* api.channels.revertBranchRollout({
+        params: { id: args.channelId },
+      });
+      yield* printHuman(`Reverted rollout on channel "${channel.name}".`);
+      return channel;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Revert the active branch rollout"));

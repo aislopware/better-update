@@ -1,44 +1,43 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
 import { printHuman } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import { channelErrorExtras, resolveNamedResourceId } from "./helpers";
+import { resolveNamedResourceId } from "./helpers";
 
-export const updateCommand = defineCommand({
-  meta: { name: "update", description: "Relink a channel to a different branch" },
-  args: {
-    id: { type: "positional", required: true, description: "Channel ID" },
-    branch: { type: "string", required: true, description: "Target branch name" },
+export const updateCommand = Command.make(
+  "update",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Channel ID")),
+    branch: Flag.String("branch").pipe(Flag.withDescription("Target branch name")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
+  Effect.fn(
+    function* (args) {
+      const projectId = yield* readProjectId;
+      const api = yield* apiClient;
 
-        const branches = yield* drainPages((page) =>
-          api.branches.list({
-            query: { projectId, limit: 100, page },
-          }),
-        );
-        const branchId = yield* resolveNamedResourceId({
-          items: branches,
-          kind: "Branch",
-          name: args.branch,
-        });
+      const branches = yield* drainPages((page) =>
+        api.branches.list({
+          query: { projectId, limit: 100, page },
+        }),
+      );
+      const branchId = yield* resolveNamedResourceId({
+        items: branches,
+        kind: "Branch",
+        name: args.branch,
+      });
 
-        const channel = yield* api.channels.update({
-          params: { id: args.id },
-          payload: { branchId },
-        });
+      const channel = yield* api.channels.update({
+        params: { id: args.id },
+        payload: { branchId },
+      });
 
-        yield* printHuman(`Channel "${channel.name}" relinked to branch "${args.branch}".`);
-        return channel;
-      }),
-      { exits: channelErrorExtras, json: "value" },
-    ),
-});
+      yield* printHuman(`Channel "${channel.name}" relinked to branch "${args.branch}".`);
+      return channel;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Relink a channel to a different branch"));

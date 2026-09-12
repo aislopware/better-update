@@ -5,7 +5,8 @@ import type { ChildProcessSpawner } from "effect/unstable/process";
 
 import { createBrowserLoginServer } from "../lib/browser-login";
 import { runExitCode } from "../lib/child-process";
-import { promptPassword } from "../lib/prompts";
+import { printHuman } from "../lib/output";
+import { promptPassword, requireInteractive } from "../lib/prompts";
 import { ApiClientService } from "../services/api-client";
 import { AuthStore } from "../services/auth-store";
 import { CliRuntime } from "../services/cli-runtime";
@@ -40,6 +41,12 @@ const openBrowser = (
 
 const browserLogin = Effect.scoped(
   Effect.gen(function* () {
+    // The browser round-trip needs a human at the keyboard; in CI/--json it
+    // would open a browser nobody sees and wait forever for the callback.
+    yield* requireInteractive(
+      "Browser login",
+      "Authenticate with BETTER_UPDATE_ROBOT (CI) or run `login --api-key` interactively.",
+    );
     const configStore = yield* ConfigStore;
     const authStore = yield* AuthStore;
     const webUrl = yield* configStore.getWebUrl;
@@ -65,8 +72,9 @@ const browserLogin = Effect.scoped(
 );
 
 const manualLogin = Effect.gen(function* () {
-  yield* Console.log("Log in to better-update by pasting a session token");
-  yield* Console.log("");
+  yield* requireInteractive("Session token prompt");
+  yield* printHuman("Log in to better-update by pasting a session token");
+  yield* printHuman("");
 
   const token = yield* promptPassword("Paste your session token:");
   const authStore = yield* AuthStore;

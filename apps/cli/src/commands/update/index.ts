@@ -1,4 +1,4 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
@@ -17,27 +17,27 @@ import { rolloutCommand } from "./rollout";
 import { sourcemapCommand } from "./sourcemap";
 import { viewCommand } from "./view";
 
-export const updateCommand = defineCommand({
-  meta: { name: "update", description: "Manage OTA updates" },
-  subCommands: {
-    publish: publishCommand,
-    configure: configureCommand,
-    list: listCommand,
-    view: viewCommand,
-    delete: deleteCommand,
-    edit: editCommand,
-    "embedded:upload": embeddedUploadCommand,
-    "embedded:list": embeddedListCommand,
-    "embedded:view": embeddedViewCommand,
-    "embedded:delete": embeddedDeleteCommand,
-    promote: promoteCommand,
-    republish: republishCommand,
-    rollback: rollbackCommand,
-    "roll-back-to-embedded": rollBackToEmbeddedCommand,
-    revert: revertCommand,
-    rollout: rolloutCommand,
-    "revert-rollout": revertRolloutCommand,
-    insights: insightsCommand,
-    sourcemap: sourcemapCommand,
-  },
-});
+export const updateCommand = Command.make("update").pipe(
+  Command.withDescription("Manage OTA updates"),
+  Command.withSubcommands([
+    publishCommand,
+    configureCommand,
+    listCommand,
+    viewCommand,
+    deleteCommand,
+    editCommand,
+    embeddedUploadCommand,
+    embeddedListCommand,
+    embeddedViewCommand,
+    embeddedDeleteCommand,
+    promoteCommand,
+    republishCommand,
+    rollbackCommand,
+    rollBackToEmbeddedCommand,
+    revertCommand,
+    rolloutCommand,
+    revertRolloutCommand,
+    insightsCommand,
+    sourcemapCommand,
+  ]),
+);

@@ -1,22 +1,16 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
-import {
-  APP_STORE_EXIT_EXTRAS,
-  ASC_AUTH_ARGS,
-  loadSubmitProfile,
-} from "../../../application/app-store-connect";
+import { ASC_AUTH_ARGS, loadSubmitProfile } from "../../../application/app-store-connect";
 import { listSandboxTesters, listSandboxTestersV2 } from "../../../application/apple-sandbox";
 import { openCookieContext } from "../../../application/asc-cookie-session";
 import { messageOf } from "../../../lib/apple-asc-connect";
 import { planAscAuth } from "../../../lib/asc-auth-plan";
 import { fetchAscCredentials } from "../../../lib/asc-credentials";
-import { runEffect } from "../../../lib/citty-effect";
 import { printHuman, printHumanList } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 import { apiClient } from "../../../services/api-client";
 import { CliRuntime } from "../../../services/cli-runtime";
-
-import type { AscAuthArgs } from "../../../application/app-store-connect";
 
 /** The historical Apple ID path — also the fallback when the token path fails. */
 const listViaCookie = Effect.gen(function* () {
@@ -42,38 +36,38 @@ const listViaToken = (ascApiKeyId: string) =>
     ),
   );
 
-export const sandboxListCommand = defineCommand({
-  meta: {
-    name: "list",
-    description: "List the team's App Store sandbox testers (ASC API key, or Apple ID login)",
-  },
-  args: {
+export const sandboxListCommand = Command.make(
+  "list",
+  {
     ...ASC_AUTH_ARGS,
   },
-  run: async ({ args }: { readonly args: AscAuthArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const runtime = yield* CliRuntime;
-        const projectRoot = yield* runtime.cwd;
-        const profile = yield* loadSubmitProfile(projectRoot, args.profile);
-        const plan = planAscAuth({
-          flagKeyId: args["asc-api-key-id"],
-          profileKeyId: profile?.ascApiKeyId,
-        });
-        const testers =
-          plan.mode === "cookie" ? yield* listViaCookie : yield* listViaToken(plan.ascApiKeyId);
-        yield* printHumanList(
-          ["Email", "Name", "Territory", "ID"],
-          testers.map((tester) => [
-            tester.email,
-            `${tester.firstName} ${tester.lastName}`,
-            tester.territory ?? "—",
-            tester.id,
-          ]),
-          "No sandbox testers found.",
-        );
-        return { items: testers };
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const runtime = yield* CliRuntime;
+      const projectRoot = yield* runtime.cwd;
+      const profile = yield* loadSubmitProfile(projectRoot, args.profile);
+      const plan = planAscAuth({
+        flagKeyId: args["asc-api-key-id"],
+        profileKeyId: profile?.ascApiKeyId,
+      });
+      const testers =
+        plan.mode === "cookie" ? yield* listViaCookie : yield* listViaToken(plan.ascApiKeyId);
+      yield* printHumanList(
+        ["Email", "Name", "Territory", "ID"],
+        testers.map((tester) => [
+          tester.email,
+          `${tester.firstName} ${tester.lastName}`,
+          tester.territory ?? "—",
+          tester.id,
+        ]),
+        "No sandbox testers found.",
+      );
+      return { items: testers };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "List the team's App Store sandbox testers (ASC API key, or Apple ID login)",
+  ),
+);

@@ -1,4 +1,4 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { createCommand } from "./create";
 import { deleteCommand } from "./delete";
@@ -10,17 +10,17 @@ import { rolloutCommand } from "./rollout";
 import { updateCommand } from "./update";
 import { viewCommand } from "./view";
 
-export const channelsCommand = defineCommand({
-  meta: { name: "channels", description: "Manage channels" },
-  subCommands: {
-    list: listCommand,
-    view: viewCommand,
-    create: createCommand,
-    update: updateCommand,
-    pause: pauseCommand,
-    resume: resumeCommand,
-    delete: deleteCommand,
-    rollout: rolloutCommand,
-    insights: insightsCommand,
-  },
-});
+export const channelsCommand = Command.make("channels").pipe(
+  Command.withDescription("Manage channels"),
+  Command.withSubcommands([
+    listCommand,
+    viewCommand,
+    createCommand,
+    updateCommand,
+    pauseCommand,
+    resumeCommand,
+    deleteCommand,
+    rolloutCommand,
+    insightsCommand,
+  ]),
+);

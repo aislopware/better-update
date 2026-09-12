@@ -1,25 +1,20 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
+import { applePortalExitCodes } from "../../lib/command-errors";
 import { makeAppleTeamLabeler, pushKeyChoice } from "../../lib/credential-choices";
 import { revokeLocalApnsKey } from "../../lib/credentials-generator-apns";
 import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator-apple";
 import { revokeLocalAscApiKey } from "../../lib/credentials-generator-asc-key";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { promptSelect } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { AppleAuth } from "../../services/apple-auth";
 
 import type { ApiClient } from "../../services/api-client";
-
-const REVOKE_EXIT_EXTRAS = {
-  CredentialValidationError: 2,
-  AppleIdGenerateFailedError: 6,
-  AppleAuthError: 4,
-  InteractiveProhibitedError: 4,
-} as const;
 
 const resolveAscKeyId = (api: ApiClient, raw: string | undefined) =>
   Effect.gen(function* () {
@@ -44,45 +39,44 @@ const resolveAscKeyId = (api: ApiClient, raw: string | undefined) =>
     );
   });
 
-const distributionCertificateCommand = defineCommand({
-  meta: {
-    name: "distribution-certificate",
-    description:
-      "Revoke an iOS distribution certificate on the Apple Developer Portal and delete it from this account",
-  },
-  args: {
-    id: { type: "string", required: true, description: "Local distribution certificate ID" },
-    "asc-key-id": {
-      type: "string",
-      description: "ASC API key ID (prompts if omitted and multiple keys exist)",
-    },
-    "keep-local": {
-      type: "boolean",
-      description: "Revoke on Apple but keep the credential in this account",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const ascApiKeyId = yield* resolveAscKeyId(api, args["asc-key-id"]);
-        const result = yield* revokeLocalDistributionCertificate(api, {
-          ascApiKeyId,
-          distributionCertificateId: args.id,
-          keepLocal: args["keep-local"] ?? false,
-        });
-        yield* printHuman("Distribution certificate revoke complete.");
-        yield* printHumanKeyValue([
-          ["Local ID", result.localId],
-          ["Serial", result.serialNumber],
-          ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on portal)"],
-          ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
-        ]);
-        return result;
-      }),
-      { exits: REVOKE_EXIT_EXTRAS, json: "value" },
+const distributionCertificateCommand = Command.make(
+  "distribution-certificate",
+  {
+    id: Flag.String("id").pipe(Flag.withDescription("Local distribution certificate ID")),
+    "asc-key-id": Flag.String("asc-key-id").pipe(
+      Flag.withDescription("ASC API key ID (prompts if omitted and multiple keys exist)"),
+      optionalFlag,
     ),
-});
+    "keep-local": Flag.Boolean("keep-local").pipe(
+      Flag.withDescription("Revoke on Apple but keep the credential in this account"),
+      Flag.withDefault(false),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const ascApiKeyId = yield* resolveAscKeyId(api, args["asc-key-id"]);
+      const result = yield* revokeLocalDistributionCertificate(api, {
+        ascApiKeyId,
+        distributionCertificateId: args.id,
+        keepLocal: args["keep-local"],
+      });
+      yield* printHuman("Distribution certificate revoke complete.");
+      yield* printHumanKeyValue([
+        ["Local ID", result.localId],
+        ["Serial", result.serialNumber],
+        ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on portal)"],
+        ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
+      ]);
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Revoke an iOS distribution certificate on the Apple Developer Portal and delete it from this account",
+  ),
+);
 
 const resolvePushKeyTarget = (api: ApiClient, idArg: string | undefined) =>
   Effect.gen(function* () {
@@ -119,88 +113,89 @@ const resolvePushKeyTarget = (api: ApiClient, idArg: string | undefined) =>
     return match;
   });
 
-const pushKeyCommand = defineCommand({
-  meta: {
-    name: "push-key",
-    description:
-      "Revoke an APNs auth key on the Apple Developer Portal (via Apple ID login) and delete it from this account",
-  },
-  args: {
-    id: { type: "string", description: "Local push key ID (prompts if omitted)" },
-    "keep-local": {
-      type: "boolean",
-      description: "Revoke on Apple but keep the credential in this account",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const target = yield* resolvePushKeyTarget(api, args.id);
-        const auth = yield* AppleAuth;
-        const session = yield* auth.ensureLoggedIn();
-        const result = yield* revokeLocalApnsKey(api, {
-          context: auth.buildRequestContext(session),
-          pushKeyId: target.id,
-          keyId: target.keyId,
-          keepLocal: args["keep-local"] ?? false,
-        });
-        yield* printHuman("APNs push key revoke complete.");
-        yield* printHumanKeyValue([
-          ["Local ID", result.localId],
-          ["Key ID", result.keyId],
-          ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on portal)"],
-          ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
-        ]);
-        return result;
-      }),
-      { exits: REVOKE_EXIT_EXTRAS, json: "value" },
+const pushKeyCommand = Command.make(
+  "push-key",
+  {
+    id: Flag.String("id").pipe(
+      Flag.withDescription("Local push key ID (prompts if omitted)"),
+      optionalFlag,
     ),
-});
-
-const ascKeyCommand = defineCommand({
-  meta: {
-    name: "asc-key",
-    description:
-      "Revoke an App Store Connect API key on Apple (via Apple ID login) and delete it from this account",
-  },
-  args: {
-    id: { type: "string", description: "Local ASC API key ID (prompts if omitted)" },
-    "keep-local": {
-      type: "boolean",
-      description: "Revoke on Apple but keep the credential in this account",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const ascApiKeyId = yield* resolveAscKeyId(api, args.id);
-        const auth = yield* AppleAuth;
-        const session = yield* auth.ensureLoggedIn();
-        const result = yield* revokeLocalAscApiKey(api, {
-          context: auth.buildRequestContext(session),
-          ascApiKeyId,
-          keepLocal: args["keep-local"] ?? false,
-        });
-        yield* printHuman("App Store Connect API key revoke complete.");
-        yield* printHumanKeyValue([
-          ["Local ID", result.localId],
-          ["Key ID", result.keyId],
-          ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on Apple)"],
-          ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
-        ]);
-        return result;
-      }),
-      { exits: REVOKE_EXIT_EXTRAS, json: "value" },
+    "keep-local": Flag.Boolean("keep-local").pipe(
+      Flag.withDescription("Revoke on Apple but keep the credential in this account"),
+      Flag.withDefault(false),
     ),
-});
-
-export const revokeCommand = defineCommand({
-  meta: { name: "revoke", description: "Revoke credentials on the upstream provider" },
-  subCommands: {
-    "distribution-certificate": distributionCertificateCommand,
-    "push-key": pushKeyCommand,
-    "asc-key": ascKeyCommand,
   },
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const target = yield* resolvePushKeyTarget(api, args.id);
+      const auth = yield* AppleAuth;
+      const session = yield* auth.ensureLoggedIn();
+      const result = yield* revokeLocalApnsKey(api, {
+        context: auth.buildRequestContext(session),
+        pushKeyId: target.id,
+        keyId: target.keyId,
+        keepLocal: args["keep-local"],
+      });
+      yield* printHuman("APNs push key revoke complete.");
+      yield* printHumanKeyValue([
+        ["Local ID", result.localId],
+        ["Key ID", result.keyId],
+        ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on portal)"],
+        ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
+      ]);
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Revoke an APNs auth key on the Apple Developer Portal (via Apple ID login) and delete it from this account",
+  ),
+);
+
+const ascKeyCommand = Command.make(
+  "asc-key",
+  {
+    id: Flag.String("id").pipe(
+      Flag.withDescription("Local ASC API key ID (prompts if omitted)"),
+      optionalFlag,
+    ),
+    "keep-local": Flag.Boolean("keep-local").pipe(
+      Flag.withDescription("Revoke on Apple but keep the credential in this account"),
+      Flag.withDefault(false),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const ascApiKeyId = yield* resolveAscKeyId(api, args.id);
+      const auth = yield* AppleAuth;
+      const session = yield* auth.ensureLoggedIn();
+      const result = yield* revokeLocalAscApiKey(api, {
+        context: auth.buildRequestContext(session),
+        ascApiKeyId,
+        keepLocal: args["keep-local"],
+      });
+      yield* printHuman("App Store Connect API key revoke complete.");
+      yield* printHumanKeyValue([
+        ["Local ID", result.localId],
+        ["Key ID", result.keyId],
+        ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on Apple)"],
+        ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
+      ]);
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Revoke an App Store Connect API key on Apple (via Apple ID login) and delete it from this account",
+  ),
+);
+
+export const revokeCommand = Command.make("revoke").pipe(
+  Command.withDescription("Revoke credentials on the upstream provider"),
+  Command.withSubcommands([distributionCertificateCommand, pushKeyCommand, ascKeyCommand]),
+  Command.provide(applePortalExitCodes),
+);

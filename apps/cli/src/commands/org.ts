@@ -1,13 +1,14 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
 import { forgetCachedEnvVaultKey } from "../application/env-vault-access";
 import { switchOrganization } from "../application/org";
 import { forgetCachedVaultKey } from "../application/vault-access";
-import { runEffect } from "../lib/citty-effect";
 import { printHuman, printHumanList } from "../lib/output";
+import { optionalArgument } from "../lib/params";
 import { promptSelect } from "../lib/prompts";
+import { runCommand } from "../lib/run-command";
 import { apiClient, ApiClientService } from "../services/api-client";
 
 // The id of the org this session currently operates on (`/api/me`), used to
@@ -33,27 +34,26 @@ const dropVaultCaches = (orgId: string) =>
     Effect.catch(() => Effect.void),
   );
 
-const listCommand = defineCommand({
-  meta: {
-    name: "list",
-    description: "List the organizations you belong to (● marks this session's active one)",
+const listHandler = Effect.fn(
+  function* () {
+    const service = yield* ApiClientService;
+    const organizations = yield* service.listOrganizations;
+    const activeId = yield* activeOrganizationId;
+    yield* printHumanList(
+      ["Active", "Name", "Slug", "Id"],
+      organizations.map((org) => [org.id === activeId ? "●" : "", org.name, org.slug, org.id]),
+      "You don't belong to any organization yet — create one in the web dashboard.",
+    );
+    return { items: organizations, activeOrganizationId: activeId };
   },
-  run: async () =>
-    runEffect(
-      Effect.gen(function* () {
-        const service = yield* ApiClientService;
-        const organizations = yield* service.listOrganizations;
-        const activeId = yield* activeOrganizationId;
-        yield* printHumanList(
-          ["Active", "Name", "Slug", "Id"],
-          organizations.map((org) => [org.id === activeId ? "●" : "", org.name, org.slug, org.id]),
-          "You don't belong to any organization yet — create one in the web dashboard.",
-        );
-        return { items: organizations, activeOrganizationId: activeId };
-      }),
-      { json: "value" },
-    ),
-});
+  runCommand({ json: "value" }),
+);
+
+const listCommand = Command.make("list", {}, listHandler).pipe(
+  Command.withDescription(
+    "List the organizations you belong to (● marks this session's active one)",
+  ),
+);
 
 const promptForOrganization = Effect.gen(function* () {
   const service = yield* ApiClientService;
@@ -71,52 +71,43 @@ const promptForOrganization = Effect.gen(function* () {
   );
 });
 
-const switchCommand = defineCommand({
-  meta: {
-    name: "switch",
-    description:
-      "Set this CLI session's active organization — projects, robots, env vars, and vaults all scope to it",
-  },
-  args: {
-    org: {
-      type: "positional",
-      required: false,
-      description: "Organization slug or id (prompts interactively when omitted)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const service = yield* ApiClientService;
-        const flag = args.org?.trim();
-        const selector =
-          flag !== undefined && flag.length > 0 ? flag : yield* promptForOrganization;
-        const leavingOrgId = yield* activeOrganizationId;
-        const target = yield* switchOrganization(service, selector);
-        if (leavingOrgId !== undefined) {
-          yield* dropVaultCaches(leavingOrgId);
-        }
-        const api = yield* apiClient;
-        const me = yield* api.me.get();
-        const role = me.activeOrganization?.role;
-        yield* printHuman(
-          `✓ Switched to ${target.name} (${target.slug})${role ? ` — your role: ${role}` : ""}.`,
-        );
-        return { id: target.id, name: target.name, slug: target.slug, role };
-      }),
-      { json: "value" },
+const switchCommand = Command.make(
+  "switch",
+  {
+    org: Argument.String("org").pipe(
+      Argument.withDescription("Organization slug or id (prompts interactively when omitted)"),
+      optionalArgument,
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const service = yield* ApiClientService;
+      const flag = args.org?.trim();
+      const selector = flag !== undefined && flag.length > 0 ? flag : yield* promptForOrganization;
+      const leavingOrgId = yield* activeOrganizationId;
+      const target = yield* switchOrganization(service, selector);
+      if (leavingOrgId !== undefined) {
+        yield* dropVaultCaches(leavingOrgId);
+      }
+      const api = yield* apiClient;
+      const me = yield* api.me.get();
+      const role = me.activeOrganization?.role;
+      yield* printHuman(
+        `✓ Switched to ${target.name} (${target.slug})${role ? ` — your role: ${role}` : ""}.`,
+      );
+      return { id: target.id, name: target.name, slug: target.slug, role };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Set this CLI session's active organization — projects, robots, env vars, and vaults all scope to it",
+  ),
+);
 
-export const orgCommand = defineCommand({
-  meta: {
-    name: "org",
-    description:
-      "Show and switch this session's active organization (set at login, otherwise sticky)",
-  },
-  subCommands: {
-    list: listCommand,
-    switch: switchCommand,
-  },
-  default: "list",
-});
+export const orgCommand = Command.make("org", {}, listHandler).pipe(
+  Command.withDescription(
+    "Show and switch this session's active organization (set at login, otherwise sticky)",
+  ),
+  Command.withSubcommands([listCommand, switchCommand]),
+);

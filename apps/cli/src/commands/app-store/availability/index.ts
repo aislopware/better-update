@@ -1,15 +1,9 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { availabilitySetCommand } from "./set";
 import { availabilityShowCommand } from "./show";
 
-export const appStoreAvailabilityCommand = defineCommand({
-  meta: {
-    name: "availability",
-    description: "Inspect + set the app's territory availability",
-  },
-  subCommands: {
-    show: availabilityShowCommand,
-    set: availabilitySetCommand,
-  },
-});
+export const appStoreAvailabilityCommand = Command.make("availability").pipe(
+  Command.withDescription("Inspect + set the app's territory availability"),
+  Command.withSubcommands([availabilityShowCommand, availabilitySetCommand]),
+);

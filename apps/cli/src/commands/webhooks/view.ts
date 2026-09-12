@@ -1,31 +1,30 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printHumanKeyValue } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-export const viewWebhookCommand = defineCommand({
-  meta: { name: "view", description: "Show details for a webhook (without the secret)" },
-  args: {
-    id: { type: "positional", required: true, description: "Webhook ID" },
+export const viewWebhookCommand = Command.make(
+  "view",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Webhook ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const webhook = yield* api.webhooks.get({ params: { id: args.id } });
-        yield* printHumanKeyValue([
-          ["ID", webhook.id],
-          ["Name", webhook.name],
-          ["URL", webhook.url],
-          ["Events", webhook.events.join(",")],
-          ["Enabled", webhook.enabled ? "yes" : "no"],
-          ["Project ID", webhook.projectId ?? "(all)"],
-          ["Created", webhook.createdAt],
-        ]);
-        return webhook;
-      }),
-      { json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const webhook = yield* api.webhooks.get({ params: { id: args.id } });
+      yield* printHumanKeyValue([
+        ["ID", webhook.id],
+        ["Name", webhook.name],
+        ["URL", webhook.url],
+        ["Events", webhook.events.join(",")],
+        ["Enabled", webhook.enabled ? "yes" : "no"],
+        ["Project ID", webhook.projectId ?? "(all)"],
+        ["Created", webhook.createdAt],
+      ]);
+      return webhook;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Show details for a webhook (without the secret)"));

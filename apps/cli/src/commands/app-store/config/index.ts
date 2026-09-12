@@ -1,16 +1,11 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { configPullCommand } from "./pull";
 import { configPushCommand } from "./push";
 
-export const appStoreConfigCommand = defineCommand({
-  meta: {
-    name: "config",
-    description:
-      "Pull/push the editable version's per-locale copy as a JSON document (eas-metadata parity)",
-  },
-  subCommands: {
-    pull: configPullCommand,
-    push: configPushCommand,
-  },
-});
+export const appStoreConfigCommand = Command.make("config").pipe(
+  Command.withDescription(
+    "Pull/push the editable version's per-locale copy as a JSON document (eas-metadata parity)",
+  ),
+  Command.withSubcommands([configPullCommand, configPushCommand]),
+);

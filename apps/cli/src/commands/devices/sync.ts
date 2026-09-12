@@ -1,14 +1,15 @@
 import AppleUtils from "@expo/apple-utils";
-import { defineCommand } from "citty";
 import { Effect, Result } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import { createAscKeyViaLogin } from "../../application/asc-key-resolve";
 import { buildTokenRequestContext, wrapConnect } from "../../lib/apple-asc-connect";
 import { reconcilePortalSnapshot, toAppleDevice } from "../../lib/apple-device-roster";
 import { fetchAscCredentials } from "../../lib/asc-credentials";
-import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type { AppleDevice } from "../../lib/apple-device-roster";
@@ -119,104 +120,107 @@ const listAllLocalDevices = (api: ApiClient, appleTeamId: string) =>
     return items;
   });
 
-export const syncDeviceCommand = defineCommand({
-  meta: {
-    name: "sync",
-    description:
-      "Sync devices with Apple App Store Connect: register local-only devices on Apple and import devices already registered there",
+export const syncDeviceCommand = Command.make(
+  "sync",
+  {
+    "apple-team-id": Flag.String("apple-team-id").pipe(
+      Flag.withDescription(
+        "Internal team Id (UUID) to sync; derived from --asc-api-key-id if omitted",
+      ),
+      optionalFlag,
+    ),
+    "asc-api-key-id": Flag.String("asc-api-key-id").pipe(
+      Flag.withDescription(
+        "ASC API key to authenticate with; derived from --apple-team-id if omitted",
+      ),
+      optionalFlag,
+    ),
+    push: Flag.Boolean("push").pipe(
+      Flag.withDescription(
+        "Register local-only devices on Apple (--no-push: Skip registering local devices on Apple (--no-push))",
+      ),
+      Flag.withDefault(true),
+    ),
+    pull: Flag.Boolean("pull").pipe(
+      Flag.withDescription(
+        "Import Apple-registered devices into better-update (--no-pull: Skip importing Apple devices (--no-pull))",
+      ),
+      Flag.withDefault(true),
+    ),
   },
-  args: {
-    "apple-team-id": {
-      type: "string",
-      description: "Internal team Id (UUID) to sync; derived from --asc-api-key-id if omitted",
-    },
-    "asc-api-key-id": {
-      type: "string",
-      description: "ASC API key to authenticate with; derived from --apple-team-id if omitted",
-    },
-    push: {
-      type: "boolean",
-      default: true,
-      description: "Register local-only devices on Apple",
-      negativeDescription: "Skip registering local devices on Apple (--no-push)",
-    },
-    pull: {
-      type: "boolean",
-      default: true,
-      description: "Import Apple-registered devices into better-update",
-      negativeDescription: "Skip importing Apple devices (--no-pull)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const target = yield* resolveTarget(api, args);
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const target = yield* resolveTarget(api, args);
 
-        const creds = yield* fetchAscCredentials(api, target.ascApiKeyId);
-        const ctx = buildTokenRequestContext(creds);
+      const creds = yield* fetchAscCredentials(api, target.ascApiKeyId);
+      const ctx = buildTokenRequestContext(creds);
 
-        const appleDevices = (yield* wrapConnect("apple-list-devices", async () =>
-          AppleUtils.Device.getAsync(ctx),
-        )).map(toAppleDevice);
-        const local = yield* listAllLocalDevices(api, target.appleTeamId);
-        const localUdids = new Set(local.map((device) => device.identifier.toLowerCase()));
+      const appleDevices = (yield* wrapConnect("apple-list-devices", async () =>
+        AppleUtils.Device.getAsync(ctx),
+      )).map(toAppleDevice);
+      const local = yield* listAllLocalDevices(api, target.appleTeamId);
+      const localUdids = new Set(local.map((device) => device.identifier.toLowerCase()));
 
-        // PUSH: register devices that exist locally but not yet on Apple. Each
-        // create is isolated so one rejection (e.g. a stale/invalid UDID) does
-        // not abort the rest of the sync.
-        const pushed: AppleDevice[] = [];
-        const pushFailures: { readonly identifier: string; readonly message: string }[] = [];
-        if (args.push) {
-          const appleUdids = new Set(appleDevices.map((device) => device.udid.toLowerCase()));
-          const toPush = local.filter((device) => !appleUdids.has(device.identifier.toLowerCase()));
-          for (const device of toPush) {
-            const result = yield* Effect.result(
-              wrapConnect("apple-create-device", async () =>
-                AppleUtils.Device.createAsync(ctx, {
-                  name: device.name,
-                  udid: device.identifier,
-                  platform: AppleUtils.BundleIdPlatform.IOS,
-                }),
-              ),
-            );
-            if (Result.isSuccess(result)) {
-              pushed.push(toAppleDevice(result.success));
-            } else {
-              pushFailures.push({ identifier: device.identifier, message: result.failure.message });
-            }
+      // PUSH: register devices that exist locally but not yet on Apple. Each
+      // create is isolated so one rejection (e.g. a stale/invalid UDID) does
+      // not abort the rest of the sync.
+      const pushed: AppleDevice[] = [];
+      const pushFailures: { readonly identifier: string; readonly message: string }[] = [];
+      if (args.push) {
+        const appleUdids = new Set(appleDevices.map((device) => device.udid.toLowerCase()));
+        const toPush = local.filter((device) => !appleUdids.has(device.identifier.toLowerCase()));
+        for (const device of toPush) {
+          const result = yield* Effect.result(
+            wrapConnect("apple-create-device", async () =>
+              AppleUtils.Device.createAsync(ctx, {
+                name: device.name,
+                udid: device.identifier,
+                platform: AppleUtils.BundleIdPlatform.IOS,
+              }),
+            ),
+          );
+          if (Result.isSuccess(result)) {
+            pushed.push(toAppleDevice(result.success));
+          } else {
+            pushFailures.push({ identifier: device.identifier, message: result.failure.message });
           }
         }
+      }
 
-        // Reconcile the Apple snapshot into our DB. When --no-pull, restrict to
-        // UDIDs we already track so existing devices still get their portal id
-        // linked, but Apple-only devices are not imported.
-        const summary = yield* reconcilePortalSnapshot(
-          api,
-          target.appleTeamId,
-          [...appleDevices, ...pushed].filter(
-            (device) => args.pull || localUdids.has(device.udid.toLowerCase()),
-          ),
-        );
+      // Reconcile the Apple snapshot into our DB. When --no-pull, restrict to
+      // UDIDs we already track so existing devices still get their portal id
+      // linked, but Apple-only devices are not imported.
+      const summary = yield* reconcilePortalSnapshot(
+        api,
+        target.appleTeamId,
+        [...appleDevices, ...pushed].filter(
+          (device) => args.pull || localUdids.has(device.udid.toLowerCase()),
+        ),
+      );
 
-        yield* printHumanKeyValue([
-          ["Apple devices", String(appleDevices.length + pushed.length)],
-          ["Pushed to Apple", String(pushed.length)],
-          ["Imported locally", String(summary.created)],
-          ["Linked (portal id set)", String(summary.linked)],
-          ["Already synced", String(summary.unchanged)],
-        ]);
-        for (const failure of pushFailures) {
-          yield* printHuman(`⚠ Could not push ${failure.identifier} to Apple: ${failure.message}`);
-        }
+      yield* printHumanKeyValue([
+        ["Apple devices", String(appleDevices.length + pushed.length)],
+        ["Pushed to Apple", String(pushed.length)],
+        ["Imported locally", String(summary.created)],
+        ["Linked (portal id set)", String(summary.linked)],
+        ["Already synced", String(summary.unchanged)],
+      ]);
+      for (const failure of pushFailures) {
+        yield* printHuman(`⚠ Could not push ${failure.identifier} to Apple: ${failure.message}`);
+      }
 
-        return {
-          appleTeamId: target.appleTeamId,
-          pushed: pushed.length,
-          ...summary,
-          pushFailures,
-        };
-      }),
-      { json: "value" },
-    ),
-});
+      return {
+        appleTeamId: target.appleTeamId,
+        pushed: pushed.length,
+        ...summary,
+        pushFailures,
+      };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Sync devices with Apple App Store Connect: register local-only devices on Apple and import devices already registered there",
+  ),
+);

@@ -1,15 +1,11 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { accountsListCommand } from "./list";
 import { accountsSwitchCommand } from "./switch";
 
-export const appleAccountsCommand = defineCommand({
-  meta: {
-    name: "accounts",
-    description: "Manage cached Apple Developer accounts (multiple logins, switch without re-auth)",
-  },
-  subCommands: {
-    list: accountsListCommand,
-    switch: accountsSwitchCommand,
-  },
-});
+export const appleAccountsCommand = Command.make("accounts").pipe(
+  Command.withDescription(
+    "Manage cached Apple Developer accounts (multiple logins, switch without re-auth)",
+  ),
+  Command.withSubcommands([accountsListCommand, accountsSwitchCommand]),
+);

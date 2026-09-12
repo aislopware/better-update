@@ -12,7 +12,7 @@ import { VaultCache, VaultCacheLive } from "../services/vault-cache";
 import { activeEnvPrivateKey, activeRecipient, loadIdentityFileOrFail } from "./identity";
 
 import type { InteractiveProhibitedError } from "../lib/exit-codes";
-import type { InteractiveMode } from "../lib/interactive-mode";
+import type { PromptServices } from "../lib/prompts";
 import type { ApiClient } from "../services/api-client";
 import type { CliRuntime } from "../services/cli-runtime";
 import type { IdentityStore } from "../services/identity-store";
@@ -90,7 +90,7 @@ export const unlockDeviceIdentityInteractive = (
 ): Effect.Effect<
   UnlockedDeviceIdentity,
   IdentityError | InteractiveProhibitedError,
-  DeviceUnlockMemo | IdentityStore | InteractiveMode
+  DeviceUnlockMemo | IdentityStore | PromptServices
 > =>
   Effect.gen(function* () {
     const file = yield* loadIdentityFileOrFail;

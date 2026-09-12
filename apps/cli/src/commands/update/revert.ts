@@ -1,15 +1,16 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import { runUpdateRollback } from "../../application/update-rollback";
-import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
 import { printHuman, printHumanTable } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
 import { promptSelect, promptText } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import { resolveNamedResourceId, UpdateCommandError, updateErrorExtras } from "./helpers";
+import { resolveNamedResourceId, UpdateCommandError } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
 
@@ -225,98 +226,97 @@ const revertByGroup = (options: {
 const isRevertChoice = (value: string): value is RevertChoice =>
   value === "published" || value === "embedded";
 
-export const revertCommand = defineCommand({
-  meta: {
-    name: "revert",
-    description:
-      "Revert the most recent update on a branch — either by republishing the previous group or by publishing a rollback-to-embedded directive",
-  },
-  args: {
-    branch: { type: "string", description: "Branch to revert" },
-    group: {
-      type: "string",
-      description:
+export const revertCommand = Command.make(
+  "revert",
+  {
+    branch: Flag.String("branch").pipe(Flag.withDescription("Branch to revert"), optionalFlag),
+    group: Flag.String("group").pipe(
+      Flag.withDescription(
         "Update group ID to revert (non-interactive; must be the latest group for its branch + runtime version)",
-    },
-    platform: {
-      type: "enum",
-      options: ["ios", "android", "all"],
-      default: "all",
-      description: "Platform(s) to revert",
-    },
-    type: {
-      type: "enum",
-      options: ["published", "embedded"],
-      description: "Pick revert target (skips the interactive router)",
-    },
-    message: { type: "string", description: "Optional update message" },
-    environment: {
-      type: "string",
-      default: "production",
-      description: "Env vars scope (only used for embedded rollback)",
-    },
+      ),
+      optionalFlag,
+    ),
+    platform: Flag.Literals("platform", ["ios", "android", "all"]).pipe(
+      Flag.withDescription("Platform(s) to revert"),
+      Flag.withDefault("all"),
+    ),
+    type: Flag.Literals("type", ["published", "embedded"]).pipe(
+      Flag.withDescription("Pick revert target (skips the interactive router)"),
+      optionalFlag,
+    ),
+    message: Flag.String("message").pipe(
+      Flag.withDescription("Optional update message"),
+      optionalFlag,
+    ),
+    environment: Flag.String("environment").pipe(
+      Flag.withDescription("Env vars scope (only used for embedded rollback)"),
+      Flag.withDefault("production"),
+    ),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const projectId = yield* readProjectId;
-        if (args.group !== undefined && args.group.length > 0) {
-          if ((args.branch !== undefined && args.branch.length > 0) || args.type !== undefined) {
-            return yield* new UpdateCommandError({
-              message:
-                "--group cannot be combined with --branch or --type; the branch and revert target are derived from the group.",
-            });
-          }
-          return yield* revertByGroup({
-            api,
-            projectId,
-            groupId: args.group,
-            platform: args.platform,
-            environment: args.environment,
-            message: args.message,
-          });
-        }
-        const branchName =
-          args.branch !== undefined && args.branch.length > 0
-            ? args.branch
-            : yield* promptBranchName(api, projectId);
-        const rawChoice =
-          args.type ??
-          (yield* promptSelect<string>("Which type of update would you like to revert to?", [
-            { value: "published", label: "Published Update (republish the previous group)" },
-            {
-              value: "embedded",
-              label: "Embedded Update (publish rollback-to-embedded directive)",
-            },
-          ]));
-        if (!isRevertChoice(rawChoice)) {
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const projectId = yield* readProjectId;
+      if (args.group !== undefined && args.group.length > 0) {
+        if ((args.branch !== undefined && args.branch.length > 0) || args.type !== undefined) {
           return yield* new UpdateCommandError({
-            message: `Invalid --type "${rawChoice}".`,
+            message:
+              "--group cannot be combined with --branch or --type; the branch and revert target are derived from the group.",
           });
         }
-        const message =
-          args.message ??
-          (yield* promptText("Update message (optional, press enter to skip)", {
-            defaultValue: "",
-          }).pipe(Effect.orElseSucceed(() => "")));
-        const messageOrUndefined = message.length === 0 ? undefined : message;
-        if (rawChoice === "embedded") {
-          return yield* revertToEmbedded(
-            branchName,
-            args.platform,
-            args.environment,
-            messageOrUndefined,
-          );
-        }
-        return yield* revertToPublished(
+        return yield* revertByGroup({
           api,
           projectId,
+          groupId: args.group,
+          platform: args.platform,
+          environment: args.environment,
+          message: args.message,
+        });
+      }
+      const branchName =
+        args.branch !== undefined && args.branch.length > 0
+          ? args.branch
+          : yield* promptBranchName(api, projectId);
+      const rawChoice =
+        args.type ??
+        (yield* promptSelect<string>("Which type of update would you like to revert to?", [
+          { value: "published", label: "Published Update (republish the previous group)" },
+          {
+            value: "embedded",
+            label: "Embedded Update (publish rollback-to-embedded directive)",
+          },
+        ]));
+      if (!isRevertChoice(rawChoice)) {
+        return yield* new UpdateCommandError({
+          message: `Invalid --type "${rawChoice}".`,
+        });
+      }
+      const message =
+        args.message ??
+        (yield* promptText("Update message (optional, press enter to skip)", {
+          defaultValue: "",
+        }).pipe(Effect.orElseSucceed(() => "")));
+      const messageOrUndefined = message.length === 0 ? undefined : message;
+      if (rawChoice === "embedded") {
+        return yield* revertToEmbedded(
           branchName,
           args.platform,
+          args.environment,
           messageOrUndefined,
         );
-      }),
-      { exits: updateErrorExtras, json: "value" },
-    ),
-});
+      }
+      return yield* revertToPublished(
+        api,
+        projectId,
+        branchName,
+        args.platform,
+        messageOrUndefined,
+      );
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Revert the most recent update on a branch — either by republishing the previous group or by publishing a rollback-to-embedded directive",
+  ),
+);

@@ -1,4 +1,4 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { addDeviceCommand } from "./add";
 import { deleteDeviceCommand } from "./delete";
@@ -9,16 +9,16 @@ import { renameDeviceCommand } from "./rename";
 import { syncDeviceCommand } from "./sync";
 import { viewDeviceCommand } from "./view";
 
-export const devicesCommand = defineCommand({
-  meta: { name: "devices", description: "Manage Apple devices for ad-hoc distribution" },
-  subCommands: {
-    add: addDeviceCommand,
-    list: listDevicesCommand,
-    view: viewDeviceCommand,
-    sync: syncDeviceCommand,
-    rename: renameDeviceCommand,
-    enable: enableDeviceCommand,
-    disable: disableDeviceCommand,
-    delete: deleteDeviceCommand,
-  },
-});
+export const devicesCommand = Command.make("devices").pipe(
+  Command.withDescription("Manage Apple devices for ad-hoc distribution"),
+  Command.withSubcommands([
+    addDeviceCommand,
+    listDevicesCommand,
+    viewDeviceCommand,
+    syncDeviceCommand,
+    renameDeviceCommand,
+    enableDeviceCommand,
+    disableDeviceCommand,
+    deleteDeviceCommand,
+  ]),
+);

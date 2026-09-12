@@ -1,40 +1,36 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
+import { periodFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { warnIfUnavailable } from "../analytics/unavailable";
-import { channelErrorExtras } from "./helpers";
 
-export const insightsCommand = defineCommand({
-  meta: { name: "insights", description: "Show adoption + traffic stats for a channel" },
-  args: {
-    name: { type: "positional", required: true, description: "Channel name" },
-    period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
+export const insightsCommand = Command.make(
+  "insights",
+  {
+    name: Argument.String("name").pipe(Argument.withDescription("Channel name")),
+    period: periodFlag,
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
+  Effect.fn(function* (args) {
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
 
-        const periodFilter = args.period ? { period: args.period } : {};
-        const result = yield* api.analytics.channels({
-          query: { projectId, channel: args.name, ...periodFilter },
-        });
+    const periodFilter = args.period ? { period: args.period } : {};
+    const result = yield* api.analytics.channels({
+      query: { projectId, channel: args.name, ...periodFilter },
+    });
 
-        yield* warnIfUnavailable(result.unavailable);
-        yield* printKeyValue([
-          ["Channel", result.channel],
-          ["Total Requests", String(result.totalRequests)],
-          ["Unique Devices", String(result.uniqueDevices)],
-          ["Manifest", String(result.responseTypeDistribution.manifest)],
-          ["Directive", String(result.responseTypeDistribution.directive)],
-          ["No Update", String(result.responseTypeDistribution.no_update)],
-        ]);
-      }),
-      channelErrorExtras,
-    ),
-});
+    yield* warnIfUnavailable(result.unavailable);
+    yield* printKeyValue([
+      ["Channel", result.channel],
+      ["Total Requests", String(result.totalRequests)],
+      ["Unique Devices", String(result.uniqueDevices)],
+      ["Manifest", String(result.responseTypeDistribution.manifest)],
+      ["Directive", String(result.responseTypeDistribution.directive)],
+      ["No Update", String(result.responseTypeDistribution.no_update)],
+    ]);
+  }, runCommand()),
+).pipe(Command.withDescription("Show adoption + traffic stats for a channel"));

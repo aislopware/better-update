@@ -1,11 +1,11 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
 import { changePassphrase } from "../../application/passphrase-change";
-import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
 import { promptPassword } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type { AccountResealOutcome } from "../../application/passphrase-change";
@@ -32,28 +32,25 @@ const promptNewPassphrase = Effect.gen(function* () {
   return first;
 });
 
-const changeCommand = defineCommand({
-  meta: {
-    name: "change",
-    description:
-      "Change this device's passphrase, re-sealing the device identity and (if enrolled) your account key under it",
+const changeHandler = Effect.fn(
+  function* () {
+    const api = yield* apiClient;
+    const oldPassphrase = yield* promptPassword("Current passphrase:");
+    const newPassphrase = yield* promptNewPassphrase;
+    const { account } = yield* changePassphrase(api, { oldPassphrase, newPassphrase });
+    yield* printHuman(ACCOUNT_OUTCOME_MESSAGE[account]);
+    return { changed: true, account };
   },
-  run: async () =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const oldPassphrase = yield* promptPassword("Current passphrase:");
-        const newPassphrase = yield* promptNewPassphrase;
-        const { account } = yield* changePassphrase(api, { oldPassphrase, newPassphrase });
-        yield* printHuman(ACCOUNT_OUTCOME_MESSAGE[account]);
-        return { changed: true, account };
-      }),
-      { json: "value" },
-    ),
-});
+  runCommand({ json: "value" }),
+);
 
-export const passphraseCommand = defineCommand({
-  meta: { name: "passphrase", description: "Manage this device's identity passphrase" },
-  subCommands: { change: changeCommand },
-  default: "change",
-});
+const changeCommand = Command.make("change", {}, changeHandler).pipe(
+  Command.withDescription(
+    "Change this device's passphrase, re-sealing the device identity and (if enrolled) your account key under it",
+  ),
+);
+
+export const passphraseCommand = Command.make("passphrase", {}, changeHandler).pipe(
+  Command.withDescription("Manage this device's identity passphrase"),
+  Command.withSubcommands([changeCommand]),
+);

@@ -1,28 +1,25 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-export const enableDeviceCommand = defineCommand({
-  meta: { name: "enable", description: "Re-enable a device (include it in new provisioning)" },
-  args: {
-    id: { type: "positional", required: true, description: "Device ID" },
+export const enableDeviceCommand = Command.make(
+  "enable",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Device ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const device = yield* api.devices.update({
-          params: { id: args.id },
-          payload: { enabled: true },
-        });
-        yield* printKeyValue([
-          ["ID", device.id],
-          ["Name", device.name],
-          ["Enabled", "yes"],
-        ]);
-      }),
-    ),
-});
+  Effect.fn(function* (args) {
+    const api = yield* apiClient;
+    const device = yield* api.devices.update({
+      params: { id: args.id },
+      payload: { enabled: true },
+    });
+    yield* printKeyValue([
+      ["ID", device.id],
+      ["Name", device.name],
+      ["Enabled", "yes"],
+    ]);
+  }, runCommand()),
+).pipe(Command.withDescription("Re-enable a device (include it in new provisioning)"));

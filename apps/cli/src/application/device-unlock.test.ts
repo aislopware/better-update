@@ -5,6 +5,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Result, Layer } from "effect";
 
@@ -119,7 +120,7 @@ describe("unlocking both org vaults in one command", () => {
         const credentials = yield* unlockVaultKeyInteractive(fixture.api, { orgId: ORG_ID });
         const env = yield* unlockEnvVaultKeyInteractive(fixture.api, ORG_ID);
         return { credentials, env };
-      }).pipe(Effect.provide(layers(fixture.file)));
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, layers(fixture.file))));
 
       expect(mocks.promptPassword).toHaveBeenCalledTimes(1);
       expect(toBase64(unlocked.credentials.vaultKey)).toBe(toBase64(fixture.credentialsVaultKey));
@@ -137,7 +138,7 @@ describe("unlocking both org vaults in one command", () => {
         );
         const recovered = yield* Effect.result(unlockEnvVaultKeyInteractive(fixture.api, ORG_ID));
         return { failed, recovered };
-      }).pipe(Effect.provide(layers(fixture.file)));
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, layers(fixture.file))));
 
       expect(Result.isFailure(attempts.failed)).toBe(true);
       expect(mocks.promptPassword).toHaveBeenCalledTimes(2);

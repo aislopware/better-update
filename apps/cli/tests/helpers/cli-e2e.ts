@@ -435,7 +435,7 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
         // CI=1 + no TTY makes the CLI's prompt layer throw `InteractiveProhibitedError`
         // instead of blocking on stdin. Without this, `ensureRepoClean` in `update
         // publish` / `build` would hang forever on the dirty fixture working tree
-        // because clack `confirm()` waits for a key that never arrives via spawnSync.
+        // because the confirm prompt waits for a key that never arrives via spawnSync.
         CI: "1",
         FORCE_COLOR: "0",
         NO_COLOR: "1",

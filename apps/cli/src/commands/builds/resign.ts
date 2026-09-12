@@ -1,14 +1,15 @@
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import process from "node:process";
 
 import { fromBase64 } from "@better-update/encoding";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
+import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
@@ -96,70 +97,68 @@ const resolveSigningIdentity = (api: ApiClient, certId: string) =>
     return `iPhone Distribution: ${cert.appleTeamIdentifier}`;
   });
 
-export const resignCommand = defineCommand({
-  meta: {
-    name: "resign",
-    description:
-      "Print step-by-step instructions for re-signing an iOS build with a new provisioning profile",
-  },
-  args: {
-    build: { type: "string", required: true, description: "Source build ID" },
-    "profile-id": {
-      type: "string",
-      description:
+export const resignCommand = Command.make(
+  "resign",
+  {
+    build: Flag.String("build").pipe(Flag.withDescription("Source build ID")),
+    "profile-id": Flag.String("profile-id").pipe(
+      Flag.withDescription(
         "Provisioning profile ID to bind to the resigned build (downloads it to a tmp path)",
-    },
-    "cert-id": {
-      type: "string",
-      description: "Distribution certificate ID to derive the codesign --signing-identity from",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const build = yield* api.builds.get({ params: { id: args.build } });
-        if (build.platform !== "ios") {
-          yield* printHuman(
-            `Build ${args.build} is ${build.platform}. Re-signing this command currently covers iOS only.`,
-          );
-          process.exitCode = 2;
-          return undefined;
-        }
-        const link = yield* api.builds.getInstallLink({ params: { id: args.build } });
-
-        // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with downloadProfileToTmp's result to {...} | undefined); Effect.void breaks the === undefined / ?.profilePath downstream
-        const profilePromise =
-          args["profile-id"] === undefined
-            ? Effect.succeed(undefined)
-            : downloadProfileToTmp(api, args["profile-id"]);
-        // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with resolveSigningIdentity's string to string | undefined); Effect.void breaks the === undefined / ?? downstream
-        const identityPromise =
-          args["cert-id"] === undefined
-            ? Effect.succeed(undefined)
-            : resolveSigningIdentity(api, args["cert-id"]);
-
-        const [profile, identity] = yield* Effect.all([profilePromise, identityPromise], {
-          concurrency: 2,
-        });
-
-        const resolved: ResolvedInputs | undefined =
-          profile === undefined && identity === undefined
-            ? undefined
-            : {
-                profilePath: profile?.profilePath ?? "/path/to/new.mobileprovision",
-                signingIdentity: identity ?? "iPhone Distribution: Your Team (ABCDE12345)",
-                appName: profile?.bundleIdentifier.split(".").pop() ?? "YourApp",
-              };
-
-        yield* printHuman(
-          resignWorkflowText({
-            buildId: args.build,
-            installLink: link.artifactUrl,
-            resolved,
-          }),
-        );
-        return undefined;
-      }),
+      ),
+      optionalFlag,
     ),
-});
+    "cert-id": Flag.String("cert-id").pipe(
+      Flag.withDescription(
+        "Distribution certificate ID to derive the codesign --signing-identity from",
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(function* (args) {
+    const api = yield* apiClient;
+    const build = yield* api.builds.get({ params: { id: args.build } });
+    if (build.platform !== "ios") {
+      return yield* new InvalidArgumentError({
+        message: `Build ${args.build} is ${build.platform}. Re-signing currently covers iOS only.`,
+      });
+    }
+    const link = yield* api.builds.getInstallLink({ params: { id: args.build } });
+
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with downloadProfileToTmp's result to {...} | undefined); Effect.void breaks the === undefined / ?.profilePath downstream
+    const profilePromise =
+      args["profile-id"] === undefined
+        ? Effect.succeed(undefined)
+        : downloadProfileToTmp(api, args["profile-id"]);
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with resolveSigningIdentity's string to string | undefined); Effect.void breaks the === undefined / ?? downstream
+    const identityPromise =
+      args["cert-id"] === undefined
+        ? Effect.succeed(undefined)
+        : resolveSigningIdentity(api, args["cert-id"]);
+
+    const [profile, identity] = yield* Effect.all([profilePromise, identityPromise], {
+      concurrency: 2,
+    });
+
+    const resolved: ResolvedInputs | undefined =
+      profile === undefined && identity === undefined
+        ? undefined
+        : {
+            profilePath: profile?.profilePath ?? "/path/to/new.mobileprovision",
+            signingIdentity: identity ?? "iPhone Distribution: Your Team (ABCDE12345)",
+            appName: profile?.bundleIdentifier.split(".").pop() ?? "YourApp",
+          };
+
+    yield* printHuman(
+      resignWorkflowText({
+        buildId: args.build,
+        installLink: link.artifactUrl,
+        resolved,
+      }),
+    );
+    return undefined;
+  }, runCommand()),
+).pipe(
+  Command.withDescription(
+    "Print step-by-step instructions for re-signing an iOS build with a new provisioning profile",
+  ),
+);

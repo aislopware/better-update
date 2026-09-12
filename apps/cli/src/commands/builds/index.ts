@@ -1,4 +1,4 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { compatibilityMatrixCommand } from "./compatibility-matrix";
 import { deleteCommand } from "./delete";
@@ -8,21 +8,21 @@ import { getCommand } from "./get";
 import { installLinkCommand } from "./install-link";
 import { listCommand } from "./list";
 import { resignCommand } from "./resign";
-import { runCommand } from "./run";
+import { runBuildCommand } from "./run";
 import { uploadCommand } from "./upload";
 
-export const buildsCommand = defineCommand({
-  meta: { name: "builds", description: "Manage builds" },
-  subCommands: {
-    list: listCommand,
-    get: getCommand,
-    delete: deleteCommand,
-    download: downloadCommand,
-    "download-symbols": downloadSymbolsCommand,
-    run: runCommand,
-    "install-link": installLinkCommand,
-    "compatibility-matrix": compatibilityMatrixCommand,
-    upload: uploadCommand,
-    resign: resignCommand,
-  },
-});
+export const buildsCommand = Command.make("builds").pipe(
+  Command.withDescription("Manage builds"),
+  Command.withSubcommands([
+    listCommand,
+    getCommand,
+    deleteCommand,
+    downloadCommand,
+    downloadSymbolsCommand,
+    runBuildCommand,
+    installLinkCommand,
+    compatibilityMatrixCommand,
+    uploadCommand,
+    resignCommand,
+  ]),
+);

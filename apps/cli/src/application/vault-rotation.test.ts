@@ -8,6 +8,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -124,7 +125,7 @@ describe(rotateVaultTo, () => {
       const rotated = yield* rotateVaultTo({
         api,
         recipients: [{ userEncryptionKeyId: KEY_ID, publicKey: identity.publicKey }],
-      }).pipe(Effect.provide(vaultLayer(identity.privateKey)));
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(identity.privateKey))));
 
       expect(rotated.vaultVersion).toBe(2);
       expect(captured?.fromVersion).toBe(1);

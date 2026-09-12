@@ -1,18 +1,14 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
 import type { Context } from "effect";
 
-import { runEffect } from "../../../lib/citty-effect";
 import { printHuman } from "../../../lib/output";
+import { optionalArgument } from "../../../lib/params";
 import { promptSelect } from "../../../lib/prompts";
+import { runCommand } from "../../../lib/run-command";
 import { AppleAuth } from "../../../services/apple-auth";
 import { AppleSessionStore } from "../../../services/apple-session-store";
-
-const SWITCH_EXIT_EXTRAS = {
-  AppleAuthError: 4,
-  InteractiveProhibitedError: 4,
-} as const;
 
 /** Sentinel `promptSelect` choice: fall through to a fresh interactive login. */
 const FRESH_LOGIN_CHOICE = "__login__";
@@ -38,33 +34,33 @@ const resolveTarget = (
     ]);
   });
 
-export const accountsSwitchCommand = defineCommand({
-  meta: {
-    name: "switch",
-    description:
-      "Switch the active Apple account (restores its cached session; logs in when needed)",
-  },
-  args: {
-    username: {
-      type: "positional",
-      required: false,
-      description: "Apple ID to switch to (prompts with the cached accounts when omitted)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const store = yield* AppleSessionStore;
-        const auth = yield* AppleAuth;
-        const target = yield* resolveTarget(store, args.username);
-        const session = yield* target === FRESH_LOGIN_CHOICE
-          ? auth.ensureLoggedIn({ freshLogin: true })
-          : auth.ensureLoggedIn({ username: target });
-        yield* printHuman(
-          `Active Apple account: ${session.username}. Team: ${session.teamName ?? session.teamId} (${session.teamId}).`,
-        );
-        return session;
-      }),
-      { exits: SWITCH_EXIT_EXTRAS, json: "value" },
+export const accountsSwitchCommand = Command.make(
+  "switch",
+  {
+    username: Argument.String("username").pipe(
+      Argument.withDescription(
+        "Apple ID to switch to (prompts with the cached accounts when omitted)",
+      ),
+      optionalArgument,
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const store = yield* AppleSessionStore;
+      const auth = yield* AppleAuth;
+      const target = yield* resolveTarget(store, args.username);
+      const session = yield* target === FRESH_LOGIN_CHOICE
+        ? auth.ensureLoggedIn({ freshLogin: true })
+        : auth.ensureLoggedIn({ username: target });
+      yield* printHuman(
+        `Active Apple account: ${session.username}. Team: ${session.teamName ?? session.teamId} (${session.teamId}).`,
+      );
+      return session;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Switch the active Apple account (restores its cached session; logs in when needed)",
+  ),
+);

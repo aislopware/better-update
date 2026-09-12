@@ -1,6 +1,6 @@
 import { Console, Effect } from "effect";
 
-import { resolveActiveCommandName } from "./command-output";
+import { activeCommandName } from "./command-output";
 import { makeSuccessEnvelope, serializeEnvelope } from "./envelope";
 import { currentLogPrefix, prefixLine } from "./log-prefix";
 import { OutputMode } from "./output-mode";
@@ -8,10 +8,12 @@ import { OutputMode } from "./output-mode";
 /**
  * Emit the schema-versioned success envelope wrapping `data` on stdout, compact
  * and single-line. This is the shared JSON-mode write for the human-output
- * helpers below; the command name is derived from the citty-rewritten argv.
+ * helpers below; the command name comes from the CommandName service.
  */
 const emitSuccessEnvelope = (data: unknown): Effect.Effect<void> =>
-  Console.log(serializeEnvelope(makeSuccessEnvelope(resolveActiveCommandName(process.argv), data)));
+  activeCommandName.pipe(
+    Effect.flatMap((command) => Console.log(serializeEnvelope(makeSuccessEnvelope(command, data)))),
+  );
 
 /**
  * Emit a key/value table. Human mode prints aligned columns; JSON mode emits a

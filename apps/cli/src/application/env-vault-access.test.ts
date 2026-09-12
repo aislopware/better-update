@@ -6,6 +6,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -208,7 +209,7 @@ describe("granting an env recipient idempotently", () => {
       });
 
       const outcome = yield* grantEnvRecipientIdempotent(api, fixture.target).pipe(
-        Effect.provide(layers(fixture.caller.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, layers(fixture.caller.privateKey))),
       );
 
       expect(outcome).toBe("granted");
@@ -238,7 +239,7 @@ describe("granting an env recipient idempotently", () => {
       });
 
       const outcome = yield* grantEnvRecipientIdempotent(api, fixture.target).pipe(
-        Effect.provide(layers(fixture.caller.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, layers(fixture.caller.privateKey))),
       );
 
       expect(outcome).toBe("already");
@@ -260,7 +261,7 @@ describe("granting an env recipient idempotently", () => {
       });
 
       const outcome = yield* grantEnvRecipientIdempotent(api, fixture.target).pipe(
-        Effect.provide(layers(fixture.caller.privateKey)),
+        Effect.provide(Layer.mergeAll(NodeServices.layer, layers(fixture.caller.privateKey))),
       );
 
       expect(outcome).toBe("granted");

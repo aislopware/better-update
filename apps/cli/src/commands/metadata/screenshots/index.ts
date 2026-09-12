@@ -1,15 +1,9 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { screenshotsClearCommand } from "./clear";
 import { screenshotsUploadCommand } from "./upload";
 
-export const metadataScreenshotsCommand = defineCommand({
-  meta: {
-    name: "screenshots",
-    description: "Upload and clear App Store screenshots on the editable version",
-  },
-  subCommands: {
-    upload: screenshotsUploadCommand,
-    clear: screenshotsClearCommand,
-  },
-});
+export const metadataScreenshotsCommand = Command.make("screenshots").pipe(
+  Command.withDescription("Upload and clear App Store screenshots on the editable version"),
+  Command.withSubcommands([screenshotsUploadCommand, screenshotsClearCommand]),
+);

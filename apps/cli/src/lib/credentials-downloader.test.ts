@@ -12,7 +12,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
-import { NodeFileSystem } from "@effect/platform-node";
+import { NodeFileSystem, NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -263,7 +263,9 @@ describe(downloadIosCredentials, () => {
           ).toStrictEqual(["com.example.app", "com.example.app.ext"]);
           expect(result.p12Password).toBe("pw");
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
     }),
   );
 
@@ -289,7 +291,9 @@ describe(downloadIosCredentials, () => {
           expect(err).toBeInstanceOf(MissingCredentialsError);
           expect(err?.message).toContain("Main app bundle");
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
     }),
   );
 
@@ -315,7 +319,9 @@ describe(downloadIosCredentials, () => {
           expect(err).toBeInstanceOf(MissingCredentialsError);
           expect(err?.message).toContain("Permission denied");
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
     }),
   );
 
@@ -341,7 +347,9 @@ describe(downloadIosCredentials, () => {
           expect(err).toBeInstanceOf(MissingCredentialsError);
           expect(err?.message).toContain("no ASC API key is available");
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
     }),
   );
 
@@ -362,7 +370,9 @@ describe(downloadIosCredentials, () => {
           expect(err).toBeInstanceOf(MissingCredentialsError);
           expect(err?.message).toContain("missing from bundleIdentifiers");
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
     }),
   );
 });

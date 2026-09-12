@@ -1,5 +1,6 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
+import { applePortalExitCodes } from "../../lib/command-errors";
 import { appStoreAgeRatingCommand } from "./age-rating";
 import { appStoreAppsCommand } from "./apps";
 import { appStoreAvailabilityCommand } from "./availability";
@@ -18,29 +19,28 @@ import { appStoreSubmitCommand } from "./submit";
 import { appStoreTerritoriesCommand } from "./territories";
 import { appStoreVersionCommand } from "./version";
 
-export const appStoreCommand = defineCommand({
-  meta: {
-    name: "app-store",
-    description:
-      "Drive the App Store release pipeline on App Store Connect (CI-safe, uses an ASC API key)",
-  },
-  subCommands: {
-    version: appStoreVersionCommand,
-    submit: appStoreSubmitCommand,
-    status: appStoreStatusCommand,
-    cancel: appStoreCancelCommand,
-    release: appStoreReleaseCommand,
-    reject: appStoreRejectCommand,
-    rollout: appStoreRolloutCommand,
-    "review-detail": appStoreReviewDetailCommand,
-    info: appStoreInfoCommand,
-    categories: appStoreCategoriesCommand,
-    "age-rating": appStoreAgeRatingCommand,
-    privacy: appStorePrivacyCommand,
-    apps: appStoreAppsCommand,
-    pricing: appStorePricingCommand,
-    availability: appStoreAvailabilityCommand,
-    territories: appStoreTerritoriesCommand,
-    config: appStoreConfigCommand,
-  },
-});
+export const appStoreCommand = Command.make("app-store").pipe(
+  Command.withDescription(
+    "Drive the App Store release pipeline on App Store Connect (CI-safe, uses an ASC API key)",
+  ),
+  Command.withSubcommands([
+    appStoreVersionCommand,
+    appStoreSubmitCommand,
+    appStoreStatusCommand,
+    appStoreCancelCommand,
+    appStoreReleaseCommand,
+    appStoreRejectCommand,
+    appStoreRolloutCommand,
+    appStoreReviewDetailCommand,
+    appStoreInfoCommand,
+    appStoreCategoriesCommand,
+    appStoreAgeRatingCommand,
+    appStorePrivacyCommand,
+    appStoreAppsCommand,
+    appStorePricingCommand,
+    appStoreAvailabilityCommand,
+    appStoreTerritoriesCommand,
+    appStoreConfigCommand,
+  ]),
+  Command.provide(applePortalExitCodes),
+);

@@ -1,3 +1,4 @@
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Layer } from "effect";
 import { ChildProcessSpawner } from "effect/unstable/process";
@@ -107,6 +108,7 @@ const input = {
 /** See the sibling profile test: the mocked paths never touch these services. */
 const stubLayer = (interactive: boolean) =>
   Layer.mergeAll(
+    NodeServices.layer,
     makeInteractiveModeLayer(interactive),
     makeOutputModeLayer(false),
     Layer.succeed(AppleAuth, "unused" as unknown as Context.Service.Shape<typeof AppleAuth>),

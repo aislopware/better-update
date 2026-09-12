@@ -58,19 +58,3 @@ export const parseKeyValue = (raw: string): Effect.Effect<KeyValuePair, InvalidA
         }),
     ),
   );
-
-export const parseLimit = (
-  raw: string | undefined,
-  defaultValue: number,
-): Effect.Effect<number, InvalidArgumentError> => {
-  if (raw === undefined) {
-    return Effect.succeed(defaultValue);
-  }
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    return Effect.fail(
-      new InvalidArgumentError({ message: `--limit must be a positive integer, got "${raw}".` }),
-    );
-  }
-  return Effect.succeed(parsed);
-};

@@ -1,32 +1,30 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printHuman } from "../../lib/output";
+import { yesFlag } from "../../lib/params";
 import { promptConfirm } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-export const deleteWebhookCommand = defineCommand({
-  meta: { name: "delete", description: "Delete a webhook subscription" },
-  args: {
-    id: { type: "positional", required: true, description: "Webhook ID" },
-    yes: { type: "boolean", description: "Skip confirmation prompt" },
+export const deleteWebhookCommand = Command.make(
+  "delete",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Webhook ID")),
+    yes: yesFlag(),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        if (!args.yes) {
-          const confirmed = yield* promptConfirm(`Delete webhook ${args.id}?`, {
-            initialValue: false,
-          });
-          if (!confirmed) {
-            yield* printHuman("Cancelled.");
-            return;
-          }
-        }
-        const api = yield* apiClient;
-        yield* api.webhooks.delete({ params: { id: args.id } });
-        yield* printHuman(`Deleted webhook ${args.id}.`);
-      }),
-    ),
-});
+  Effect.fn(function* (args) {
+    if (!args.yes) {
+      const confirmed = yield* promptConfirm(`Delete webhook ${args.id}?`, {
+        initialValue: false,
+      });
+      if (!confirmed) {
+        yield* printHuman("Cancelled.");
+        return;
+      }
+    }
+    const api = yield* apiClient;
+    yield* api.webhooks.delete({ params: { id: args.id } });
+    yield* printHuman(`Deleted webhook ${args.id}.`);
+  }, runCommand()),
+).pipe(Command.withDescription("Delete a webhook subscription"));

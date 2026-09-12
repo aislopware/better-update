@@ -1,15 +1,9 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { appsCreateCommand } from "./create";
 import { appsListCommand } from "./list";
 
-export const appStoreAppsCommand = defineCommand({
-  meta: {
-    name: "apps",
-    description: "Inspect + register the app records on your App Store Connect account",
-  },
-  subCommands: {
-    list: appsListCommand,
-    create: appsCreateCommand,
-  },
-});
+export const appStoreAppsCommand = Command.make("apps").pipe(
+  Command.withDescription("Inspect + register the app records on your App Store Connect account"),
+  Command.withSubcommands([appsListCommand, appsCreateCommand]),
+);

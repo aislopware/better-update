@@ -77,10 +77,18 @@ const provide = (options: StubApiOptions, stdout: string) =>
 
 // ── tests ─────────────────────────────────────────────────────────
 
+const EMPTY_ARGS = {
+  hash: undefined,
+  "build-id": [],
+  "update-id": [],
+  platform: undefined,
+} as const;
+
 describe(runCompare, () => {
   it.effect("two build ids with equal hashes -> matched, no error", () =>
     Effect.gen(function* () {
       const result = yield* runCompare({
+        ...EMPTY_ARGS,
         "build-id": ["b1", "b2"],
       }).pipe(provide({ builds: { b1: "abc", b2: "abc" } }, localFingerprint("local")));
       expect(result.matched).toBe(true);
@@ -92,6 +100,7 @@ describe(runCompare, () => {
   it.effect("two build ids with differing hashes -> FingerprintMismatchError (exit 1)", () =>
     Effect.gen(function* () {
       const exit = yield* runCompare({
+        ...EMPTY_ARGS,
         "build-id": ["b1", "b2"],
       }).pipe(
         provide({ builds: { b1: "aaa", b2: "bbb" } }, localFingerprint("local")),
@@ -109,6 +118,7 @@ describe(runCompare, () => {
   it.effect("build id with a null fingerprint hash -> FingerprintError", () =>
     Effect.gen(function* () {
       const exit = yield* runCompare({
+        ...EMPTY_ARGS,
         "build-id": ["b1", "b2"],
       }).pipe(provide({ builds: { b1: null, b2: "bbb" } }, localFingerprint("local")), Effect.exit);
       expect(Exit.isFailure(exit)).toBe(true);
@@ -123,7 +133,8 @@ describe(runCompare, () => {
   it.effect("single build id vs local, differing -> mismatch", () =>
     Effect.gen(function* () {
       const exit = yield* runCompare({
-        "build-id": "b1",
+        ...EMPTY_ARGS,
+        "build-id": ["b1"],
       }).pipe(provide({ builds: { b1: "server" } }, localFingerprint("local")), Effect.exit);
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
@@ -135,6 +146,7 @@ describe(runCompare, () => {
   it.effect("positional hash vs local, matching -> matched", () =>
     Effect.gen(function* () {
       const result = yield* runCompare({
+        ...EMPTY_ARGS,
         hash: "same",
       }).pipe(provide({}, localFingerprint("same")));
       expect(result.matched).toBe(true);
@@ -147,7 +159,8 @@ describe(runCompare, () => {
       // flags, so the local hash matches; the label reflects the platform so the
       // verdict reads like a per-platform comparison.
       const result = yield* runCompare({
-        "build-id": "b1",
+        ...EMPTY_ARGS,
+        "build-id": ["b1"],
         platform: "ios",
       }).pipe(provide({ builds: { b1: "ph" } }, localFingerprint("ph")));
       expect(result.matched).toBe(true);
@@ -157,7 +170,10 @@ describe(runCompare, () => {
 
   it.effect("no args -> FingerprintError (nothing to compare)", () =>
     Effect.gen(function* () {
-      const exit = yield* runCompare({}).pipe(provide({}, localFingerprint("local")), Effect.exit);
+      const exit = yield* runCompare(EMPTY_ARGS).pipe(
+        provide({}, localFingerprint("local")),
+        Effect.exit,
+      );
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
         const error = failureError(exit);
@@ -170,6 +186,7 @@ describe(runCompare, () => {
   it.effect("more than two ids -> FingerprintError", () =>
     Effect.gen(function* () {
       const exit = yield* runCompare({
+        ...EMPTY_ARGS,
         "build-id": ["b1", "b2"],
         "update-id": ["u1"],
       }).pipe(
@@ -193,7 +210,8 @@ describe(runCompare, () => {
         { type: "contents", id: "expoConfig", reasons: ["expoConfig"], hash: "x" },
       ];
       const result = yield* runCompare({
-        "build-id": "b1",
+        ...EMPTY_ARGS,
+        "build-id": ["b1"],
       }).pipe(provide({ builds: { b1: "match" } }, localFingerprint("match", sources)));
       expect(result.matched).toBe(true);
       expect("diff" in result).toBe(false);

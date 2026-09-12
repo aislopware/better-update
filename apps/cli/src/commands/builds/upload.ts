@@ -1,36 +1,30 @@
-import { defineCommand } from "citty";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import { runUploadWorkflow } from "../../application/upload-workflow";
-import { runEffect } from "../../lib/citty-effect";
+import { optionalFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 
-const UPLOAD_EXIT_EXTRAS = {
-  BuildProfileError: 2,
-  RuntimeVersionError: 2,
-  ArtifactNotFoundError: 6,
-  BuildFailedError: 6,
-  ReserveError: 7,
-  UploadFailedError: 7,
-  PresignedUrlExpiredError: 7,
-  CompleteError: 7,
-  EnvExportError: 7,
-} as const;
-
-export const uploadCommand = defineCommand({
-  meta: { name: "upload", description: "Upload an existing artifact to better-update" },
-  args: {
-    "artifact-path": { type: "positional", required: true, description: "Path to artifact" },
-    platform: { type: "enum", options: ["ios", "android"], required: true },
-    profile: { type: "string", default: "production", description: "Build profile name" },
-    message: { type: "string", description: "Optional build message" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      runUploadWorkflow({
-        artifactPath: args["artifact-path"],
-        platform: args.platform,
-        profileName: args.profile,
-        message: args.message,
-      }),
-      UPLOAD_EXIT_EXTRAS,
+export const uploadCommand = Command.make(
+  "upload",
+  {
+    "artifact-path": Argument.String("artifact-path").pipe(
+      Argument.withDescription("Path to artifact"),
     ),
-});
+    platform: Flag.Literals("platform", ["ios", "android"]),
+    profile: Flag.String("profile").pipe(
+      Flag.withDescription("Build profile name"),
+      Flag.withDefault("production"),
+    ),
+    message: Flag.String("message").pipe(
+      Flag.withDescription("Optional build message"),
+      optionalFlag,
+    ),
+  },
+  (args) =>
+    runUploadWorkflow({
+      artifactPath: args["artifact-path"],
+      platform: args.platform,
+      profileName: args.profile,
+      message: args.message,
+    }).pipe(runCommand()),
+).pipe(Command.withDescription("Upload an existing artifact to better-update"));

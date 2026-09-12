@@ -3,12 +3,7 @@ import AppleUtils from "@expo/apple-utils";
 import { Effect, Exit } from "effect";
 
 import { failureError } from "../lib/test-utils";
-import {
-  coerceEnum,
-  normalizePlatform,
-  normalizeReleaseType,
-  parseBooleanFlag,
-} from "./app-store-connect";
+import { coerceEnum, normalizePlatform, normalizeReleaseType } from "./app-store-connect";
 
 describe(normalizePlatform, () => {
   it.effect("defaults to iOS when unset", () =>
@@ -82,24 +77,6 @@ describe(coerceEnum, () => {
       expect(Exit.isFailure(exit)).toBe(true);
       expect(failureError(exit)?.message).toContain('Unknown color "GREEN"');
       expect(failureError(exit)?.message).toContain("RED, BLUE");
-    }),
-  );
-});
-
-describe(parseBooleanFlag, () => {
-  it.effect("parses true/false case-insensitively and passes undefined through", () =>
-    Effect.gen(function* () {
-      expect(yield* parseBooleanFlag("true", "--demo-required")).toBe(true);
-      expect(yield* parseBooleanFlag("FALSE", "--demo-required")).toBe(false);
-      expect(yield* parseBooleanFlag(undefined, "--demo-required")).toBeUndefined();
-    }),
-  );
-
-  it.effect("rejects a non-boolean string", () =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(parseBooleanFlag("yes", "--demo-required"));
-      expect(Exit.isFailure(exit)).toBe(true);
-      expect(failureError(exit)?.message).toContain("--demo-required must be true or false");
     }),
   );
 });

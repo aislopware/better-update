@@ -1,38 +1,36 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printList } from "../../lib/output";
+import { periodFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { emptyMessage } from "./unavailable";
 
-export const platformsCommand = defineCommand({
-  meta: { name: "platforms", description: "Stats by platform" },
-  args: {
-    period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
+export const platformsCommand = Command.make(
+  "platforms",
+  {
+    period: periodFlag,
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
+  Effect.fn(function* (args) {
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
 
-        const periodFilter = args.period ? { period: args.period } : {};
+    const periodFilter = args.period ? { period: args.period } : {};
 
-        const result = yield* api.analytics.platforms({
-          query: { projectId, ...periodFilter },
-        });
+    const result = yield* api.analytics.platforms({
+      query: { projectId, ...periodFilter },
+    });
 
-        yield* printList(
-          ["Platform", "Requests", "Devices"],
-          result.platforms.map((platform) => [
-            platform.platform,
-            String(platform.requests),
-            String(platform.devices),
-          ]),
-          emptyMessage(result.unavailable, "No platform data found."),
-        );
-      }),
-    ),
-});
+    yield* printList(
+      ["Platform", "Requests", "Devices"],
+      result.platforms.map((platform) => [
+        platform.platform,
+        String(platform.requests),
+        String(platform.devices),
+      ]),
+      emptyMessage(result.unavailable, "No platform data found."),
+    );
+  }, runCommand()),
+).pipe(Command.withDescription("Stats by platform"));

@@ -9,6 +9,7 @@ import { InteractiveMode } from "./interactive-mode";
 import { promptConfirm } from "./prompts";
 
 import type { InteractiveProhibitedError } from "./exit-codes";
+import type { PromptServices } from "./prompts";
 
 const MAX_FILES_SHOWN = 10;
 
@@ -46,7 +47,7 @@ export const ensureRepoClean = ({
 }: EnsureRepoCleanOptions): Effect.Effect<
   void,
   DirtyRepoError | InteractiveProhibitedError,
-  ChildProcessSpawner.ChildProcessSpawner | InteractiveMode
+  ChildProcessSpawner.ChildProcessSpawner | PromptServices
 > =>
   Effect.gen(function* () {
     if (allowDirty) {

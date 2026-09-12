@@ -1,13 +1,8 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { feedbackListCommand } from "./list";
 
-export const testflightFeedbackCommand = defineCommand({
-  meta: {
-    name: "feedback",
-    description: "Read TestFlight tester feedback (screenshot + crash submissions)",
-  },
-  subCommands: {
-    list: feedbackListCommand,
-  },
-});
+export const testflightFeedbackCommand = Command.make("feedback").pipe(
+  Command.withDescription("Read TestFlight tester feedback (screenshot + crash submissions)"),
+  Command.withSubcommands([feedbackListCommand]),
+);

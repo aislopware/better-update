@@ -43,16 +43,17 @@ Exit code is non-zero iff any tier failed. `.self-verify/` is git-ignored.
 Wall-clock figures are from one local run (Apple silicon) for rough ordering,
 not a benchmark.
 
-| id              | runtime                                           | autonomous | ≈ time      | notes                                               |
-| --------------- | ------------------------------------------------- | ---------- | ----------- | --------------------------------------------------- |
-| `lint`          | oxlint + tsgolint                                 | ✅ yes     | ~7s         | lint + typecheck, all packages                      |
-| `unit`          | node/bun via turbo                                | ✅ yes     | ~15s        | every app + package                                 |
-| `integration`   | `@cloudflare/vitest-pool-workers`, local D1/R2    | ✅ yes     | ~2m         | real worker, local bindings                         |
-| `e2e-server`    | vitest-pool-workers, **local** D1/R2              | ✅ yes     | ~1m45s      | pure-API OTA flows (~440 tests); no Cloudflare auth |
-| `e2e-server-r2` | vitest-pool-workers, **remote** R2 binding        | ✅ yes\*   | ~20s        | the single direct-upload checksum contract          |
-| `e2e-cli`       | wrangler `createTestHarness` + real `expo export` | ✅ yes     | several min | publish / rollout / rollback / env / codesign       |
-| `e2e-web`       | `createTestHarness` + vite + chromium, all local  | ✅ yes     | several min | API + browser dashboard flows                       |
-| `cli-slow`      | real Android Gradle build                         | ❌ no      | minutes     | needs the Android SDK; `--include-slow` only        |
+| id                | runtime                                           | autonomous | ≈ time      | notes                                               |
+| ----------------- | ------------------------------------------------- | ---------- | ----------- | --------------------------------------------------- |
+| `lint`            | oxlint + tsgolint                                 | ✅ yes     | ~7s         | lint + typecheck, all packages                      |
+| `unit`            | node/bun via turbo                                | ✅ yes     | ~15s        | every app + package                                 |
+| `integration`     | `@cloudflare/vitest-pool-workers`, local D1/R2    | ✅ yes     | ~2m         | real worker, local bindings                         |
+| `cli-integration` | built `dist/index.mjs` spawned, no server         | ✅ yes     | ~1m         | argv/help/`--json` envelope/exit codes, every leaf  |
+| `e2e-server`      | vitest-pool-workers, **local** D1/R2              | ✅ yes     | ~1m45s      | pure-API OTA flows (~440 tests); no Cloudflare auth |
+| `e2e-server-r2`   | vitest-pool-workers, **remote** R2 binding        | ✅ yes\*   | ~20s        | the single direct-upload checksum contract          |
+| `e2e-cli`         | wrangler `createTestHarness` + real `expo export` | ✅ yes     | several min | publish / rollout / rollback / env / codesign       |
+| `e2e-web`         | `createTestHarness` + vite + chromium, all local  | ✅ yes     | several min | API + browser dashboard flows                       |
+| `cli-slow`        | real Android Gradle build                         | ❌ no      | minutes     | needs the Android SDK; `--include-slow` only        |
 
 \* `e2e-server-r2` reaches the real `*-e2e` R2 bucket via an **API token** read
 from `apps/server/.env.local` (`E2E_CF_ACCOUNT_ID` + `E2E_CLOUDFLARE_API_TOKEN`,
@@ -173,9 +174,21 @@ a real Expo export and a live worker, including:
   full create → list → view → update → … → delete journey in both `--json`
   envelope and human modes, including the guard branches (Conflict on duplicate
   channel/branch names, exit-2 client-side validation, NotFound). These exercise
-  the citty argv layer the unit tests can't reach. Note these projects start with
+  the Effect CLI argv layer the unit tests can't reach. Note these projects start with
   the auto-seeded default channels/branches (`production`/`staging`/`preview`), so
   the tests operate on fresh names.
+- **CLI integration tier** (`apps/cli/tests/integration`, `bun run test:integrations`
+  in `apps/cli`, part of the root `test:integrations` turbo task): spawns the built
+  binary with an empty HOME/cwd, `CI=1` and an unroutable server URL, so it needs no
+  server. It walks the same command registry the binary mounts and asserts, for
+  EVERY leaf, that `--help` renders, that `--json` yields exactly one envelope (or a
+  usage error) with the dotted command name, and that nothing hangs on a prompt or
+  a browser round-trip (only `open` and `fingerprint generate` — a browser launch
+  and a `bunx @expo/fingerprint` registry fetch — are skipped in the run-to-completion
+  walk; their argv parsing is still walked). Dedicated files cover global-flag precedence, the exit-code
+  policy + overrides, `--no-x` negation, repeatable/typed flags, env-backed flags,
+  `env exec -- …` operands and shell completions. Ctrl-C → 130 and `--interactive`
+  under CI live in the pty tier (`tests/interactive/cancel.test.ts`).
 - **diagnostics** (`diagnostics.test.ts`): `whoami` / `doctor` / `projects list` /
   `audit-logs list` / `logout`, plus the not-linked guards. (`login` is a browser
   OAuth flow — intentionally out of e2e reach.)
@@ -203,10 +216,11 @@ The fingerprint file alone surfaced two:
   subcommand (byte-identical hash for the no-flag case; correct EAS-parity for the
   per-platform path that feeds the fingerprint-policy runtimeVersion).
 - **`fingerprint compare --build-id a --build-id b` silently compared only the
-  last id.** citty does not collect a repeated `type:"string"` flag into an
-  array — it keeps the last value — so the documented "repeatable" multi-id
-  compare never worked. Fixed to accept a single comma-separated flag
-  (`--build-id a,b`), matching the `--events` idiom on `webhooks create`.
+  last id.** The former argv parser (citty) kept only the last value of a
+  repeated string flag, so the documented "repeatable" multi-id compare never
+  worked. Fixed to accept a comma-separated flag (`--build-id a,b`), matching the
+  `--events` idiom on `webhooks create`; since the Effect CLI migration the flag
+  is genuinely repeatable as well.
 
 Genuinely out of autonomous reach (documented, not a gap to silently skip):
 

@@ -1,26 +1,22 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printHuman } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import { updateErrorExtras } from "./helpers";
 
-export const deleteCommand = defineCommand({
-  meta: { name: "delete", description: "Delete an update group" },
-  args: {
-    groupId: { type: "positional", required: true, description: "Update group ID" },
+export const deleteCommand = Command.make(
+  "delete",
+  {
+    groupId: Argument.String("groupId").pipe(Argument.withDescription("Update group ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const result = yield* api.updates.deleteGroup({ params: { groupId: args.groupId } });
-        yield* printHuman(
-          `Deleted ${String(result.deleted)} update(s) from group ${args.groupId}.`,
-        );
-        return { groupId: args.groupId, ...result };
-      }),
-      { exits: updateErrorExtras, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const result = yield* api.updates.deleteGroup({ params: { groupId: args.groupId } });
+      yield* printHuman(`Deleted ${String(result.deleted)} update(s) from group ${args.groupId}.`);
+      return { groupId: args.groupId, ...result };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Delete an update group"));

@@ -11,6 +11,15 @@ export default defineConfig({
           include: ["src/**/*.test.ts"],
         },
       },
+      // ── Integration (built binary, no server) ────────────────
+      {
+        test: {
+          name: "integration",
+          globals: true,
+          include: ["tests/integration/**/*.test.ts"],
+          testTimeout: 60_000,
+        },
+      },
       {
         test: {
           name: "e2e",

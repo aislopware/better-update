@@ -7,6 +7,8 @@ import { AppleAuthError, InteractiveProhibitedError } from "./exit-codes";
 import { InteractiveMode } from "./interactive-mode";
 import { promptAutocomplete } from "./prompts";
 
+import type { PromptServices } from "./prompts";
+
 type SessionProvider = Session.SessionProvider;
 
 /**
@@ -89,7 +91,7 @@ export const resolveProvider = (
 ): Effect.Effect<
   ProviderResolution,
   AppleAuthError | InteractiveProhibitedError,
-  CliRuntime | InteractiveMode
+  CliRuntime | PromptServices
 > =>
   Effect.gen(function* () {
     let switched = false;

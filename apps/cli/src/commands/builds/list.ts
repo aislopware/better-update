@@ -1,11 +1,11 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
-import { parseLimit } from "../../lib/cli-schemas";
 import { printTable } from "../../lib/output";
+import { optionalFlag, positiveIntFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 const SORT_OPTIONS = [
@@ -31,56 +31,60 @@ const DISTRIBUTION_OPTIONS = [
   "direct",
 ] as const;
 
-export const listCommand = defineCommand({
-  meta: { name: "list", description: "List builds for the linked project" },
-  args: {
-    platform: { type: "enum", options: ["ios", "android"], description: "Filter by platform" },
-    profile: { type: "string", description: "Filter by build profile name" },
-    "runtime-version": { type: "string", description: "Filter by runtime version" },
-    distribution: {
-      type: "enum",
-      options: [...DISTRIBUTION_OPTIONS],
-      description: "Filter by distribution channel",
-    },
-    sort: {
-      type: "enum",
-      options: [...SORT_OPTIONS],
-      description: "Sort column; prefix with `-` for descending (e.g. -createdAt)",
-    },
-    limit: { type: "string", default: "10", description: "Max rows (default 10)" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const limit = yield* parseLimit(args.limit, 10);
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-
-        const { items } = yield* api.builds.list({
-          query: {
-            projectId,
-            limit,
-            ...compact({
-              platform: args.platform,
-              profile: args.profile,
-              runtimeVersion: args["runtime-version"],
-              distribution: args.distribution ? [args.distribution] : undefined,
-              sort: args.sort,
-            }),
-          },
-        });
-
-        yield* printTable(
-          ["ID", "Platform", "Profile", "Distribution", "Version", "Created"],
-          items.map((build) => [
-            build.id,
-            build.platform,
-            build.profile,
-            build.distribution,
-            build.appVersion ?? "-",
-            build.createdAt,
-          ]),
-        );
-      }),
+export const listCommand = Command.make(
+  "list",
+  {
+    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+      Flag.withDescription("Filter by platform"),
+      optionalFlag,
     ),
-});
+    profile: Flag.String("profile").pipe(
+      Flag.withDescription("Filter by build profile name"),
+      optionalFlag,
+    ),
+    "runtime-version": Flag.String("runtime-version").pipe(
+      Flag.withDescription("Filter by runtime version"),
+      optionalFlag,
+    ),
+    distribution: Flag.Literals("distribution", [...DISTRIBUTION_OPTIONS]).pipe(
+      Flag.withDescription("Filter by distribution channel"),
+      optionalFlag,
+    ),
+    sort: Flag.Literals("sort", [...SORT_OPTIONS]).pipe(
+      Flag.withDescription("Sort column; prefix with `-` for descending (e.g. -createdAt)"),
+      optionalFlag,
+    ),
+    limit: positiveIntFlag("limit", { description: "Max rows", defaultValue: 10 }),
+  },
+  Effect.fn(function* (args) {
+    const { limit } = args;
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
+
+    const { items } = yield* api.builds.list({
+      query: {
+        projectId,
+        limit,
+        ...compact({
+          platform: args.platform,
+          profile: args.profile,
+          runtimeVersion: args["runtime-version"],
+          distribution: args.distribution ? [args.distribution] : undefined,
+          sort: args.sort,
+        }),
+      },
+    });
+
+    yield* printTable(
+      ["ID", "Platform", "Profile", "Distribution", "Version", "Created"],
+      items.map((build) => [
+        build.id,
+        build.platform,
+        build.profile,
+        build.distribution,
+        build.appVersion ?? "-",
+        build.createdAt,
+      ]),
+    );
+  }, runCommand()),
+).pipe(Command.withDescription("List builds for the linked project"));

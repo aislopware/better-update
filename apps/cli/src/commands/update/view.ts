@@ -1,33 +1,32 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printHumanKeyValue } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-export const viewCommand = defineCommand({
-  meta: { name: "view", description: "Show details for a single update" },
-  args: {
-    id: { type: "positional", required: true, description: "Update ID" },
+export const viewCommand = Command.make(
+  "view",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Update ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const update = yield* api.updates.get({ params: { id: args.id } });
-        yield* printHumanKeyValue([
-          ["ID", update.id],
-          ["Group ID", update.groupId],
-          ["Branch ID", update.branchId],
-          ["Platform", update.platform],
-          ["Runtime version", update.runtimeVersion],
-          ["Rollout %", String(update.rolloutPercentage)],
-          ["Is rollback", update.isRollback ? "yes" : "no"],
-          ["Created", update.createdAt],
-          ["Message", update.message],
-        ]);
-        return update;
-      }),
-      { json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const update = yield* api.updates.get({ params: { id: args.id } });
+      yield* printHumanKeyValue([
+        ["ID", update.id],
+        ["Group ID", update.groupId],
+        ["Branch ID", update.branchId],
+        ["Platform", update.platform],
+        ["Runtime version", update.runtimeVersion],
+        ["Rollout %", String(update.rolloutPercentage)],
+        ["Is rollback", update.isRollback ? "yes" : "no"],
+        ["Created", update.createdAt],
+        ["Message", update.message],
+      ]);
+      return update;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Show details for a single update"));

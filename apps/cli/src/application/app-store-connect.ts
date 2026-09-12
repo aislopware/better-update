@@ -14,12 +14,14 @@ import { compact } from "@better-update/type-guards";
 // @expo/apple-utils is ncc-bundled CJS; the entity managers + `Platform` enum are
 // read off the default import (see apple-asc-connect.ts for the rationale).
 import AppleUtils from "@expo/apple-utils";
-import { Effect } from "effect";
+import { Config, Effect } from "effect";
+import { Flag } from "effect/unstable/cli";
 
 import { wrapConnect } from "../lib/apple-asc-connect";
 import { ascKeyRequestContext } from "../lib/credentials-generator-apple";
 import { readSubmitProfile } from "../lib/eas-json";
 import { AppStoreError, InvalidArgumentError } from "../lib/exit-codes";
+import { optionalFlag } from "../lib/params";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { resolveSubmitProfileAscApiKeyId } from "./asc-key-resolve";
@@ -28,38 +30,25 @@ import type { EasIosSubmitProfile } from "../lib/eas-config";
 import type { ApiClient } from "../services/api-client";
 
 /**
- * Per-command extra `tag → exit code` map for every `app-store`/`testflight`
- * leaf. Merged onto the base map at the `runEffect` boundary.
- */
-export const APP_STORE_EXIT_EXTRAS = {
-  AppStoreError: 1,
-  AppleConnectError: 6,
-  InvalidArgumentError: 2,
-  IdentityError: 2,
-  CredentialValidationError: 2,
-  AppleAuthError: 4,
-  InteractiveProhibitedError: 4,
-} as const;
-
-/**
  * Citty args every ASC leaf needs to authenticate (no app resolution): which
  * submit profile to read config from, plus a per-run API key override. Spread
  * into account-scoped leaves (`credentials certificate list`, `apple users list`,
  * `app-store apps list`) that resolve a {@link AscContext} via {@link openAscContext}.
  */
 export const ASC_AUTH_ARGS = {
-  profile: {
-    type: "string",
-    default: "production",
-    description:
+  profile: Flag.String("profile").pipe(
+    Flag.withDescription(
       "eas.json submit profile to read App Store Connect config from (default: production)",
-  },
-  "asc-api-key-id": {
-    type: "string",
-    description:
+    ),
+    Flag.withDefault("production"),
+  ),
+  "asc-api-key-id": Flag.String("asc-api-key-id").pipe(
+    Flag.withDescription(
       "Stored ASC API key id to authenticate with (overrides the submit profile's ascApiKeyId)",
-  },
-} as const;
+    ),
+    optionalFlag,
+  ),
+};
 
 /**
  * Citty args shared by every app-scoped ASC leaf: {@link ASC_AUTH_ARGS} plus the
@@ -68,27 +57,29 @@ export const ASC_AUTH_ARGS = {
  */
 export const ASC_COMMON_ARGS = {
   ...ASC_AUTH_ARGS,
-  "app-id": {
-    type: "string",
-    description: "App Store Connect app id (overrides the profile's ascAppId / bundle-id lookup)",
-  },
-  "bundle-identifier": {
-    type: "string",
-    description: "Bundle id used to resolve the app when no app id is configured",
-  },
-} as const;
+  "app-id": Flag.String("app-id").pipe(
+    Flag.withDescription(
+      "App Store Connect app id (overrides the profile's ascAppId / bundle-id lookup)",
+    ),
+    optionalFlag,
+  ),
+  "bundle-identifier": Flag.String("bundle-identifier").pipe(
+    Flag.withDescription("Bundle id used to resolve the app when no app id is configured"),
+    optionalFlag,
+  ),
+};
 
 /**
  * Citty args for selecting an uploaded ASC build by id or CFBundleVersion. Spread
  * into TestFlight leaves that act on a build; resolve with `resolveBuild`.
  */
 export const BUILD_SELECTOR_ARGS = {
-  build: { type: "string", description: "ASC build id" },
-  "build-version": {
-    type: "string",
-    description: "Uploaded build's CFBundleVersion (build number)",
-  },
-} as const;
+  build: Flag.String("build").pipe(Flag.withDescription("ASC build id"), optionalFlag),
+  "build-version": Flag.String("build-version").pipe(
+    Flag.withDescription("Uploaded build's CFBundleVersion (build number)"),
+    optionalFlag,
+  ),
+};
 
 /** The parsed shape of {@link ASC_AUTH_ARGS} a leaf passes to {@link openAscContext}. */
 export interface AscAuthArgs {
@@ -133,6 +124,12 @@ const PLATFORM_ALIASES: Record<string, string> = {
  * defaulting to iOS. Accepts the short aliases the CLI surfaces (`ios`, `mac`,
  * `tv`, `vision`) as well as the canonical enum names.
  */
+/** `--platform` for the store-side commands; parse with {@link normalizePlatform} (accepts aliases). */
+export const ASC_PLATFORM_FLAG = Flag.String("platform").pipe(
+  Flag.withDescription("Platform: ios (default), mac, tv, vision"),
+  Flag.withDefault("ios"),
+);
+
 export const normalizePlatform = (
   raw: string | undefined,
 ): Effect.Effect<AppleUtils.Platform, InvalidArgumentError> => {
@@ -204,50 +201,48 @@ export const coerceEnum = <V extends string>(
   return Effect.succeed(raw as V);
 };
 
-/** Parse an optional `true`/`false` string flag into a tri-state boolean (undefined = leave as-is). */
-export const parseBooleanFlag = (
-  raw: string | undefined,
-  flag: string,
-): Effect.Effect<boolean | undefined, InvalidArgumentError> => {
-  if (raw === undefined) {
-    return Effect.succeed(undefined);
-  }
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "true") {
-    return Effect.succeed(true);
-  }
-  if (normalized === "false") {
-    return Effect.succeed(false);
-  }
-  return Effect.fail(
-    new InvalidArgumentError({ message: `${flag} must be true or false, got "${raw}".` }),
-  );
-};
-
 /** Env var the App Review demo-account password is sourced from when no flag is passed. */
 const DEMO_PASSWORD_ENV = "BETTER_UPDATE_DEMO_ACCOUNT_PASSWORD";
 
 /**
- * Shared citty args for an App Review / beta review detail (contact + demo
+ * Shared flags for an App Review / beta review detail (contact + demo
  * account). Used by `app-store review-detail set` and `testflight review
  * set-detail`. Parse with {@link resolveReviewDetailInput}.
  */
 export const REVIEW_DETAIL_ARGS = {
-  "contact-email": { type: "string", description: "Review contact email" },
-  "contact-first-name": { type: "string", description: "Review contact first name" },
-  "contact-last-name": { type: "string", description: "Review contact last name" },
-  "contact-phone": { type: "string", description: "Review contact phone number" },
-  "demo-account-name": { type: "string", description: "Demo account username for App Review" },
-  "demo-account-password": {
-    type: "string",
-    description: `Demo account password (or set ${DEMO_PASSWORD_ENV} to avoid shell history)`,
-  },
-  "demo-required": {
-    type: "string",
-    description: "Whether a demo account is required: true or false",
-  },
-  notes: { type: "string", description: "Notes for the reviewer" },
-} as const;
+  "contact-email": Flag.String("contact-email").pipe(
+    Flag.withDescription("Review contact email"),
+    optionalFlag,
+  ),
+  "contact-first-name": Flag.String("contact-first-name").pipe(
+    Flag.withDescription("Review contact first name"),
+    optionalFlag,
+  ),
+  "contact-last-name": Flag.String("contact-last-name").pipe(
+    Flag.withDescription("Review contact last name"),
+    optionalFlag,
+  ),
+  "contact-phone": Flag.String("contact-phone").pipe(
+    Flag.withDescription("Review contact phone number"),
+    optionalFlag,
+  ),
+  "demo-account-name": Flag.String("demo-account-name").pipe(
+    Flag.withDescription("Demo account username for App Review"),
+    optionalFlag,
+  ),
+  "demo-account-password": Flag.String("demo-account-password").pipe(
+    Flag.withDescription(
+      `Demo account password (or set ${DEMO_PASSWORD_ENV} to avoid shell history)`,
+    ),
+    Flag.withFallbackConfig(Config.String(DEMO_PASSWORD_ENV)),
+    optionalFlag,
+  ),
+  "demo-required": Flag.Boolean("demo-required").pipe(
+    Flag.withDescription("Mark the demo account as required (--no-demo-required to clear)"),
+    optionalFlag,
+  ),
+  notes: Flag.String("notes").pipe(Flag.withDescription("Notes for the reviewer"), optionalFlag),
+};
 
 /** The parsed shape of {@link REVIEW_DETAIL_ARGS}. */
 export interface ReviewDetailArgs {
@@ -257,7 +252,7 @@ export interface ReviewDetailArgs {
   readonly "contact-phone"?: string | undefined;
   readonly "demo-account-name"?: string | undefined;
   readonly "demo-account-password"?: string | undefined;
-  readonly "demo-required"?: string | undefined;
+  readonly "demo-required"?: boolean | undefined;
   readonly notes?: string | undefined;
 }
 
@@ -282,8 +277,8 @@ export const resolveReviewDetailInput = (
   args: ReviewDetailArgs,
 ): Effect.Effect<ReviewDetailInput, InvalidArgumentError> =>
   Effect.gen(function* () {
-    const demoAccountRequired = yield* parseBooleanFlag(args["demo-required"], "--demo-required");
-    const demoAccountPassword = args["demo-account-password"] ?? process.env[DEMO_PASSWORD_ENV];
+    const demoAccountRequired = args["demo-required"];
+    const demoAccountPassword = args["demo-account-password"];
     return compact({
       contactEmail: args["contact-email"],
       contactFirstName: args["contact-first-name"],

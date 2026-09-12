@@ -1,13 +1,10 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
+import { applePortalExitCodes } from "../../../lib/command-errors";
 import { profileListCommand } from "./list";
 
-export const profileCommand = defineCommand({
-  meta: {
-    name: "profile",
-    description: "Inspect provisioning profiles on App Store Connect",
-  },
-  subCommands: {
-    list: profileListCommand,
-  },
-});
+export const profileCommand = Command.make("profile").pipe(
+  Command.withDescription("Inspect provisioning profiles on App Store Connect"),
+  Command.withSubcommands([profileListCommand]),
+  Command.provide(applePortalExitCodes),
+);

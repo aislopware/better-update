@@ -13,12 +13,6 @@ export class EnvResourceNotFoundError extends Data.TaggedError("EnvResourceNotFo
   readonly message: string;
 }> {}
 
-export const envErrorExtras = {
-  EnvResourceNotFoundError: 1,
-  SystemError: 6,
-  BadArgument: 6,
-} as const;
-
 // An environment name is any of the org's environments (the built-ins
 // development/preview/production plus user-defined ones), so the CLI only
 // format-checks here and lets the server reject names the org does not define.

@@ -1,30 +1,28 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { promptText } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-export const renameDeviceCommand = defineCommand({
-  meta: { name: "rename", description: "Rename a device" },
-  args: {
-    id: { type: "positional", required: true, description: "Device ID" },
-    name: { type: "string", description: "New name" },
+export const renameDeviceCommand = Command.make(
+  "rename",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Device ID")),
+    name: Flag.String("name").pipe(Flag.withDescription("New name"), optionalFlag),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const name = args.name ?? (yield* promptText("New name"));
-        const device = yield* api.devices.update({
-          params: { id: args.id },
-          payload: { name },
-        });
-        yield* printKeyValue([
-          ["ID", device.id],
-          ["Name", device.name],
-        ]);
-      }),
-    ),
-});
+  Effect.fn(function* (args) {
+    const api = yield* apiClient;
+    const name = args.name ?? (yield* promptText("New name"));
+    const device = yield* api.devices.update({
+      params: { id: args.id },
+      payload: { name },
+    });
+    yield* printKeyValue([
+      ["ID", device.id],
+      ["Name", device.name],
+    ]);
+  }, runCommand()),
+).pipe(Command.withDescription("Rename a device"));

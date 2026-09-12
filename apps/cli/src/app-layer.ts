@@ -2,8 +2,7 @@ import { NodeServices } from "@effect/platform-node";
 import { Layer } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 
-import { makeInteractiveModeLayer } from "./lib/interactive-mode";
-import { makeOutputModeLayer } from "./lib/output-mode";
+import { GlobalFlagsLayer } from "./lib/global-flags";
 import { ApiClientLive } from "./services/api-client";
 import { AppleAuthLive } from "./services/apple-auth";
 import { AppleSessionStoreLive } from "./services/apple-session-store";
@@ -46,21 +45,24 @@ const PatchUploaderLayer = PatchUploaderLive.pipe(
 const VersionCheckLayer = VersionCheckLive.pipe(Layer.provide(CliPlatformLayer));
 const MinVersionCheckLayer = MinVersionCheckLive.pipe(Layer.provide(CliAdapterDependencies));
 
-export const makeCliLive = (options: { readonly json: boolean; readonly interactive: boolean }) =>
-  Layer.mergeAll(
-    CliAdapterDependencies,
-    ApiClientLayer,
-    AppleAuthLayer,
-    PresignedUploadLayer,
-    UpdateAssetUploaderLayer,
-    PresignedDownloadLayer,
-    PatchUploaderLayer,
-    BsdiffServiceLive,
-    VersionCheckLayer,
-    MinVersionCheckLayer,
-    makeOutputModeLayer(options.json),
-    makeInteractiveModeLayer(options.interactive),
-  );
+/**
+ * Every service a command handler can require. `OutputMode` + `InteractiveMode`
+ * derive from the parsed global flags, so this layer is provided to the root
+ * command (`Command.provide`) where the parser's `Setting` services are in scope.
+ */
+export const CliLive = Layer.mergeAll(
+  CliAdapterDependencies,
+  ApiClientLayer,
+  AppleAuthLayer,
+  PresignedUploadLayer,
+  UpdateAssetUploaderLayer,
+  PresignedDownloadLayer,
+  PatchUploaderLayer,
+  BsdiffServiceLive,
+  VersionCheckLayer,
+  MinVersionCheckLayer,
+  GlobalFlagsLayer.pipe(Layer.provide(CliPlatformLayer)),
+);
 
-/** Default CLI layer: human-readable, interactive. Override via flags at the entrypoint. */
-export const CliLive = makeCliLive({ json: false, interactive: true });
+/** The background version-cache refresh runs without a parsed command line. */
+export const MaintenanceLive = Layer.mergeAll(VersionCheckLayer, CliRuntimeLive);

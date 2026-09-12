@@ -1,13 +1,14 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman, printHumanTable } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
@@ -162,100 +163,109 @@ const resolveDestination = (args: DestinationArgs): ResolvedDestination => {
   return { destinationChannel: args["to-channel"] };
 };
 
-export const republishCommand = defineCommand({
-  meta: {
-    name: "republish",
-    description:
-      "Copy an existing update (group, single update, or latest on a branch) to another branch or channel, preserving the runtime version",
-  },
-  args: {
-    group: { type: "string", description: "Source group ID (republish both platforms together)" },
-    update: {
-      type: "string",
-      description: "Source update ID (republish a single platform)",
-    },
-    branch: {
-      type: "string",
-      description: "Source branch name — republish the latest update group on this branch",
-    },
-    channel: {
-      type: "string",
-      description: "Source channel — republish the latest update group on the channel's branch",
-    },
-    platform: {
-      type: "enum",
-      options: ["ios", "android"],
-      description:
-        "When using --branch/--channel/--group, restrict to a single platform's update id",
-    },
-    "to-branch": {
-      type: "string",
-      description: "Destination branch ID",
-    },
-    "to-channel": {
-      type: "string",
-      description: "Destination channel name (resolves to the channel's mapped branch)",
-    },
-    message: { type: "string", description: "Override the update message" },
-    "rollout-percentage": {
-      type: "string",
-      description: "Set rollout percentage (1-100) on the republished group after publish",
-    },
-    "project-id": {
-      type: "string",
-      description: "Project ID (only required when destination is a name and no linked project)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        yield* ensureSingleSource(args);
-        yield* ensureSingleDestination(args);
-
-        const api = yield* apiClient;
-        const rawSource = yield* resolveSource(api, args);
-        const source = yield* applyPlatformFilter(api, rawSource, args);
-        const destination = resolveDestination(args);
-
-        const result = yield* api.updates.republish({
-          payload: {
-            ...source,
-            ...destination,
-            ...compact({ projectId: args["project-id"], message: args.message }),
-          },
-        });
-
-        if (args["rollout-percentage"] !== undefined) {
-          const percentage = yield* parseRolloutPercentage(
-            args["rollout-percentage"],
-            "rollout-percentage",
-          );
-          yield* Effect.forEach(
-            result.updates,
-            (update) =>
-              api.updates.editRollout({
-                params: { id: update.id },
-                payload: { percentage },
-              }),
-            { concurrency: 2 },
-          );
-        }
-
-        yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);
-        yield* printHumanTable(
-          ["ID", "Platform", "Runtime version", "Group ID"],
-          result.updates.map((update) => [
-            update.id,
-            update.platform,
-            update.runtimeVersion,
-            update.groupId,
-          ]),
-        );
-        return result;
-      }),
-      { json: "value" },
+export const republishCommand = Command.make(
+  "republish",
+  {
+    group: Flag.String("group").pipe(
+      Flag.withDescription("Source group ID (republish both platforms together)"),
+      optionalFlag,
     ),
-});
+    update: Flag.String("update").pipe(
+      Flag.withDescription("Source update ID (republish a single platform)"),
+      optionalFlag,
+    ),
+    branch: Flag.String("branch").pipe(
+      Flag.withDescription("Source branch name — republish the latest update group on this branch"),
+      optionalFlag,
+    ),
+    channel: Flag.String("channel").pipe(
+      Flag.withDescription(
+        "Source channel — republish the latest update group on the channel's branch",
+      ),
+      optionalFlag,
+    ),
+    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+      Flag.withDescription(
+        "When using --branch/--channel/--group, restrict to a single platform's update id",
+      ),
+      optionalFlag,
+    ),
+    "to-branch": Flag.String("to-branch").pipe(
+      Flag.withDescription("Destination branch ID"),
+      optionalFlag,
+    ),
+    "to-channel": Flag.String("to-channel").pipe(
+      Flag.withDescription("Destination channel name (resolves to the channel's mapped branch)"),
+      optionalFlag,
+    ),
+    message: Flag.String("message").pipe(
+      Flag.withDescription("Override the update message"),
+      optionalFlag,
+    ),
+    "rollout-percentage": Flag.String("rollout-percentage").pipe(
+      Flag.withDescription("Set rollout percentage (1-100) on the republished group after publish"),
+      optionalFlag,
+    ),
+    "project-id": Flag.String("project-id").pipe(
+      Flag.withDescription(
+        "Project ID (only required when destination is a name and no linked project)",
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      yield* ensureSingleSource(args);
+      yield* ensureSingleDestination(args);
+
+      const api = yield* apiClient;
+      const rawSource = yield* resolveSource(api, args);
+      const source = yield* applyPlatformFilter(api, rawSource, args);
+      const destination = resolveDestination(args);
+
+      const result = yield* api.updates.republish({
+        payload: {
+          ...source,
+          ...destination,
+          ...compact({ projectId: args["project-id"], message: args.message }),
+        },
+      });
+
+      if (args["rollout-percentage"] !== undefined) {
+        const percentage = yield* parseRolloutPercentage(
+          args["rollout-percentage"],
+          "rollout-percentage",
+        );
+        yield* Effect.forEach(
+          result.updates,
+          (update) =>
+            api.updates.editRollout({
+              params: { id: update.id },
+              payload: { percentage },
+            }),
+          { concurrency: 2 },
+        );
+      }
+
+      yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);
+      yield* printHumanTable(
+        ["ID", "Platform", "Runtime version", "Group ID"],
+        result.updates.map((update) => [
+          update.id,
+          update.platform,
+          update.runtimeVersion,
+          update.groupId,
+        ]),
+      );
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Copy an existing update (group, single update, or latest on a branch) to another branch or channel, preserving the runtime version",
+  ),
+);
 
 const applyPlatformFilter = (api: ApiClient, source: ResolvedSource, args: SourceArgs) => {
   if (args.platform === undefined || source.sourceGroupId === undefined) {

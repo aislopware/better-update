@@ -1,37 +1,27 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
 import { listApps } from "../../../application/app-store-apps";
-import {
-  APP_STORE_EXIT_EXTRAS,
-  ASC_AUTH_ARGS,
-  openAscContext,
-} from "../../../application/app-store-connect";
-import { runEffect } from "../../../lib/citty-effect";
+import { ASC_AUTH_ARGS, openAscContext } from "../../../application/app-store-connect";
 import { printHumanList } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 
-import type { AscAuthArgs } from "../../../application/app-store-connect";
-
-export const appsListCommand = defineCommand({
-  meta: {
-    name: "list",
-    description: "List every app the App Store Connect API key can see (CI-safe)",
-  },
-  args: {
+export const appsListCommand = Command.make(
+  "list",
+  {
     ...ASC_AUTH_ARGS,
   },
-  run: async ({ args }: { readonly args: AscAuthArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const session = yield* openAscContext(args);
-        const apps = yield* listApps(session.ctx);
-        yield* printHumanList(
-          ["Name", "Bundle id", "SKU", "Locale", "ID"],
-          apps.map((app) => [app.name, app.bundleId, app.sku, app.primaryLocale, app.id]),
-          "No apps found.",
-        );
-        return { items: apps };
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const session = yield* openAscContext(args);
+      const apps = yield* listApps(session.ctx);
+      yield* printHumanList(
+        ["Name", "Bundle id", "SKU", "Locale", "ID"],
+        apps.map((app) => [app.name, app.bundleId, app.sku, app.primaryLocale, app.id]),
+        "No apps found.",
+      );
+      return { items: apps };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("List every app the App Store Connect API key can see (CI-safe)"));

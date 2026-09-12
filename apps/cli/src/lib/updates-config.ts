@@ -98,7 +98,7 @@ export const validateCheckAutomatically = (
 };
 
 /**
- * Validate `--fallback-timeout` (citty parses numeric flags as strings).
+ * Validate `--fallback-timeout` (the flag is a string; numeric parsing happens here).
  * Must be an integer in `[0, 300000]` ms. `undefined` (flag not passed) is
  * allowed through so callers can preserve an existing value.
  */
@@ -139,8 +139,8 @@ export interface ExistingUpdatesConfig {
 
 /**
  * Explicitly-passed `update configure` flag values. `undefined` means "the flag
- * was not passed" (citty leaves unset flags `undefined` when they have no
- * default) — the builder preserves the existing config value in that case. The
+ * was not passed" (optional flags flatten to `undefined`, see lib/params.ts) —
+ * the builder preserves the existing config value in that case. The
  * `manifestUrl` is always recomputed from the project, so it has no `undefined`
  * variant and is never preserved.
  */
@@ -309,8 +309,8 @@ export const describeUpdatesPatch = (
 };
 
 /**
- * Parse a `--request-header KEY=VALUE` repeatable flag (citty supplies a
- * string or array of strings). Returns `undefined` when no headers were
+ * Parse a `--request-header KEY=VALUE` repeatable flag (one string per
+ * occurrence, or a single string). Returns `undefined` when no headers were
  * passed so callers can omit the field from the patch.
  */
 const toEntries = (raw: string | readonly string[]): readonly string[] =>

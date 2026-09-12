@@ -1,38 +1,31 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
 import { listAllTerritories } from "../../../application/app-store-commerce";
-import {
-  APP_STORE_EXIT_EXTRAS,
-  ASC_AUTH_ARGS,
-  openAscContext,
-} from "../../../application/app-store-connect";
-import { runEffect } from "../../../lib/citty-effect";
+import { ASC_AUTH_ARGS, openAscContext } from "../../../application/app-store-connect";
 import { printHumanList } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 
-import type { AscAuthArgs } from "../../../application/app-store-connect";
-
-export const territoriesListCommand = defineCommand({
-  meta: {
-    name: "list",
-    description:
-      "List every App Store territory id + currency (the ids `availability set` takes) (CI-safe)",
-  },
-  args: {
+export const territoriesListCommand = Command.make(
+  "list",
+  {
     ...ASC_AUTH_ARGS,
   },
-  run: async ({ args }: { readonly args: AscAuthArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const session = yield* openAscContext(args);
-        const territories = yield* listAllTerritories(session.ctx);
-        yield* printHumanList(
-          ["Territory", "Currency"],
-          territories.map((territory) => [territory.id, territory.currency]),
-          "No territories returned.",
-        );
-        return { count: territories.length, items: territories };
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const session = yield* openAscContext(args);
+      const territories = yield* listAllTerritories(session.ctx);
+      yield* printHumanList(
+        ["Territory", "Currency"],
+        territories.map((territory) => [territory.id, territory.currency]),
+        "No territories returned.",
+      );
+      return { count: territories.length, items: territories };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "List every App Store territory id + currency (the ids `availability set` takes) (CI-safe)",
+  ),
+);

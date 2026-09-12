@@ -1,26 +1,20 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import {
   createApnsKeyViaAppleId,
   defaultApnsKeyName,
 } from "../../application/credentials-interactive-apple-id";
-import { runEffect } from "../../lib/citty-effect";
+import { applePortalExitCodes } from "../../lib/command-errors";
 import { uploadCredential } from "../../lib/credentials-manager";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { promptSelect, promptText } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
-
-const PUSH_KEY_EXIT_EXTRAS = {
-  CredentialValidationError: 2,
-  AppleIdGenerateFailedError: 6,
-  ApnsKeyLimitError: 6,
-  AppleAuthError: 4,
-  InteractiveProhibitedError: 4,
-} as const;
 
 const APPLE_PUSH_KEY_PORTAL_URL = "https://developer.apple.com/account/resources/authkeys/list";
 const KEY_ID_PATTERN = /^[A-Z0-9]{10}$/u;
@@ -139,57 +133,63 @@ const uploadPushKeyFromFile = (api: ApiClient, args: PushKeyArgs) =>
     return credential;
   });
 
-export const pushKeyCommand = defineCommand({
-  meta: {
-    name: "push-key",
-    description:
-      "Create an APNs auth key (.p8) by logging in with your Apple ID, or upload one you downloaded; the key is end-to-end encrypted before upload",
-  },
-  args: {
-    method: {
-      type: "enum",
-      options: ["apple-id", "upload"],
-      description:
+export const pushKeyCommand = Command.make(
+  "push-key",
+  {
+    method: Flag.Literals("method", ["apple-id", "upload"]).pipe(
+      Flag.withDescription(
         "How to obtain the key: 'apple-id' (create via login) or 'upload' (provide --p8)",
-    },
-    "key-id": {
-      type: "string",
-      description: "APNs key ID — upload only (10 uppercase alphanumeric)",
-    },
-    "apple-team-id": { type: "string", description: "Apple Team identifier — upload only" },
-    p8: { type: "string", description: "Path to the AuthKey_XXXXXXXXXX.p8 file (forces upload)" },
-    "asc-key-id": {
-      type: "string",
-      description: "ASC API key ID to derive --apple-team-id automatically (upload only)",
-    },
-    name: {
-      type: "string",
-      description: "Display name (Apple ID: key name; upload: defaults to key ID)",
-    },
-    "skip-portal-hint": {
-      type: "boolean",
-      description: "Skip the Apple Developer portal URL hint (upload only)",
-    },
-  },
-  run: async ({ args }: { readonly args: PushKeyArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const method = yield* resolvePushKeyMethod(args);
-        if (method === "upload") {
-          return yield* uploadPushKeyFromFile(api, args);
-        }
-        yield* printHuman("Creating an APNs auth key via your Apple ID...");
-        const created = yield* createApnsKeyViaAppleId(api, args.name ?? defaultApnsKeyName());
-        yield* printHuman("APNs push key created and registered.");
-        yield* printHumanKeyValue([
-          ["ID", created.id],
-          ["Key ID", created.keyId],
-          ["Apple team", created.appleTeamIdentifier],
-          ["Name", created.name],
-        ]);
-        return created;
-      }),
-      { exits: PUSH_KEY_EXIT_EXTRAS, json: "value" },
+      ),
+      optionalFlag,
     ),
-});
+    "key-id": Flag.String("key-id").pipe(
+      Flag.withDescription("APNs key ID — upload only (10 uppercase alphanumeric)"),
+      optionalFlag,
+    ),
+    "apple-team-id": Flag.String("apple-team-id").pipe(
+      Flag.withDescription("Apple Team identifier — upload only"),
+      optionalFlag,
+    ),
+    p8: Flag.String("p8").pipe(
+      Flag.withDescription("Path to the AuthKey_XXXXXXXXXX.p8 file (forces upload)"),
+      optionalFlag,
+    ),
+    "asc-key-id": Flag.String("asc-key-id").pipe(
+      Flag.withDescription("ASC API key ID to derive --apple-team-id automatically (upload only)"),
+      optionalFlag,
+    ),
+    name: Flag.String("name").pipe(
+      Flag.withDescription("Display name (Apple ID: key name; upload: defaults to key ID)"),
+      optionalFlag,
+    ),
+    "skip-portal-hint": Flag.Boolean("skip-portal-hint").pipe(
+      Flag.withDescription("Skip the Apple Developer portal URL hint (upload only)"),
+      Flag.withDefault(false),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const method = yield* resolvePushKeyMethod(args);
+      if (method === "upload") {
+        return yield* uploadPushKeyFromFile(api, args);
+      }
+      yield* printHuman("Creating an APNs auth key via your Apple ID...");
+      const created = yield* createApnsKeyViaAppleId(api, args.name ?? defaultApnsKeyName());
+      yield* printHuman("APNs push key created and registered.");
+      yield* printHumanKeyValue([
+        ["ID", created.id],
+        ["Key ID", created.keyId],
+        ["Apple team", created.appleTeamIdentifier],
+        ["Name", created.name],
+      ]);
+      return created;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Create an APNs auth key (.p8) by logging in with your Apple ID, or upload one you downloaded; the key is end-to-end encrypted before upload",
+  ),
+  Command.provide(applePortalExitCodes),
+);

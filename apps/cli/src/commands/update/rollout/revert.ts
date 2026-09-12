@@ -1,26 +1,24 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../../lib/citty-effect";
 import { printHuman } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 import { apiClient } from "../../../services/api-client";
-import { updateErrorExtras } from "../helpers";
 
-export const revertCommand = defineCommand({
-  meta: { name: "revert", description: "Revert the rollout for an update" },
-  args: {
-    updateId: { type: "positional", required: true, description: "Update ID" },
+export const revertCommand = Command.make(
+  "revert",
+  {
+    updateId: Argument.String("updateId").pipe(Argument.withDescription("Update ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const result = yield* api.updates.revertRollout({ params: { id: args.updateId } });
-        yield* printHuman(
-          `Reverted rollout for ${args.updateId}. Current rollout is ${String(result.rolloutPercentage)}%.`,
-        );
-        return result;
-      }),
-      { exits: updateErrorExtras, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const result = yield* api.updates.revertRollout({ params: { id: args.updateId } });
+      yield* printHuman(
+        `Reverted rollout for ${args.updateId}. Current rollout is ${String(result.rolloutPercentage)}%.`,
+      );
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Revert the rollout for an update"));

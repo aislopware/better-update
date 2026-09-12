@@ -8,7 +8,9 @@ bun add -g @better-update/cli && better-update <command>
 ```
 
 Conventions below: `<x>` = required positional, `[x]` = optional, `--flag` defaults noted inline.
-Many booleans are citty-negatable — a `foo` flag with default on is disabled with `--no-foo`.
+Every boolean flag is negatable — `--no-foo` turns `foo` off (useful for the ones that default on); `--yes` has the alias `-y`. Numeric flags (`--limit`, `--page`, …) are validated by the parser (a bad value is a usage error, exit 2; negatives need `--limit=-1`). `--completions <shell>` / `--log-level` are built-in global flags on every command (there is no `--wizard`: it would prompt before the CI / `--json` gates).
+
+Global `--json` keeps stdout machine-clean end to end: help and usage rendering go to stderr and a usage error (unknown flag, missing required flag/arg, bad value) is itself an error envelope `{ ok: false, error: { code: 2, tag: "UsageError" } }` on stdout. The first `--json` / `--no-json` on the line decides.
 
 ## Table of contents
 
@@ -102,7 +104,8 @@ better-update autocomplete <shell>       # shell ∈ bash|zsh|fish
 ```
 
 - `login` writes `~/.better-update/auth.json` (mode `0600`). `--api-key` pastes a session token
-  manually instead of opening the browser. CI doesn't use this at all — it authenticates via the
+  manually instead of opening the browser. Both need a TTY: under `--json` / `--non-interactive` /
+  CI the command exits 2 (`InteractiveProhibitedError`) instead of opening a browser. CI doesn't use this at all — it authenticates via the
   `BETTER_UPDATE_ROBOT` env var (see `credentials robot create` below), never `login`.
 - The CLI session is pinned to ONE active organization — inherited from whichever org the browser
   had active at `login` time and sticky afterwards (switching orgs in the web dashboard does NOT
@@ -479,7 +482,7 @@ better-update environments delete <name>
 
 ```bash
 better-update fingerprint generate [--platform <ios|android>]   # combined hash, or per-platform with --platform
-better-update fingerprint compare [hash] [--build-id <id[,id]>] [--update-id <id[,id]>] [--platform <ios|android>]
+better-update fingerprint compare [hash] [--build-id <id[,id]>]… [--update-id <id[,id]>]… [--platform <ios|android>]
 ```
 
 `compare`: the positional `hash` is optional. Resolution — two ids (combined `--build-id` +
@@ -543,7 +546,7 @@ better-update apple builds compliance (--build <id> | --build-version <n>) \   #
 # Team / seat administration (needs an ADMIN-role ASC API key)
 better-update apple users list
 better-update apple users invite --email <e> --first-name <f> --last-name <l> \
-  --roles DEVELOPER,APP_MANAGER [--visible-apps <appId,appId>] [--provisioning-allowed true|false]
+  --roles DEVELOPER,APP_MANAGER [--visible-apps <appId,appId>] [--provisioning-allowed | --no-provisioning-allowed]
 
 # IAP sandbox testers — list prefers the public ASC API (CI-safe) when an ASC key resolves
 # (--asc-api-key-id > submit profile ascApiKeyId); silently uses Apple ID login when no key is configured
@@ -710,7 +713,7 @@ better-update testflight review status  (--build <id> | --build-version <n>)
 better-update testflight review withdraw (--build <id> | --build-version <n>)
 better-update testflight review set-detail [--contact-email <e>] [--contact-first-name <f>] \
   [--contact-last-name <l>] [--contact-phone <p>] [--demo-account-name <n>] \
-  [--demo-account-password <pw>] [--demo-required true|false] [--notes <text>]   # app-level review contact + demo
+  [--demo-account-password <pw>] [--demo-required | --no-demo-required] [--notes <text>]   # app-level review contact + demo
 
 # Build "What to Test"
 better-update testflight build whats-new (--build <id> | --build-version <n> | --latest) \
@@ -797,7 +800,7 @@ better-update app-store release        # release a version that is "Pending Deve
 better-update app-store reject        # developer-reject the in-review version, pulling it back from review
 better-update app-store review-detail set [--contact-email <e>] [--contact-first-name <f>] \
   [--contact-last-name <l>] [--contact-phone <p>] [--demo-account-name <n>] \
-  [--demo-account-password <pw>] [--demo-required true|false] [--notes <text>]
+  [--demo-account-password <pw>] [--demo-required | --no-demo-required] [--notes <text>]
 
 # Phased (staged) release
 better-update app-store rollout start | status | pause | resume | complete
@@ -971,7 +974,7 @@ Apple device registration (UDIDs) for ad-hoc / development provisioning.
 ```bash
 better-update devices add [--udid <udid>] [--name <name>] [--device-class <IPHONE|IPAD|MAC|UNKNOWN>=IPHONE] \
   [--apple-team-id <uuid>] [--invite] [--expires-in <ttl>=24h] [--no-qr]   # --udid direct, or --invite for a self-service URL
-better-update devices list [--device-class <…>] [--apple-team-id <uuid>] [--query <q>] [--enabled <true|false>] [--page <n>=1] [--limit <n>=20]
+better-update devices list [--device-class <…>] [--apple-team-id <uuid>] [--query <q>] [--enabled | --no-enabled] [--page <n>=1] [--limit <n>=20]
 better-update devices view <id>
 better-update devices sync [--apple-team-id <uuid>] [--asc-api-key-id <id>] [--no-push] [--no-pull]   # sync with App Store Connect
 better-update devices rename <id> [--name <new-name>]
@@ -1013,13 +1016,13 @@ creation. `update` uses two separate boolean flags `--enable` / `--disable` to s
 
 Use these in CI to branch on failure type.
 
-| Code | Meaning                                                                                                                                                                                                          |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | Success.                                                                                                                                                                                                         |
-| `1`  | General failure (e.g. `fingerprint compare` mismatch; also resource-not-found / 404).                                                                                                                            |
-| `2`  | Validation error (bad flag, missing required arg, `fingerprint` resolution error).                                                                                                                               |
-| `3`  | Auth required or expired.                                                                                                                                                                                        |
-| `4`  | Project not linked (run `init`); also Apple Developer auth / interactive-prohibited in the Apple-portal commands (`apple login`, `credentials generate push-key`/`asc-key`/`merchant-id`, `credentials revoke`). |
-| `5`  | Missing signing credentials (`build`, `credentials regenerate-profile`) or a missing/invalid `credentials.json` (`credentials sync`).                                                                            |
-| `6`  | Tooling/build failure: `doctor` check failed, plus local build / keychain / provisioning / native-run / credential-generation failures and filesystem errors.                                                    |
-| `7`  | Publish/upload pipeline failure (artifact reserve/upload/complete, presigned-URL expiry, env export, bsdiff/patch generation, `update publish`).                                                                 |
+| Code | Meaning                                                                                                                                                                                                               |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Success.                                                                                                                                                                                                              |
+| `1`  | General failure (e.g. `fingerprint compare` mismatch; also resource-not-found / 404).                                                                                                                                 |
+| `2`  | Validation / usage error (unknown or bad flag, missing required arg — `UsageError` in `--json`; `fingerprint` resolution error; a prompt refused under `--json`/`--non-interactive`/CI, incl. `login` without a TTY). |
+| `3`  | Auth required or expired.                                                                                                                                                                                             |
+| `4`  | Project not linked (run `init`); also Apple Developer auth / interactive-prohibited in the Apple-portal commands (`apple login`, `credentials generate push-key`/`asc-key`/`merchant-id`, `credentials revoke`).      |
+| `5`  | Missing signing credentials (`build`, `credentials regenerate-profile`) or a missing/invalid `credentials.json` (`credentials sync`).                                                                                 |
+| `6`  | Tooling/build failure: `doctor` check failed, plus local build / keychain / provisioning / native-run / credential-generation failures and filesystem errors.                                                         |
+| `7`  | Publish/upload pipeline failure (artifact reserve/upload/complete, presigned-URL expiry, env export, bsdiff/patch generation, `update publish`).                                                                      |

@@ -1,7 +1,9 @@
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { TestConsole } from "effect/testing";
 
+import { CommandName } from "../lib/command-output";
 import { InteractiveProhibitedError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
 import { makeOutputModeLayer } from "../lib/output-mode";
@@ -34,15 +36,7 @@ const exitCodeStub = () => {
 // `it.effect` installs `TestConsole`, so `Console.log`/`Console.error` never
 // reach the real console and are read back off the service instead of a spy.
 describe("exitWith (OutputMode-aware error emission)", () => {
-  const originalArgv = process.argv;
-
-  beforeEach(() => {
-    process.argv = ["node", "cli.js", "update", "publish"];
-  });
-
-  afterEach(() => {
-    process.argv = originalArgv;
-  });
+  const commandName = Layer.succeed(CommandName, "update.publish");
 
   it.effect("JSON mode emits the error envelope on stdout + sets exit code, no stderr", () => {
     const runtime = exitCodeStub();
@@ -68,7 +62,7 @@ describe("exitWith (OutputMode-aware error emission)", () => {
         },
       });
       expect(runtime.codes).toStrictEqual([2]);
-    }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(true), runtime.layer)));
+    }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(true), runtime.layer, commandName)));
   });
 
   it.effect("JSON mode surfaces the hint when present", () => {
@@ -84,7 +78,7 @@ describe("exitWith (OutputMode-aware error emission)", () => {
         error: { hint?: string };
       };
       expect(parsed.error.hint).toBe("Run `better-update credentials configure`.");
-    }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(true), runtime.layer)));
+    }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(true), runtime.layer, commandName)));
   });
 
   it.effect("human mode prints the plain message on stderr, no envelope", () => {
@@ -94,7 +88,7 @@ describe("exitWith (OutputMode-aware error emission)", () => {
       expect(yield* TestConsole.logLines).toStrictEqual([]);
       expect(yield* TestConsole.errorLines).toStrictEqual(["Not authenticated."]);
       expect(runtime.codes).toStrictEqual([3]);
-    }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(false), runtime.layer)));
+    }).pipe(Effect.provide(Layer.mergeAll(makeOutputModeLayer(false), runtime.layer, commandName)));
   });
 });
 
@@ -102,7 +96,7 @@ describe("prompt gating under InteractiveMode { allow: false }", () => {
   it.effect("promptText fails fast with the actionable InteractiveProhibitedError, no hang", () =>
     Effect.gen(function* () {
       const error = yield* promptText("Project name").pipe(
-        // Tight timeout proves it FAILS rather than blocking on @clack.
+        // Tight timeout proves it FAILS rather than blocking on the terminal.
         Effect.timeoutOrElse({
           duration: "1 second",
           orElse: () => Effect.fail(new InteractiveProhibitedError({ message: "hung" })),
@@ -112,6 +106,6 @@ describe("prompt gating under InteractiveMode { allow: false }", () => {
       expect(error).toBeInstanceOf(InteractiveProhibitedError);
       expect(error.message).toContain("non-interactively");
       expect(error.message).toContain("Provide the value via a flag");
-    }).pipe(Effect.provide(makeInteractiveModeLayer(false))),
+    }).pipe(Effect.provide(Layer.mergeAll(makeInteractiveModeLayer(false), NodeServices.layer))),
   );
 });

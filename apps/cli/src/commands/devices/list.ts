@@ -1,78 +1,68 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
-import { parseLimit } from "../../lib/cli-schemas";
 import { printHumanTable } from "../../lib/output";
+import { optionalFlag, positiveIntFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-const parseEnabled = (value: string | undefined): boolean | undefined => {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (value === "true") {
-    return true;
-  }
-  if (value === "false") {
-    return false;
-  }
-  return undefined;
-};
-
-export const listDevicesCommand = defineCommand({
-  meta: { name: "list", description: "List registered Apple devices" },
-  args: {
-    "device-class": {
-      type: "enum",
-      options: ["IPHONE", "IPAD", "MAC", "UNKNOWN"],
-      description: "Filter by device class",
-    },
-    "apple-team-id": {
-      type: "string",
-      description: "Filter by internal team Id (UUID), not the Apple Team Identifier",
-    },
-    query: { type: "string", description: "Search devices by name or identifier" },
-    enabled: { type: "string", description: "Filter by enabled status (true/false)" },
-    page: { type: "string", default: "1", description: "Page number" },
-    limit: { type: "string", default: "20", description: "Items per page" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const page = yield* parseLimit(args.page, 1);
-        const limit = yield* parseLimit(args.limit, 20);
-        const result = yield* api.devices.list({
-          query: {
-            page,
-            limit,
-            ...compact({
-              deviceClass: args["device-class"] ? [args["device-class"]] : undefined,
-              appleTeamId: args["apple-team-id"] ? [args["apple-team-id"]] : undefined,
-              query: args.query,
-            }),
-          },
-        });
-        const enabledFilter = parseEnabled(args.enabled);
-        const items =
-          enabledFilter === undefined
-            ? result.items
-            : result.items.filter((device) => device.enabled === enabledFilter);
-        yield* printHumanTable(
-          ["ID", "Name", "Class", "UDID", "Team", "Synced", "Enabled"],
-          items.map((device) => [
-            device.id,
-            device.name,
-            device.deviceClass,
-            device.identifier,
-            device.appleTeamId ?? "—",
-            device.appleDevicePortalId === null ? "no" : "yes",
-            device.enabled ? "yes" : "no",
-          ]),
-        );
-        return { items, total: result.total, page: result.page, limit: result.limit };
-      }),
-      { json: "value" },
+export const listDevicesCommand = Command.make(
+  "list",
+  {
+    "device-class": Flag.Literals("device-class", ["IPHONE", "IPAD", "MAC", "UNKNOWN"]).pipe(
+      Flag.withDescription("Filter by device class"),
+      optionalFlag,
     ),
-});
+    "apple-team-id": Flag.String("apple-team-id").pipe(
+      Flag.withDescription("Filter by internal team Id (UUID), not the Apple Team Identifier"),
+      optionalFlag,
+    ),
+    query: Flag.String("query").pipe(
+      Flag.withDescription("Search devices by name or identifier"),
+      optionalFlag,
+    ),
+    enabled: Flag.Boolean("enabled").pipe(
+      Flag.withDescription("Only enabled devices (--no-enabled: only disabled)"),
+      optionalFlag,
+    ),
+    page: positiveIntFlag("page", { description: "Page number", defaultValue: 1 }),
+    limit: positiveIntFlag("limit", { description: "Items per page", defaultValue: 20 }),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const { page, limit } = args;
+      const result = yield* api.devices.list({
+        query: {
+          page,
+          limit,
+          ...compact({
+            deviceClass: args["device-class"] ? [args["device-class"]] : undefined,
+            appleTeamId: args["apple-team-id"] ? [args["apple-team-id"]] : undefined,
+            query: args.query,
+          }),
+        },
+      });
+      const enabledFilter = args.enabled;
+      const items =
+        enabledFilter === undefined
+          ? result.items
+          : result.items.filter((device) => device.enabled === enabledFilter);
+      yield* printHumanTable(
+        ["ID", "Name", "Class", "UDID", "Team", "Synced", "Enabled"],
+        items.map((device) => [
+          device.id,
+          device.name,
+          device.deviceClass,
+          device.identifier,
+          device.appleTeamId ?? "—",
+          device.appleDevicePortalId === null ? "no" : "yes",
+          device.enabled ? "yes" : "no",
+        ]),
+      );
+      return { items, total: result.total, page: result.page, limit: result.limit };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("List registered Apple devices"));

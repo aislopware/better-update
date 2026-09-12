@@ -1,7 +1,6 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import {
   deleteCredential,
   filterCredentials,
@@ -9,7 +8,9 @@ import {
 } from "../../lib/credentials-manager";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
+import { optionalFlag, yesFlag } from "../../lib/params";
 import { promptConfirm, promptSelect } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type {
@@ -45,71 +46,66 @@ const formatRowLabel = (row: CliCredentialRow): string => {
   return `${row.type}: ${label}${distro} — ${row.id.slice(0, 8)}…`;
 };
 
-export const removeCommand = defineCommand({
-  meta: {
-    name: "remove",
-    description: "Interactively pick a credential to delete (uses prompts to narrow the choice)",
-  },
-  args: {
-    platform: {
-      type: "enum",
-      options: ["ios", "android", "macos"],
-      description: "Pre-filter by platform",
-    },
-    type: {
-      type: "enum",
-      options: [...CREDENTIAL_TYPES],
-      description: "Pre-filter by credential type",
-    },
-    yes: {
-      type: "boolean",
-      description: "Skip the final confirmation prompt",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const rows = yield* listAllCredentials(api);
-
-        const platform = yield* resolvePlatform(args.platform);
-        const platformRows = filterCredentials(rows, { platform });
-        if (platformRows.length === 0) {
-          yield* printHuman(`No ${platform} credentials to remove.`);
-          return { deleted: false, reason: "none-for-platform" as const };
-        }
-
-        const availableTypes = [...new Set(platformRows.map((row) => row.type))];
-        const type = yield* resolveType(args.type, availableTypes);
-        const filtered = filterCredentials(platformRows, { type });
-        if (filtered.length === 0) {
-          yield* printHuman(`No ${platform} ${type} credentials to remove.`);
-          return { deleted: false, reason: "none-for-type" as const };
-        }
-
-        const id = yield* promptSelect<string>(
-          `Select a ${type} to remove`,
-          filtered.map((row) => ({ value: row.id, label: formatRowLabel(row) })),
-        );
-
-        if (!args.yes) {
-          const confirmed = yield* promptConfirm(
-            `Delete ${type} ${id.slice(0, 8)}…? This cannot be undone.`,
-            { initialValue: false },
-          );
-          if (!confirmed) {
-            yield* printHuman("Aborted.");
-            return { deleted: false, reason: "cancelled" as const };
-          }
-        }
-
-        yield* deleteCredential(api, { id, platform, type });
-        yield* printHuman(`Credential ${id} deleted.`);
-        return { deleted: true, id, platform, type };
-      }),
-      { json: "value" },
+export const removeCommand = Command.make(
+  "remove",
+  {
+    platform: Flag.Literals("platform", ["ios", "android", "macos"]).pipe(
+      Flag.withDescription("Pre-filter by platform"),
+      optionalFlag,
     ),
-});
+    type: Flag.Literals("type", [...CREDENTIAL_TYPES]).pipe(
+      Flag.withDescription("Pre-filter by credential type"),
+      optionalFlag,
+    ),
+    yes: yesFlag("Skip the final confirmation prompt"),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const rows = yield* listAllCredentials(api);
+
+      const platform = yield* resolvePlatform(args.platform);
+      const platformRows = filterCredentials(rows, { platform });
+      if (platformRows.length === 0) {
+        yield* printHuman(`No ${platform} credentials to remove.`);
+        return { deleted: false, reason: "none-for-platform" as const };
+      }
+
+      const availableTypes = [...new Set(platformRows.map((row) => row.type))];
+      const type = yield* resolveType(args.type, availableTypes);
+      const filtered = filterCredentials(platformRows, { type });
+      if (filtered.length === 0) {
+        yield* printHuman(`No ${platform} ${type} credentials to remove.`);
+        return { deleted: false, reason: "none-for-type" as const };
+      }
+
+      const id = yield* promptSelect<string>(
+        `Select a ${type} to remove`,
+        filtered.map((row) => ({ value: row.id, label: formatRowLabel(row) })),
+      );
+
+      if (!args.yes) {
+        const confirmed = yield* promptConfirm(
+          `Delete ${type} ${id.slice(0, 8)}…? This cannot be undone.`,
+          { initialValue: false },
+        );
+        if (!confirmed) {
+          yield* printHuman("Aborted.");
+          return { deleted: false, reason: "cancelled" as const };
+        }
+      }
+
+      yield* deleteCredential(api, { id, platform, type });
+      yield* printHuman(`Credential ${id} deleted.`);
+      return { deleted: true, id, platform, type };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Interactively pick a credential to delete (uses prompts to narrow the choice)",
+  ),
+);
 
 const resolvePlatform = (raw: string | undefined) =>
   Effect.gen(function* () {

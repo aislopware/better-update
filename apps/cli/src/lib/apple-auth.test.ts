@@ -1,3 +1,4 @@
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
@@ -104,7 +105,11 @@ describe(resolveProvider, () => {
 
       expect(result).toStrictEqual({ providerId: 2, switched: true });
       expect(calls).toStrictEqual([2]);
-    }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(NodeServices.layer, provideTestServices({ APPLE_PROVIDER_ID: "2" })),
+      ),
+    ),
   );
 
   it.effect("env match against current provider does not trigger switch", () =>
@@ -119,7 +124,11 @@ describe(resolveProvider, () => {
 
       expect(result).toStrictEqual({ providerId: 1, switched: false });
       expect(calls).toStrictEqual([]);
-    }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "1" }))),
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(NodeServices.layer, provideTestServices({ APPLE_PROVIDER_ID: "1" })),
+      ),
+    ),
   );
 
   it.effect("invalid env value fails with AppleAuthError", () =>
@@ -127,7 +136,14 @@ describe(resolveProvider, () => {
       const appleUtils = makeAppleUtilsStub();
       const exit = yield* Effect.exit(resolveProvider(appleUtils, [provider(1)], 1));
       expect(Exit.isFailure(exit)).toBe(true);
-    }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "not-a-number" }))),
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          provideTestServices({ APPLE_PROVIDER_ID: "not-a-number" }),
+        ),
+      ),
+    ),
   );
 
   it.effect("returns currentProviderId when availableProviders is empty", () =>
@@ -137,7 +153,7 @@ describe(resolveProvider, () => {
       const result = yield* resolveProvider(appleUtils, [], 5);
 
       expect(result).toStrictEqual({ providerId: 5, switched: false });
-    }).pipe(Effect.provide(provideTestServices())),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, provideTestServices()))),
   );
 
   it.effect("returns undefined when no providers and no current id", () =>
@@ -147,7 +163,7 @@ describe(resolveProvider, () => {
       const result = yield* resolveProvider(appleUtils, [], undefined);
 
       expect(result).toStrictEqual({ providerId: undefined, switched: false });
-    }).pipe(Effect.provide(provideTestServices())),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, provideTestServices()))),
   );
 
   it.effect("single available provider applies through applyChoice", () =>
@@ -162,7 +178,7 @@ describe(resolveProvider, () => {
 
       expect(result).toStrictEqual({ providerId: 42, switched: true });
       expect(calls).toStrictEqual([42]);
-    }).pipe(Effect.provide(provideTestServices())),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, provideTestServices()))),
   );
 
   it.effect(
@@ -185,7 +201,12 @@ describe(resolveProvider, () => {
         expect(result).toStrictEqual({ providerId: 2, switched: false });
         expect(calls).toStrictEqual([]);
       }).pipe(
-        Effect.provide(Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false))),
+        Effect.provide(
+          Layer.mergeAll(
+            NodeServices.layer,
+            Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false)),
+          ),
+        ),
       ),
   );
 
@@ -201,7 +222,12 @@ describe(resolveProvider, () => {
 
         expect(err).toBeInstanceOf(InteractiveProhibitedError);
       }).pipe(
-        Effect.provide(Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false))),
+        Effect.provide(
+          Layer.mergeAll(
+            NodeServices.layer,
+            Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false)),
+          ),
+        ),
       ),
   );
 
@@ -215,10 +241,14 @@ describe(resolveProvider, () => {
 
       expect(err).toBeInstanceOf(AppleAuthError);
       expect(err.message).toContain("Failed to switch");
-    }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(NodeServices.layer, provideTestServices({ APPLE_PROVIDER_ID: "2" })),
+      ),
+    ),
   );
 });
 
-// Prompt-branch tests live in e2e where we can drive a real TTY. The clack
-// Prompt is keystroke-driven against stdin, so it cannot be scripted from
-// Inside an Effect unit test the way the old @effect/cli Terminal service was.
+// Prompt-branch tests live in tests/interactive where a real pty drives the
+// keystrokes; the Effect Prompt reads raw terminal input, so it is not scripted
+// from inside a unit test.

@@ -1,22 +1,22 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import type { FileSystem } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 
-import { runEffect } from "../../../lib/citty-effect";
+import { exitCodeOverrides } from "../../../lib/command-errors";
 import { readCredentialsJson, resolveCredentialPath } from "../../../lib/credentials-json";
 import { uploadCredential } from "../../../lib/credentials-manager";
 import { CredentialsJsonError } from "../../../lib/exit-codes";
 import { formatCause } from "../../../lib/format-error";
 import { printHuman, printHumanTable } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 import { apiClient } from "../../../services/api-client";
 import { CliRuntime } from "../../../services/cli-runtime";
-import { SYNC_EXIT_EXTRAS } from "./helpers";
 
 import type { CredentialsJson } from "../../../lib/credentials-json";
-import type { InteractiveMode } from "../../../lib/interactive-mode";
+import type { PromptServices } from "../../../lib/prompts";
 import type { ApiClient } from "../../../services/api-client";
 import type { DeviceUnlockMemo } from "../../../services/device-unlock-memo";
 import type { IdentityStore } from "../../../services/identity-store";
@@ -29,7 +29,7 @@ type PushRequirements =
   | CliRuntime
   | DeviceUnlockMemo
   | IdentityStore
-  | InteractiveMode;
+  | PromptServices;
 
 const pushIos = (
   api: ApiClient,
@@ -187,45 +187,42 @@ const pushAndroid = (
     return rows;
   });
 
-export const pushCommand = defineCommand({
-  meta: {
-    name: "push",
-    description: "Upload credentials.json contents to the better-update server",
-  },
-  args: {
-    platform: {
-      type: "enum",
-      options: ["ios", "android", "all"],
-      default: "all",
-      description: "Limit to a single platform",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const runtime = yield* CliRuntime;
-        const projectRoot = yield* runtime.cwd;
-        const data = yield* readCredentialsJson(projectRoot);
-
-        const rows: SyncRow[] = [];
-        if ((args.platform === "all" || args.platform === "ios") && data.ios) {
-          rows.push(...(yield* pushIos(api, projectRoot, data.ios)));
-        }
-        if ((args.platform === "all" || args.platform === "android") && data.android) {
-          rows.push(...(yield* pushAndroid(api, projectRoot, data.android)));
-        }
-
-        if (rows.length === 0) {
-          yield* printHuman(`No ${args.platform} entries found in credentials.json.`);
-          return { pushed: 0, items: [] as readonly SyncRow[] };
-        }
-        yield* printHumanTable(
-          ["Type", "Path", "Status", "ID"],
-          rows.map((row) => [row.type, row.path, row.status, row.id]),
-        );
-        return { pushed: rows.length, items: rows };
-      }),
-      { exits: SYNC_EXIT_EXTRAS, json: "value" },
+export const pushCommand = Command.make(
+  "push",
+  {
+    platform: Flag.Literals("platform", ["ios", "android", "all"]).pipe(
+      Flag.withDescription("Limit to a single platform"),
+      Flag.withDefault("all"),
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const runtime = yield* CliRuntime;
+      const projectRoot = yield* runtime.cwd;
+      const data = yield* readCredentialsJson(projectRoot);
+
+      const rows: SyncRow[] = [];
+      if ((args.platform === "all" || args.platform === "ios") && data.ios) {
+        rows.push(...(yield* pushIos(api, projectRoot, data.ios)));
+      }
+      if ((args.platform === "all" || args.platform === "android") && data.android) {
+        rows.push(...(yield* pushAndroid(api, projectRoot, data.android)));
+      }
+
+      if (rows.length === 0) {
+        yield* printHuman(`No ${args.platform} entries found in credentials.json.`);
+        return { pushed: 0, items: [] as readonly SyncRow[] };
+      }
+      yield* printHumanTable(
+        ["Type", "Path", "Status", "ID"],
+        rows.map((row) => [row.type, row.path, row.status, row.id]),
+      );
+      return { pushed: rows.length, items: rows };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription("Upload credentials.json contents to the better-update server"),
+  Command.provide(exitCodeOverrides({ CredentialValidationError: 5 })),
+);

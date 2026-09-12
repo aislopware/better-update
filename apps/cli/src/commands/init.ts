@@ -1,17 +1,18 @@
 import path from "node:path";
 
 import { compact, isRecord } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { FileSystem, Effect, Option } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../lib/citty-effect";
 import { ensureDefaultBuildProfiles, readEasJsonRaw, writeEasJsonPatch } from "../lib/eas-json";
 import { ProjectNotLinkedError } from "../lib/exit-codes";
 import { extractSlug, writeProjectId } from "../lib/expo-config";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { printHuman } from "../lib/output";
+import { optionalFlag } from "../lib/params";
 import { readExpoConfigOptional } from "../lib/project-link";
 import { promptConfirm } from "../lib/prompts";
+import { runCommand } from "../lib/run-command";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 
@@ -159,72 +160,75 @@ const scaffoldBuildProfiles = (projectRoot: string) =>
     return result.added;
   });
 
-export const initCommand = defineCommand({
-  meta: {
-    name: "init",
-    description: "Link the local project to a better-update project (Expo or any build system)",
-  },
-  args: {
-    id: {
-      type: "string",
-      description: "Link by explicit project ID (skips slug lookup / project creation)",
-    },
-    name: {
-      type: "string",
-      description:
+export const initCommand = Command.make(
+  "init",
+  {
+    id: Flag.String("id").pipe(
+      Flag.withDescription("Link by explicit project ID (skips slug lookup / project creation)"),
+      optionalFlag,
+    ),
+    name: Flag.String("name").pipe(
+      Flag.withDescription(
         "Project name (non-Expo projects; defaults to package.json name or directory name)",
-    },
-    slug: {
-      type: "string",
-      description: "Project slug (non-Expo projects; defaults to a kebab-case of the name)",
-    },
+      ),
+      optionalFlag,
+    ),
+    slug: Flag.String("slug").pipe(
+      Flag.withDescription(
+        "Project slug (non-Expo projects; defaults to a kebab-case of the name)",
+      ),
+      optionalFlag,
+    ),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const runtime = yield* CliRuntime;
-        const projectRoot = yield* runtime.cwd;
-        const api = yield* apiClient;
-        const expoConfig = yield* readExpoConfigOptional(projectRoot);
-        const hasExpoConfig = Option.isSome(expoConfig);
+  Effect.fn(
+    function* (args) {
+      const runtime = yield* CliRuntime;
+      const projectRoot = yield* runtime.cwd;
+      const api = yield* apiClient;
+      const expoConfig = yield* readExpoConfigOptional(projectRoot);
+      const hasExpoConfig = Option.isSome(expoConfig);
 
-        // --id branch: skip slug lookup, link by explicit ID; name comes from the server.
-        if (args.id !== undefined && args.id.length > 0) {
-          const project = yield* api.projects.get({ params: { id: args.id } });
-          yield* printHuman(`Linking project: ${project.name} (${project.id})`);
-          const linked = yield* persistLink(projectRoot, project.id, hasExpoConfig);
-          const buildProfiles = yield* scaffoldBuildProfiles(projectRoot);
-          return { linked: true, ...linked, buildProfiles };
-        }
-
-        const { name, slug } = yield* resolveNameAndSlug(args, projectRoot, expoConfig);
-        yield* printHuman(`Linking project: ${name} (${slug})`);
-
-        // Only an Expo config can carry a prior extra.betterUpdate.projectId link.
-        if (Option.isSome(expoConfig)) {
-          const linkState = yield* checkExistingLink(api, expoConfig.value, slug);
-          if (linkState === "matched" || linkState === "mismatch-abort") {
-            return { linked: false as const };
-          }
-        }
-
-        const { items } = yield* api.projects.list({ query: { page: 1, limit: 100 } });
-        const existing = items.find((project) => project.slug === slug);
-        const linkedProjectId = yield* Effect.gen(function* () {
-          if (existing) {
-            yield* printHuman(`Found existing project: ${existing.name} (${existing.id})`);
-            return existing.id;
-          }
-          yield* printHuman("No existing project found. Creating new project...");
-          const created = yield* api.projects.create({ payload: { name, slug } });
-          yield* printHuman(`Created project: ${created.name} (${created.id})`);
-          return created.id;
-        });
-
-        const linked = yield* persistLink(projectRoot, linkedProjectId, hasExpoConfig);
+      // --id branch: skip slug lookup, link by explicit ID; name comes from the server.
+      if (args.id !== undefined && args.id.length > 0) {
+        const project = yield* api.projects.get({ params: { id: args.id } });
+        yield* printHuman(`Linking project: ${project.name} (${project.id})`);
+        const linked = yield* persistLink(projectRoot, project.id, hasExpoConfig);
         const buildProfiles = yield* scaffoldBuildProfiles(projectRoot);
         return { linked: true, ...linked, buildProfiles };
-      }),
-      { json: "value" },
-    ),
-});
+      }
+
+      const { name, slug } = yield* resolveNameAndSlug(args, projectRoot, expoConfig);
+      yield* printHuman(`Linking project: ${name} (${slug})`);
+
+      // Only an Expo config can carry a prior extra.betterUpdate.projectId link.
+      if (Option.isSome(expoConfig)) {
+        const linkState = yield* checkExistingLink(api, expoConfig.value, slug);
+        if (linkState === "matched" || linkState === "mismatch-abort") {
+          return { linked: false as const };
+        }
+      }
+
+      const { items } = yield* api.projects.list({ query: { page: 1, limit: 100 } });
+      const existing = items.find((project) => project.slug === slug);
+      const linkedProjectId = yield* Effect.gen(function* () {
+        if (existing) {
+          yield* printHuman(`Found existing project: ${existing.name} (${existing.id})`);
+          return existing.id;
+        }
+        yield* printHuman("No existing project found. Creating new project...");
+        const created = yield* api.projects.create({ payload: { name, slug } });
+        yield* printHuman(`Created project: ${created.name} (${created.id})`);
+        return created.id;
+      });
+
+      const linked = yield* persistLink(projectRoot, linkedProjectId, hasExpoConfig);
+      const buildProfiles = yield* scaffoldBuildProfiles(projectRoot);
+      return { linked: true, ...linked, buildProfiles };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Link the local project to a better-update project (Expo or any build system)",
+  ),
+);

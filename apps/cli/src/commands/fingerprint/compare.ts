@@ -1,10 +1,9 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import type { FileSystem } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 
-import { runEffect } from "../../lib/citty-effect";
 import { FingerprintMismatchError } from "../../lib/exit-codes";
 import {
   diffFingerprintSources,
@@ -13,6 +12,8 @@ import {
   runFingerprintFull,
 } from "../../lib/fingerprint";
 import { printHuman } from "../../lib/output";
+import { optionalArgument, optionalFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -20,19 +21,6 @@ import type { Platform } from "../../lib/build-profile";
 import type { AuthRequiredError } from "../../lib/exit-codes";
 import type { FingerprintDiffItem, FingerprintSource } from "../../lib/fingerprint";
 import type { ApiClient, ApiClientService } from "../../services/api-client";
-
-/**
- * Normalize the `--platform` flag. When set, the local fingerprint is computed
- * per-platform (matching EAS + the per-platform hash recorded on builds/updates),
- * so a compare against a stored hash lines up. When omitted, the bare
- * combined-platform fingerprint is used.
- */
-const parsePlatform = (value: unknown): Platform | undefined => {
-  if (value === "ios" || value === "android") {
-    return value;
-  }
-  return undefined;
-};
 
 interface ResolvedSides {
   readonly side1: FingerprintRef;
@@ -63,23 +51,13 @@ interface FingerprintRef {
 }
 
 /**
- * Normalize a `--build-id` / `--update-id` arg into a string array. citty does
- * NOT collect a repeated `type: "string"` flag into an array — it keeps only the
- * LAST occurrence — so the supported multi-value form is a single comma-separated
- * flag (e.g. `--build-id a,b`), matching the `--events` idiom on `webhooks
- * create`. We still tolerate an array (should a future citty/arg type yield one)
- * and split every entry on commas.
+ * Normalize a `--build-id` / `--update-id` arg into a string array. The flag is
+ * repeatable (`--build-id a --build-id b`) and every occurrence may itself be
+ * comma-separated (`--build-id a,b`, the `--events` idiom on `webhooks create`);
+ * both forms flatten to the same list.
  */
-const toArray = (value: unknown): readonly unknown[] => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-  return value === undefined ? [] : [value];
-};
-
-const toStringArray = (value: unknown): readonly string[] =>
-  toArray(value)
-    .filter((entry): entry is string => typeof entry === "string")
+const toStringArray = (values: readonly string[]): readonly string[] =>
+  values
     .flatMap((entry) => entry.split(","))
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
@@ -191,44 +169,44 @@ const renderSourceDiff = (
     }
   });
 
-export const compareCommand = defineCommand({
-  meta: {
-    name: "compare",
-    description:
-      "Compare two fingerprints by build id, update id, or against the local project; shows the source diff when sources are available locally.",
+export const compareCommand = Command.make(
+  "compare",
+  {
+    hash: Argument.String("hash").pipe(
+      Argument.withDescription("Fingerprint hash to compare against the local project"),
+      optionalArgument,
+    ),
+    "build-id": Flag.String("build-id").pipe(
+      Flag.withDescription(
+        "Build id to resolve a fingerprint from (repeatable or comma-separated, max 2)",
+      ),
+      Flag.atLeast(0),
+    ),
+    "update-id": Flag.String("update-id").pipe(
+      Flag.withDescription(
+        "Update id to resolve a fingerprint from (repeatable or comma-separated, max 2)",
+      ),
+      Flag.atLeast(0),
+    ),
+    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+      Flag.withDescription(
+        "Compute the local fingerprint for a single platform to match the per-platform hash recorded on builds/updates",
+      ),
+      optionalFlag,
+    ),
   },
-  args: {
-    hash: {
-      type: "positional",
-      required: false,
-      description: "Fingerprint hash to compare against the local project",
-    },
-    "build-id": {
-      type: "string",
-      description: "Build id to resolve a fingerprint from (comma-separated, max 2)",
-    },
-    "update-id": {
-      type: "string",
-      description: "Update id to resolve a fingerprint from (comma-separated, max 2)",
-    },
-    platform: {
-      type: "string",
-      description:
-        "Compute the local fingerprint for a single platform (ios|android) to match the per-platform hash recorded on builds/updates",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(runCompare(args), {
-      exits: { FingerprintError: 2, FingerprintMismatchError: 1 },
-      json: "value",
-    }),
-});
+  (args) => runCompare(args).pipe(runCommand({ json: "value" })),
+).pipe(
+  Command.withDescription(
+    "Compare two fingerprints by build id, update id, or against the local project; shows the source diff when sources are available locally.",
+  ),
+);
 
 interface CompareArgs {
-  readonly hash?: unknown;
-  readonly "build-id"?: unknown;
-  readonly "update-id"?: unknown;
-  readonly platform?: unknown;
+  readonly hash: string | undefined;
+  readonly "build-id": readonly string[];
+  readonly "update-id": readonly string[];
+  readonly platform: Platform | undefined;
 }
 
 export const runCompare = (args: CompareArgs) =>
@@ -248,9 +226,9 @@ export const runCompare = (args: CompareArgs) =>
 
     const { side1, side2 } = yield* resolveSides({
       idRefs,
-      positionalHash: typeof args.hash === "string" ? args.hash.trim() : undefined,
+      positionalHash: args.hash?.trim(),
       projectRoot,
-      platform: parsePlatform(args.platform),
+      platform: args.platform,
     });
 
     return yield* compareSides(side1, side2);

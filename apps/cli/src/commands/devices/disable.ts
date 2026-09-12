@@ -1,31 +1,25 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
-export const disableDeviceCommand = defineCommand({
-  meta: {
-    name: "disable",
-    description: "Disable a device (exclude it from new provisioning profiles)",
+export const disableDeviceCommand = Command.make(
+  "disable",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Device ID")),
   },
-  args: {
-    id: { type: "positional", required: true, description: "Device ID" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const device = yield* api.devices.update({
-          params: { id: args.id },
-          payload: { enabled: false },
-        });
-        yield* printKeyValue([
-          ["ID", device.id],
-          ["Name", device.name],
-          ["Enabled", "no"],
-        ]);
-      }),
-    ),
-});
+  Effect.fn(function* (args) {
+    const api = yield* apiClient;
+    const device = yield* api.devices.update({
+      params: { id: args.id },
+      payload: { enabled: false },
+    });
+    yield* printKeyValue([
+      ["ID", device.id],
+      ["Name", device.name],
+      ["Enabled", "no"],
+    ]);
+  }, runCommand()),
+).pipe(Command.withDescription("Disable a device (exclude it from new provisioning profiles)"));

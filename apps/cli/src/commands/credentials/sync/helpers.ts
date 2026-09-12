@@ -9,11 +9,6 @@ import { CredentialsJsonError } from "../../../lib/exit-codes";
 
 import type { CredentialsJson } from "../../../lib/credentials-json";
 
-export const SYNC_EXIT_EXTRAS = {
-  CredentialsJsonError: 5,
-  CredentialValidationError: 5,
-} as const;
-
 export interface SyncRow {
   readonly type: string;
   readonly path: string;

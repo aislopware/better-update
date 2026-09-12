@@ -1,15 +1,9 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { pullCommand } from "./pull";
 import { pushCommand } from "./push";
 
-export const syncCommand = defineCommand({
-  meta: {
-    name: "sync",
-    description: "Sync credentials between local credentials.json and the server",
-  },
-  subCommands: {
-    push: pushCommand,
-    pull: pullCommand,
-  },
-});
+export const syncCommand = Command.make("sync").pipe(
+  Command.withDescription("Sync credentials between local credentials.json and the server"),
+  Command.withSubcommands([pushCommand, pullCommand]),
+);

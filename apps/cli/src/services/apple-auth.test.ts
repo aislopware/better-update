@@ -1,3 +1,4 @@
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
@@ -181,23 +182,26 @@ describe("AppleAuth.ensureLoggedIn", () => {
       expect(session.providerId).toBe(100);
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer({
-            session: {
-              cookies: COOKIES_FIXTURE,
-              username: "dev@example.com",
-            },
-          });
-          const appleUtils = makeAppleUtilsStub({
-            loginWithCookies: async () => makeAuthState(),
-          });
-          return Layer.mergeAll(
-            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-            layer,
-            InteractiveModeLive,
-            cliRuntimeStub(),
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer({
+              session: {
+                cookies: COOKIES_FIXTURE,
+                username: "dev@example.com",
+              },
+            });
+            const appleUtils = makeAppleUtilsStub({
+              loginWithCookies: async () => makeAuthState(),
+            });
+            return Layer.mergeAll(
+              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+              layer,
+              InteractiveModeLive,
+              cliRuntimeStub(),
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -210,85 +214,8 @@ describe("AppleAuth.ensureLoggedIn", () => {
       expect(session.teamId).toBe("TEAM200");
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer({
-            session: {
-              cookies: COOKIES_FIXTURE,
-              username: "dev@example.com",
-            },
-          });
-          const appleUtils = makeAppleUtilsStub({
-            loginWithCookies: async () =>
-              makeAuthState({
-                providerId: 100,
-                teamId: "TEAM100",
-                availableProviders: [makeProvider(100, "TEAM100"), makeProvider(200, "TEAM200")],
-              }),
-          });
-          return Layer.mergeAll(
-            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-            layer,
-            makeInteractiveModeLayer(false),
-            cliRuntimeStub({ APPLE_PROVIDER_ID: "200" }),
-          );
-        })(),
-      ),
-    ),
-  );
-
-  it.effect(
-    "switching to a UUID-provider team resolves the 10-char Team ID from the portal team list",
-    () =>
-      Effect.gen(function* () {
-        const auth = yield* AppleAuth;
-        const session = yield* auth.ensureLoggedIn();
-        // publicProviderId is a UUID, so the real 10-char Team ID must come from getTeamsAsync.
-        expect(session.providerId).toBe(200);
-        expect(session.teamId).toBe("ABCDE12345");
-      }).pipe(
-        Effect.provide(
-          (() => {
-            const { layer } = makeSessionStoreLayer({
-              session: { cookies: COOKIES_FIXTURE, username: "dev@example.com" },
-            });
-            const uuidProvider = makeProvider(
-              200,
-              "11111111-2222-3333-4444-555555555555",
-              "Example Team B.V.",
-            );
-            const appleUtils = makeAppleUtilsStub({
-              loginWithCookies: async () =>
-                makeAuthState({
-                  providerId: 100,
-                  teamId: "TEAM100",
-                  availableProviders: [makeProvider(100, "TEAM100"), uuidProvider],
-                }),
-              getTeams: async () => [
-                { teamId: "ABCDE12345", name: "Example Team B.V." },
-                { teamId: "OTHER12345", name: "Someone Else" },
-              ],
-            });
-            return Layer.mergeAll(
-              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-              layer,
-              makeInteractiveModeLayer(false),
-              cliRuntimeStub({ APPLE_PROVIDER_ID: "200" }),
-            );
-          })(),
-        ),
-      ),
-  );
-
-  it.effect(
-    "multi-team non-interactive without env preserves the apple-utils auto-resolved current",
-    () =>
-      Effect.gen(function* () {
-        const auth = yield* AppleAuth;
-        const session = yield* auth.ensureLoggedIn();
-        expect(session.providerId).toBe(100);
-        expect(session.teamId).toBe("TEAM100");
-      }).pipe(
-        Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
           (() => {
             const { layer } = makeSessionStoreLayer({
               session: {
@@ -308,9 +235,98 @@ describe("AppleAuth.ensureLoggedIn", () => {
               makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
               layer,
               makeInteractiveModeLayer(false),
-              cliRuntimeStub(),
+              cliRuntimeStub({ APPLE_PROVIDER_ID: "200" }),
             );
           })(),
+        ),
+      ),
+    ),
+  );
+
+  it.effect(
+    "switching to a UUID-provider team resolves the 10-char Team ID from the portal team list",
+    () =>
+      Effect.gen(function* () {
+        const auth = yield* AppleAuth;
+        const session = yield* auth.ensureLoggedIn();
+        // publicProviderId is a UUID, so the real 10-char Team ID must come from getTeamsAsync.
+        expect(session.providerId).toBe(200);
+        expect(session.teamId).toBe("ABCDE12345");
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            NodeServices.layer,
+            (() => {
+              const { layer } = makeSessionStoreLayer({
+                session: { cookies: COOKIES_FIXTURE, username: "dev@example.com" },
+              });
+              const uuidProvider = makeProvider(
+                200,
+                "11111111-2222-3333-4444-555555555555",
+                "Example Team B.V.",
+              );
+              const appleUtils = makeAppleUtilsStub({
+                loginWithCookies: async () =>
+                  makeAuthState({
+                    providerId: 100,
+                    teamId: "TEAM100",
+                    availableProviders: [makeProvider(100, "TEAM100"), uuidProvider],
+                  }),
+                getTeams: async () => [
+                  { teamId: "ABCDE12345", name: "Example Team B.V." },
+                  { teamId: "OTHER12345", name: "Someone Else" },
+                ],
+              });
+              return Layer.mergeAll(
+                makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+                layer,
+                makeInteractiveModeLayer(false),
+                cliRuntimeStub({ APPLE_PROVIDER_ID: "200" }),
+              );
+            })(),
+          ),
+        ),
+      ),
+  );
+
+  it.effect(
+    "multi-team non-interactive without env preserves the apple-utils auto-resolved current",
+    () =>
+      Effect.gen(function* () {
+        const auth = yield* AppleAuth;
+        const session = yield* auth.ensureLoggedIn();
+        expect(session.providerId).toBe(100);
+        expect(session.teamId).toBe("TEAM100");
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            NodeServices.layer,
+            (() => {
+              const { layer } = makeSessionStoreLayer({
+                session: {
+                  cookies: COOKIES_FIXTURE,
+                  username: "dev@example.com",
+                },
+              });
+              const appleUtils = makeAppleUtilsStub({
+                loginWithCookies: async () =>
+                  makeAuthState({
+                    providerId: 100,
+                    teamId: "TEAM100",
+                    availableProviders: [
+                      makeProvider(100, "TEAM100"),
+                      makeProvider(200, "TEAM200"),
+                    ],
+                  }),
+              });
+              return Layer.mergeAll(
+                makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+                layer,
+                makeInteractiveModeLayer(false),
+                cliRuntimeStub(),
+              );
+            })(),
+          ),
         ),
       ),
   );
@@ -322,16 +338,19 @@ describe("AppleAuth.ensureLoggedIn", () => {
       expect(error).toBeInstanceOf(InteractiveProhibitedError);
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer();
-          const appleUtils = makeAppleUtilsStub();
-          return Layer.mergeAll(
-            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-            layer,
-            makeInteractiveModeLayer(false),
-            cliRuntimeStub(),
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer();
+            const appleUtils = makeAppleUtilsStub();
+            return Layer.mergeAll(
+              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+              layer,
+              makeInteractiveModeLayer(false),
+              cliRuntimeStub(),
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -366,10 +385,13 @@ describe("AppleAuth.ensureLoggedIn", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-          layer,
-          InteractiveModeLive,
-          cliRuntimeStub(),
+          NodeServices.layer,
+          Layer.mergeAll(
+            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+            layer,
+            InteractiveModeLive,
+            cliRuntimeStub(),
+          ),
         ),
       ),
     );
@@ -396,10 +418,13 @@ describe("AppleAuth.ensureLoggedIn", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-          layer,
-          makeInteractiveModeLayer(false),
-          cliRuntimeStub(),
+          NodeServices.layer,
+          Layer.mergeAll(
+            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+            layer,
+            makeInteractiveModeLayer(false),
+            cliRuntimeStub(),
+          ),
         ),
       ),
     );
@@ -420,10 +445,13 @@ describe("AppleAuth.ensureLoggedIn", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-          layer,
-          makeInteractiveModeLayer(false),
-          cliRuntimeStub(),
+          NodeServices.layer,
+          Layer.mergeAll(
+            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+            layer,
+            makeInteractiveModeLayer(false),
+            cliRuntimeStub(),
+          ),
         ),
       ),
     );
@@ -438,25 +466,28 @@ describe("AppleAuth.ensureLoggedIn", () => {
       expect(Exit.isFailure(exit)).toBe(true);
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer({
-            session: {
-              cookies: COOKIES_FIXTURE,
-              username: "dev@example.com",
-            },
-          });
-          const appleUtils = makeAppleUtilsStub({
-            loginWithCookies: async () => {
-              throw new Error("cookies expired");
-            },
-          });
-          return Layer.mergeAll(
-            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-            layer,
-            makeInteractiveModeLayer(false),
-            cliRuntimeStub(),
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer({
+              session: {
+                cookies: COOKIES_FIXTURE,
+                username: "dev@example.com",
+              },
+            });
+            const appleUtils = makeAppleUtilsStub({
+              loginWithCookies: async () => {
+                throw new Error("cookies expired");
+              },
+            });
+            return Layer.mergeAll(
+              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+              layer,
+              makeInteractiveModeLayer(false),
+              cliRuntimeStub(),
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -470,14 +501,17 @@ describe("AppleAuth.whoami", () => {
       expect(session).toBeNull();
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer();
-          return Layer.mergeAll(
-            makeAppleAuthLive(makeAppleUtilsStub()).pipe(Layer.provide(layer)),
-            layer,
-            InteractiveModeLive,
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer();
+            return Layer.mergeAll(
+              makeAppleAuthLive(makeAppleUtilsStub()).pipe(Layer.provide(layer)),
+              layer,
+              InteractiveModeLive,
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -489,23 +523,26 @@ describe("AppleAuth.whoami", () => {
       expect(session).toBeNull();
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer({
-            session: {
-              cookies: COOKIES_FIXTURE,
-              username: "dev@example.com",
-            },
-          });
-          const appleUtils = makeAppleUtilsStub({
-            loginWithCookies: async () => null,
-            getAnySessionInfo: () => null,
-          });
-          return Layer.mergeAll(
-            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-            layer,
-            InteractiveModeLive,
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer({
+              session: {
+                cookies: COOKIES_FIXTURE,
+                username: "dev@example.com",
+              },
+            });
+            const appleUtils = makeAppleUtilsStub({
+              loginWithCookies: async () => null,
+              getAnySessionInfo: () => null,
+            });
+            return Layer.mergeAll(
+              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+              layer,
+              InteractiveModeLive,
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -520,26 +557,29 @@ describe("AppleAuth.whoami", () => {
       expect(session?.teamName).toBe("Memory Org");
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer({
-            session: {
-              cookies: COOKIES_FIXTURE,
-              username: "dev@example.com",
-            },
-          });
-          const appleUtils = makeAppleUtilsStub({
-            loginWithCookies: async () => null,
-            getAnySessionInfo: () =>
-              ({
-                provider: makeProvider(500, "TEAM-MEM", "Memory Org"),
-              }) as unknown as Session.SessionInfo,
-          });
-          return Layer.mergeAll(
-            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-            layer,
-            InteractiveModeLive,
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer({
+              session: {
+                cookies: COOKIES_FIXTURE,
+                username: "dev@example.com",
+              },
+            });
+            const appleUtils = makeAppleUtilsStub({
+              loginWithCookies: async () => null,
+              getAnySessionInfo: () =>
+                ({
+                  provider: makeProvider(500, "TEAM-MEM", "Memory Org"),
+                }) as unknown as Session.SessionInfo,
+            });
+            return Layer.mergeAll(
+              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+              layer,
+              InteractiveModeLive,
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -569,9 +609,12 @@ describe("AppleAuth.logout", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-          layer,
-          InteractiveModeLive,
+          NodeServices.layer,
+          Layer.mergeAll(
+            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+            layer,
+            InteractiveModeLive,
+          ),
         ),
       ),
     );
@@ -602,9 +645,12 @@ describe("AppleAuth.logoutAll", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
-          layer,
-          InteractiveModeLive,
+          NodeServices.layer,
+          Layer.mergeAll(
+            makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+            layer,
+            InteractiveModeLive,
+          ),
         ),
       ),
     );
@@ -624,14 +670,17 @@ describe("AppleAuth.buildRequestContext", () => {
       expect(ctx).toStrictEqual({ teamId: "TEAM" });
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer();
-          return Layer.mergeAll(
-            makeAppleAuthLive(makeAppleUtilsStub()).pipe(Layer.provide(layer)),
-            layer,
-            InteractiveModeLive,
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer();
+            return Layer.mergeAll(
+              makeAppleAuthLive(makeAppleUtilsStub()).pipe(Layer.provide(layer)),
+              layer,
+              InteractiveModeLive,
+            );
+          })(),
+        ),
       ),
     ),
   );
@@ -648,14 +697,17 @@ describe("AppleAuth.buildRequestContext", () => {
       expect(ctx).toStrictEqual({ teamId: "TEAM", providerId: 42 });
     }).pipe(
       Effect.provide(
-        (() => {
-          const { layer } = makeSessionStoreLayer();
-          return Layer.mergeAll(
-            makeAppleAuthLive(makeAppleUtilsStub()).pipe(Layer.provide(layer)),
-            layer,
-            InteractiveModeLive,
-          );
-        })(),
+        Layer.mergeAll(
+          NodeServices.layer,
+          (() => {
+            const { layer } = makeSessionStoreLayer();
+            return Layer.mergeAll(
+              makeAppleAuthLive(makeAppleUtilsStub()).pipe(Layer.provide(layer)),
+              layer,
+              InteractiveModeLive,
+            );
+          })(),
+        ),
       ),
     ),
   );

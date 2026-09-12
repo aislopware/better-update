@@ -28,8 +28,8 @@ import type {
   RuntimeVersionError,
 } from "../lib/exit-codes";
 import type { ExpoConfig } from "../lib/expo-config";
-import type { InteractiveMode } from "../lib/interactive-mode";
 import type { OutputMode } from "../lib/output-mode";
+import type { PromptServices } from "../lib/prompts";
 import type { UpdatePlatformOption } from "../lib/update-platforms";
 import type { ApiClientService } from "../services/api-client";
 import type { DeviceUnlockMemo } from "../services/device-unlock-memo";
@@ -320,7 +320,7 @@ export const runUpdateRollback = (
   | FileSystem.FileSystem
   | DeviceUnlockMemo
   | IdentityStore
-  | InteractiveMode
+  | PromptServices
   | OutputMode
 > =>
   Effect.gen(function* () {

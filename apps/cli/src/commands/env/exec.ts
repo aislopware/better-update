@@ -1,17 +1,17 @@
-import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { Effect, Stdio } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 import { ChildProcess } from "effect/unstable/process";
 
 import { runExitCode } from "../../lib/child-process";
-import { runEffect } from "../../lib/citty-effect";
 import { pullEnvVars } from "../../lib/env-exporter";
-import { getExecTrailingArgv } from "../../lib/exec-trailing-argv";
 import { InvalidArgumentError } from "../../lib/exit-codes";
+import { optionalArgument, optionalFlag } from "../../lib/params";
 import { overlayProfileEnv, readOptionalProfile } from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
-import { envErrorExtras, parseEnvironmentScopeArg } from "./helpers";
+import { parseEnvironmentScopeArg } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
 import type { EnvironmentName } from "./helpers";
@@ -23,10 +23,24 @@ const pullForExec = (api: ApiClient, projectId: string, environment: Environment
     Effect.orElseSucceed((): Record<string, string> => ({})),
   );
 
-const splitTrailing = (
-  trailing: readonly string[] | null,
-): Effect.Effect<readonly [string, readonly string[]], InvalidArgumentError> => {
-  if (!trailing || trailing.length === 0) {
+/**
+ * Recover `<environment>` vs `<command...>` from the parsed positionals. The
+ * parser folds the operands after `--` into `command`, so an `env exec
+ * --profile preview -- bun run dev` call has no environment: the operand count
+ * after `--` (from the raw arguments) tells the two apart.
+ */
+const splitOperands = (
+  positionals: readonly string[],
+  trailingCount: number,
+): Effect.Effect<
+  {
+    readonly environment: string | undefined;
+    readonly bin: string;
+    readonly rest: readonly string[];
+  },
+  InvalidArgumentError
+> => {
+  if (trailingCount === 0) {
     return Effect.fail(
       new InvalidArgumentError({
         message:
@@ -34,60 +48,74 @@ const splitTrailing = (
       }),
     );
   }
-  const [bin, ...rest] = trailing;
+  const environment = positionals.length > trailingCount ? positionals[0] : undefined;
+  const [bin, ...rest] = positionals.slice(positionals.length - trailingCount);
   if (bin === undefined) {
     return Effect.fail(new InvalidArgumentError({ message: "Missing command name after `--`." }));
   }
-  return Effect.succeed([bin, rest] as const);
+  return Effect.succeed({ environment, bin, rest });
 };
 
-export const execCommand = defineCommand({
-  meta: {
-    name: "exec",
-    description:
-      "Run a command with project env vars injected. Usage: env exec <environment> -- <command...>",
-  },
-  args: {
-    environment: {
-      type: "positional",
-      required: false,
-      description: "Target environment (e.g. production) — optional when --profile is given",
-    },
-    profile: {
-      type: "string",
-      description:
-        "eas.json build profile: its environment picks the scope and its env block overlays the server vars (profile wins on collision) — same merge as `build`",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const [bin, rest] = yield* splitTrailing(getExecTrailingArgv());
-        const runtime = yield* CliRuntime;
-        const projectRoot = yield* runtime.cwd;
-        const profile = yield* readOptionalProfile(projectRoot, args.profile);
-        if (args.environment === undefined && profile === undefined) {
-          return yield* new InvalidArgumentError({
-            message:
-              "Pass an environment (`env exec production -- …`) or an eas.json profile (`env exec --profile preview -- …`).",
-          });
-        }
-        const environment = yield* parseEnvironmentScopeArg(args.environment, profile);
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-        const baseEnv = yield* runtime.commandEnvironment();
-        const pulled = overlayProfileEnv(yield* pullForExec(api, projectId, environment), profile);
-
-        // Stdio has to be configured at construction time in v4 — the child
-        // takes over this terminal, so all three streams are inherited.
-        const cmd = ChildProcess.make(bin, rest, {
-          stdin: "inherit",
-          stdout: "inherit",
-          stderr: "inherit",
-        }).pipe(ChildProcess.setEnv({ ...baseEnv, ...pulled }));
-        const code = yield* runExitCode(cmd).pipe(Effect.orDie);
-        yield* runtime.setExitCode(code);
-      }),
-      { ...envErrorExtras, BuildProfileError: 2 },
+export const execCommand = Command.make(
+  "exec",
+  {
+    environment: Argument.String("environment").pipe(
+      Argument.withDescription(
+        "Target environment (e.g. production) — optional when --profile is given",
+      ),
+      optionalArgument,
     ),
-});
+    command: Argument.String("command").pipe(
+      Argument.withDescription("Command (and its arguments) to run, after `--`"),
+      Argument.variadic(),
+    ),
+    profile: Flag.String("profile").pipe(
+      Flag.withDescription(
+        "eas.json build profile: its environment picks the scope and its env block overlays the server vars (profile wins on collision) — same merge as `build`",
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(function* (args) {
+    const stdio = yield* Stdio.Stdio;
+    const rawArgs = yield* stdio.args;
+    const separator = rawArgs.indexOf("--");
+    const trailingCount = separator === -1 ? 0 : rawArgs.length - separator - 1;
+    const {
+      environment: environmentArg,
+      bin,
+      rest,
+    } = yield* splitOperands(
+      [...(args.environment === undefined ? [] : [args.environment]), ...args.command],
+      trailingCount,
+    );
+    const runtime = yield* CliRuntime;
+    const projectRoot = yield* runtime.cwd;
+    const profile = yield* readOptionalProfile(projectRoot, args.profile);
+    if (environmentArg === undefined && profile === undefined) {
+      return yield* new InvalidArgumentError({
+        message:
+          "Pass an environment (`env exec production -- …`) or an eas.json profile (`env exec --profile preview -- …`).",
+      });
+    }
+    const environment = yield* parseEnvironmentScopeArg(environmentArg, profile);
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
+    const baseEnv = yield* runtime.commandEnvironment();
+    const pulled = overlayProfileEnv(yield* pullForExec(api, projectId, environment), profile);
+
+    // Stdio has to be configured at construction time in v4 — the child
+    // takes over this terminal, so all three streams are inherited.
+    const cmd = ChildProcess.make(bin, rest, {
+      stdin: "inherit",
+      stdout: "inherit",
+      stderr: "inherit",
+    }).pipe(ChildProcess.setEnv({ ...baseEnv, ...pulled }));
+    const code = yield* runExitCode(cmd).pipe(Effect.orDie);
+    yield* runtime.setExitCode(code);
+  }, runCommand()),
+).pipe(
+  Command.withDescription(
+    "Run a command with project env vars injected. Usage: env exec <environment> -- <command...>",
+  ),
+);

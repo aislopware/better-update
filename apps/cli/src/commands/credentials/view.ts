@@ -1,13 +1,13 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import {
   APPLE_CERTIFICATE_TYPE_LABELS,
   isMacosCertificateType,
 } from "../../lib/apple-certificate-type";
-import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHumanKeyValue } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
@@ -294,25 +294,21 @@ const lookupByType = (api: ApiClient, id: string, type: CredentialType) => {
   }
 };
 
-export const viewCommand = defineCommand({
-  meta: { name: "view", description: "Show details for a single credential (without secrets)" },
-  args: {
-    id: { type: "positional", required: true, description: "Credential ID" },
-    type: {
-      type: "enum",
-      options: [...CREDENTIAL_TYPES],
-      required: true,
-      description: "Credential type",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const result = yield* lookupByType(api, args.id, args.type);
-        yield* printHumanKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
-        return result.raw;
-      }),
-      { json: "value" },
+export const viewCommand = Command.make(
+  "view",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Credential ID")),
+    type: Flag.Literals("type", [...CREDENTIAL_TYPES]).pipe(
+      Flag.withDescription("Credential type"),
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const result = yield* lookupByType(api, args.id, args.type);
+      yield* printHumanKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
+      return result.raw;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Show details for a single credential (without secrets)"));

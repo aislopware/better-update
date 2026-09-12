@@ -1,15 +1,9 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { ageRatingGetCommand } from "./get";
 import { ageRatingSetCommand } from "./set";
 
-export const appStoreAgeRatingCommand = defineCommand({
-  meta: {
-    name: "age-rating",
-    description: "Read or set the app's age-rating content declaration",
-  },
-  subCommands: {
-    get: ageRatingGetCommand,
-    set: ageRatingSetCommand,
-  },
-});
+export const appStoreAgeRatingCommand = Command.make("age-rating").pipe(
+  Command.withDescription("Read or set the app's age-rating content declaration"),
+  Command.withSubcommands([ageRatingGetCommand, ageRatingSetCommand]),
+);

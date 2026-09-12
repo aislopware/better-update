@@ -1,10 +1,8 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { listCommand } from "./list";
 
-export const auditLogsCommand = defineCommand({
-  meta: { name: "audit-logs", description: "View audit logs" },
-  subCommands: {
-    list: listCommand,
-  },
-});
+export const auditLogsCommand = Command.make("audit-logs").pipe(
+  Command.withDescription("View audit logs"),
+  Command.withSubcommands([listCommand]),
+);

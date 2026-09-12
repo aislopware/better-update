@@ -1,6 +1,7 @@
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 
+import { CommandName } from "./command-output";
 import { printJson, printKeyValue, printList, printTable } from "./output";
 import { makeOutputModeLayer } from "./output-mode";
 
@@ -17,16 +18,11 @@ const captureStdout = async (effect: Effect.Effect<void>): Promise<string[]> => 
   return calls;
 };
 
-const originalArgv = process.argv;
-beforeEach(() => {
-  process.argv = ["node", "cli.js", "devices", "list"];
-});
-afterEach(() => {
-  process.argv = originalArgv;
-});
-
-const jsonMode = makeOutputModeLayer(true);
-const humanMode = makeOutputModeLayer(false);
+// The envelope `command` field comes from the CommandName service, resolved
+// once per CLI run from argv (lib/command-output.ts); tests inject it directly.
+const commandName = Layer.succeed(CommandName, "devices.list");
+const jsonMode = Layer.mergeAll(makeOutputModeLayer(true), commandName);
+const humanMode = Layer.mergeAll(makeOutputModeLayer(false), commandName);
 
 describe("output helpers in --json mode emit exactly one success envelope", () => {
   it("printJson wraps the payload in the success envelope", async () => {

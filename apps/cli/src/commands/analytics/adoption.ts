@@ -1,39 +1,37 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printList } from "../../lib/output";
+import { periodFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { emptyMessage } from "./unavailable";
 
-export const adoptionCommand = defineCommand({
-  meta: { name: "adoption", description: "Show update adoption across devices" },
-  args: {
-    period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
+export const adoptionCommand = Command.make(
+  "adoption",
+  {
+    period: periodFlag,
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
+  Effect.fn(function* (args) {
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
 
-        const periodFilter = args.period ? { period: args.period } : {};
+    const periodFilter = args.period ? { period: args.period } : {};
 
-        const result = yield* api.analytics.adoption({
-          query: { projectId, ...periodFilter },
-        });
+    const result = yield* api.analytics.adoption({
+      query: { projectId, ...periodFilter },
+    });
 
-        yield* printList(
-          ["Update ID", "Devices", "First Seen", "Last Seen"],
-          result.updates.map((update) => [
-            update.updateId,
-            String(update.devices),
-            update.firstSeen,
-            update.lastSeen,
-          ]),
-          emptyMessage(result.unavailable, "No adoption data found."),
-        );
-      }),
-    ),
-});
+    yield* printList(
+      ["Update ID", "Devices", "First Seen", "Last Seen"],
+      result.updates.map((update) => [
+        update.updateId,
+        String(update.devices),
+        update.firstSeen,
+        update.lastSeen,
+      ]),
+      emptyMessage(result.unavailable, "No adoption data found."),
+    );
+  }, runCommand()),
+).pipe(Command.withDescription("Show update adoption across devices"));

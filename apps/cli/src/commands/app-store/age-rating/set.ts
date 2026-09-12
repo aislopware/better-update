@@ -1,52 +1,44 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import { setAgeRating } from "../../../application/app-store-age-rating";
-import {
-  APP_STORE_EXIT_EXTRAS,
-  ASC_COMMON_ARGS,
-  openAscSession,
-} from "../../../application/app-store-connect";
-import { runEffect } from "../../../lib/citty-effect";
+import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";
 import { InvalidArgumentError } from "../../../lib/exit-codes";
 import { asJsonObject, readJsonInput } from "../../../lib/json-input";
 import { printHuman } from "../../../lib/output";
+import { optionalFlag } from "../../../lib/params";
+import { runCommand } from "../../../lib/run-command";
 
-import type { AscCommonArgs } from "../../../application/app-store-connect";
-
-interface AgeRatingSetArgs extends AscCommonArgs {
-  readonly from?: string | undefined;
-}
-
-export const ageRatingSetCommand = defineCommand({
-  meta: {
-    name: "set",
-    description: "Set the age-rating declaration from a JSON document (--from file or inline JSON)",
-  },
-  args: {
+export const ageRatingSetCommand = Command.make(
+  "set",
+  {
     ...ASC_COMMON_ARGS,
-    from: {
-      type: "string",
-      description:
+    from: Flag.String("from").pipe(
+      Flag.withDescription(
         'JSON file path or inline JSON of declaration fields, e.g. { "violenceCartoonOrFantasy": "INFREQUENT_OR_MILD" } (required)',
-    },
-  },
-  run: async ({ args }: { readonly args: AgeRatingSetArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        if (args.from === undefined || args.from.trim().length === 0) {
-          return yield* new InvalidArgumentError({ message: "--from is required." });
-        }
-        const document = yield* asJsonObject(yield* readJsonInput(args.from), "--from age rating");
-        const session = yield* openAscSession(args);
-        const result = yield* setAgeRating(session.ctx, session.appId, document);
-        yield* printHuman(
-          result.ignored.length === 0
-            ? `Set age-rating fields: ${result.applied.join(", ")}.`
-            : `Set age-rating fields: ${result.applied.join(", ")}. Ignored unknown: ${result.ignored.join(", ")}.`,
-        );
-        return result;
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
+      ),
+      optionalFlag,
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      if (args.from === undefined || args.from.trim().length === 0) {
+        return yield* new InvalidArgumentError({ message: "--from is required." });
+      }
+      const document = yield* asJsonObject(yield* readJsonInput(args.from), "--from age rating");
+      const session = yield* openAscSession(args);
+      const result = yield* setAgeRating(session.ctx, session.appId, document);
+      yield* printHuman(
+        result.ignored.length === 0
+          ? `Set age-rating fields: ${result.applied.join(", ")}.`
+          : `Set age-rating fields: ${result.applied.join(", ")}. Ignored unknown: ${result.ignored.join(", ")}.`,
+      );
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Set the age-rating declaration from a JSON document (--from file or inline JSON)",
+  ),
+);

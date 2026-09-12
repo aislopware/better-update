@@ -1,15 +1,16 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
 import { printHuman } from "../../lib/output";
+import { optionalArgument, optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
 import { promptSelect, promptText } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import { resolveNamedResourceId, UpdateCommandError, updateErrorExtras } from "./helpers";
+import { resolveNamedResourceId, UpdateCommandError } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
 
@@ -48,59 +49,55 @@ const promptGroupId = (api: ApiClient, projectId: string, branchName: string | u
     );
   });
 
-export const editCommand = defineCommand({
-  meta: {
-    name: "edit",
-    description: "Edit rollout percentage for every update in a group",
-  },
-  args: {
-    groupId: { type: "positional", required: false, description: "Update group ID" },
-    branch: {
-      type: "string",
-      description: "Filter interactive group selection to a single branch",
-    },
-    "rollout-percentage": {
-      type: "string",
-      description: "New rollout percentage (1-100)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-
-        const groupId = args.groupId ?? (yield* promptGroupId(api, projectId, args.branch));
-
-        const rolloutRaw =
-          args["rollout-percentage"] ?? (yield* promptText("New rollout percentage (1-100)"));
-        const percentage = yield* parseRolloutPercentage(rolloutRaw, "rollout-percentage");
-
-        const allUpdates = yield* drainPages((page) =>
-          api.updates.list({ query: { projectId, limit: 100, page } }),
-        );
-        const inGroup = allUpdates.filter((update) => update.groupId === groupId);
-        if (inGroup.length === 0) {
-          return yield* new UpdateCommandError({
-            message: `No updates found for group ${groupId}.`,
-          });
-        }
-
-        yield* Effect.forEach(
-          inGroup,
-          (update) =>
-            api.updates.editRollout({
-              params: { id: update.id },
-              payload: { percentage },
-            }),
-          { concurrency: 2 },
-        );
-
-        yield* printHuman(
-          `Set rollout to ${String(percentage)}% for ${String(inGroup.length)} update(s) in group ${groupId}.`,
-        );
-        return undefined;
-      }),
-      updateErrorExtras,
+export const editCommand = Command.make(
+  "edit",
+  {
+    groupId: Argument.String("groupId").pipe(
+      Argument.withDescription("Update group ID"),
+      optionalArgument,
     ),
-});
+    branch: Flag.String("branch").pipe(
+      Flag.withDescription("Filter interactive group selection to a single branch"),
+      optionalFlag,
+    ),
+    "rollout-percentage": Flag.String("rollout-percentage").pipe(
+      Flag.withDescription("New rollout percentage (1-100)"),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(function* (args) {
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
+
+    const groupId = args.groupId ?? (yield* promptGroupId(api, projectId, args.branch));
+
+    const rolloutRaw =
+      args["rollout-percentage"] ?? (yield* promptText("New rollout percentage (1-100)"));
+    const percentage = yield* parseRolloutPercentage(rolloutRaw, "rollout-percentage");
+
+    const allUpdates = yield* drainPages((page) =>
+      api.updates.list({ query: { projectId, limit: 100, page } }),
+    );
+    const inGroup = allUpdates.filter((update) => update.groupId === groupId);
+    if (inGroup.length === 0) {
+      return yield* new UpdateCommandError({
+        message: `No updates found for group ${groupId}.`,
+      });
+    }
+
+    yield* Effect.forEach(
+      inGroup,
+      (update) =>
+        api.updates.editRollout({
+          params: { id: update.id },
+          payload: { percentage },
+        }),
+      { concurrency: 2 },
+    );
+
+    yield* printHuman(
+      `Set rollout to ${String(percentage)}% for ${String(inGroup.length)} update(s) in group ${groupId}.`,
+    );
+    return undefined;
+  }, runCommand()),
+).pipe(Command.withDescription("Edit rollout percentage for every update in a group"));

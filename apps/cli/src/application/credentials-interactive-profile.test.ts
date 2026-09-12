@@ -1,3 +1,4 @@
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Layer } from "effect";
 
@@ -96,6 +97,7 @@ const input = {
  */
 const stubLayer = (interactive: boolean) =>
   Layer.mergeAll(
+    NodeServices.layer,
     makeInteractiveModeLayer(interactive),
     makeOutputModeLayer(false),
     Layer.succeed(AppleAuth, "unused" as unknown as Context.Service.Shape<typeof AppleAuth>),

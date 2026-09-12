@@ -1,24 +1,22 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { printHuman } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import { channelErrorExtras } from "./helpers";
 
-export const deleteCommand = defineCommand({
-  meta: { name: "delete", description: "Delete a channel" },
-  args: {
-    id: { type: "positional", required: true, description: "Channel ID" },
+export const deleteCommand = Command.make(
+  "delete",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Channel ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        yield* api.channels.delete({ params: { id: args.id } });
-        yield* printHuman(`Channel ${args.id} deleted.`);
-        return { id: args.id, deleted: true };
-      }),
-      { exits: channelErrorExtras, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      yield* api.channels.delete({ params: { id: args.id } });
+      yield* printHuman(`Channel ${args.id} deleted.`);
+      return { id: args.id, deleted: true };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Delete a channel"));

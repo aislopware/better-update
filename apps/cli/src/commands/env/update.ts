@@ -1,20 +1,16 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import { sealForUpload } from "../../application/credential-cipher";
 import { openEnvVaultSessionInteractive } from "../../application/env-vault-access";
-import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import {
-  describePayload,
-  envErrorExtras,
-  findProjectEnvVar,
-  parseSingleEnvironmentArg,
-} from "./helpers";
+import { describePayload, findProjectEnvVar, parseSingleEnvironmentArg } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
 import type { EnvironmentName } from "./helpers";
@@ -94,74 +90,71 @@ const summarizeChanges = (args: {
   return parts.join(" + ");
 };
 
-export const updateCommand = defineCommand({
-  meta: {
-    name: "update",
-    description: "Update a project env var's value, visibility, or documentation",
-  },
-  args: {
-    key: { type: "positional", required: true, description: "Env var key (e.g. API_KEY)" },
-    environment: {
-      type: "string",
-      default: "production",
-      description: "Target environment (development, preview, production)",
-    },
-    value: { type: "string", description: "New value (leave unset to keep current)" },
-    visibility: {
-      type: "enum",
-      options: ["plaintext", "sensitive"],
-      description: "New visibility (leave unset to keep current)",
-    },
-    label: {
-      type: "string",
-      description:
-        'Set the variable\'s label (shared across environments; non-secret). Pass "" to clear.',
-    },
-    description: {
-      type: "string",
-      description: 'Set the variable\'s description (shared; non-secret). Pass "" to clear.',
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const { key, value, visibility } = args;
-        const docs = describePayload(args.label, args.description);
-        const touchesValue = value !== undefined || visibility !== undefined;
-
-        if (!touchesValue && !docs) {
-          return yield* new InvalidArgumentError({
-            message:
-              "Pass --value, --visibility, --label and/or --description. Nothing to update otherwise.",
-          });
-        }
-
-        const environment = yield* parseSingleEnvironmentArg(args.environment);
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-
-        // Documentation (label/description) is non-secret and shared per (scope,
-        // key), so it is a separate no-vault call independent of the value change.
-        if (docs) {
-          yield* api["env-vars"].upsertDescription({
-            payload: { scope: "project", projectId, key, ...docs },
-          });
-        }
-
-        if (touchesValue) {
-          yield* applyValueUpdate(api, { projectId, key, environment, value, visibility });
-        }
-
-        const changed = summarizeChanges({
-          value,
-          visibility,
-          label: args.label,
-          description: args.description,
-        });
-        const envSuffix = touchesValue ? ` (${environment})` : "";
-        yield* printHuman(`Updated ${changed} for ${key}${envSuffix}.`);
-        return undefined;
-      }),
-      envErrorExtras,
+export const updateCommand = Command.make(
+  "update",
+  {
+    key: Argument.String("key").pipe(Argument.withDescription("Env var key (e.g. API_KEY)")),
+    environment: Flag.String("environment").pipe(
+      Flag.withDescription("Target environment (development, preview, production)"),
+      Flag.withDefault("production"),
     ),
-});
+    value: Flag.String("value").pipe(
+      Flag.withDescription("New value (leave unset to keep current)"),
+      optionalFlag,
+    ),
+    visibility: Flag.Literals("visibility", ["plaintext", "sensitive"]).pipe(
+      Flag.withDescription("New visibility (leave unset to keep current)"),
+      optionalFlag,
+    ),
+    label: Flag.String("label").pipe(
+      Flag.withDescription(
+        'Set the variable\'s label (shared across environments; non-secret). Pass "" to clear.',
+      ),
+      optionalFlag,
+    ),
+    description: Flag.String("description").pipe(
+      Flag.withDescription(
+        'Set the variable\'s description (shared; non-secret). Pass "" to clear.',
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(function* (args) {
+    const { key, value, visibility } = args;
+    const docs = describePayload(args.label, args.description);
+    const touchesValue = value !== undefined || visibility !== undefined;
+
+    if (!touchesValue && !docs) {
+      return yield* new InvalidArgumentError({
+        message:
+          "Pass --value, --visibility, --label and/or --description. Nothing to update otherwise.",
+      });
+    }
+
+    const environment = yield* parseSingleEnvironmentArg(args.environment);
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
+
+    // Documentation (label/description) is non-secret and shared per (scope,
+    // key), so it is a separate no-vault call independent of the value change.
+    if (docs) {
+      yield* api["env-vars"].upsertDescription({
+        payload: { scope: "project", projectId, key, ...docs },
+      });
+    }
+
+    if (touchesValue) {
+      yield* applyValueUpdate(api, { projectId, key, environment, value, visibility });
+    }
+
+    const changed = summarizeChanges({
+      value,
+      visibility,
+      label: args.label,
+      description: args.description,
+    });
+    const envSuffix = touchesValue ? ` (${environment})` : "";
+    yield* printHuman(`Updated ${changed} for ${key}${envSuffix}.`);
+    return undefined;
+  }, runCommand()),
+).pipe(Command.withDescription("Update a project env var's value, visibility, or documentation"));

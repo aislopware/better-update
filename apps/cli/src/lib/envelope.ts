@@ -8,7 +8,7 @@
  * test-touching change.
  *
  * Pure leaf module: imports nothing but type declarations. The actual stdout
- * write happens at the imperative boundary (citty-effect.ts / command-exit.ts).
+ * write happens at the imperative boundary (run-command.ts / command-exit.ts).
  */
 
 /** Current envelope schema version. Bump ONLY on a breaking shape change. */

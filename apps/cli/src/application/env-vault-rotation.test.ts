@@ -5,6 +5,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -130,10 +131,13 @@ describe("rotating the env vault with an excluded recipient", () => {
       const rotated = yield* rotateEnvVault(api, { excludeKeyId: "key-robot" }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            cliRuntimeStub({ BETTER_UPDATE_IDENTITY: caller.privateKey }),
-            DeviceUnlockMemoLive,
-            identityStoreStub(null),
-            InteractiveModeLive,
+            NodeServices.layer,
+            Layer.mergeAll(
+              cliRuntimeStub({ BETTER_UPDATE_IDENTITY: caller.privateKey }),
+              DeviceUnlockMemoLive,
+              identityStoreStub(null),
+              InteractiveModeLive,
+            ),
           ),
         ),
       );
@@ -214,10 +218,13 @@ describe("rotating the env vault with an excluded recipient", () => {
       yield* rotateEnvVault(api).pipe(
         Effect.provide(
           Layer.mergeAll(
-            cliRuntimeStub({ BETTER_UPDATE_IDENTITY: caller.privateKey }),
-            DeviceUnlockMemoLive,
-            identityStoreStub(null),
-            InteractiveModeLive,
+            NodeServices.layer,
+            Layer.mergeAll(
+              cliRuntimeStub({ BETTER_UPDATE_IDENTITY: caller.privateKey }),
+              DeviceUnlockMemoLive,
+              identityStoreStub(null),
+              InteractiveModeLive,
+            ),
           ),
         ),
       );

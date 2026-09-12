@@ -1,4 +1,4 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { deleteCommand } from "./delete";
 import { execCommand } from "./exec";
@@ -13,20 +13,20 @@ import { rollbackCommand } from "./rollback";
 import { setCommand } from "./set";
 import { updateCommand } from "./update";
 
-export const envCommand = defineCommand({
-  meta: { name: "env", description: "Manage environment variables" },
-  subCommands: {
-    list: listCommand,
-    get: getCommand,
-    set: setCommand,
-    update: updateCommand,
-    delete: deleteCommand,
-    history: historyCommand,
-    rollback: rollbackCommand,
-    import: importCommand,
-    push: pushCommand,
-    export: exportCommand,
-    pull: pullCommand,
-    exec: execCommand,
-  },
-});
+export const envCommand = Command.make("env").pipe(
+  Command.withDescription("Manage environment variables"),
+  Command.withSubcommands([
+    listCommand,
+    getCommand,
+    setCommand,
+    updateCommand,
+    deleteCommand,
+    historyCommand,
+    rollbackCommand,
+    importCommand,
+    pushCommand,
+    exportCommand,
+    pullCommand,
+    execCommand,
+  ]),
+);

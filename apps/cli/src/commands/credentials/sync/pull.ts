@@ -2,29 +2,24 @@ import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
 import { compact, toOptional } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { FileSystem, Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import {
   openFromDownload,
   openVaultSessionInteractive,
 } from "../../../application/credential-cipher";
-import { runEffect } from "../../../lib/citty-effect";
+import { exitCodeOverrides } from "../../../lib/command-errors";
 import { iosCertificatesOnly } from "../../../lib/credential-choices";
 import { requireSecretString } from "../../../lib/credential-secret";
 import { writeCredentialsJson } from "../../../lib/credentials-json";
 import { CredentialsJsonError } from "../../../lib/exit-codes";
 import { formatCause } from "../../../lib/format-error";
 import { printHuman, printHumanTable } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 import { apiClient } from "../../../services/api-client";
 import { CliRuntime } from "../../../services/cli-runtime";
-import {
-  buildIosFromMeta,
-  ensureGitignoreEntries,
-  SYNC_EXIT_EXTRAS,
-  writeArtifact,
-  writeText,
-} from "./helpers";
+import { buildIosFromMeta, ensureGitignoreEntries, writeArtifact, writeText } from "./helpers";
 
 import type { VaultSession } from "../../../application/credential-cipher";
 import type { CredentialsJson } from "../../../lib/credentials-json";
@@ -344,78 +339,74 @@ const pullAndroid = (
     return { entry, rows } as const;
   });
 
-export const pullCommand = defineCommand({
-  meta: {
-    name: "pull",
-    description: "Download account credentials into a local credentials.json",
-  },
-  args: {
-    platform: {
-      type: "enum",
-      options: ["ios", "android", "all"],
-      default: "all",
-      description: "Limit to a single platform",
-    },
-    "keys-dir": {
-      type: "string",
-      default: "credentials",
-      description: "Directory (relative to project root) for downloaded key files",
-    },
-    "skip-gitignore": {
-      type: "boolean",
-      description: "Skip auto-appending credentials.json/keys-dir to .gitignore",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const runtime = yield* CliRuntime;
-        const projectRoot = yield* runtime.cwd;
-        const fs = yield* FileSystem.FileSystem;
-        const session = yield* openVaultSessionInteractive(api);
-        const ctx: PullCtx = { api, fs, projectRoot, keysDir: args["keys-dir"], session };
-
-        const includeIos = args.platform === "all" || args.platform === "ios";
-        const includeAndroid = args.platform === "all" || args.platform === "android";
-
-        const iosResult = includeIos
-          ? yield* pullIos(ctx)
-          : { entry: undefined, rows: [] as readonly PullRow[] };
-        const androidResult = includeAndroid
-          ? yield* pullAndroid(ctx)
-          : { entry: undefined, rows: [] as readonly PullRow[] };
-
-        const allRows = [...iosResult.rows, ...androidResult.rows];
-        if (allRows.length === 0) {
-          yield* printHuman(`No ${args.platform} credentials available to pull.`);
-          return { pulled: 0, items: [] as readonly PullRow[] };
-        }
-
-        const next: CredentialsJson = compact({
-          ios: iosResult.entry,
-          android: androidResult.entry,
-        });
-        const outPath = yield* writeCredentialsJson(projectRoot, next);
-
-        if (!args["skip-gitignore"]) {
-          const added = yield* ensureGitignoreEntries(fs, projectRoot, [
-            "credentials.json",
-            `${args["keys-dir"]}/`,
-          ]);
-          if (added.length > 0) {
-            yield* printHuman(`Added to .gitignore: ${added.join(", ")}`);
-          }
-        }
-
-        yield* printHumanTable(
-          ["Type", "Path", "ID"],
-          allRows.map((row) => [row.type, row.path, row.id]),
-        );
-        yield* printHuman("");
-        yield* printHuman(`credentials.json written to ${outPath}`);
-        return { pulled: allRows.length, path: outPath, items: allRows };
-      }),
-      { exits: SYNC_EXIT_EXTRAS, json: "value" },
+export const pullCommand = Command.make(
+  "pull",
+  {
+    platform: Flag.Literals("platform", ["ios", "android", "all"]).pipe(
+      Flag.withDescription("Limit to a single platform"),
+      Flag.withDefault("all"),
     ),
-});
+    "keys-dir": Flag.String("keys-dir").pipe(
+      Flag.withDescription("Directory (relative to project root) for downloaded key files"),
+      Flag.withDefault("credentials"),
+    ),
+    "skip-gitignore": Flag.Boolean("skip-gitignore").pipe(
+      Flag.withDescription("Skip auto-appending credentials.json/keys-dir to .gitignore"),
+      Flag.withDefault(false),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const runtime = yield* CliRuntime;
+      const projectRoot = yield* runtime.cwd;
+      const fs = yield* FileSystem.FileSystem;
+      const session = yield* openVaultSessionInteractive(api);
+      const ctx: PullCtx = { api, fs, projectRoot, keysDir: args["keys-dir"], session };
+
+      const includeIos = args.platform === "all" || args.platform === "ios";
+      const includeAndroid = args.platform === "all" || args.platform === "android";
+
+      const iosResult = includeIos
+        ? yield* pullIos(ctx)
+        : { entry: undefined, rows: [] as readonly PullRow[] };
+      const androidResult = includeAndroid
+        ? yield* pullAndroid(ctx)
+        : { entry: undefined, rows: [] as readonly PullRow[] };
+
+      const allRows = [...iosResult.rows, ...androidResult.rows];
+      if (allRows.length === 0) {
+        yield* printHuman(`No ${args.platform} credentials available to pull.`);
+        return { pulled: 0, items: [] as readonly PullRow[] };
+      }
+
+      const next: CredentialsJson = compact({
+        ios: iosResult.entry,
+        android: androidResult.entry,
+      });
+      const outPath = yield* writeCredentialsJson(projectRoot, next);
+
+      if (!args["skip-gitignore"]) {
+        const added = yield* ensureGitignoreEntries(fs, projectRoot, [
+          "credentials.json",
+          `${args["keys-dir"]}/`,
+        ]);
+        if (added.length > 0) {
+          yield* printHuman(`Added to .gitignore: ${added.join(", ")}`);
+        }
+      }
+
+      yield* printHumanTable(
+        ["Type", "Path", "ID"],
+        allRows.map((row) => [row.type, row.path, row.id]),
+      );
+      yield* printHuman("");
+      yield* printHuman(`credentials.json written to ${outPath}`);
+      return { pulled: allRows.length, path: outPath, items: allRows };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription("Download account credentials into a local credentials.json"),
+  Command.provide(exitCodeOverrides({ CredentialValidationError: 5 })),
+);

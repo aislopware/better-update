@@ -1,14 +1,14 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
-import { parseLimit } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
 import { printHuman, printHumanKeyValue, printList } from "../../lib/output";
+import { optionalFlag, positiveIntFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
-import { resolveNamedResourceId, UpdateCommandError, updateErrorExtras } from "./helpers";
+import { resolveNamedResourceId, UpdateCommandError } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
 
@@ -28,113 +28,105 @@ const requireEmbedded = (api: ApiClient, id: string) =>
     return update;
   });
 
-export const embeddedListCommand = defineCommand({
-  meta: { name: "embedded:list", description: "List registered embedded baselines" },
-  args: {
-    branch: { type: "string", description: "Filter by branch name" },
-    platform: {
-      type: "enum",
-      options: ["ios", "android"],
-      description: "Filter by platform",
-    },
-    "runtime-version": { type: "string", description: "Filter by runtime version" },
-    limit: { type: "string", default: "20", description: "Max rows (default 20)" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const limit = yield* parseLimit(args.limit, 20);
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-        const branches = yield* drainPages((page) =>
-          api.branches.list({ query: { projectId, limit: 100, page } }),
-        );
-        const branchId = args.branch
-          ? yield* resolveNamedResourceId({ items: branches, kind: "Branch", name: args.branch })
-          : undefined;
-
-        const { items } = yield* api.updates.list({
-          query: {
-            projectId,
-            isEmbedded: true,
-            limit,
-            ...compact({
-              branchId: branchId ? [branchId] : undefined,
-              platform: args.platform,
-              runtimeVersion: args["runtime-version"],
-            }),
-          },
-        });
-
-        const branchNames = new Map(branches.map((item) => [item.id, item.name]));
-        yield* printList(
-          ["Embedded ID", "Branch", "Platform", "Runtime", "Bundle size", "Created"],
-          items.map((item) => [
-            item.id,
-            branchNames.get(item.branchId) ?? item.branchId,
-            item.platform,
-            item.runtimeVersion,
-            `${String(item.totalAssetSize)} B`,
-            item.createdAt,
-          ]),
-          "No embedded baselines registered. Run `update embedded:upload` after a native build.",
-        );
-      }),
-      updateErrorExtras,
+export const embeddedListCommand = Command.make(
+  "embedded:list",
+  {
+    branch: Flag.String("branch").pipe(Flag.withDescription("Filter by branch name"), optionalFlag),
+    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+      Flag.withDescription("Filter by platform"),
+      optionalFlag,
     ),
-});
-
-export const embeddedViewCommand = defineCommand({
-  meta: { name: "embedded:view", description: "Show details for an embedded baseline" },
-  args: {
-    id: {
-      type: "positional",
-      required: true,
-      description: "Embedded baseline ID (the binary's app.manifest UUID)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const update = yield* requireEmbedded(api, args.id);
-        yield* printHumanKeyValue([
-          ["Embedded ID", update.id],
-          ["Group ID", update.groupId],
-          ["Branch ID", update.branchId],
-          ["Platform", update.platform],
-          ["Runtime version", update.runtimeVersion],
-          ["Bundle size", `${String(update.totalAssetSize)} B`],
-          ["Created", update.createdAt],
-          ["Message", update.message],
-        ]);
-        return update;
-      }),
-      { exits: updateErrorExtras, json: "value" },
+    "runtime-version": Flag.String("runtime-version").pipe(
+      Flag.withDescription("Filter by runtime version"),
+      optionalFlag,
     ),
-});
-
-export const embeddedDeleteCommand = defineCommand({
-  meta: { name: "embedded:delete", description: "Delete a registered embedded baseline" },
-  args: {
-    id: {
-      type: "positional",
-      required: true,
-      description: "Embedded baseline ID (the binary's app.manifest UUID)",
-    },
+    limit: positiveIntFlag("limit", { description: "Max rows", defaultValue: 20 }),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const update = yield* requireEmbedded(api, args.id);
-        const result = yield* api.updates.deleteGroup({ params: { groupId: update.groupId } });
-        yield* printHuman(`Deleted embedded baseline ${args.id}.`);
-        yield* printHuman(
-          "Note: bsdiff patches already generated against this bundle keep serving; new first-launch patches need a re-registered baseline.",
-        );
-        return { id: args.id, groupId: update.groupId, ...result };
-      }),
-      { exits: updateErrorExtras, json: "value" },
+  Effect.fn(function* (args) {
+    const { limit } = args;
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
+    const branches = yield* drainPages((page) =>
+      api.branches.list({ query: { projectId, limit: 100, page } }),
+    );
+    const branchId = args.branch
+      ? yield* resolveNamedResourceId({ items: branches, kind: "Branch", name: args.branch })
+      : undefined;
+
+    const { items } = yield* api.updates.list({
+      query: {
+        projectId,
+        isEmbedded: true,
+        limit,
+        ...compact({
+          branchId: branchId ? [branchId] : undefined,
+          platform: args.platform,
+          runtimeVersion: args["runtime-version"],
+        }),
+      },
+    });
+
+    const branchNames = new Map(branches.map((item) => [item.id, item.name]));
+    yield* printList(
+      ["Embedded ID", "Branch", "Platform", "Runtime", "Bundle size", "Created"],
+      items.map((item) => [
+        item.id,
+        branchNames.get(item.branchId) ?? item.branchId,
+        item.platform,
+        item.runtimeVersion,
+        `${String(item.totalAssetSize)} B`,
+        item.createdAt,
+      ]),
+      "No embedded baselines registered. Run `update embedded:upload` after a native build.",
+    );
+  }, runCommand()),
+).pipe(Command.withDescription("List registered embedded baselines"));
+
+export const embeddedViewCommand = Command.make(
+  "embedded:view",
+  {
+    id: Argument.String("id").pipe(
+      Argument.withDescription("Embedded baseline ID (the binary's app.manifest UUID)"),
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const update = yield* requireEmbedded(api, args.id);
+      yield* printHumanKeyValue([
+        ["Embedded ID", update.id],
+        ["Group ID", update.groupId],
+        ["Branch ID", update.branchId],
+        ["Platform", update.platform],
+        ["Runtime version", update.runtimeVersion],
+        ["Bundle size", `${String(update.totalAssetSize)} B`],
+        ["Created", update.createdAt],
+        ["Message", update.message],
+      ]);
+      return update;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Show details for an embedded baseline"));
+
+export const embeddedDeleteCommand = Command.make(
+  "embedded:delete",
+  {
+    id: Argument.String("id").pipe(
+      Argument.withDescription("Embedded baseline ID (the binary's app.manifest UUID)"),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const update = yield* requireEmbedded(api, args.id);
+      const result = yield* api.updates.deleteGroup({ params: { groupId: update.groupId } });
+      yield* printHuman(`Deleted embedded baseline ${args.id}.`);
+      yield* printHuman(
+        "Note: bsdiff patches already generated against this bundle keep serving; new first-launch patches need a re-registered baseline.",
+      );
+      return { id: args.id, groupId: update.groupId, ...result };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Delete a registered embedded baseline"));

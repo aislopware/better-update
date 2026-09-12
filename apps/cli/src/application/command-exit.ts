@@ -1,6 +1,6 @@
 import { Console, Effect } from "effect";
 
-import { resolveActiveCommandName } from "../lib/command-output";
+import { activeCommandName } from "../lib/command-output";
 import { makeErrorEnvelope, serializeEnvelope } from "../lib/envelope";
 import { OutputMode } from "../lib/output-mode";
 import { CliRuntime } from "../services/cli-runtime";
@@ -32,7 +32,8 @@ export const exitWith = (
   Effect.gen(function* () {
     const mode = yield* OutputMode;
     if (mode.json) {
-      const envelope = makeErrorEnvelope(resolveActiveCommandName(process.argv), {
+      const command = yield* activeCommandName;
+      const envelope = makeErrorEnvelope(command, {
         code,
         tag: failure.tag,
         message: failure.message,

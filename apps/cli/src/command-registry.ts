@@ -33,51 +33,45 @@ import { whoamiCommand } from "./commands/whoami";
 /**
  * The single source of truth for the CLI's top-level command tree.
  *
- * `index.ts` spreads this into `defineCommand({ subCommands })` and the
- * by-construction coverage test (`command-coverage.test.ts`) walks the SAME
- * object. Because both consumers read this one registry, a new command is
- * registered in exactly one place and the coverage guarantee (every leaf exposes
- * the global `--json` / `--non-interactive` contract and routes through
- * `runEffect`) cannot silently drift from what ships.
+ * `index.ts` mounts this list on the root command and the by-construction
+ * coverage test (`command-coverage.test.ts`) walks the SAME list. Because both
+ * consumers read this one registry, a new command is registered in exactly one
+ * place and the coverage guarantee (every leaf routes through `runCommand`,
+ * none re-declares a global flag) cannot silently drift from what ships.
  *
- * The type is left inferred (a record of each command's specific
- * `CommandDef<…>`): citty's `subCommands` accepts it structurally and a wider
- * `Record<string, CommandDef>` annotation would trip `exactOptionalPropertyTypes`
- * on the per-command arg generics.
- *
- * Kept side-effect free (no `runMain`, no `process.argv` rewrite) so the test can
- * import it without booting the CLI.
+ * Kept side-effect free (no `Command.run`) so the test can import it without
+ * booting the CLI.
  */
-export const commandRegistry = {
-  login: loginCommand,
-  logout: logoutCommand,
-  init: initCommand,
-  status: statusCommand,
-  projects: projectsCommand,
-  branches: branchesCommand,
-  channels: channelsCommand,
-  environments: environmentsCommand,
-  build: buildCommand,
-  builds: buildsCommand,
-  credentials: credentialsCommand,
-  env: envCommand,
-  fingerprint: fingerprintCommand,
-  update: updateCommand,
-  analytics: analyticsCommand,
-  "audit-logs": auditLogsCommand,
-  whoami: whoamiCommand,
-  org: orgCommand,
-  open: openCommand,
-  doctor: doctorCommand,
-  devices: devicesCommand,
-  webhooks: webhooksCommand,
-  autocomplete: autocompleteCommand,
-  apple: appleCommand,
-  "app-store": appStoreCommand,
-  macos: macosCommand,
-  submit: submitCommand,
-  testflight: testflightCommand,
-  reviews: reviewsCommand,
-  metadata: metadataCommand,
-  "app-review": appReviewCommand,
-};
+export const commandRegistry = [
+  loginCommand,
+  logoutCommand,
+  initCommand,
+  statusCommand,
+  projectsCommand,
+  branchesCommand,
+  channelsCommand,
+  environmentsCommand,
+  buildCommand,
+  buildsCommand,
+  credentialsCommand,
+  envCommand,
+  fingerprintCommand,
+  updateCommand,
+  analyticsCommand,
+  auditLogsCommand,
+  whoamiCommand,
+  orgCommand,
+  openCommand,
+  doctorCommand,
+  devicesCommand,
+  webhooksCommand,
+  autocompleteCommand,
+  appleCommand,
+  appStoreCommand,
+  macosCommand,
+  submitCommand,
+  testflightCommand,
+  reviewsCommand,
+  metadataCommand,
+  appReviewCommand,
+] as const;

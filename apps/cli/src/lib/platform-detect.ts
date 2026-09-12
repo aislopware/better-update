@@ -7,6 +7,7 @@ import { promptSelect } from "./prompts";
 import type { BuildProfile, Platform } from "./build-profile";
 import type { InteractiveProhibitedError } from "./exit-codes";
 import type { ExpoConfig } from "./expo-config";
+import type { PromptServices } from "./prompts";
 
 const PLATFORMS = ["ios", "android"] as const;
 
@@ -38,7 +39,7 @@ export const detectPlatform = <Err, Req>(
 ): Effect.Effect<
   Platform,
   BuildProfileError | InteractiveProhibitedError | Err,
-  InteractiveMode | Req
+  PromptServices | Req
 > =>
   Effect.gen(function* () {
     if (explicit !== undefined) {
@@ -88,7 +89,7 @@ export const detectPlatformGeneric = (
     readonly hasAndroidDir: boolean;
     readonly hasIosDir: boolean;
   },
-): Effect.Effect<Platform, BuildProfileError | InteractiveProhibitedError, InteractiveMode> =>
+): Effect.Effect<Platform, BuildProfileError | InteractiveProhibitedError, PromptServices> =>
   Effect.gen(function* () {
     if (explicit !== undefined) {
       return explicit;

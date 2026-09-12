@@ -1,26 +1,24 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../../../lib/citty-effect";
 import { printHuman } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 import { apiClient } from "../../../services/api-client";
-import { channelErrorExtras } from "../helpers";
 
-export const completeCommand = defineCommand({
-  meta: { name: "complete", description: "Complete the active branch rollout" },
-  args: {
-    channelId: { type: "positional", required: true, description: "Channel ID" },
+export const completeCommand = Command.make(
+  "complete",
+  {
+    channelId: Argument.String("channelId").pipe(Argument.withDescription("Channel ID")),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const channel = yield* api.channels.completeBranchRollout({
-          params: { id: args.channelId },
-        });
-        yield* printHuman(`Completed rollout on channel "${channel.name}".`);
-        return channel;
-      }),
-      { exits: channelErrorExtras, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const channel = yield* api.channels.completeBranchRollout({
+        params: { id: args.channelId },
+      });
+      yield* printHuman(`Completed rollout on channel "${channel.name}".`);
+      return channel;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Complete the active branch rollout"));

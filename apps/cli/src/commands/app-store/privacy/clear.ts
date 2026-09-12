@@ -1,31 +1,27 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
-import {
-  APP_STORE_EXIT_EXTRAS,
-  ASC_COMMON_ARGS,
-  openAscSession,
-} from "../../../application/app-store-connect";
+import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";
 import { clearPrivacy } from "../../../application/app-store-privacy";
-import { runEffect } from "../../../lib/citty-effect";
 import { printHuman } from "../../../lib/output";
+import { runCommand } from "../../../lib/run-command";
 
-import type { AscCommonArgs } from "../../../application/app-store-connect";
-
-export const privacyClearCommand = defineCommand({
-  meta: {
-    name: "clear",
-    description: "Delete every declared App Privacy data usage (re-publish afterwards to apply)",
+export const privacyClearCommand = Command.make(
+  "clear",
+  {
+    ...ASC_COMMON_ARGS,
   },
-  args: { ...ASC_COMMON_ARGS },
-  run: async ({ args }: { readonly args: AscCommonArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const session = yield* openAscSession(args);
-        const result = yield* clearPrivacy(session.ctx, session.appId);
-        yield* printHuman(`Cleared ${String(result.cleared)} App Privacy data usage(s).`);
-        return result;
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const session = yield* openAscSession(args);
+      const result = yield* clearPrivacy(session.ctx, session.appId);
+      yield* printHuman(`Cleared ${String(result.cleared)} App Privacy data usage(s).`);
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Delete every declared App Privacy data usage (re-publish afterwards to apply)",
+  ),
+);

@@ -1,150 +1,150 @@
-import { compact } from "@better-update/type-guards";
-import {
-  autocomplete,
-  cancel,
-  confirm,
-  isCancel,
-  multiselect,
-  password,
-  select,
-  text,
-} from "@clack/prompts";
-import { Effect } from "effect";
+import { Console, Effect, Redacted } from "effect";
+import { Prompt } from "effect/unstable/cli";
 
 import { InteractiveProhibitedError } from "./exit-codes";
 import { InteractiveMode } from "./interactive-mode";
 
-const ensureInteractive = (
-  promptName: string,
+/** Services every prompt needs: the interactive gate plus the terminal it draws on. */
+export type PromptServices = InteractiveMode | Prompt.Environment;
+
+export interface PromptOption<T> {
+  readonly value: T;
+  readonly label?: string;
+  readonly hint?: string;
+}
+
+/**
+ * Fail with `InteractiveProhibitedError` unless prompts are allowed. Every
+ * prompt goes through it; flows that need a human without a prompt (the
+ * browser login) call it directly with their own remedy.
+ */
+export const requireInteractive = (
+  what: string,
+  remedy = "Provide the value via a flag, run with --interactive, or unset CI.",
 ): Effect.Effect<void, InteractiveProhibitedError, InteractiveMode> =>
   Effect.gen(function* () {
     const mode = yield* InteractiveMode;
     if (!mode.allow) {
       return yield* new InteractiveProhibitedError({
-        message: `Interactive prompt "${promptName}" requested while running non-interactively. Provide the value via a flag, run with --interactive, or unset CI.`,
+        message: `${what} requested while running non-interactively. ${remedy}`,
       });
     }
     return undefined;
   });
 
-// @clack/prompts 1.8 types `isCancel` as a guard for its `CANCEL_SYMBOL` while
-// every prompt still resolves `Value | symbol`, so the guard alone no longer
-// narrows the union. The cancel symbol is the only symbol a prompt ever yields,
-// which is what the `typeof` check states for the type system.
-const handleCancel = <T>(value: T | symbol): T => {
-  if (isCancel(value) || typeof value === "symbol") {
-    cancel("Operation cancelled.");
-    // eslint-disable-next-line eslint-plugin-unicorn/no-process-exit -- SIGINT at a CLI prompt must terminate the process; throwing would leave Effect runtime stuck
-    process.exit(130);
-  }
-  return value;
-};
+const ensureInteractive = (promptName: string) =>
+  requireInteractive(`Interactive prompt "${promptName}"`);
+
+/**
+ * Run a prompt behind the InteractiveMode gate. Ctrl-C at a prompt (`QuitError`)
+ * becomes fiber interruption: it passes through every handler untouched and the
+ * runtime exits 130, matching the conventional SIGINT status.
+ */
+const ask = <T>(
+  message: string,
+  prompt: Prompt.Prompt<T>,
+): Effect.Effect<T, InteractiveProhibitedError, PromptServices> =>
+  Effect.gen(function* () {
+    yield* ensureInteractive(message);
+    return yield* Prompt.run(prompt).pipe(
+      Effect.catchTag("QuitError", () =>
+        Console.error("Operation cancelled.").pipe(Effect.andThen(Effect.interrupt)),
+      ),
+    );
+  });
+
+const toChoices = <T>(options: readonly PromptOption<T>[]): Prompt.SelectChoice<T>[] =>
+  options.map((option) => ({
+    title: option.label ?? String(option.value),
+    value: option.value,
+    ...(option.hint === undefined ? {} : { description: option.hint }),
+  }));
 
 export const promptPassword = (
   message: string,
-): Effect.Effect<string, InteractiveProhibitedError, InteractiveMode> =>
-  Effect.gen(function* () {
-    yield* ensureInteractive(message);
-    const value = yield* Effect.promise(async () => password({ message }));
-    return handleCancel(value);
-  });
-
-type SelectOption<T> = Parameters<typeof select<T>>[0]["options"][number];
+): Effect.Effect<string, InteractiveProhibitedError, PromptServices> =>
+  ask(message, Prompt.Password({ message })).pipe(Effect.map(Redacted.value));
 
 export const promptSelect = <T>(
   message: string,
-  options: readonly SelectOption<T>[],
-): Effect.Effect<T, InteractiveProhibitedError, InteractiveMode> =>
-  Effect.gen(function* () {
-    yield* ensureInteractive(message);
-    const value = yield* Effect.promise(async () => select<T>({ message, options: [...options] }));
-    return handleCancel(value);
-  });
+  options: readonly PromptOption<T>[],
+): Effect.Effect<T, InteractiveProhibitedError, PromptServices> =>
+  ask(message, Prompt.Select<T>({ message, choices: toChoices(options) }));
 
 export const promptAutocomplete = <T>(
   message: string,
-  options: readonly SelectOption<T>[],
+  options: readonly PromptOption<T>[],
   config?: { readonly placeholder?: string; readonly maxItems?: number },
-): Effect.Effect<T, InteractiveProhibitedError, InteractiveMode> =>
-  Effect.gen(function* () {
-    yield* ensureInteractive(message);
-    const value = yield* Effect.promise(async () =>
-      autocomplete<T>(
-        compact({
-          message,
-          options: [...options],
-          placeholder: config?.placeholder,
-          maxItems: config?.maxItems,
-        }),
-      ),
-    );
-    return handleCancel(value);
-  });
-
-type MultiSelectOption<T> = Parameters<typeof multiselect<T>>[0]["options"][number];
+): Effect.Effect<T, InteractiveProhibitedError, PromptServices> =>
+  ask(
+    message,
+    Prompt.AutoComplete<T>({
+      message,
+      choices: toChoices(options),
+      ...(config?.placeholder === undefined ? {} : { filterPlaceholder: config.placeholder }),
+      ...(config?.maxItems === undefined ? {} : { maxPerPage: config.maxItems }),
+    }),
+  );
 
 export const promptMultiSelect = <T>(
   message: string,
-  options: readonly MultiSelectOption<T>[],
+  options: readonly PromptOption<T>[],
   config?: { readonly required?: boolean },
-): Effect.Effect<readonly T[], InteractiveProhibitedError, InteractiveMode> =>
-  Effect.gen(function* () {
-    yield* ensureInteractive(message);
-    const value = yield* Effect.promise(async () =>
-      multiselect<T>({
-        message,
-        options: [...options],
-        required: config?.required ?? false,
-      }),
-    );
-    return handleCancel(value);
-  });
+): Effect.Effect<readonly T[], InteractiveProhibitedError, PromptServices> =>
+  ask(
+    message,
+    Prompt.MultiSelect<T>({
+      message,
+      choices: toChoices(options),
+      min: config?.required ? 1 : 0,
+    }),
+  );
 
 export const promptText = (
   message: string,
   options?: {
+    /** Hint appended to the message (Effect prompts have no inline placeholder). */
     readonly placeholder?: string;
+    /** Shown as the answer used when the user submits an empty line. */
     readonly defaultValue?: string;
-    /** Pre-fills the editable buffer (visible + editable), unlike `defaultValue`. */
+    /** Same as `defaultValue`; kept so callers can express "pre-filled" intent. */
     readonly initialValue?: string;
     /** Return a message to reject + re-prompt; `undefined` accepts the value. */
     readonly validate?: (value: string | undefined) => string | undefined;
   },
-): Effect.Effect<string, InteractiveProhibitedError, InteractiveMode> =>
-  Effect.gen(function* () {
-    yield* ensureInteractive(message);
-    const value = yield* Effect.promise(async () =>
-      text(
-        compact({
-          message,
-          placeholder: options?.placeholder,
-          defaultValue: options?.defaultValue,
-          initialValue: options?.initialValue,
-          validate: options?.validate,
-        }),
-      ),
-    );
-    return handleCancel(value);
-  });
-
-/**
- * Raw progress-bar renderer for byte-progress reporting (lib/upload-progress).
- * Unlike the prompts above it reads no input, so it takes no InteractiveMode
- * gate here — the reporter decides TTY-appropriateness itself.
- */
-export { progress as clackProgress } from "@clack/prompts";
+): Effect.Effect<string, InteractiveProhibitedError, PromptServices> => {
+  const initial = options?.initialValue ?? options?.defaultValue;
+  const validate = options?.validate;
+  const label =
+    options?.placeholder === undefined ? message : `${message} (${options.placeholder})`;
+  return ask(
+    message,
+    Prompt.String({
+      message: label,
+      ...(initial === undefined ? {} : { default: initial }),
+      ...(validate === undefined
+        ? {}
+        : {
+            validate: (value: string) => {
+              const problem = validate(value);
+              return problem === undefined ? Effect.succeed(value) : Effect.fail(problem);
+            },
+          }),
+    }),
+  );
+};
 
 export const promptConfirm = (
   message: string,
   options?: { readonly initialValue?: boolean },
-): Effect.Effect<boolean, InteractiveProhibitedError, InteractiveMode> =>
-  Effect.gen(function* () {
-    yield* ensureInteractive(message);
-    const value = yield* Effect.promise(async () =>
-      confirm(compact({ message, initialValue: options?.initialValue })),
-    );
-    return handleCancel(value);
-  });
+): Effect.Effect<boolean, InteractiveProhibitedError, PromptServices> =>
+  ask(
+    message,
+    Prompt.Confirm({
+      message,
+      ...(options?.initialValue === undefined ? {} : { initial: options.initialValue }),
+    }),
+  );
 
 /**
  * Ask for an App Store Connect issuer ID. Team keys have one; an individual
@@ -153,7 +153,7 @@ export const promptConfirm = (
 export const promptIssuerId = (): Effect.Effect<
   string | undefined,
   InteractiveProhibitedError,
-  InteractiveMode
+  PromptServices
 > =>
   promptText("ASC issuer ID (UUID) — leave empty for an individual key").pipe(
     Effect.map((value) => {

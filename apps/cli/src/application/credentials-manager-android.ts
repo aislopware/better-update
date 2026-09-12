@@ -1,5 +1,4 @@
 import path from "node:path";
-import process from "node:process";
 
 import { fromBase64 } from "@better-update/encoding";
 import { FileSystem, Console, Effect } from "effect";
@@ -121,7 +120,9 @@ const downloadAndroidKeystoreInteractive = (ctx: WizardContext) =>
     const keystoreBase64 = yield* keystoreField(secret, "keystoreBase64");
     const keystorePassword = yield* keystoreField(secret, "keystorePassword");
     const keyPassword = yield* keystoreField(secret, "keyPassword");
-    const defaultPath = path.join(process.cwd(), `${data.id}.keystore`);
+    const runtime = yield* CliRuntime;
+    const cwd = yield* runtime.cwd;
+    const defaultPath = path.join(cwd, `${data.id}.keystore`);
     const rawTarget = yield* promptText("Output path", { defaultValue: defaultPath });
     const target = rawTarget.trim().length === 0 ? defaultPath : rawTarget;
     const fs = yield* FileSystem.FileSystem;

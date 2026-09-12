@@ -1,8 +1,7 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import {
-  APP_STORE_EXIT_EXTRAS,
   ASC_COMMON_ARGS,
   BUILD_SELECTOR_ARGS,
   normalizePlatform,
@@ -10,24 +9,12 @@ import {
 } from "../../../application/app-store-connect";
 import { listFeedback, resolveFeedbackBuildId } from "../../../application/testflight-feedback";
 import { findTesterByEmail } from "../../../application/testflight-testers";
-import { runEffect } from "../../../lib/citty-effect";
-import { parseLimit } from "../../../lib/cli-schemas";
 import { InvalidArgumentError } from "../../../lib/exit-codes";
 import { printHumanList } from "../../../lib/output";
+import { optionalFlag, positiveIntFlag } from "../../../lib/params";
+import { runCommand } from "../../../lib/run-command";
 
-import type { AscCommonArgs } from "../../../application/app-store-connect";
 import type { FeedbackKind, FeedbackView } from "../../../application/testflight-feedback";
-
-interface FeedbackListArgs extends AscCommonArgs {
-  readonly type?: string | undefined;
-  readonly build?: string | undefined;
-  readonly "build-version"?: string | undefined;
-  readonly platform?: string | undefined;
-  readonly "device-model"?: string | undefined;
-  readonly "os-version"?: string | undefined;
-  readonly "tester-email"?: string | undefined;
-  readonly limit?: string | undefined;
-}
 
 const KINDS: Readonly<Record<string, readonly FeedbackKind[]>> = {
   all: ["screenshot", "crash"],
@@ -91,61 +78,69 @@ const toRow = (feedback: FeedbackView): readonly string[] => [
   feedback.id,
 ];
 
-export const feedbackListCommand = defineCommand({
-  meta: {
-    name: "list",
-    description: "List TestFlight tester feedback (screenshots + crashes), newest first (CI-safe)",
-  },
-  args: {
+export const feedbackListCommand = Command.make(
+  "list",
+  {
     ...ASC_COMMON_ARGS,
     ...BUILD_SELECTOR_ARGS,
-    type: {
-      type: "string",
-      default: "all",
-      description: "Which feedback to list: screenshot, crash, or all (default: all)",
-    },
-    platform: { type: "string", description: "Filter by app platform: ios, mac, tv, vision" },
-    "device-model": {
-      type: "string",
-      description: "Filter by device model identifier (e.g. iPhone14,2)",
-    },
-    "os-version": { type: "string", description: "Filter by OS version (e.g. 18.2)" },
-    "tester-email": { type: "string", description: "Filter by the tester who sent the feedback" },
-    limit: { type: "string", default: "50", description: "Max entries to return (default: 50)" },
-  },
-  run: async ({ args }: { readonly args: FeedbackListArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const kinds = yield* parseKinds(args.type);
-        const platform =
-          args.platform === undefined ? undefined : yield* normalizePlatform(args.platform);
-        const limit = yield* parseLimit(args.limit, 50);
-        const session = yield* openAscSession(args);
-        const buildId = yield* resolveFeedbackBuildId(session.ctx, session.appId, {
-          buildId: args.build,
-          buildVersion: args["build-version"],
-          platform,
-        });
-        const testerId =
-          args["tester-email"] === undefined
-            ? undefined
-            : (yield* findTesterByEmail(session.ctx, args["tester-email"])).id;
-        const items = yield* listFeedback(session.ctx, session.appId, {
-          kinds,
-          buildId,
-          deviceModel: args["device-model"],
-          osVersion: args["os-version"],
-          platform,
-          testerId,
-          limit,
-        });
-        yield* printHumanList(
-          ["Submitted", "Type", "Tester", "Build", "Device", "OS", "Shots", "Comment", "ID"],
-          items.map(toRow),
-          "No TestFlight feedback found.",
-        );
-        return { items };
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
+    type: Flag.String("type").pipe(
+      Flag.withDescription("Which feedback to list: screenshot, crash, or all (default: all)"),
+      Flag.withDefault("all"),
     ),
-});
+    platform: Flag.String("platform").pipe(
+      Flag.withDescription("Filter by app platform: ios, mac, tv, vision"),
+      optionalFlag,
+    ),
+    "device-model": Flag.String("device-model").pipe(
+      Flag.withDescription("Filter by device model identifier (e.g. iPhone14,2)"),
+      optionalFlag,
+    ),
+    "os-version": Flag.String("os-version").pipe(
+      Flag.withDescription("Filter by OS version (e.g. 18.2)"),
+      optionalFlag,
+    ),
+    "tester-email": Flag.String("tester-email").pipe(
+      Flag.withDescription("Filter by the tester who sent the feedback"),
+      optionalFlag,
+    ),
+    limit: positiveIntFlag("limit", { description: "Max entries to return", defaultValue: 50 }),
+  },
+  Effect.fn(
+    function* (args) {
+      const kinds = yield* parseKinds(args.type);
+      const platform =
+        args.platform === undefined ? undefined : yield* normalizePlatform(args.platform);
+      const { limit } = args;
+      const session = yield* openAscSession(args);
+      const buildId = yield* resolveFeedbackBuildId(session.ctx, session.appId, {
+        buildId: args.build,
+        buildVersion: args["build-version"],
+        platform,
+      });
+      const testerId =
+        args["tester-email"] === undefined
+          ? undefined
+          : (yield* findTesterByEmail(session.ctx, args["tester-email"])).id;
+      const items = yield* listFeedback(session.ctx, session.appId, {
+        kinds,
+        buildId,
+        deviceModel: args["device-model"],
+        osVersion: args["os-version"],
+        platform,
+        testerId,
+        limit,
+      });
+      yield* printHumanList(
+        ["Submitted", "Type", "Tester", "Build", "Device", "OS", "Shots", "Comment", "ID"],
+        items.map(toRow),
+        "No TestFlight feedback found.",
+      );
+      return { items };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "List TestFlight tester feedback (screenshots + crashes), newest first (CI-safe)",
+  ),
+);

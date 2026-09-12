@@ -1,9 +1,8 @@
 import path from "node:path";
 
-import { defineCommand } from "citty";
 import { FileSystem, Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError, UploadFailedError } from "../../lib/exit-codes";
 import { fetchBytes } from "../../lib/fetch-bytes";
 import {
@@ -20,19 +19,15 @@ import {
   readBundleIdFromApp,
 } from "../../lib/native-runner";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { optionalArgument, optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { acquireBuildTempDir } from "../../lib/temp-dir";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
 
 type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
-
-const RUN_EXIT_EXTRAS = {
-  UploadFailedError: 7,
-  NativeRunError: 6,
-  InvalidArgumentError: 2,
-} as const;
 
 const resolveBuild = (params: {
   readonly api: ApiClient;
@@ -198,102 +193,103 @@ const runAndroid = (params: AndroidRunParams) =>
     ]);
   });
 
-export const runCommand = defineCommand({
-  meta: {
-    name: "run",
-    description: "Install and launch a build on a simulator/emulator or device",
-  },
-  args: {
-    id: { type: "positional", required: false, description: "Build ID (or use --latest)" },
-    latest: { type: "boolean", description: "Pick the most recent build for --platform" },
-    platform: {
-      type: "enum",
-      options: ["ios", "android"],
-      description: "Platform filter (required with --latest)",
-    },
-    simulator: {
-      type: "string",
-      description: "iOS simulator name or UDID (iOS simulator/tar.gz builds)",
-    },
-    "device-id": {
-      type: "string",
-      description: "Real-device UDID (iOS .ipa via xcrun devicectl)",
-    },
-    device: {
-      type: "boolean",
-      description: "Force real-device install for iOS .ipa (default: simulator if possible)",
-    },
-    emulator: {
-      type: "string",
-      description: "Android adb serial (emulator or device)",
-    },
-    package: {
-      type: "string",
-      description: "Android package name override (used when aapt/aapt2 is unavailable)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.scoped(
-        Effect.gen(function* () {
-          const api = yield* apiClient;
-          const projectId = yield* readProjectId;
-          const build = yield* resolveBuild({
-            api,
-            id: args.id,
-            latest: args.latest ?? false,
-            platform: args.platform,
-            projectId,
-          });
-          const { artifact } = build;
-          if (!artifact) {
-            return yield* new UploadFailedError({
-              message: `Build ${build.id} has no artifact yet.`,
-            });
-          }
-          const link = yield* api.builds.getInstallLink({ params: { id: build.id } });
-          // An `.aab` build installs through its universal APK companion when
-          // one was attached; the bundle itself is Play-only.
-          const installable =
-            artifact.format === "aab" && build.installArtifact && link.installUrl
-              ? {
-                  url: link.installUrl,
-                  format: "apk" as const,
-                  byteSize: build.installArtifact.byteSize,
-                }
-              : { url: link.artifactUrl, format: artifact.format, byteSize: artifact.byteSize };
-          const tempDir = yield* acquireBuildTempDir;
-          const artifactPath = path.join(tempDir, `artifact.${installable.format}`);
-          yield* printHuman(
-            `Downloading ${installable.format} artifact (${String(installable.byteSize)} bytes)...`,
-          );
-          const bytes = yield* fetchBytes(installable.url, "artifact");
-          const fs = yield* FileSystem.FileSystem;
-          yield* fs.writeFile(artifactPath, bytes);
-
-          yield* build.platform === "ios"
-            ? runIos({
-                tempDir,
-                artifactPath,
-                format: installable.format,
-                simulatorSelector: args.simulator,
-                deviceSelector: args["device-id"],
-                useDevice: args.device ?? false,
-              })
-            : runAndroid({
-                artifactPath,
-                format: installable.format,
-                emulatorSelector: args.emulator,
-                packageOverride: args.package,
-              });
-          return {
-            buildId: build.id,
-            platform: build.platform,
-            format: installable.format,
-            installed: true,
-          };
-        }),
-      ),
-      { exits: RUN_EXIT_EXTRAS, json: "value" },
+export const runBuildCommand = Command.make(
+  "run",
+  {
+    id: Argument.String("id").pipe(
+      Argument.withDescription("Build ID (or use --latest)"),
+      optionalArgument,
     ),
-});
+    latest: Flag.Boolean("latest").pipe(
+      Flag.withDescription("Pick the most recent build for --platform"),
+      Flag.withDefault(false),
+    ),
+    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+      Flag.withDescription("Platform filter (required with --latest)"),
+      optionalFlag,
+    ),
+    simulator: Flag.String("simulator").pipe(
+      Flag.withDescription("iOS simulator name or UDID (iOS simulator/tar.gz builds)"),
+      optionalFlag,
+    ),
+    "device-id": Flag.String("device-id").pipe(
+      Flag.withDescription("Real-device UDID (iOS .ipa via xcrun devicectl)"),
+      optionalFlag,
+    ),
+    device: Flag.Boolean("device").pipe(
+      Flag.withDescription(
+        "Force real-device install for iOS .ipa (default: simulator if possible)",
+      ),
+      Flag.withDefault(false),
+    ),
+    emulator: Flag.String("emulator").pipe(
+      Flag.withDescription("Android adb serial (emulator or device)"),
+      optionalFlag,
+    ),
+    package: Flag.String("package").pipe(
+      Flag.withDescription("Android package name override (used when aapt/aapt2 is unavailable)"),
+      optionalFlag,
+    ),
+  },
+  (args) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const projectId = yield* readProjectId;
+        const build = yield* resolveBuild({
+          api,
+          id: args.id,
+          latest: args.latest,
+          platform: args.platform,
+          projectId,
+        });
+        const { artifact } = build;
+        if (!artifact) {
+          return yield* new UploadFailedError({
+            message: `Build ${build.id} has no artifact yet.`,
+          });
+        }
+        const link = yield* api.builds.getInstallLink({ params: { id: build.id } });
+        // An `.aab` build installs through its universal APK companion when
+        // one was attached; the bundle itself is Play-only.
+        const installable =
+          artifact.format === "aab" && build.installArtifact && link.installUrl
+            ? {
+                url: link.installUrl,
+                format: "apk" as const,
+                byteSize: build.installArtifact.byteSize,
+              }
+            : { url: link.artifactUrl, format: artifact.format, byteSize: artifact.byteSize };
+        const tempDir = yield* acquireBuildTempDir;
+        const artifactPath = path.join(tempDir, `artifact.${installable.format}`);
+        yield* printHuman(
+          `Downloading ${installable.format} artifact (${String(installable.byteSize)} bytes)...`,
+        );
+        const bytes = yield* fetchBytes(installable.url, "artifact");
+        const fs = yield* FileSystem.FileSystem;
+        yield* fs.writeFile(artifactPath, bytes);
+
+        yield* build.platform === "ios"
+          ? runIos({
+              tempDir,
+              artifactPath,
+              format: installable.format,
+              simulatorSelector: args.simulator,
+              deviceSelector: args["device-id"],
+              useDevice: args.device,
+            })
+          : runAndroid({
+              artifactPath,
+              format: installable.format,
+              emulatorSelector: args.emulator,
+              packageOverride: args.package,
+            });
+        return {
+          buildId: build.id,
+          platform: build.platform,
+          format: installable.format,
+          installed: true,
+        };
+      }),
+    ).pipe(runCommand({ json: "value" })),
+).pipe(Command.withDescription("Install and launch a build on a simulator/emulator or device"));

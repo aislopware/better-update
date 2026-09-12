@@ -2,15 +2,16 @@ import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
 import { compact, toOptional } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { FileSystem, Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import { openFromDownload, openVaultSessionInteractive } from "../../application/credential-cipher";
 import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";
-import { runEffect } from "../../lib/citty-effect";
 import { requireSecretString } from "../../lib/credential-secret";
 import { CredentialValidationError, IdentityError } from "../../lib/exit-codes";
 import { printHumanKeyValue } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -403,38 +404,32 @@ const dispatchDownload = (ctx: DownloadCtx, type: DownloadType) => {
   }
 };
 
-export const downloadCommand = defineCommand({
-  meta: {
-    name: "download",
-    description:
-      "Download a single credential file (keystore/.p12/.mobileprovision/.p8/.json) for local use",
-  },
-  args: {
-    id: { type: "positional", required: true, description: "Credential ID" },
-    type: {
-      type: "enum",
-      options: [...DOWNLOAD_TYPES],
-      required: true,
-      description: "Credential type",
-    },
-    output: {
-      type: "string",
-      description: "Output path (default: ./<id>.<ext> derived from credential type)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const runtime = yield* CliRuntime;
-        const cwd = yield* runtime.cwd;
-        const result = yield* dispatchDownload(
-          { api, id: args.id, cwd, output: args.output },
-          args.type,
-        );
-        yield* printHumanKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
-        return { path: result.path, ...result.metadata };
-      }),
-      { json: "value" },
+export const downloadCommand = Command.make(
+  "download",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Credential ID")),
+    type: Flag.Literals("type", [...DOWNLOAD_TYPES]).pipe(Flag.withDescription("Credential type")),
+    output: Flag.String("output").pipe(
+      Flag.withDescription("Output path (default: ./<id>.<ext> derived from credential type)"),
+      optionalFlag,
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const runtime = yield* CliRuntime;
+      const cwd = yield* runtime.cwd;
+      const result = yield* dispatchDownload(
+        { api, id: args.id, cwd, output: args.output },
+        args.type,
+      );
+      yield* printHumanKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
+      return { path: result.path, ...result.metadata };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Download a single credential file (keystore/.p12/.mobileprovision/.p8/.json) for local use",
+  ),
+);

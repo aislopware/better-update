@@ -13,6 +13,7 @@ import { InteractiveMode } from "../lib/interactive-mode";
 import { promptPassword, promptText } from "../lib/prompts";
 import { AppleSessionStore } from "./apple-session-store";
 
+import type { PromptServices } from "../lib/prompts";
 import type { AppleSessionCookies } from "./apple-session-store";
 import type { CliRuntime } from "./cli-runtime";
 
@@ -81,7 +82,7 @@ export class AppleAuth extends Context.Service<
     ) => Effect.Effect<
       AppleAuthSession,
       AppleAuthError | InteractiveProhibitedError,
-      InteractiveMode | CliRuntime
+      PromptServices | CliRuntime
     >;
     /** Log out the active account; other cached accounts stay usable. */
     readonly logout: Effect.Effect<void>;
@@ -157,7 +158,7 @@ const resolveSessionTeam = (
 ): Effect.Effect<
   AppleAuthSession,
   AppleAuthError | InteractiveProhibitedError,
-  InteractiveMode | CliRuntime
+  PromptServices | CliRuntime
 > =>
   Effect.gen(function* () {
     const { availableProviders } = state.session;
@@ -222,7 +223,7 @@ const interactiveLogin = (
 ): Effect.Effect<
   AppleAuthSession,
   AppleAuthError | InteractiveProhibitedError,
-  InteractiveMode | CliRuntime | AppleSessionStore
+  PromptServices | CliRuntime | AppleSessionStore
 > =>
   Effect.gen(function* () {
     const store = yield* AppleSessionStore;
@@ -261,7 +262,7 @@ const tryRestore = (
 ): Effect.Effect<
   AppleAuthSession | null,
   AppleAuthError | InteractiveProhibitedError,
-  InteractiveMode | CliRuntime
+  PromptServices | CliRuntime
 > =>
   Effect.gen(function* () {
     const stored = yield* username === undefined

@@ -6,8 +6,6 @@ export class ChannelCommandError extends Data.TaggedError("ChannelCommandError")
   readonly message: string;
 }> {}
 
-export const channelErrorExtras = { ChannelCommandError: 2 } as const;
-
 export const resolveNamedResourceId = (params: {
   readonly items: readonly { readonly id: string; readonly name: string }[];
   readonly kind: string;

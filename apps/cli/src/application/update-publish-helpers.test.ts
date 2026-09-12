@@ -1,5 +1,6 @@
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect, Exit } from "effect";
+import { Effect, Exit, Layer } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
@@ -73,7 +74,9 @@ const baseInput = (
 });
 
 const resolve = (input: ResolveBranchAndMessageInput, allowInteractive = false) =>
-  resolveBranchAndMessage(input).pipe(Effect.provide(makeInteractiveModeLayer(allowInteractive)));
+  resolveBranchAndMessage(input).pipe(
+    Effect.provide(Layer.mergeAll(NodeServices.layer, makeInteractiveModeLayer(allowInteractive))),
+  );
 
 describe(resolveBranchAndMessage, () => {
   it.effect("--auto derives branch from git ref and message from the latest commit subject", () =>
@@ -270,7 +273,7 @@ describe(warnOnSlugDivergence, () => {
       warnOnSlugDivergence({
         target: { projectId: "proj_acme-store", name: "acme-store", slug: "acme-store" },
         localSlug: "jmango360",
-      }).pipe(Effect.provide(makeOutputModeLayer(false))),
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false)))),
     );
     const output = lines.join("\n");
     expect(output).toContain('slug "jmango360"');
@@ -286,7 +289,7 @@ describe(warnOnSlugDivergence, () => {
       warnOnSlugDivergence({
         target: { projectId: "proj_acme-store", name: "acme-store", slug: "acme-store" },
         localSlug: "acme-store",
-      }).pipe(Effect.provide(makeOutputModeLayer(false))),
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false)))),
     );
     expect(lines).toStrictEqual([]);
   });
@@ -296,7 +299,7 @@ describe(warnOnSlugDivergence, () => {
       warnOnSlugDivergence({
         target: { projectId: "proj_1", name: undefined, slug: undefined },
         localSlug: "jmango360",
-      }).pipe(Effect.provide(makeOutputModeLayer(false))),
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false)))),
     );
     expect(lines).toStrictEqual([]);
   });

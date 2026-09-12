@@ -348,7 +348,7 @@ These are **not** modeled by apple-utils and/or conflict with project constraint
 - Headless reads/writes take `--asc-key-id` → `ascKeyRequestContext(api, ascApiKeyId)` (Token); cookie writes sit behind `const mode = yield* InteractiveMode; if (!mode.allow) …` and degrade to `null`/instruct, never crash.
 - Resolve ids via `readProjectId` / `readSubmitProfile(projectRoot, profile).ios.{ascAppId,ascApiKeyId,bundleIdentifier}`; persist newly resolved ids with `setSubmitProfileAscApiKeyId` / `setSubmitProfileAscAppId`.
 - Wrap every apple-utils promise: `wrapConnect("step", () => AppleUtils.X.yAsync(ctx, …))` → tagged `AppleConnectError`; map tags → exit codes in the `runEffect` `exits` option.
-- Machine output via `return value` + `json:"value"`; human output via `printHuman*` (silent in JSON). citty: positive booleans + `negativeDescription`, never `--no-*` flags. Gate destructive ops on confirm / `--yes`.
+- Machine output via `return value` + `json:"value"`; human output via `printHuman*` (silent in JSON). Effect CLI: positive booleans with `Flag.withDefault` (`--no-foo` negates automatically), never `no-*` flag names. Gate destructive ops on confirm / `--yes`.
 - Per the project's keep-in-sync rule, every new command must land with matching `skills/better-update/` doc updates (SKILL.md + cli.md + topic ref) in the same change.
 
 ---

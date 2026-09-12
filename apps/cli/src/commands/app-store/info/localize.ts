@@ -1,65 +1,58 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import {
-  APP_STORE_EXIT_EXTRAS,
-  ASC_COMMON_ARGS,
-  openAscSession,
-} from "../../../application/app-store-connect";
+import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";
 import { localizeAppInfo } from "../../../application/app-store-info";
-import { runEffect } from "../../../lib/citty-effect";
-import { InvalidArgumentError } from "../../../lib/exit-codes";
 import { printHuman } from "../../../lib/output";
+import { optionalFlag } from "../../../lib/params";
+import { runCommand } from "../../../lib/run-command";
 
-import type { AscCommonArgs } from "../../../application/app-store-connect";
-
-interface InfoLocalizeArgs extends AscCommonArgs {
-  readonly locale?: string | undefined;
-  readonly name?: string | undefined;
-  readonly subtitle?: string | undefined;
-  readonly "privacy-policy-url"?: string | undefined;
-  readonly "privacy-choices-url"?: string | undefined;
-  readonly "privacy-policy-text"?: string | undefined;
-}
-
-export const infoLocalizeCommand = defineCommand({
-  meta: {
-    name: "localize",
-    description:
-      "Set per-locale store listing (name, subtitle, privacy URLs) on the editable App Info",
-  },
-  args: {
+export const infoLocalizeCommand = Command.make(
+  "localize",
+  {
     ...ASC_COMMON_ARGS,
-    locale: { type: "string", description: "Locale to set, e.g. en-US (required)" },
-    name: { type: "string", description: "App name shown on the store" },
-    subtitle: { type: "string", description: "App subtitle" },
-    "privacy-policy-url": { type: "string", description: "Privacy policy URL (submission prereq)" },
-    "privacy-choices-url": { type: "string", description: "Privacy choices URL" },
-    "privacy-policy-text": { type: "string", description: "Privacy policy text (tvOS)" },
-  },
-  run: async ({ args }: { readonly args: InfoLocalizeArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        if (args.locale === undefined || args.locale.trim().length === 0) {
-          return yield* new InvalidArgumentError({ message: "--locale is required, e.g. en-US." });
-        }
-        const session = yield* openAscSession(args);
-        const result = yield* localizeAppInfo(session.ctx, session.appId, {
-          locale: args.locale.trim(),
-          ...compact({
-            name: args.name,
-            subtitle: args.subtitle,
-            privacyPolicyUrl: args["privacy-policy-url"],
-            privacyChoicesUrl: args["privacy-choices-url"],
-            privacyPolicyText: args["privacy-policy-text"],
-          }),
-        });
-        yield* printHuman(
-          `Updated ${result.locale} store listing (${result.fields.join(", ")}) on App Info ${result.appInfoId}.`,
-        );
-        return result;
-      }),
-      { exits: APP_STORE_EXIT_EXTRAS, json: "value" },
+    locale: Flag.String("locale").pipe(Flag.withDescription("Locale to set, e.g. en-US")),
+    name: Flag.String("name").pipe(
+      Flag.withDescription("App name shown on the store"),
+      optionalFlag,
     ),
-});
+    subtitle: Flag.String("subtitle").pipe(Flag.withDescription("App subtitle"), optionalFlag),
+    "privacy-policy-url": Flag.String("privacy-policy-url").pipe(
+      Flag.withDescription("Privacy policy URL (submission prereq)"),
+      optionalFlag,
+    ),
+    "privacy-choices-url": Flag.String("privacy-choices-url").pipe(
+      Flag.withDescription("Privacy choices URL"),
+      optionalFlag,
+    ),
+    "privacy-policy-text": Flag.String("privacy-policy-text").pipe(
+      Flag.withDescription("Privacy policy text (tvOS)"),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const session = yield* openAscSession(args);
+      const result = yield* localizeAppInfo(session.ctx, session.appId, {
+        locale: args.locale.trim(),
+        ...compact({
+          name: args.name,
+          subtitle: args.subtitle,
+          privacyPolicyUrl: args["privacy-policy-url"],
+          privacyChoicesUrl: args["privacy-choices-url"],
+          privacyPolicyText: args["privacy-policy-text"],
+        }),
+      });
+      yield* printHuman(
+        `Updated ${result.locale} store listing (${result.fields.join(", ")}) on App Info ${result.appInfoId}.`,
+      );
+      return result;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Set per-locale store listing (name, subtitle, privacy URLs) on the editable App Info",
+  ),
+);

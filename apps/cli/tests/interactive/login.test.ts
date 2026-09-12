@@ -30,7 +30,7 @@ describe("login --api-key (interactive PoC)", () => {
       },
     });
 
-    await driver.expect(/Paste your API key/, { timeoutMs: 15_000 });
+    await driver.expect(/Paste your session token/, { timeoutMs: 15_000 });
 
     driver.send("pk_test_abc123");
     driver.enter();

@@ -220,13 +220,13 @@ describe("devices lifecycle: add / list / view / rename / disable / enable / del
     expect(viewEnvelope.data.enabled).toBe(true);
   });
 
-  it("devices list --enabled false filters out the (now enabled) device", () => {
-    const result = cli.runCli("--json", "devices", "list", "--enabled", "false");
+  it("devices list --no-enabled filters out the (now enabled) device", () => {
+    const result = cli.runCli("--json", "devices", "list", "--no-enabled");
     expect(result.exitCode).toBe(0);
     const envelope = parseEnvelope(result.stdout);
     expect(envelope.command).toBe("devices.list");
     const items = envelope.data.items as readonly any[];
-    // The client-side parseEnabled filter in list.ts drops enabled devices.
+    // The client-side enabled filter in list.ts drops enabled devices.
     expect(items.every((item) => item.id !== deviceId)).toBe(true);
   });
 

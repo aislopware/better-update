@@ -1,6 +1,6 @@
 import { compact, toOptional } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import { runAndroidGooglePlayUpload } from "../../application/android-play-submit";
 import { needsTestFlightConfig } from "../../application/ios-testflight-config";
@@ -16,10 +16,12 @@ import {
   resolveIosUploadAuth,
   runIosSubmit,
 } from "../../application/submit-ios-upload";
-import { runEffect } from "../../lib/citty-effect";
 import { readSubmitProfile } from "../../lib/eas-json";
+import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -256,10 +258,9 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
     let iosOutcome: IosSubmitOutcome | null = null;
     if (args.platform === "ios") {
       if (iosConfig === undefined) {
-        yield* printHuman(
-          "iOS submit requires ios.bundleIdentifier in the eas.json submit profile.",
-        );
-        return;
+        return yield* new InvalidArgumentError({
+          message: "iOS submit requires ios.bundleIdentifier in the eas.json submit profile.",
+        });
       }
       iosOutcome = yield* submitIosBranch({
         api,
@@ -279,8 +280,9 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
 
     if (args.platform === "android") {
       if (args.easProfile.android === undefined) {
-        yield* printHuman("Android submit requires an android submit profile in eas.json.");
-        return;
+        return yield* new InvalidArgumentError({
+          message: "Android submit requires an android submit profile in eas.json.",
+        });
       }
       yield* printHuman("Uploading bundle to Google Play locally...");
       const serviceAccountKeyId =
@@ -311,73 +313,71 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
     return submission;
   });
 
-export const submitCommand = defineCommand({
-  meta: {
-    name: "submit",
-    description: "Submit a build to App Store Connect or Google Play",
-  },
-  args: {
-    platform: {
-      type: "enum",
-      options: [...PLATFORMS],
-      description: "Target platform",
-    },
-    profile: {
-      type: "string",
-      default: "production",
-      description: "eas.json submit profile name (default: production)",
-    },
-    latest: { type: "boolean", description: "Submit the latest build for the platform" },
-    id: { type: "string", description: "Submit a specific build by ID" },
-    path: { type: "string", description: "Submit a local IPA/AAB at this path (URL or file://)" },
-    url: { type: "string", description: "Submit a binary fetched from this URL" },
-    "what-to-test": {
-      type: "string",
-      description: "iOS-only TestFlight changelog ('What to test')",
-    },
-    "service-account-key-id": {
-      type: "string",
-      description:
-        "Android-only: better-update saved Google service account key ID (overrides eas.json submit profile)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const { platform } = args;
-        if (platform === undefined) {
-          yield* printHuman("--platform is required (ios | android)");
-          return;
-        }
-
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-        const runtime = yield* CliRuntime;
-        const projectRoot = yield* runtime.cwd;
-        const easProfile = yield* readSubmitProfile(projectRoot, args.profile);
-
-        const archive = yield* resolveArchive(api, projectId, platform, {
-          id: args.id,
-          path: args.path,
-          url: args.url,
-          latest: args.latest ?? false,
-        });
-        if (archive === null) {
-          yield* printHuman("No archive resolved. Pass one of --latest, --id, --path, or --url.");
-          return;
-        }
-
-        yield* runFlow(api, projectId, {
-          platform,
-          profile: args.profile,
-          projectRoot,
-          easProfile,
-          archive,
-          ...compact({
-            whatToTest: args["what-to-test"],
-            serviceAccountKeyId: args["service-account-key-id"],
-          }),
-        });
-      }),
+export const submitCommand = Command.make(
+  "submit",
+  {
+    platform: Flag.Literals("platform", [...PLATFORMS]).pipe(
+      Flag.withDescription("Target platform"),
     ),
-});
+    profile: Flag.String("profile").pipe(
+      Flag.withDescription("eas.json submit profile name (default: production)"),
+      Flag.withDefault("production"),
+    ),
+    latest: Flag.Boolean("latest").pipe(
+      Flag.withDescription("Submit the latest build for the platform"),
+      Flag.withDefault(false),
+    ),
+    id: Flag.String("id").pipe(Flag.withDescription("Submit a specific build by ID"), optionalFlag),
+    path: Flag.String("path").pipe(
+      Flag.withDescription("Submit a local IPA/AAB at this path (URL or file://)"),
+      optionalFlag,
+    ),
+    url: Flag.String("url").pipe(
+      Flag.withDescription("Submit a binary fetched from this URL"),
+      optionalFlag,
+    ),
+    "what-to-test": Flag.String("what-to-test").pipe(
+      Flag.withDescription("iOS-only TestFlight changelog ('What to test')"),
+      optionalFlag,
+    ),
+    "service-account-key-id": Flag.String("service-account-key-id").pipe(
+      Flag.withDescription(
+        "Android-only: better-update saved Google service account key ID (overrides eas.json submit profile)",
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(function* (args) {
+    const { platform } = args;
+
+    const projectId = yield* readProjectId;
+    const api = yield* apiClient;
+    const runtime = yield* CliRuntime;
+    const projectRoot = yield* runtime.cwd;
+    const easProfile = yield* readSubmitProfile(projectRoot, args.profile);
+
+    const archive = yield* resolveArchive(api, projectId, platform, {
+      id: args.id,
+      path: args.path,
+      url: args.url,
+      latest: args.latest,
+    });
+    if (archive === null) {
+      return yield* new InvalidArgumentError({
+        message: "No archive resolved. Pass one of --latest, --id, --path, or --url.",
+      });
+    }
+
+    yield* runFlow(api, projectId, {
+      platform,
+      profile: args.profile,
+      projectRoot,
+      easProfile,
+      archive,
+      ...compact({
+        whatToTest: args["what-to-test"],
+        serviceAccountKeyId: args["service-account-key-id"],
+      }),
+    });
+  }, runCommand()),
+).pipe(Command.withDescription("Submit a build to App Store Connect or Google Play"));

@@ -1,10 +1,9 @@
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import { pickOrCreateAscApiKey } from "../../application/asc-key-resolve";
 import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";
-import { runEffect } from "../../lib/citty-effect";
 import { CertificateLimitError, generateAndUploadKeystore } from "../../lib/credentials-generator";
 import {
   ascKeyRequestContext,
@@ -16,7 +15,9 @@ import {
 import { uploadCredential } from "../../lib/credentials-manager";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { promptMultiSelect, promptPassword, promptText } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { ascKeyCommand } from "./generate-asc-key";
 import { merchantIdCommand } from "./generate-merchant-id";
@@ -24,13 +25,6 @@ import { pushKeyCommand } from "./generate-push-key";
 
 import type { GeneratableCertificateType } from "../../lib/credentials-generator-apple";
 import type { ApiClient } from "../../services/api-client";
-
-const GENERATE_EXIT_EXTRAS = {
-  CredentialValidationError: 2,
-  BuildFailedError: 6,
-  AppleIdGenerateFailedError: 6,
-  CertificateLimitError: 6,
-} as const;
 
 const ensureNonEmpty = (value: string | undefined, label: string) =>
   value === undefined || value.trim().length === 0
@@ -95,48 +89,63 @@ const resolveKeystoreInput = (args: KeystoreCliArgs) =>
     };
   });
 
-const keystoreCommand = defineCommand({
-  meta: {
-    name: "keystore",
-    description: "Generate a new Android upload keystore via keytool and store it server-side",
-  },
-  args: {
-    name: { type: "string", description: "Display name (label shown in `credentials list`)" },
-    alias: { type: "string", description: "Key alias" },
-    "store-password": { type: "string", description: "Keystore password" },
-    "key-password": { type: "string", description: "Key password" },
-    "common-name": { type: "string", description: "Certificate CN" },
-    organization: { type: "string", description: "Certificate O" },
-    "validity-days": {
-      type: "string",
-      description: "Certificate validity in days (default 10000)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const resolved = yield* resolveKeystoreInput(args);
-        yield* printHuman("Generating keystore with keytool...");
-        const created = yield* generateAndUploadKeystore(api, {
-          keyAlias: resolved.alias,
-          storePassword: resolved.storePassword,
-          keyPassword: resolved.keyPassword,
-          commonName: resolved.commonName,
-          organization: resolved.organization,
-          ...compact({ validityDays: resolved.validityDays, name: resolved.name }),
-        });
-        yield* printHuman("");
-        yield* printHuman("Keystore generated and uploaded.");
-        yield* printHumanKeyValue([
-          ["ID", created.id],
-          ["Alias", created.keyAlias],
-        ]);
-        return created;
-      }),
-      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
+const keystoreCommand = Command.make(
+  "keystore",
+  {
+    name: Flag.String("name").pipe(
+      Flag.withDescription("Display name (label shown in `credentials list`)"),
+      optionalFlag,
     ),
-});
+    alias: Flag.String("alias").pipe(Flag.withDescription("Key alias"), optionalFlag),
+    "store-password": Flag.String("store-password").pipe(
+      Flag.withDescription("Keystore password"),
+      optionalFlag,
+    ),
+    "key-password": Flag.String("key-password").pipe(
+      Flag.withDescription("Key password"),
+      optionalFlag,
+    ),
+    "common-name": Flag.String("common-name").pipe(
+      Flag.withDescription("Certificate CN"),
+      optionalFlag,
+    ),
+    organization: Flag.String("organization").pipe(
+      Flag.withDescription("Certificate O"),
+      optionalFlag,
+    ),
+    "validity-days": Flag.String("validity-days").pipe(
+      Flag.withDescription("Certificate validity in days (default 10000)"),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const resolved = yield* resolveKeystoreInput(args);
+      yield* printHuman("Generating keystore with keytool...");
+      const created = yield* generateAndUploadKeystore(api, {
+        keyAlias: resolved.alias,
+        storePassword: resolved.storePassword,
+        keyPassword: resolved.keyPassword,
+        commonName: resolved.commonName,
+        organization: resolved.organization,
+        ...compact({ validityDays: resolved.validityDays, name: resolved.name }),
+      });
+      yield* printHuman("");
+      yield* printHuman("Keystore generated and uploaded.");
+      yield* printHumanKeyValue([
+        ["ID", created.id],
+        ["Alias", created.keyAlias],
+      ]);
+      return created;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Generate a new Android upload keystore via keytool and store it server-side",
+  ),
+);
 
 /**
  * `--asc-key-id` flag › interactive team-labeled picker over stored keys (plus
@@ -171,74 +180,71 @@ const CLI_TYPE_TO_CERTIFICATE_TYPE: Record<string, GeneratableCertificateType> =
   "mac-development": "MAC_APP_DEVELOPMENT",
 };
 
-const distributionCertificateCommand = defineCommand({
-  meta: {
-    name: "distribution-certificate",
-    description:
-      "Generate an Apple signing certificate via the App Store Connect API and store the resulting .p12 (iOS distribution/development, Mac App Store, or Developer ID for macOS apps distributed outside the Mac App Store)",
-  },
-  args: {
-    "asc-key-id": {
-      type: "string",
-      description:
+const distributionCertificateCommand = Command.make(
+  "distribution-certificate",
+  {
+    "asc-key-id": Flag.String("asc-key-id").pipe(
+      Flag.withDescription(
         "ASC API key ID (from `credentials list`); prompts to pick or create one if omitted",
-    },
-    type: {
-      type: "enum",
-      options: [
-        "distribution",
-        "development",
-        "developer-id",
-        "mac-app-store",
-        "mac-installer",
-        "mac-development",
-      ],
-      default: "distribution",
-      description:
-        "Certificate type to issue: distribution/development (iOS), developer-id (macOS apps shipped outside the Mac App Store — Apple only lets the Account Holder create these), mac-app-store/mac-installer/mac-development (Mac App Store). A Developer ID Installer certificate has no ASC creation path — export it from Keychain and `credentials upload --platform macos --type macos-certificate`",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const certificateType = CLI_TYPE_TO_CERTIFICATE_TYPE[args.type] ?? "IOS_DISTRIBUTION";
-        if (certificateType === "DEVELOPER_ID_APPLICATION") {
-          yield* printHuman(
-            "Note: Apple only issues Developer ID certificates to the team's Account Holder — this fails with a permissions error for other roles.",
-          );
-        }
-        const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
-        yield* printHuman(
-          `Requesting a ${APPLE_CERTIFICATE_TYPE_LABELS[certificateType]} certificate from Apple...`,
-        );
-
-        const context = yield* ascKeyRequestContext(api, ascKeyId);
-        const attempt = generateAndUploadDistributionCertificate(api, { context, certificateType });
-
-        const created = yield* attempt.pipe(
-          Effect.catchTag("CertificateLimitError", () =>
-            handleCertLimitInteractive(context, certificateType).pipe(
-              Effect.flatMap(() => attempt),
-            ),
-          ),
-        );
-
-        yield* printHuman(
-          `${APPLE_CERTIFICATE_TYPE_LABELS[created.certificateType]} certificate generated and stored.`,
-        );
-        yield* printHumanKeyValue([
-          ["ID", created.id],
-          ["Certificate type", created.certificateType],
-          ["Serial", created.serialNumber],
-          ["Apple team", created.appleTeamIdentifier],
-          ["Apple cert", created.developerPortalIdentifier],
-        ]);
-        return created;
-      }),
-      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
+      ),
+      optionalFlag,
     ),
-});
+    type: Flag.Literals("type", [
+      "distribution",
+      "development",
+      "developer-id",
+      "mac-app-store",
+      "mac-installer",
+      "mac-development",
+    ]).pipe(
+      Flag.withDescription(
+        "Certificate type to issue: distribution/development (iOS), developer-id (macOS apps shipped outside the Mac App Store — Apple only lets the Account Holder create these), mac-app-store/mac-installer/mac-development (Mac App Store). A Developer ID Installer certificate has no ASC creation path — export it from Keychain and `credentials upload --platform macos --type macos-certificate`",
+      ),
+      Flag.withDefault("distribution"),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const certificateType = CLI_TYPE_TO_CERTIFICATE_TYPE[args.type] ?? "IOS_DISTRIBUTION";
+      if (certificateType === "DEVELOPER_ID_APPLICATION") {
+        yield* printHuman(
+          "Note: Apple only issues Developer ID certificates to the team's Account Holder — this fails with a permissions error for other roles.",
+        );
+      }
+      const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
+      yield* printHuman(
+        `Requesting a ${APPLE_CERTIFICATE_TYPE_LABELS[certificateType]} certificate from Apple...`,
+      );
+
+      const context = yield* ascKeyRequestContext(api, ascKeyId);
+      const attempt = generateAndUploadDistributionCertificate(api, { context, certificateType });
+
+      const created = yield* attempt.pipe(
+        Effect.catchTag("CertificateLimitError", () =>
+          handleCertLimitInteractive(context, certificateType).pipe(Effect.flatMap(() => attempt)),
+        ),
+      );
+
+      yield* printHuman(
+        `${APPLE_CERTIFICATE_TYPE_LABELS[created.certificateType]} certificate generated and stored.`,
+      );
+      yield* printHumanKeyValue([
+        ["ID", created.id],
+        ["Certificate type", created.certificateType],
+        ["Serial", created.serialNumber],
+        ["Apple team", created.appleTeamIdentifier],
+        ["Apple cert", created.developerPortalIdentifier],
+      ]);
+      return created;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Generate an Apple signing certificate via the App Store Connect API and store the resulting .p12 (iOS distribution/development, Mac App Store, or Developer ID for macOS apps distributed outside the Mac App Store)",
+  ),
+);
 
 const handleCertLimitInteractive = (
   context: Parameters<typeof listDistributionCerts>[0],
@@ -269,64 +275,63 @@ const handleCertLimitInteractive = (
     return undefined;
   });
 
-const provisioningProfileCommand = defineCommand({
-  meta: {
-    name: "provisioning-profile",
-    description:
-      "Generate an iOS provisioning profile via the App Store Connect API and store the resulting .mobileprovision",
-  },
-  args: {
-    "asc-key-id": {
-      type: "string",
-      description:
+const provisioningProfileCommand = Command.make(
+  "provisioning-profile",
+  {
+    "asc-key-id": Flag.String("asc-key-id").pipe(
+      Flag.withDescription(
         "ASC API key ID (from `credentials list`); prompts to pick or create one if omitted",
-    },
-    "cert-id": {
-      type: "string",
-      required: true,
-      description: "Distribution certificate ID (from `credentials list`)",
-    },
-    bundle: { type: "string", required: true, description: "Bundle identifier" },
-    distribution: {
-      type: "enum",
-      options: ["APP_STORE", "AD_HOC", "DEVELOPMENT", "ENTERPRISE"],
-      required: true,
-      description: "Distribution type",
-    },
-    "device-ids": {
-      type: "string",
-      description:
-        "Comma-separated better-update device IDs to narrow the roster (AD_HOC/DEVELOPMENT only; default: all enabled team devices). Narrowed profiles are stored unmanaged — builds never auto-regenerate them",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const deviceIds = parseDeviceIds(args["device-ids"]);
-        const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
-        const context = yield* ascKeyRequestContext(api, ascKeyId);
-        const created = yield* generateAndUploadProvisioningProfile(api, {
-          context,
-          distributionCertificateId: args["cert-id"],
-          bundleIdentifier: args.bundle,
-          distributionType: args.distribution,
-          ...compact({ deviceIds }),
-        });
-        yield* printHuman("Provisioning profile generated and stored.");
-        yield* printHumanKeyValue([
-          ["ID", created.id],
-          ["Bundle", created.bundleIdentifier],
-          ["Distribution", created.distributionType],
-          ["Profile name", created.profileName ?? "-"],
-          ["Valid until", created.validUntil ?? "-"],
-          ["Apple profile", created.developerPortalIdentifier ?? "-"],
-        ]);
-        return created;
-      }),
-      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
+      ),
+      optionalFlag,
     ),
-});
+    "cert-id": Flag.String("cert-id").pipe(
+      Flag.withDescription("Distribution certificate ID (from `credentials list`)"),
+    ),
+    bundle: Flag.String("bundle").pipe(Flag.withDescription("Bundle identifier")),
+    distribution: Flag.Literals("distribution", [
+      "APP_STORE",
+      "AD_HOC",
+      "DEVELOPMENT",
+      "ENTERPRISE",
+    ]).pipe(Flag.withDescription("Distribution type")),
+    "device-ids": Flag.String("device-ids").pipe(
+      Flag.withDescription(
+        "Comma-separated better-update device IDs to narrow the roster (AD_HOC/DEVELOPMENT only; default: all enabled team devices). Narrowed profiles are stored unmanaged — builds never auto-regenerate them",
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const deviceIds = parseDeviceIds(args["device-ids"]);
+      const ascKeyId = yield* resolveAscKeyIdArg(api, args["asc-key-id"]);
+      const context = yield* ascKeyRequestContext(api, ascKeyId);
+      const created = yield* generateAndUploadProvisioningProfile(api, {
+        context,
+        distributionCertificateId: args["cert-id"],
+        bundleIdentifier: args.bundle,
+        distributionType: args.distribution,
+        ...compact({ deviceIds }),
+      });
+      yield* printHuman("Provisioning profile generated and stored.");
+      yield* printHumanKeyValue([
+        ["ID", created.id],
+        ["Bundle", created.bundleIdentifier],
+        ["Distribution", created.distributionType],
+        ["Profile name", created.profileName ?? "-"],
+        ["Valid until", created.validUntil ?? "-"],
+        ["Apple profile", created.developerPortalIdentifier ?? "-"],
+      ]);
+      return created;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Generate an iOS provisioning profile via the App Store Connect API and store the resulting .mobileprovision",
+  ),
+);
 
 const parseDeviceIds = (raw: string | undefined): readonly string[] | undefined => {
   if (raw === undefined || raw.length === 0) {
@@ -343,92 +348,88 @@ const GSA_FIREBASE_URL =
   "https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk";
 const GSA_GCP_URL = "https://console.cloud.google.com/iam-admin/serviceaccounts";
 
-interface GsaKeyArgs {
-  readonly file?: string | undefined;
-  readonly name?: string | undefined;
-  readonly purpose?: "fcm" | "play" | undefined;
-  readonly "skip-portal-hint"?: boolean | undefined;
-}
-
-const gsaKeyCommand = defineCommand({
-  meta: {
-    name: "gsa-key",
-    description:
-      "Register a Google Service Account JSON key — guides you through creating one in the Firebase/GCP console, then uploads it",
-  },
-  args: {
-    file: { type: "string", description: "Path to the Google service account JSON file" },
-    name: { type: "string", description: "Display name (defaults to the file name)" },
-    purpose: {
-      type: "enum",
-      options: ["fcm", "play"],
-      description:
-        "Where this key will be used: fcm (Firebase Cloud Messaging V1) or play (Play Store submissions)",
-    },
-    "skip-portal-hint": {
-      type: "boolean",
-      description: "Skip the Firebase/GCP portal URL hint (already downloaded the key)",
-    },
-  },
-  run: async ({ args }: { readonly args: GsaKeyArgs }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-
-        if (args["skip-portal-hint"] !== true) {
-          yield* printHuman(
-            "Google does not expose service-account key creation via a public API.",
-          );
-          yield* printHuman(
-            "Create one in the appropriate console, download the JSON, then come back:",
-          );
-          if (args.purpose === "play") {
-            yield* printHuman(`  Play submissions (GCP IAM): ${GSA_GCP_URL}`);
-          } else if (args.purpose === "fcm") {
-            yield* printHuman(`  FCM V1 push (Firebase console): ${GSA_FIREBASE_URL}`);
-          } else {
-            yield* printHuman(`  FCM V1 push (Firebase): ${GSA_FIREBASE_URL}`);
-            yield* printHuman(`  Play submissions (GCP IAM): ${GSA_GCP_URL}`);
-          }
-          yield* printHuman("");
-        }
-
-        const filePath =
-          args.file !== undefined && args.file.trim().length > 0
-            ? args.file
-            : yield* promptText("Path to the Google service account JSON file");
-        if (filePath.trim().length === 0) {
-          return yield* new CredentialValidationError({ message: "Missing --file path" });
-        }
-        const name = args.name ?? filePath;
-
-        yield* printHuman("Uploading Google service account key...");
-        const credential = yield* uploadCredential(api, {
-          platform: "android",
-          type: "google-service-account-key",
-          name,
-          filePath,
-        });
-        yield* printHuman("Google service account key registered.");
-        yield* printHumanKeyValue([
-          ["ID", credential.id],
-          ["Name", credential.name],
-        ]);
-        return credential;
-      }),
-      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
+const gsaKeyCommand = Command.make(
+  "gsa-key",
+  {
+    file: Flag.String("file").pipe(
+      Flag.withDescription("Path to the Google service account JSON file"),
+      optionalFlag,
     ),
-});
-
-export const generateCommand = defineCommand({
-  meta: { name: "generate", description: "Generate signing credentials" },
-  subCommands: {
-    keystore: keystoreCommand,
-    "distribution-certificate": distributionCertificateCommand,
-    "provisioning-profile": provisioningProfileCommand,
-    "push-key": pushKeyCommand,
-    "merchant-id": merchantIdCommand,
-    "asc-key": ascKeyCommand,
-    "gsa-key": gsaKeyCommand,
+    name: Flag.String("name").pipe(
+      Flag.withDescription("Display name (defaults to the file name)"),
+      optionalFlag,
+    ),
+    purpose: Flag.Literals("purpose", ["fcm", "play"]).pipe(
+      Flag.withDescription(
+        "Where this key will be used: fcm (Firebase Cloud Messaging V1) or play (Play Store submissions)",
+      ),
+      optionalFlag,
+    ),
+    "skip-portal-hint": Flag.Boolean("skip-portal-hint").pipe(
+      Flag.withDescription("Skip the Firebase/GCP portal URL hint (already downloaded the key)"),
+      Flag.withDefault(false),
+    ),
   },
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+
+      if (!args["skip-portal-hint"]) {
+        yield* printHuman("Google does not expose service-account key creation via a public API.");
+        yield* printHuman(
+          "Create one in the appropriate console, download the JSON, then come back:",
+        );
+        if (args.purpose === "play") {
+          yield* printHuman(`  Play submissions (GCP IAM): ${GSA_GCP_URL}`);
+        } else if (args.purpose === "fcm") {
+          yield* printHuman(`  FCM V1 push (Firebase console): ${GSA_FIREBASE_URL}`);
+        } else {
+          yield* printHuman(`  FCM V1 push (Firebase): ${GSA_FIREBASE_URL}`);
+          yield* printHuman(`  Play submissions (GCP IAM): ${GSA_GCP_URL}`);
+        }
+        yield* printHuman("");
+      }
+
+      const filePath =
+        args.file !== undefined && args.file.trim().length > 0
+          ? args.file
+          : yield* promptText("Path to the Google service account JSON file");
+      if (filePath.trim().length === 0) {
+        return yield* new CredentialValidationError({ message: "Missing --file path" });
+      }
+      const name = args.name ?? filePath;
+
+      yield* printHuman("Uploading Google service account key...");
+      const credential = yield* uploadCredential(api, {
+        platform: "android",
+        type: "google-service-account-key",
+        name,
+        filePath,
+      });
+      yield* printHuman("Google service account key registered.");
+      yield* printHumanKeyValue([
+        ["ID", credential.id],
+        ["Name", credential.name],
+      ]);
+      return credential;
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Register a Google Service Account JSON key — guides you through creating one in the Firebase/GCP console, then uploads it",
+  ),
+);
+
+export const generateCommand = Command.make("generate").pipe(
+  Command.withDescription("Generate signing credentials"),
+  Command.withSubcommands([
+    keystoreCommand,
+    distributionCertificateCommand,
+    provisioningProfileCommand,
+    pushKeyCommand,
+    merchantIdCommand,
+    ascKeyCommand,
+    gsaKeyCommand,
+  ]),
+);

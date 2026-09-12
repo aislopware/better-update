@@ -1,9 +1,9 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { deleteCredential } from "../../lib/credentials-manager";
 import { printHuman } from "../../lib/output";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 
 const CREDENTIAL_TYPES = [
@@ -19,25 +19,24 @@ const CREDENTIAL_TYPES = [
   "google-service-account-key",
 ] as const;
 
-export const deleteCommand = defineCommand({
-  meta: { name: "delete", description: "Delete a credential" },
-  args: {
-    id: { type: "positional", required: true, description: "Credential ID" },
-    platform: { type: "enum", options: ["ios", "android", "macos"], required: true },
-    type: { type: "enum", options: [...CREDENTIAL_TYPES], required: true },
+export const deleteCommand = Command.make(
+  "delete",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Credential ID")),
+    platform: Flag.Literals("platform", ["ios", "android", "macos"]),
+    type: Flag.Literals("type", [...CREDENTIAL_TYPES]),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        yield* deleteCredential(api, {
-          id: args.id,
-          platform: args.platform,
-          type: args.type,
-        });
-        yield* printHuman(`Credential ${args.id} deleted.`);
-        return { id: args.id, platform: args.platform, type: args.type, deleted: true };
-      }),
-      { json: "value" },
-    ),
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      yield* deleteCredential(api, {
+        id: args.id,
+        platform: args.platform,
+        type: args.type,
+      });
+      yield* printHuman(`Credential ${args.id} deleted.`);
+      return { id: args.id, platform: args.platform, type: args.type, deleted: true };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Delete a credential"));

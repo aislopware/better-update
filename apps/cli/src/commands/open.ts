@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
 
-import { runEffect } from "../lib/citty-effect";
 import { extractSlug, readExpoConfig } from "../lib/expo-config";
 import { printHuman } from "../lib/output";
+import { optionalArgument } from "../lib/params";
+import { runCommand } from "../lib/run-command";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
 
@@ -21,23 +22,25 @@ const RESOURCE_PATHS: Record<string, string> = {
   settings: "settings",
 };
 
-const resolveOpenCommand = (platform: NodeJS.Platform): string => {
+const resolveOpenCommand = (
+  platform: NodeJS.Platform,
+  url: string,
+): readonly [command: string, args: readonly string[]] => {
   if (platform === "darwin") {
-    return "open";
+    return ["open", [url]];
   }
   if (platform === "win32") {
-    return "start";
+    return ["cmd", ["/c", "start", "", url]];
   }
-  return "xdg-open";
+  return ["xdg-open", [url]];
 };
 
+// Detached + unref'd so the CLI exits immediately; no shell, the URL is a
+// plain argument.
 const openInBrowser = (url: string, platform: NodeJS.Platform): Effect.Effect<void> =>
   Effect.sync(() => {
-    const child = spawn(resolveOpenCommand(platform), [url], {
-      detached: true,
-      stdio: "ignore",
-      shell: true,
-    });
+    const [command, args] = resolveOpenCommand(platform, url);
+    const child = spawn(command, [...args], { detached: true, stdio: "ignore" });
     child.unref();
   });
 
@@ -58,26 +61,24 @@ const resolveTargetUrl = (resource: string | undefined) =>
     return projectPath ? `${webUrl}${projectPath}/${subPath}` : `${webUrl}/${subPath}`;
   });
 
-export const openCommand = defineCommand({
-  meta: {
-    name: "open",
-    description: "Open the dashboard URL (project or sub-resource) in the default browser",
-  },
-  args: {
-    resource: {
-      type: "positional",
-      required: false,
-      description:
+export const openCommand = Command.make(
+  "open",
+  {
+    resource: Argument.String("resource").pipe(
+      Argument.withDescription(
         "Sub-resource: builds, updates, channels, branches, credentials, devices, env-vars, webhooks, settings",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const runtime = yield* CliRuntime;
-        const url = yield* resolveTargetUrl(args.resource);
-        yield* printHuman(`Opening ${url}`);
-        yield* openInBrowser(url, runtime.platform);
-      }),
+      ),
+      optionalArgument,
     ),
-});
+  },
+  Effect.fn(function* (args) {
+    const runtime = yield* CliRuntime;
+    const url = yield* resolveTargetUrl(args.resource);
+    yield* printHuman(`Opening ${url}`);
+    yield* openInBrowser(url, runtime.platform);
+  }, runCommand()),
+).pipe(
+  Command.withDescription(
+    "Open the dashboard URL (project or sub-resource) in the default browser",
+  ),
+);

@@ -1,13 +1,8 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { territoriesListCommand } from "./list";
 
-export const appStoreTerritoriesCommand = defineCommand({
-  meta: {
-    name: "territories",
-    description: "List App Store territories (reference ids for availability)",
-  },
-  subCommands: {
-    list: territoriesListCommand,
-  },
-});
+export const appStoreTerritoriesCommand = Command.make("territories").pipe(
+  Command.withDescription("List App Store territories (reference ids for availability)"),
+  Command.withSubcommands([territoriesListCommand]),
+);

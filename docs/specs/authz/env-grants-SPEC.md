@@ -56,8 +56,8 @@ ONE exported helper (see §2). Org-global env vars use a named sentinel token
   lift `open`+`resetKey` to caller, key-bump on `onOpenChangeComplete`;
   cancel/close buttons use `variant="ghost"`. JSX depth cap is 9 (extract
   subtrees). `Field` gets `invalid` prop, not raw `data-invalid`.
-- **CLI** (`apps/cli`): citty. Declare POSITIVE boolean flags with a default
-  (citty `--no-foo` negates `foo`); never name a flag `no-foo`.
+- **CLI** (`apps/cli`): effect/unstable/cli. Declare POSITIVE boolean flags with a default
+  (`--no-foo` negates `foo` automatically); never name a flag `no-foo`.
 - **Tests**: vitest globals (`describe`/`test`/`expect` — do NOT import from
   `vitest`). Effect programs use `@effect/vitest` (`it.effect` / `it.scoped`) and
   `Effect.provideService` (NOT `vi.mock`). Unit tests colocated as

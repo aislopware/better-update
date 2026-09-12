@@ -1,13 +1,10 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
+import { applePortalExitCodes } from "../../../lib/command-errors";
 import { certificateListCommand } from "./list";
 
-export const certificateCommand = defineCommand({
-  meta: {
-    name: "certificate",
-    description: "Inspect signing certificates on App Store Connect",
-  },
-  subCommands: {
-    list: certificateListCommand,
-  },
-});
+export const certificateCommand = Command.make("certificate").pipe(
+  Command.withDescription("Inspect signing certificates on App Store Connect"),
+  Command.withSubcommands([certificateListCommand]),
+  Command.provide(applePortalExitCodes),
+);

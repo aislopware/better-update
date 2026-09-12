@@ -1,33 +1,32 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../lib/citty-effect";
 import { printHuman } from "../lib/output";
+import { runCommand } from "../lib/run-command";
 import { AppleSessionStore } from "../services/apple-session-store";
 import { AuthStore } from "../services/auth-store";
 
-export const logoutCommand = defineCommand({
-  meta: { name: "logout", description: "Remove the stored auth token" },
-  args: {
-    all: {
-      type: "boolean",
-      description: "Also clear all cached Apple Developer sessions (cookies)",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const authStore = yield* AuthStore;
-        yield* authStore.clearToken;
-        yield* printHuman("Logged out. Auth token removed.");
-        const clearedApple = args.all ?? false;
-        if (clearedApple) {
-          const appleStore = yield* AppleSessionStore;
-          yield* appleStore.clearAllSessions;
-          yield* printHuman("Cleared Apple Developer sessions.");
-        }
-        return { loggedOut: true, clearedAppleSession: clearedApple };
-      }),
-      { json: "value" },
+export const logoutCommand = Command.make(
+  "logout",
+  {
+    all: Flag.Boolean("all").pipe(
+      Flag.withDescription("Also clear all cached Apple Developer sessions (cookies)"),
+      Flag.withDefault(false),
     ),
-});
+  },
+  Effect.fn(
+    function* (args) {
+      const authStore = yield* AuthStore;
+      yield* authStore.clearToken;
+      yield* printHuman("Logged out. Auth token removed.");
+      const clearedApple = args.all;
+      if (clearedApple) {
+        const appleStore = yield* AppleSessionStore;
+        yield* appleStore.clearAllSessions;
+        yield* printHuman("Cleared Apple Developer sessions.");
+      }
+      return { loggedOut: true, clearedAppleSession: clearedApple };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(Command.withDescription("Remove the stored auth token"));

@@ -1,5 +1,5 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 
 import {
   grantEnvRecipientIdempotent,
@@ -14,13 +14,14 @@ import {
 } from "../../application/robot";
 import { grantRecipient } from "../../application/vault-access";
 import { currentRecipients, rotateVaultTo } from "../../application/vault-rotation";
-import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
 import { formatCause } from "../../lib/format-error";
 import { printHuman, printHumanList, printKeyValue } from "../../lib/output";
+import { optionalFlag, yesFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
 import { parseProjectRole } from "../../lib/project-roles";
 import { serializeRobotEnv } from "../../lib/robot-env";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 import { confirmRecipients, toRotationRecipient } from "./access";
@@ -99,398 +100,394 @@ const projectNamesById = (api: ApiClient) =>
     Effect.orElseSucceed(() => new Map<string, string>()),
   );
 
-const createCommand = defineCommand({
-  meta: {
-    name: "create",
-    description:
-      "Mint a project-scoped robot account (bearer secret + vault identity) and print its BETTER_UPDATE_ROBOT credential once",
-  },
-  args: {
-    name: {
-      type: "string",
-      description: 'Human name for this robot (defaults to "ci-<your username>")',
-    },
-    grant: {
-      type: "boolean",
-      default: true,
-      description: "Also grant the new robot vault access from this device",
-      negativeDescription:
-        "Register the robot's vault identity without granting it (grant later with `credentials access grant`)",
-    },
-    project: {
-      type: "string",
-      description:
+const createCommand = Command.make(
+  "create",
+  {
+    name: Flag.String("name").pipe(
+      Flag.withDescription('Human name for this robot (defaults to "ci-<your username>")'),
+      optionalFlag,
+    ),
+    grant: Flag.Boolean("grant").pipe(
+      Flag.withDescription(
+        "Also grant the new robot vault access from this device (--no-grant: Register the robot's vault identity without granting it (grant later with `credentials access grant`))",
+      ),
+      Flag.withDefault(true),
+    ),
+    project: Flag.String("project").pipe(
+      Flag.withDescription(
         "Project this robot belongs to (defaults to the linked project from the local context)",
-    },
-    role: {
-      type: "string",
-      default: "developer",
-      description:
+      ),
+      optionalFlag,
+    ),
+    role: Flag.String("role").pipe(
+      Flag.withDescription(
         'Project role fixed at creation: "maintainer", "developer" (default), or "reporter"',
-    },
+      ),
+      Flag.withDefault("developer"),
+    ),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const name = yield* resolveName(args.name);
-        const projectId = yield* resolveProjectId(args.project);
-        const role = yield* parseProjectRole(args.role);
-        const robot = yield* createRobotAccount(api, name, { projectId, role });
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const name = yield* resolveName(args.name);
+      const projectId = yield* resolveProjectId(args.project);
+      const role = yield* parseProjectRole(args.role);
+      const robot = yield* createRobotAccount(api, name, { projectId, role });
 
-        // Show the bundled credential BEFORE attempting the grant: it is the one
-        // output that must never be lost (the bearer + private key are never
-        // stored), so it prints even if the grant path below fails or is skipped.
-        const bundle = serializeRobotEnv({
-          bearer: robot.bearerSecret,
-          identity: robot.identityPrivateKey,
-        });
-        yield* printKeyValue([
-          ["Name", robot.account.name],
-          ["Id", robot.account.id],
-          ["Project", robot.account.projectId],
-          ["Role", robot.account.role],
-        ]);
-        yield* printHuman("");
-        yield* printHuman(
-          "⚠  The credential below is shown ONCE and is never stored. Save it now as the",
-        );
-        yield* printHuman(
-          "   masked + protected CI variable BETTER_UPDATE_ROBOT. Every runner reuses it — nothing",
-        );
-        yield* printHuman(
-          "   is generated on the runner, and `credentials robot revoke` shuts it off.",
-        );
-        yield* printHuman("");
-        yield* printKeyValue([["BETTER_UPDATE_ROBOT", bundle]]);
-        yield* printHuman("");
+      // Show the bundled credential BEFORE attempting the grant: it is the one
+      // output that must never be lost (the bearer + private key are never
+      // stored), so it prints even if the grant path below fails or is skipped.
+      const bundle = serializeRobotEnv({
+        bearer: robot.bearerSecret,
+        identity: robot.identityPrivateKey,
+      });
+      yield* printKeyValue([
+        ["Name", robot.account.name],
+        ["Id", robot.account.id],
+        ["Project", robot.account.projectId],
+        ["Role", robot.account.role],
+      ]);
+      yield* printHuman("");
+      yield* printHuman(
+        "⚠  The credential below is shown ONCE and is never stored. Save it now as the",
+      );
+      yield* printHuman(
+        "   masked + protected CI variable BETTER_UPDATE_ROBOT. Every runner reuses it — nothing",
+      );
+      yield* printHuman(
+        "   is generated on the runner, and `credentials robot revoke` shuts it off.",
+      );
+      yield* printHuman("");
+      yield* printKeyValue([["BETTER_UPDATE_ROBOT", bundle]]);
+      yield* printHuman("");
 
-        // The keypair was generated in-process a moment ago, so there is no
-        // third-party public key to verify out-of-band — unlike `access grant`,
-        // we grant it directly (no fingerprint confirmation). Best-effort like
-        // the env grant below: NOTHING here may sink the command — the one-time
-        // bundle above is the output that must survive (a JSON consumer only
-        // receives it from the return value). Any failure — no vault yet, this
-        // device isn't a recipient, or the server's 403 (granting takes an org
-        // admin with vault membership; minting only takes a project Maintainer)
-        // — degrades to a warning + the admin hand-off.
-        const granted = args.grant
-          ? yield* unlockVaultInteractively(api).pipe(
-              Effect.flatMap((vault) =>
-                Effect.gen(function* () {
-                  const { items } = yield* api.userEncryptionKeys.list();
-                  const target = items.find((key) => key.id === robot.account.userEncryptionKeyId);
-                  if (target === undefined) {
-                    return yield* new IdentityError({
-                      message: "Robot's vault identity was not found after registration.",
-                    });
-                  }
-                  yield* grantRecipient({ api, vault, target });
-                }),
-              ),
+      // The keypair was generated in-process a moment ago, so there is no
+      // third-party public key to verify out-of-band — unlike `access grant`,
+      // we grant it directly (no fingerprint confirmation). Best-effort like
+      // the env grant below: NOTHING here may sink the command — the one-time
+      // bundle above is the output that must survive (a JSON consumer only
+      // receives it from the return value). Any failure — no vault yet, this
+      // device isn't a recipient, or the server's 403 (granting takes an org
+      // admin with vault membership; minting only takes a project Maintainer)
+      // — degrades to a warning + the admin hand-off.
+      const granted = args.grant
+        ? yield* unlockVaultInteractively(api).pipe(
+            Effect.flatMap((vault) =>
+              Effect.gen(function* () {
+                const { items } = yield* api.userEncryptionKeys.list();
+                const target = items.find((key) => key.id === robot.account.userEncryptionKeyId);
+                if (target === undefined) {
+                  return yield* new IdentityError({
+                    message: "Robot's vault identity was not found after registration.",
+                  });
+                }
+                yield* grantRecipient({ api, vault, target });
+              }),
+            ),
+            Effect.as(true),
+            Effect.catch((error) =>
+              printHuman(
+                `⚠ Registered but not granted: ${formatCause(error)}\n` +
+                  `  An org admin can grant it later: better-update credentials access grant ${robot.account.id}`,
+              ).pipe(Effect.as(false)),
+            ),
+          )
+        : false;
+
+      yield* printHuman(
+        granted
+          ? `✓ Granted vault access to ${robot.account.name} — this robot reads credentials non-interactively.`
+          : `Registered ${robot.account.name}'s vault identity (not yet a vault member).`,
+      );
+
+      // Post-cutover the env vault is a SEPARATE key, so the credentials-vault
+      // grant above does not cover env decryption — self-link the robot as an
+      // env recipient too (this device wraps the env key it can already unlock).
+      // Pre-cutover env is sealed under the credentials vault: nothing extra to
+      // grant, so `envGranted` stays false without a warning.
+      const envGranted =
+        args.grant && (yield* orgHasCutOver(api))
+          ? yield* grantRobotEnvAccess(api, robot.account.userEncryptionKeyId).pipe(
               Effect.as(true),
+              // Best-effort: NOTHING here may sink the command — a JSON
+              // consumer only receives the one-time bundle from the return
+              // value. Any failure (missing key, stale env version, API
+              // error) degrades to a warning + the grant-env hand-off.
               Effect.catch((error) =>
                 printHuman(
-                  `⚠ Registered but not granted: ${formatCause(error)}\n` +
-                    `  An org admin can grant it later: better-update credentials access grant ${robot.account.id}`,
+                  `⚠ Env vault not granted: ${formatCause(error)}\n` +
+                    `  An admin can grant it later: better-update credentials robot grant-env ${robot.account.id}`,
                 ).pipe(Effect.as(false)),
               ),
             )
           : false;
-
+      if (envGranted) {
         yield* printHuman(
-          granted
-            ? `✓ Granted vault access to ${robot.account.name} — this robot reads credentials non-interactively.`
-            : `Registered ${robot.account.name}'s vault identity (not yet a vault member).`,
+          `✓ Granted env-vault access to ${robot.account.name} — it decrypts env vars non-interactively.`,
         );
+      }
 
-        // Post-cutover the env vault is a SEPARATE key, so the credentials-vault
-        // grant above does not cover env decryption — self-link the robot as an
-        // env recipient too (this device wraps the env key it can already unlock).
-        // Pre-cutover env is sealed under the credentials vault: nothing extra to
-        // grant, so `envGranted` stays false without a warning.
-        const envGranted =
-          args.grant && (yield* orgHasCutOver(api))
-            ? yield* grantRobotEnvAccess(api, robot.account.userEncryptionKeyId).pipe(
-                Effect.as(true),
-                // Best-effort: NOTHING here may sink the command — a JSON
-                // consumer only receives the one-time bundle from the return
-                // value. Any failure (missing key, stale env version, API
-                // error) degrades to a warning + the grant-env hand-off.
-                Effect.catch((error) =>
-                  printHuman(
-                    `⚠ Env vault not granted: ${formatCause(error)}\n` +
-                      `  An admin can grant it later: better-update credentials robot grant-env ${robot.account.id}`,
-                  ).pipe(Effect.as(false)),
-                ),
-              )
-            : false;
-        if (envGranted) {
-          yield* printHuman(
-            `✓ Granted env-vault access to ${robot.account.name} — it decrypts env vars non-interactively.`,
-          );
-        }
-
-        return {
-          id: robot.account.id,
-          name: robot.account.name,
-          projectId: robot.account.projectId,
-          role: robot.account.role,
-          granted,
-          envGranted,
-          // Shown once: JSON consumers must capture this now (mirrors human output).
-          robotEnv: bundle,
-        };
-      }),
-      { json: "value" },
-    ),
-});
-
-const listCommand = defineCommand({
-  meta: { name: "list", description: "List this organization's robot accounts" },
-  run: async () =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list({ query: {} });
-        const projectNames = yield* projectNamesById(api);
-        // "Vault identity" (not "access"): a registered identity may not have
-        // been GRANTED the vault yet — actual membership is `credentials access list`.
-        yield* printHumanList(
-          ["Id", "Name", "Project", "Role", "Vault identity", "Created"],
-          items.map((robot) => [
-            robot.id,
-            robot.name,
-            projectNames.get(robot.projectId) ?? robot.projectId,
-            robot.role,
-            robot.userEncryptionKeyId === null ? "no" : "yes",
-            robot.createdAt,
-          ]),
-          "No robot accounts visible in this organization — robots are listed for their project's maintainers (org admins see all). Check the active organization with `better-update org list`, or create one with `better-update credentials robot create`.",
-        );
-        return { items };
-      }),
-      { json: "value" },
-    ),
-});
-
-const updateCommand = defineCommand({
-  meta: {
-    name: "update",
-    description:
-      "Rename a robot account and/or change its project role in place (the project itself is fixed at creation); every change is audit-logged",
-  },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-    name: { type: "string", description: "New human name for this robot" },
-    role: {
-      type: "string",
-      description: 'New project role: "maintainer", "developer", or "reporter"',
+      return {
+        id: robot.account.id,
+        name: robot.account.name,
+        projectId: robot.account.projectId,
+        role: robot.account.role,
+        granted,
+        envGranted,
+        // Shown once: JSON consumers must capture this now (mirrors human output).
+        robotEnv: bundle,
+      };
     },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const name = args.name?.trim();
-        if (name?.length === 0) {
-          return yield* new IdentityError({ message: "--name must not be empty." });
-        }
-        if (name === undefined && args.role === undefined) {
-          return yield* new IdentityError({
-            message: "Nothing to update — pass --name and/or --role.",
-          });
-        }
-        const role = args.role === undefined ? undefined : yield* parseProjectRole(args.role);
-        const api = yield* apiClient;
-        const updated = yield* updateRobotAccount(api, args.id, { name, role });
-        yield* printKeyValue([
-          ["Name", updated.name],
-          ["Id", updated.id],
-          ["Project", updated.projectId],
-          ["Role", updated.role],
-        ]);
-        return {
-          id: updated.id,
-          name: updated.name,
-          projectId: updated.projectId,
-          role: updated.role,
-        };
-      }),
-      { json: "value" },
-    ),
-});
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Mint a project-scoped robot account (bearer secret + vault identity) and print its BETTER_UPDATE_ROBOT credential once",
+  ),
+);
 
-const rotateCommand = defineCommand({
-  meta: {
-    name: "rotate",
-    description:
-      "Re-mint a robot account's bearer secret; any linked vault identity is left untouched",
+const listHandler = Effect.fn(
+  function* () {
+    const api = yield* apiClient;
+    const { items } = yield* api["robot-accounts"].list({ query: {} });
+    const projectNames = yield* projectNamesById(api);
+    // "Vault identity" (not "access"): a registered identity may not have
+    // been GRANTED the vault yet — actual membership is `credentials access list`.
+    yield* printHumanList(
+      ["Id", "Name", "Project", "Role", "Vault identity", "Created"],
+      items.map((robot) => [
+        robot.id,
+        robot.name,
+        projectNames.get(robot.projectId) ?? robot.projectId,
+        robot.role,
+        robot.userEncryptionKeyId === null ? "no" : "yes",
+        robot.createdAt,
+      ]),
+      "No robot accounts visible in this organization — robots are listed for their project's maintainers (org admins see all). Check the active organization with `better-update org list`, or create one with `better-update credentials robot create`.",
+    );
+    return { items };
   },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-    identity: {
-      type: "string",
-      description:
+  runCommand({ json: "value" }),
+);
+
+const listCommand = Command.make("list", {}, listHandler).pipe(
+  Command.withDescription("List this organization's robot accounts"),
+);
+
+const updateCommand = Command.make(
+  "update",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Robot account id")),
+    name: Flag.String("name").pipe(
+      Flag.withDescription("New human name for this robot"),
+      optionalFlag,
+    ),
+    role: Flag.String("role").pipe(
+      Flag.withDescription('New project role: "maintainer", "developer", or "reporter"'),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const name = args.name?.trim();
+      if (name?.length === 0) {
+        return yield* new IdentityError({ message: "--name must not be empty." });
+      }
+      if (name === undefined && args.role === undefined) {
+        return yield* new IdentityError({
+          message: "Nothing to update — pass --name and/or --role.",
+        });
+      }
+      const role = args.role === undefined ? undefined : yield* parseProjectRole(args.role);
+      const api = yield* apiClient;
+      const updated = yield* updateRobotAccount(api, args.id, { name, role });
+      yield* printKeyValue([
+        ["Name", updated.name],
+        ["Id", updated.id],
+        ["Project", updated.projectId],
+        ["Role", updated.role],
+      ]);
+      return {
+        id: updated.id,
+        name: updated.name,
+        projectId: updated.projectId,
+        role: updated.role,
+      };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Rename a robot account and/or change its project role in place (the project itself is fixed at creation); every change is audit-logged",
+  ),
+);
+
+const rotateCommand = Command.make(
+  "rotate",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Robot account id")),
+    identity: Flag.String("identity").pipe(
+      Flag.withDescription(
         "This robot's current age private key (from its original BETTER_UPDATE_ROBOT or BETTER_UPDATE_IDENTITY secret) — combines with the new bearer into a full BETTER_UPDATE_ROBOT credential. Omit to print the bearer alone",
+      ),
+      optionalFlag,
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      // Reject a bare `--identity` BEFORE rotating: the flag needs the robot's
+      // age private key as its value (an empty `--identity ""` must not be read
+      // as "no identity"), and silently falling back to the bearer-only path would burn a
+      // rotation the caller didn't want.
+      const identity = args.identity?.trim();
+      if (identity?.length === 0) {
+        return yield* new IdentityError({
+          message:
+            "--identity needs a value: this robot's current age private key (AGE-SECRET-KEY-1…), " +
+            "found inside its original BETTER_UPDATE_ROBOT or BETTER_UPDATE_IDENTITY secret.",
+        });
+      }
+      const api = yield* apiClient;
+      const rotated = yield* rotateRobotAccountBearer(api, args.id);
+      if (identity !== undefined) {
+        const bundle = serializeRobotEnv({
+          bearer: rotated.bearerSecret,
+          identity,
+        });
+        yield* printKeyValue([["BETTER_UPDATE_ROBOT", bundle]]);
+        return { id: args.id, robotEnv: bundle };
+      }
+      yield* printHuman(
+        "New bearer secret (this robot's vault identity, if any, is unchanged — combine with " +
+          "its existing private key yourself, or re-run with --identity <key> to get a full bundle):",
+      );
+      yield* printKeyValue([["Bearer secret", rotated.bearerSecret]]);
+      return { id: args.id, bearerSecret: rotated.bearerSecret };
     },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        // Reject a bare `--identity` BEFORE rotating: the flag needs the robot's
-        // age private key as its value (citty hands a valueless string flag to us
-        // as ""), and silently falling back to the bearer-only path would burn a
-        // rotation the caller didn't want.
-        const identity = args.identity?.trim();
-        if (identity?.length === 0) {
-          return yield* new IdentityError({
-            message:
-              "--identity needs a value: this robot's current age private key (AGE-SECRET-KEY-1…), " +
-              "found inside its original BETTER_UPDATE_ROBOT or BETTER_UPDATE_IDENTITY secret.",
-          });
-        }
-        const api = yield* apiClient;
-        const rotated = yield* rotateRobotAccountBearer(api, args.id);
-        if (identity !== undefined) {
-          const bundle = serializeRobotEnv({
-            bearer: rotated.bearerSecret,
-            identity,
-          });
-          yield* printKeyValue([["BETTER_UPDATE_ROBOT", bundle]]);
-          return { id: args.id, robotEnv: bundle };
-        }
-        yield* printHuman(
-          "New bearer secret (this robot's vault identity, if any, is unchanged — combine with " +
-            "its existing private key yourself, or re-run with --identity <key> to get a full bundle):",
-        );
-        yield* printKeyValue([["Bearer secret", rotated.bearerSecret]]);
-        return { id: args.id, bearerSecret: rotated.bearerSecret };
-      }),
-      { json: "value" },
-    ),
-});
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Re-mint a robot account's bearer secret; any linked vault identity is left untouched",
+  ),
+);
 
-const revokeCommand = defineCommand({
-  meta: {
-    name: "revoke",
-    description:
-      "Revoke a robot account: its bearer stops authenticating immediately; if it holds vault or env-vault access, it is excluded and the vault(s) rotated too",
+const revokeCommand = Command.make(
+  "revoke",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Robot account id")),
+    yes: yesFlag("Skip the out-of-band fingerprint confirmation prompt"),
   },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-    yes: { type: "boolean", description: "Skip the out-of-band fingerprint confirmation prompt" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list({ query: {} });
-        const robot = items.find((item) => item.id === args.id);
-        if (robot === undefined) {
-          return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
-        }
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const { items } = yield* api["robot-accounts"].list({ query: {} });
+      const robot = items.find((item) => item.id === args.id);
+      if (robot === undefined) {
+        return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
+      }
 
-        let vaultRevoked = false;
-        if (robot.userEncryptionKeyId !== null) {
-          const recipients = yield* currentRecipients(api);
-          const target = recipients.find((key) => key.id === robot.userEncryptionKeyId);
-          if (target !== undefined) {
-            const surviving = recipients.filter((key) => key.id !== target.id);
-            if (!surviving.some((key) => key.kind === "recovery")) {
-              return yield* new IdentityError({
-                message:
-                  "Refusing to revoke this robot — it would leave the vault without its offline recovery recipient. Rotate recovery first with `credentials access recovery rotate`.",
-              });
-            }
-            yield* confirmRecipients(surviving, args.yes === true);
-            const rotated = yield* rotateVaultTo({
-              api,
-              recipients: surviving.map(toRotationRecipient),
+      let vaultRevoked = false;
+      if (robot.userEncryptionKeyId !== null) {
+        const recipients = yield* currentRecipients(api);
+        const target = recipients.find((key) => key.id === robot.userEncryptionKeyId);
+        if (target !== undefined) {
+          const surviving = recipients.filter((key) => key.id !== target.id);
+          if (!surviving.some((key) => key.kind === "recovery")) {
+            return yield* new IdentityError({
+              message:
+                "Refusing to revoke this robot — it would leave the vault without its offline recovery recipient. Rotate recovery first with `credentials access recovery rotate`.",
             });
-            yield* printHuman(
-              `Revoked vault access and rotated the vault to version ${String(rotated.vaultVersion)}.`,
-            );
-            vaultRevoked = true;
           }
-        }
-
-        // The env vault (post-cutover) is keyed separately, so an env-recipient
-        // robot needs its own exclude-and-rotate — no fingerprint confirmation:
-        // the surviving set was just confirmed above (or includes account keys,
-        // which carry no out-of-band fingerprint to check).
-        const envRevoked =
-          robot.userEncryptionKeyId !== null && (yield* orgHasCutOver(api))
-            ? yield* revokeRobotEnvAccess(api, robot.userEncryptionKeyId)
-            : false;
-
-        yield* api["robot-accounts"].revoke({ params: { id: args.id } });
-        yield* printHuman(`Revoked robot account ${robot.name} (${robot.id}).`);
-        return { revoked: true, id: robot.id, vaultRevoked, envRevoked };
-      }),
-      { json: "value" },
-    ),
-});
-
-const grantEnvCommand = defineCommand({
-  meta: {
-    name: "grant-env",
-    description:
-      "Grant an existing robot access to the env vault so it can decrypt env vars in CI (post-cutover orgs — before the cutover a credentials-vault grant already covers env)",
-  },
-  args: {
-    id: { type: "positional", required: true, description: "Robot account id" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const { items } = yield* api["robot-accounts"].list({ query: {} });
-        const robot = items.find((item) => item.id === args.id);
-        if (robot === undefined) {
-          return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
-        }
-        if (robot.userEncryptionKeyId === null) {
-          return yield* new IdentityError({
-            message:
-              "This robot has no vault identity to grant — revoke it and mint a replacement with `credentials robot create`.",
+          yield* confirmRecipients(surviving, args.yes);
+          const rotated = yield* rotateVaultTo({
+            api,
+            recipients: surviving.map(toRotationRecipient),
           });
+          yield* printHuman(
+            `Revoked vault access and rotated the vault to version ${String(rotated.vaultVersion)}.`,
+          );
+          vaultRevoked = true;
         }
-        if (!(yield* orgHasCutOver(api))) {
-          return yield* new IdentityError({
-            message:
-              "This organization's env values are still sealed under the credentials vault (no env cutover) — a credentials-vault grant already covers env; nothing to do.",
-          });
-        }
-        const outcome = yield* grantRobotEnvAccess(api, robot.userEncryptionKeyId);
-        yield* printHuman(
-          outcome === "granted"
-            ? `✓ Granted env-vault access to ${robot.name} — it decrypts env vars non-interactively.`
-            : `${robot.name} is already an env-vault recipient — nothing to do.`,
-        );
-        return {
-          id: robot.id,
-          name: robot.name,
-          envGranted: true,
-          alreadyGranted: outcome === "already",
-        };
-      }),
-      { json: "value" },
-    ),
-});
+      }
 
-export const robotCommand = defineCommand({
-  meta: {
-    name: "robot",
-    description:
-      "Manage project-scoped robot accounts (CI bearer auth + vault identity in one; one robot = one project + one role)",
+      // The env vault (post-cutover) is keyed separately, so an env-recipient
+      // robot needs its own exclude-and-rotate — no fingerprint confirmation:
+      // the surviving set was just confirmed above (or includes account keys,
+      // which carry no out-of-band fingerprint to check).
+      const envRevoked =
+        robot.userEncryptionKeyId !== null && (yield* orgHasCutOver(api))
+          ? yield* revokeRobotEnvAccess(api, robot.userEncryptionKeyId)
+          : false;
+
+      yield* api["robot-accounts"].revoke({ params: { id: args.id } });
+      yield* printHuman(`Revoked robot account ${robot.name} (${robot.id}).`);
+      return { revoked: true, id: robot.id, vaultRevoked, envRevoked };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Revoke a robot account: its bearer stops authenticating immediately; if it holds vault or env-vault access, it is excluded and the vault(s) rotated too",
+  ),
+);
+
+const grantEnvCommand = Command.make(
+  "grant-env",
+  {
+    id: Argument.String("id").pipe(Argument.withDescription("Robot account id")),
   },
-  subCommands: {
-    create: createCommand,
-    list: listCommand,
-    update: updateCommand,
-    rotate: rotateCommand,
-    revoke: revokeCommand,
-    "grant-env": grantEnvCommand,
-  },
-  default: "list",
-});
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const { items } = yield* api["robot-accounts"].list({ query: {} });
+      const robot = items.find((item) => item.id === args.id);
+      if (robot === undefined) {
+        return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
+      }
+      if (robot.userEncryptionKeyId === null) {
+        return yield* new IdentityError({
+          message:
+            "This robot has no vault identity to grant — revoke it and mint a replacement with `credentials robot create`.",
+        });
+      }
+      if (!(yield* orgHasCutOver(api))) {
+        return yield* new IdentityError({
+          message:
+            "This organization's env values are still sealed under the credentials vault (no env cutover) — a credentials-vault grant already covers env; nothing to do.",
+        });
+      }
+      const outcome = yield* grantRobotEnvAccess(api, robot.userEncryptionKeyId);
+      yield* printHuman(
+        outcome === "granted"
+          ? `✓ Granted env-vault access to ${robot.name} — it decrypts env vars non-interactively.`
+          : `${robot.name} is already an env-vault recipient — nothing to do.`,
+      );
+      return {
+        id: robot.id,
+        name: robot.name,
+        envGranted: true,
+        alreadyGranted: outcome === "already",
+      };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Grant an existing robot access to the env vault so it can decrypt env vars in CI (post-cutover orgs — before the cutover a credentials-vault grant already covers env)",
+  ),
+);
+
+export const robotCommand = Command.make("robot", {}, listHandler).pipe(
+  Command.withDescription(
+    "Manage project-scoped robot accounts (CI bearer auth + vault identity in one; one robot = one project + one role)",
+  ),
+  Command.withSubcommands([
+    createCommand,
+    listCommand,
+    updateCommand,
+    rotateCommand,
+    revokeCommand,
+    grantEnvCommand,
+  ]),
+);

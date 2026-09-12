@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import { compact } from "@better-update/type-guards";
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import {
   ensureAndroidCredentials,
@@ -15,12 +15,13 @@ import {
   showAndroidBinding,
   showIosBinding,
 } from "../../application/credentials-rebind";
-import { runEffect } from "../../lib/citty-effect";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../../lib/credentials-downloader";
 import { MissingCredentialsError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { readAppMetaOptional, readProjectId } from "../../lib/project-link";
 import { promptSelect, promptText } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { discoverSignedTargetsIfPresent, pickMainTarget } from "../../lib/xcode-targets";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
@@ -319,91 +320,94 @@ const runConfigureIos = (args: RunConfigureIosArgs) =>
     } satisfies IosConfigureResult;
   });
 
-export const configureCommand = defineCommand({
-  meta: {
-    name: "configure",
-    description: "Interactive wizard to configure signing credentials (outside a build run)",
-  },
-  args: {
-    platform: {
-      type: "enum",
-      options: ["ios", "android"],
-      description: "Skip the platform prompt",
-    },
-    bundle: {
-      type: "string",
-      description:
+export const configureCommand = Command.make(
+  "configure",
+  {
+    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+      Flag.withDescription("Skip the platform prompt"),
+      optionalFlag,
+    ),
+    bundle: Flag.String("bundle").pipe(
+      Flag.withDescription(
         "iOS bundle identifier to scope to a single target (defaults to configuring every signed target — main app + extensions — discovered from the Xcode project)",
-    },
-    "android-package": {
-      type: "string",
-      description: "Android application identifier (defaults to app.json)",
-    },
-    distribution: {
-      type: "enum",
-      options: ["ad-hoc", "app-store", "development", "enterprise"],
-      default: "ad-hoc",
-      description: "iOS distribution type",
-    },
-    rebind: {
-      type: "boolean",
-      description: "Re-bind credentials on an already-configured app/bundle (swap keystore/cert)",
-    },
-    "bind-push-key": {
-      type: "string",
-      description: "iOS only: bind an existing push key by ID to the bundle config",
-    },
-    "bind-asc-key": {
-      type: "string",
-      description: "iOS only: bind an existing ASC API key by ID to the bundle config",
-    },
-    "bind-fcm-gsa": {
-      type: "string",
-      description:
+      ),
+      optionalFlag,
+    ),
+    "android-package": Flag.String("android-package").pipe(
+      Flag.withDescription("Android application identifier (defaults to app.json)"),
+      optionalFlag,
+    ),
+    distribution: Flag.Literals("distribution", [
+      "ad-hoc",
+      "app-store",
+      "development",
+      "enterprise",
+    ]).pipe(Flag.withDescription("iOS distribution type"), Flag.withDefault("ad-hoc")),
+    rebind: Flag.Boolean("rebind").pipe(
+      Flag.withDescription(
+        "Re-bind credentials on an already-configured app/bundle (swap keystore/cert)",
+      ),
+      Flag.withDefault(false),
+    ),
+    "bind-push-key": Flag.String("bind-push-key").pipe(
+      Flag.withDescription("iOS only: bind an existing push key by ID to the bundle config"),
+      optionalFlag,
+    ),
+    "bind-asc-key": Flag.String("bind-asc-key").pipe(
+      Flag.withDescription("iOS only: bind an existing ASC API key by ID to the bundle config"),
+      optionalFlag,
+    ),
+    "bind-fcm-gsa": Flag.String("bind-fcm-gsa").pipe(
+      Flag.withDescription(
         "Android only: bind an existing GSA key by ID to FCM V1 push notifications on the default credentials group",
-    },
+      ),
+      optionalFlag,
+    ),
   },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        const runtime = yield* CliRuntime;
-        const root = yield* runtime.cwd;
-        const projectId = yield* readProjectId;
+  Effect.fn(
+    function* (args) {
+      const api = yield* apiClient;
+      const runtime = yield* CliRuntime;
+      const root = yield* runtime.cwd;
+      const projectId = yield* readProjectId;
 
-        const platform =
-          args.platform ??
-          (yield* promptSelect<"ios" | "android">("Configure credentials for which platform?", [
-            { value: "ios", label: "iOS" },
-            { value: "android", label: "Android" },
-          ]));
+      const platform =
+        args.platform ??
+        (yield* promptSelect<"ios" | "android">("Configure credentials for which platform?", [
+          { value: "ios", label: "iOS" },
+          { value: "android", label: "Android" },
+        ]));
 
-        if (platform === "ios") {
-          return yield* runConfigureIos({
-            api,
-            projectId,
-            root,
-            bundle: args.bundle,
-            distribution: args.distribution,
-            rebind: args.rebind ?? false,
-            bindPushKey: args["bind-push-key"],
-            bindAscKey: args["bind-asc-key"],
-          });
-        }
-        const androidMeta = yield* readAppMetaOptional(root, "android");
-        const applicationIdentifier =
-          args["android-package"] ??
-          androidMeta.androidPackage ??
-          (yield* promptText("Android application identifier"));
-        yield* configureAndroid({
+      if (platform === "ios") {
+        return yield* runConfigureIos({
           api,
           projectId,
-          applicationIdentifier,
-          rebind: args.rebind ?? false,
-          bindFcmGsa: args["bind-fcm-gsa"],
+          root,
+          bundle: args.bundle,
+          distribution: args.distribution,
+          rebind: args.rebind,
+          bindPushKey: args["bind-push-key"],
+          bindAscKey: args["bind-asc-key"],
         });
-        return { platform: "android" as const, projectId, applicationIdentifier };
-      }),
-      { json: "value" },
-    ),
-});
+      }
+      const androidMeta = yield* readAppMetaOptional(root, "android");
+      const applicationIdentifier =
+        args["android-package"] ??
+        androidMeta.androidPackage ??
+        (yield* promptText("Android application identifier"));
+      yield* configureAndroid({
+        api,
+        projectId,
+        applicationIdentifier,
+        rebind: args.rebind,
+        bindFcmGsa: args["bind-fcm-gsa"],
+      });
+      return { platform: "android" as const, projectId, applicationIdentifier };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    "Interactive wizard to configure signing credentials (outside a build run)",
+  ),
+);

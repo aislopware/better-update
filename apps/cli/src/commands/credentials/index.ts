@@ -1,7 +1,7 @@
-import { defineCommand } from "citty";
+import { Command } from "effect/unstable/cli";
 
 import { runCredentialsManager } from "../../application/credentials-manager";
-import { runEffect } from "../../lib/citty-effect";
+import { runCommand } from "../../lib/run-command";
 import { accessCommand } from "./access";
 import { accountCommand } from "./account";
 import { bindingsCommand } from "./bindings";
@@ -28,50 +28,47 @@ import { uploadCommand } from "./upload";
 import { uploadAscKeyCommand } from "./upload-asc-key";
 import { viewCommand } from "./view";
 
-const managerCommand = defineCommand({
-  meta: {
-    name: "manager",
-    description: "Interactive credentials manager (top-level wizard: platform → category → action)",
-  },
-  run: async () => runEffect(runCredentialsManager),
-});
+const managerHandler = () => runCredentialsManager.pipe(runCommand());
 
-// citty 0.2.2 invokes the parent `run` even when a subcommand was specified, so
-// keeping `run: runCredentialsManager` here triggers the interactive wizard
-// after every `cli credentials <sub>` call and blocks on stdin forever. Route the
-// no-arg invocation through `default: "manager"` instead — that runs the manager
-// subcommand only when no other subcommand was given.
-export const credentialsCommand = defineCommand({
-  meta: { name: "credentials", description: "Manage credentials" },
-  subCommands: {
-    manager: managerCommand,
-    identity: identityCommand,
-    robot: robotCommand,
-    bindings: bindingsCommand,
-    access: accessCommand,
-    account: accountCommand,
-    "env-vault": envVaultCommand,
-    passphrase: passphraseCommand,
-    device: deviceCommand,
-    unlock: unlockCommand,
-    lock: lockCommand,
-    status: statusCommand,
-    list: listCommand,
-    view: viewCommand,
-    download: downloadCommand,
-    upload: uploadCommand,
-    "upload-asc-key": uploadAscKeyCommand,
-    generate: generateCommand,
-    "regenerate-profile": regenerateProfileCommand,
-    delete: deleteCommand,
-    remove: removeCommand,
-    revoke: revokeCommand,
-    configure: configureCommand,
-    sync: syncCommand,
-    certificate: certificateCommand,
-    "bundle-id": bundleIdCommand,
-    profile: profileCommand,
-    capability: capabilityCommand,
-  },
-  default: "manager",
-});
+const managerCommand = Command.make("manager", {}, managerHandler).pipe(
+  Command.withDescription(
+    "Interactive credentials manager (top-level wizard: platform → category → action)",
+  ),
+);
+
+// The parent handler runs ONLY when no subcommand was given (bare
+// `credentials`), so it can open the interactive manager without racing the
+// subcommands.
+export const credentialsCommand = Command.make("credentials", {}, managerHandler).pipe(
+  Command.withDescription("Manage credentials"),
+  Command.withSubcommands([
+    managerCommand,
+    identityCommand,
+    robotCommand,
+    bindingsCommand,
+    accessCommand,
+    accountCommand,
+    envVaultCommand,
+    passphraseCommand,
+    deviceCommand,
+    unlockCommand,
+    lockCommand,
+    statusCommand,
+    listCommand,
+    viewCommand,
+    downloadCommand,
+    uploadCommand,
+    uploadAscKeyCommand,
+    generateCommand,
+    regenerateProfileCommand,
+    deleteCommand,
+    removeCommand,
+    revokeCommand,
+    configureCommand,
+    syncCommand,
+    certificateCommand,
+    bundleIdCommand,
+    profileCommand,
+    capabilityCommand,
+  ]),
+);

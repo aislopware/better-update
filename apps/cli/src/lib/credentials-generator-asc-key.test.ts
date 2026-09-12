@@ -4,6 +4,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Layer } from "effect";
 
@@ -174,7 +175,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
         appleTeamIdentifier: "TEAM1234",
         nickname: "[better-update] x",
         role: "ADMIN",
-      }).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+      }).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, ascLayer(vault.identity.privateKey))),
+      );
 
       expect(result).toStrictEqual({
         id: "asc-local-1",
@@ -230,7 +233,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
         appleTeamIdentifier: "TEAM1234",
         nickname: "n",
         role: "APP_MANAGER",
-      }).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+      }).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, ascLayer(vault.identity.privateKey))),
+      );
 
       const [, createArgs] = mocks.apiKeyCreateAsync.mock.calls[0] as [
         unknown,
@@ -257,7 +262,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
         // 40 chars — the old ISO-timestamp default Apple rejected as "too long".
         nickname: "[better-update] 2026-06-29T23:15:42.123Z",
         role: "ADMIN",
-      }).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+      }).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, ascLayer(vault.identity.privateKey))),
+      );
 
       const [, createArgs] = mocks.apiKeyCreateAsync.mock.calls[0] as [
         unknown,
@@ -281,7 +288,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
           nickname: "n",
           role: "ADMIN",
         }),
-      ).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, ascLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(mocks.apiKeyDownloadAsync).toHaveBeenCalledTimes(1);
@@ -303,7 +312,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
           nickname: "n",
           role: "ADMIN",
         }),
-      ).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, ascLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(mocks.apiKeyDownloadAsync).toHaveBeenCalledTimes(1);
@@ -325,7 +336,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
           nickname: "n",
           role: "ADMIN",
         }),
-      ).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, ascLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(recordedWrites).toHaveLength(1);

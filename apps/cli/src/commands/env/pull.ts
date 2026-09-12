@@ -1,19 +1,20 @@
 import path from "node:path";
 
-import { defineCommand } from "citty";
 import { FileSystem, Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
-import { runEffect } from "../../lib/citty-effect";
 import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { InteractiveMode } from "../../lib/interactive-mode";
 import { printHuman } from "../../lib/output";
+import { optionalFlag } from "../../lib/params";
 import { overlayProfileEnvItems, readOptionalProfile } from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
 import { promptConfirm } from "../../lib/prompts";
+import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
-import { envErrorExtras, parseEnvironmentScopeArg } from "./helpers";
+import { parseEnvironmentScopeArg } from "./helpers";
 
 import type { OutputMode } from "../../lib/output-mode";
 
@@ -72,64 +73,66 @@ const writeDotenvFile = (params: {
     return true;
   });
 
-export const pullCommand = defineCommand({
-  meta: {
-    name: "pull",
-    description: `Write env vars to a dotenv file (default: ${DEFAULT_PATH}) — or pipe to stdout with --stdout`,
-  },
-  args: {
-    environment: {
-      type: "string",
-      description:
+export const pullCommand = Command.make(
+  "pull",
+  {
+    environment: Flag.String("environment").pipe(
+      Flag.withDescription(
         "Target environment (development, preview, production; defaults to --profile's environment, else production)",
-    },
-    profile: {
-      type: "string",
-      description:
-        "eas.json build profile: its environment picks the scope and its env block overlays the pulled set (profile wins on collision) — same merge as `build`",
-    },
-    path: {
-      type: "string",
-      description: `Output file path (default: ${DEFAULT_PATH})`,
-    },
-    stdout: {
-      type: "boolean",
-      description: "Print `export KEY='value'` lines to stdout instead of writing a file",
-    },
-    force: {
-      type: "boolean",
-      description: "Overwrite the target file without prompting",
-    },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const runtime = yield* CliRuntime;
-        const cwd = yield* runtime.cwd;
-        const profile = yield* readOptionalProfile(cwd, args.profile);
-        const environment = yield* parseEnvironmentScopeArg(args.environment, profile);
-        const projectId = yield* readProjectId;
-        const api = yield* apiClient;
-
-        // Fetches sealed envelopes and decrypts them locally (unlocks the vault),
-        // then overlays the profile's eas.json env block (profile wins).
-        const items = overlayProfileEnvItems(
-          yield* exportDecryptedEnvVars(api, projectId, environment),
-          profile,
-        );
-
-        if (args.stdout) {
-          yield* printStdout(items);
-          return { environment, target: "stdout", count: items.length, written: true };
-        }
-        const targetPath = path.resolve(cwd, args.path ?? DEFAULT_PATH);
-        const written = yield* writeDotenvFile({
-          targetPath,
-          items,
-          force: args.force ?? false,
-        });
-        return { environment, target: targetPath, count: items.length, written };
-      }),
-      { exits: { ...envErrorExtras, BuildProfileError: 2 }, json: "value" },
+      ),
+      optionalFlag,
     ),
-});
+    profile: Flag.String("profile").pipe(
+      Flag.withDescription(
+        "eas.json build profile: its environment picks the scope and its env block overlays the pulled set (profile wins on collision) — same merge as `build`",
+      ),
+      optionalFlag,
+    ),
+    path: Flag.String("path").pipe(
+      Flag.withDescription(`Output file path (default: ${DEFAULT_PATH})`),
+      optionalFlag,
+    ),
+    stdout: Flag.Boolean("stdout").pipe(
+      Flag.withDescription("Print `export KEY='value'` lines to stdout instead of writing a file"),
+      Flag.withDefault(false),
+    ),
+    force: Flag.Boolean("force").pipe(
+      Flag.withDescription("Overwrite the target file without prompting"),
+      Flag.withDefault(false),
+    ),
+  },
+  Effect.fn(
+    function* (args) {
+      const runtime = yield* CliRuntime;
+      const cwd = yield* runtime.cwd;
+      const profile = yield* readOptionalProfile(cwd, args.profile);
+      const environment = yield* parseEnvironmentScopeArg(args.environment, profile);
+      const projectId = yield* readProjectId;
+      const api = yield* apiClient;
+
+      // Fetches sealed envelopes and decrypts them locally (unlocks the vault),
+      // then overlays the profile's eas.json env block (profile wins).
+      const items = overlayProfileEnvItems(
+        yield* exportDecryptedEnvVars(api, projectId, environment),
+        profile,
+      );
+
+      if (args.stdout) {
+        yield* printStdout(items);
+        return { environment, target: "stdout", count: items.length, written: true };
+      }
+      const targetPath = path.resolve(cwd, args.path ?? DEFAULT_PATH);
+      const written = yield* writeDotenvFile({
+        targetPath,
+        items,
+        force: args.force,
+      });
+      return { environment, target: targetPath, count: items.length, written };
+    },
+    runCommand({ json: "value" }),
+  ),
+).pipe(
+  Command.withDescription(
+    `Write env vars to a dotenv file (default: ${DEFAULT_PATH}) — or pipe to stdout with --stdout`,
+  ),
+);

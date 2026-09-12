@@ -14,8 +14,8 @@ import { promptConfirm, promptSelect } from "../lib/prompts";
 
 import type { IosDistribution } from "../lib/build-profile";
 import type { CliCredentialRow } from "../lib/credentials-manager";
-import type { InteractiveMode } from "../lib/interactive-mode";
 import type { OutputMode } from "../lib/output-mode";
+import type { PromptServices } from "../lib/prompts";
 import type { ApiClient } from "../services/api-client";
 import type { AppleAuth } from "../services/apple-auth";
 import type { CliRuntime } from "../services/cli-runtime";
@@ -54,7 +54,7 @@ export type MenuEffect = Effect.Effect<
   | FileSystem.FileSystem
   | DeviceUnlockMemo
   | IdentityStore
-  | InteractiveMode
+  | PromptServices
   | OutputMode
 >;
 
@@ -76,7 +76,7 @@ export const safely = <Value, Err, Req>(
     Effect.asVoid,
   );
 
-export const safePrompt = (effect: Effect.Effect<string, unknown, InteractiveMode>) =>
+export const safePrompt = (effect: Effect.Effect<string, unknown, PromptServices>) =>
   effect.pipe(Effect.orElseSucceed(() => BACK as string));
 
 export const promptForBundleConfig = (ctx: WizardContext) =>

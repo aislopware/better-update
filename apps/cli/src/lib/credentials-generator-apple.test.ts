@@ -4,6 +4,7 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
+import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Layer } from "effect";
 
@@ -289,7 +290,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       expect(profileArgs.certificates).toStrictEqual(["cert-asc-1"]);
       expect(profileArgs.devices).toStrictEqual([]);
       expect(profileArgs.profileType).toBe("IOS_APP_STORE");
-    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer("unused-identity")))),
   );
 
   it.effect(
@@ -342,7 +343,7 @@ describe(generateAndUploadProvisioningProfile, () => {
         expect(recordedProfileUploads[0]?.deviceRosterHash).toBe(
           computeDeviceRosterHashHex([UDID_A, UDID_B]),
         );
-      }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+      }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer("unused-identity")))),
   );
 
   it.effect("AD_HOC: registers backend-only devices on the portal before provisioning", () =>
@@ -384,7 +385,7 @@ describe(generateAndUploadProvisioningProfile, () => {
         { devices: string[] },
       ];
       expect(profileArgs.devices).toStrictEqual(["rec-a", "rec-new"]);
-    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer("unused-identity")))),
   );
 
   it.effect("AD_HOC: a --device-ids subset is stored unmanaged without a fingerprint", () =>
@@ -420,7 +421,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       expect(profileArgs.devices).toStrictEqual(["rec-a"]);
       expect(recordedProfileUploads[0]?.isManaged).toBe(false);
       expect(recordedProfileUploads[0]?.deviceRosterHash).toBeUndefined();
-    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer("unused-identity")))),
   );
 
   it.effect("fails when Apple has no matching certificate for the local serial number", () =>
@@ -441,7 +442,7 @@ describe(generateAndUploadProvisioningProfile, () => {
       );
 
       expect(exit._tag).toBe("Failure");
-    }).pipe(Effect.provide(vaultLayer("unused-identity"))),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer("unused-identity")))),
   );
 });
 
@@ -458,7 +459,9 @@ describe(generateAndUploadDistributionCertificate, () => {
       const api = buildApi(vault);
       const exit = yield* Effect.exit(
         generateAndUploadDistributionCertificate(api, { context }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("CertificateLimitError");
     }),
@@ -472,7 +475,9 @@ describe(generateAndUploadDistributionCertificate, () => {
       const api = buildApi(vault);
       const exit = yield* Effect.exit(
         generateAndUploadDistributionCertificate(api, { context }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
     }),
@@ -504,7 +509,9 @@ describe(generateAndUploadDistributionCertificate, () => {
       const api = buildApi(vault);
       const result = yield* generateAndUploadDistributionCertificate(api, {
         context,
-      }).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      }).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(result.id).toBe("cert-local-1");
       expect(result.appleTeamId).toBe("team-uuid-1");
@@ -603,7 +610,9 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
         appleTeamIdentifier: "TEAM1234",
         appleTeamName: "Acme Inc.",
         name: "my key",
-      }).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      }).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(result.id).toBe("push-local-1");
       expect(result.keyId).toBe("APNSKEY123");
@@ -644,7 +653,9 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("ApnsKeyLimitError");
     }),
@@ -669,7 +680,9 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("ApnsKeyLimitError");
     }),
@@ -695,7 +708,9 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(recordedWrites).toHaveLength(0);
@@ -723,7 +738,9 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
           appleTeamName: null,
           name: "x",
         }),
-      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
+      ).pipe(
+        Effect.provide(Layer.mergeAll(NodeServices.layer, vaultLayer(vault.identity.privateKey))),
+      );
 
       expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
       expect(recordedWrites).toHaveLength(1);

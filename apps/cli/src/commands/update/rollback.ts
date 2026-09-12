@@ -1,10 +1,10 @@
-import { defineCommand } from "citty";
 import { Effect } from "effect";
+import { Command, Flag } from "effect/unstable/cli";
 
 import { runUpdateRollback } from "../../application/update-rollback";
-import { runEffect } from "../../lib/citty-effect";
 import { printHuman, printHumanTable } from "../../lib/output";
-import { updateErrorExtras } from "./helpers";
+import { optionalFlag } from "../../lib/params";
+import { runCommand } from "../../lib/run-command";
 
 interface RollbackParsedArgs {
   readonly branch: string;
@@ -43,58 +43,60 @@ const buildRollbackRun = (args: RollbackParsedArgs) =>
     return result;
   });
 
-export const rollBackToEmbeddedCommand = defineCommand({
-  meta: {
-    name: "roll-back-to-embedded",
-    description:
-      "Roll back updates on a branch to the embedded JS (alias of `update rollback` for EAS parity)",
-  },
-  args: {
-    branch: { type: "string", required: true, description: "Branch to roll back" },
-    platform: {
-      type: "enum",
-      options: ["ios", "android", "all"],
-      default: "all",
-      description: "Platform(s) to roll back",
-    },
-    message: { type: "string" },
-    environment: { type: "string", default: "production", description: "Env vars scope" },
-    "commit-time": { type: "string" },
-    "directive-body-file": { type: "string" },
-    "signature-file": { type: "string" },
-    "certificate-chain-file": { type: "string" },
-    "private-key-path": {
-      type: "string",
-      description:
+export const rollBackToEmbeddedCommand = Command.make(
+  "roll-back-to-embedded",
+  {
+    branch: Flag.String("branch").pipe(Flag.withDescription("Branch to roll back")),
+    platform: Flag.Literals("platform", ["ios", "android", "all"]).pipe(
+      Flag.withDescription("Platform(s) to roll back"),
+      Flag.withDefault("all"),
+    ),
+    message: Flag.String("message").pipe(optionalFlag),
+    environment: Flag.String("environment").pipe(
+      Flag.withDescription("Env vars scope"),
+      Flag.withDefault("production"),
+    ),
+    "commit-time": Flag.String("commit-time").pipe(optionalFlag),
+    "directive-body-file": Flag.String("directive-body-file").pipe(optionalFlag),
+    "signature-file": Flag.String("signature-file").pipe(optionalFlag),
+    "certificate-chain-file": Flag.String("certificate-chain-file").pipe(optionalFlag),
+    "private-key-path": Flag.String("private-key-path").pipe(
+      Flag.withDescription(
         "Path to the RSA private key (PEM) to code-sign the rollback directive; reads codeSigningCertificate/codeSigningMetadata from app.json (mutually exclusive with the --*-file options)",
-    },
+      ),
+      optionalFlag,
+    ),
   },
-  run: async ({ args }) =>
-    runEffect(buildRollbackRun(args), { exits: updateErrorExtras, json: "value" }),
-});
+  (args) => buildRollbackRun(args).pipe(runCommand({ json: "value" })),
+).pipe(
+  Command.withDescription(
+    "Roll back updates on a branch to the embedded JS (alias of `update rollback` for EAS parity)",
+  ),
+);
 
-export const rollbackCommand = defineCommand({
-  meta: { name: "rollback", description: "Roll back updates on a branch" },
-  args: {
-    branch: { type: "string", required: true, description: "Branch to roll back" },
-    platform: {
-      type: "enum",
-      options: ["ios", "android", "all"],
-      default: "all",
-      description: "Platform(s) to roll back",
-    },
-    message: { type: "string" },
-    environment: { type: "string", default: "production", description: "Env vars scope" },
-    "commit-time": { type: "string" },
-    "directive-body-file": { type: "string" },
-    "signature-file": { type: "string" },
-    "certificate-chain-file": { type: "string" },
-    "private-key-path": {
-      type: "string",
-      description:
+export const rollbackCommand = Command.make(
+  "rollback",
+  {
+    branch: Flag.String("branch").pipe(Flag.withDescription("Branch to roll back")),
+    platform: Flag.Literals("platform", ["ios", "android", "all"]).pipe(
+      Flag.withDescription("Platform(s) to roll back"),
+      Flag.withDefault("all"),
+    ),
+    message: Flag.String("message").pipe(optionalFlag),
+    environment: Flag.String("environment").pipe(
+      Flag.withDescription("Env vars scope"),
+      Flag.withDefault("production"),
+    ),
+    "commit-time": Flag.String("commit-time").pipe(optionalFlag),
+    "directive-body-file": Flag.String("directive-body-file").pipe(optionalFlag),
+    "signature-file": Flag.String("signature-file").pipe(optionalFlag),
+    "certificate-chain-file": Flag.String("certificate-chain-file").pipe(optionalFlag),
+    "private-key-path": Flag.String("private-key-path").pipe(
+      Flag.withDescription(
         "Path to the RSA private key (PEM) to code-sign the rollback directive; reads codeSigningCertificate/codeSigningMetadata from app.json (mutually exclusive with the --*-file options)",
-    },
+      ),
+      optionalFlag,
+    ),
   },
-  run: async ({ args }) =>
-    runEffect(buildRollbackRun(args), { exits: updateErrorExtras, json: "value" }),
-});
+  (args) => buildRollbackRun(args).pipe(runCommand({ json: "value" })),
+).pipe(Command.withDescription("Roll back updates on a branch"));
