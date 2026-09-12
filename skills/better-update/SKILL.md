@@ -54,7 +54,9 @@ Two facts that prevent most mistakes:
 ## Setup (do this before anything else)
 
 ```bash
-bun add -g @better-update/cli      # or: bunx @better-update/cli <cmd>   (no install)
+bun add -g @better-update/cli      # or npm i -g; or bunx @better-update/cli <cmd> (no install)
+                                   # or, without any JS package manager:
+                                   # curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
 better-update login                # browser OAuth; --api-key for headless paste
 better-update init                 # from the Expo project root: links app.json → a project
 ```

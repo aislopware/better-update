@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { spawnPty } from "../helpers/pty-driver";
 
-const CLI_ENTRY = path.resolve(import.meta.dirname, "../../dist/index.mjs");
+const CLI_BINARY = path.resolve(import.meta.dirname, "../../dist/better-update");
 
 const CTRL_C = "\u0003";
 
@@ -28,7 +28,7 @@ describe("prompt cancellation + interactive override (PTY)", () => {
   });
 
   it("Ctrl-C at a prompt prints the cancellation and exits 130", async () => {
-    const driver = spawnPty("node", [CLI_ENTRY, "login", "--api-key"], { env: env() });
+    const driver = spawnPty(CLI_BINARY, ["login", "--api-key"], { env: env() });
     await driver.expect(/Paste your session token/, { timeoutMs: 15_000 });
     driver.send(CTRL_C);
     await driver.expect("Operation cancelled.", { timeoutMs: 10_000 });
@@ -37,7 +37,7 @@ describe("prompt cancellation + interactive override (PTY)", () => {
   });
 
   it("--interactive re-enables prompts under CI", async () => {
-    const driver = spawnPty("node", [CLI_ENTRY, "--interactive", "login", "--api-key"], {
+    const driver = spawnPty(CLI_BINARY, ["--interactive", "login", "--api-key"], {
       env: { ...env(), CI: "1" },
     });
     await driver.expect(/Paste your session token/, { timeoutMs: 15_000 });
@@ -47,7 +47,7 @@ describe("prompt cancellation + interactive override (PTY)", () => {
   });
 
   it("CI=1 without --interactive refuses the prompt (exit 2)", async () => {
-    const driver = spawnPty("node", [CLI_ENTRY, "login", "--api-key"], {
+    const driver = spawnPty(CLI_BINARY, ["login", "--api-key"], {
       env: { ...env(), CI: "1" },
     });
     await driver.expect(/requested while running non-interactively/, { timeoutMs: 15_000 });

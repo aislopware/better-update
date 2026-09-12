@@ -1,7 +1,7 @@
 import { Console, Effect } from "effect";
 
 import { MinVersionCheck } from "../services/min-version-check";
-import { detectInstallerFromImportMetaUrl, installCommand } from "./detect-installer";
+import { installCommand } from "./distribution";
 import { isNewerVersion } from "./semver-compare";
 
 const formatBlock = (current: string, requireAbove: string, command: string): string =>
@@ -24,7 +24,6 @@ const formatBlock = (current: string, requireAbove: string, command: string): st
  */
 export const enforceMinVersion = (
   currentVersion: string,
-  installerHint: string,
 ): Effect.Effect<boolean, never, MinVersionCheck> =>
   Effect.gen(function* () {
     const minVersionCheck = yield* MinVersionCheck;
@@ -32,7 +31,6 @@ export const enforceMinVersion = (
     if (requireAbove === undefined || isNewerVersion(currentVersion, requireAbove)) {
       return false;
     }
-    const installer = detectInstallerFromImportMetaUrl(installerHint);
-    yield* Console.error(formatBlock(currentVersion, requireAbove, installCommand(installer)));
+    yield* Console.error(formatBlock(currentVersion, requireAbove, installCommand()));
     return true;
   });

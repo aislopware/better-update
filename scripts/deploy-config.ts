@@ -52,6 +52,9 @@ const KEYS = {
   BU_SUPERADMIN_EMAILS: { fallback: "" },
   BU_GITHUB_CLIENT_ID: { fallback: "" },
   BU_GOOGLE_CLIENT_ID: { fallback: "" },
+  // GitHub `owner/repo` whose Releases carry the CLI binaries (`install.sh`,
+  // the CLI's own update check). Defaults to the upstream project.
+  BU_CLI_RELEASE_REPO: { fallback: "aislopware/better-update" },
 } as const satisfies Record<string, { required: true } | { fallback: string }>;
 
 export const DEPLOY_KEYS = Object.keys(KEYS);
@@ -100,6 +103,8 @@ export interface DeployConfig {
   readonly superadminEmails: string;
   readonly githubClientId: string;
   readonly googleClientId: string;
+  /** GitHub `owner/repo` the CLI binaries are released from. */
+  readonly cliReleaseRepo: string;
 }
 
 export class DeployConfigError extends Error {}
@@ -206,5 +211,6 @@ export const loadDeployConfig = (options: LoadOptions = { strict: true }): Deplo
     superadminEmails: read("BU_SUPERADMIN_EMAILS"),
     githubClientId: read("BU_GITHUB_CLIENT_ID"),
     googleClientId: read("BU_GOOGLE_CLIENT_ID"),
+    cliReleaseRepo: read("BU_CLI_RELEASE_REPO"),
   };
 };

@@ -9,9 +9,6 @@
       "message": "chore(release): publish new versions",
       "allowBranch": "main",
       "syncWorkspaceLock": true
-    },
-    "publish": {
-      "stripPackageKeys": ["devDependencies", "scripts"]
     }
   },
   "ignoreChanges": ["**/*.md", "**/__tests__/**", "**/tests/**", "**/*.test.ts", "**/*.test.tsx"],

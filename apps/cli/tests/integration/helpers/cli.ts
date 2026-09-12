@@ -8,7 +8,7 @@ import type { Command } from "effect/unstable/cli";
 import { commandRegistry } from "../../../src/command-registry";
 
 /**
- * Integration tier: the BUILT binary (`dist/index.mjs`, produced by
+ * Integration tier: the BUILT binary (`dist/better-update`, compiled by
  * `pretest:integrations`) is spawned as a real process — argv parsing, global
  * flags, the JSON envelope, exit codes and stdout/stderr separation are all
  * observed from the outside, exactly as a shell or CI job sees them.
@@ -21,7 +21,7 @@ import { commandRegistry } from "../../../src/command-registry";
  */
 
 const CLI_DIR = path.resolve(import.meta.dirname, "../../..");
-export const CLI_ENTRY = path.join(CLI_DIR, "dist/index.mjs");
+export const CLI_BINARY = path.join(CLI_DIR, "dist/better-update");
 
 /** TCP port 9 (discard) on loopback: connection refused immediately, never routed. */
 export const UNROUTABLE_SERVER_URL = "http://127.0.0.1:9";
@@ -53,7 +53,7 @@ export const makeCliSandbox = (): CliSandbox => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "better-update-int-cwd-"));
   const run = async (args: readonly string[], options?: CliRunOptions): Promise<CliResult> =>
     new Promise((resolve) => {
-      const child = spawn(process.execPath, [CLI_ENTRY, ...args], {
+      const child = spawn(CLI_BINARY, [...args], {
         cwd: options?.cwd ?? cwd,
         env: {
           PATH: process.env["PATH"],

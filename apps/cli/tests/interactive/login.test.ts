@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { spawnPty } from "../helpers/pty-driver";
 
-const CLI_ENTRY = path.resolve(import.meta.dirname, "../../src/index.ts");
+const CLI_BINARY = path.resolve(import.meta.dirname, "../../dist/better-update");
 
 describe("login --api-key (interactive PoC)", () => {
   let homeDir: string;
@@ -18,7 +18,7 @@ describe("login --api-key (interactive PoC)", () => {
   });
 
   it("prompts for API key, stores token on enter", async () => {
-    const driver = spawnPty("bun", [CLI_ENTRY, "login", "--api-key"], {
+    const driver = spawnPty(CLI_BINARY, ["login", "--api-key"], {
       env: {
         HOME: homeDir,
         FORCE_COLOR: "0",

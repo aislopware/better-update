@@ -40,18 +40,14 @@ git-ignored and rebuilt by `napi build`.
 `bun run build` only produces the **host** binary. The five targets in
 `package.json` `napi.targets` (darwin-arm64 + linux x64/arm64 in both gnu and
 musl) need a mac runner and Linux cross-compilation, so they are built in CI by
-the `build-bsdiff-apple` / `build-bsdiff-linux` jobs in
+the `build-cli-apple` / `build-bsdiff-linux` jobs in
 [`.gitlab-ci.yml`](../../.gitlab-ci.yml). Windows and Intel macOS are
 intentionally not built.
 
-Each binary publishes as an `optionalDependencies` split package under
-`npm/<platform>/`; the main package's auto-generated loader picks the right one
-at runtime. The `publish-cli` job collates the artifacts (`napi artifacts`),
-pins the stub versions (`scripts/sync-bsdiff-versions.mjs`), verifies the
-invariants (`bun run check:bsdiff`), publishes the stubs, then ships the main
-package. `publish-cli` runs on every `@better-update/cli@*` tag and always ships
-the CLI; that bsdiff half only runs when `bsdiff-gate` finds the version is not
-yet on npm.
+The package is private: it is not published to npm. Its only consumer is the
+CLI, whose `bun build --compile` step embeds the per-target `.node` (through
+the auto-generated `index.js` loader) into the standalone binary — so the
+`.node` files for a release are CI artifacts, never registry packages.
 
 ## Conformance gate — the bsdiff ship-gate
 

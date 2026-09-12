@@ -4,9 +4,9 @@ import { isRecord } from "@better-update/type-guards";
 import { FileSystem, Context, Effect, Layer } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
+import { pickLatestCliVersion, releasesApiUrl } from "../lib/distribution";
 import { CliRuntime } from "./cli-runtime";
 
-const NPM_REGISTRY_URL = "https://registry.npmjs.org/@better-update/cli/latest";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const REFRESH_TIMEOUT_MS = 3000;
 // Tighter bound for the cold-cache foreground probe — it blocks the user's
@@ -62,18 +62,17 @@ export const VersionCheckLive = Layer.effect(
 
     const fetchAndCache = (timeoutMs: number): Effect.Effect<string | undefined> =>
       Effect.gen(function* () {
-        const request = HttpClientRequest.get(NPM_REGISTRY_URL).pipe(
-          HttpClientRequest.setHeader("accept", "application/json"),
+        const request = HttpClientRequest.get(releasesApiUrl()).pipe(
+          HttpClientRequest.setHeader("accept", "application/vnd.github+json"),
         );
         const response = yield* httpClient.execute(request);
         if (response.status < 200 || response.status >= 300) {
           return undefined;
         }
-        const body = yield* response.json;
-        if (!isRecord(body) || typeof body["version"] !== "string") {
+        const latest = pickLatestCliVersion(yield* response.json);
+        if (latest === undefined) {
           return undefined;
         }
-        const latest = body["version"];
         yield* fs.makeDirectory(cacheDir, { recursive: true });
         yield* fs.writeFileString(
           cacheFile,

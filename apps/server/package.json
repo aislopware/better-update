@@ -3,10 +3,10 @@
   "version": "0.66.0",
   "private": true,
   "description": "Better Update API server on Cloudflare Workers",
-  "homepage": "https://github.com/better-update/better-update",
+  "homepage": "https://github.com/aislopware/better-update",
   "repository": {
     "type": "git",
-    "url": "https://github.com/better-update/better-update.git",
+    "url": "https://github.com/aislopware/better-update.git",
     "directory": "apps/server"
   },
   "type": "module",

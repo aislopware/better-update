@@ -10,9 +10,7 @@ const makeLayer = (requireAbove: string | undefined) =>
   });
 
 const run = async (current: string, requireAbove: string | undefined): Promise<boolean> =>
-  Effect.runPromise(
-    enforceMinVersion(current, "file:///x").pipe(Effect.provide(makeLayer(requireAbove))),
-  );
+  Effect.runPromise(enforceMinVersion(current).pipe(Effect.provide(makeLayer(requireAbove))));
 
 describe(enforceMinVersion, () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;

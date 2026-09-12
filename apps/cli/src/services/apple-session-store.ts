@@ -4,7 +4,6 @@ import { promisify } from "node:util";
 
 import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
-import { Entry } from "@napi-rs/keyring";
 import { FileSystem, Context, Effect, Layer } from "effect";
 
 import type { Auth } from "@expo/apple-utils";
@@ -127,11 +126,13 @@ const parseSessionsFile = (content: string): Readonly<Record<string, SerializedA
 // All keyring access is best-effort — a broken keychain must degrade to the
 // file store, never crash a command.
 const readKeyring = (account: string) =>
-  Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).getPassword()).pipe(
+  Effect.tryPromise(async () => Bun.secrets.get({ service: KEYCHAIN_SERVICE, name: account })).pipe(
     Effect.orElseSucceed((): string | null => null),
   );
 const deleteKeyring = (account: string) =>
-  Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).deletePassword()).pipe(Effect.ignore);
+  Effect.tryPromise(async () =>
+    Bun.secrets.delete({ service: KEYCHAIN_SERVICE, name: account }),
+  ).pipe(Effect.ignore);
 // The macOS keychain can hold an entry whose ACL is bound to a since-replaced
 // binary: the keyring API then can't read/update/delete it — only SecItemAdd
 // still collides. The `security` CLI can still find and delete such an item.
@@ -151,15 +152,15 @@ const evictStaleKeyring = (account: string) =>
       : Effect.void,
   );
 const writeKeyring = (account: string, blob: string) => {
-  const write = Effect.try(() => {
-    new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
-  });
+  const write = Effect.tryPromise(async () =>
+    Bun.secrets.set({ service: KEYCHAIN_SERVICE, name: account, value: blob }),
+  );
   return write.pipe(Effect.catch(() => Effect.andThen(evictStaleKeyring(account), write)));
 };
 
 /**
  * Apple ID cookie sessions grant App Store Connect access, so they live in the
- * OS keychain (`@napi-rs/keyring`: macOS Keychain / Windows Credential Manager /
+ * OS keychain (`Bun.secrets`: macOS Keychain / Windows Credential Manager /
  * Linux libsecret) — the same store as the vault-key cache — rather than a
  * plaintext file, one entry per Apple ID (`cookie-session:<apple-id>`). Which
  * accounts exist and which is active lives in `~/.better-update/apple-accounts.json`

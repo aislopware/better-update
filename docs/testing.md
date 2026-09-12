@@ -48,7 +48,7 @@ not a benchmark.
 | `lint`            | oxlint + tsgolint                                 | ✅ yes     | ~7s         | lint + typecheck, all packages                      |
 | `unit`            | node/bun via turbo                                | ✅ yes     | ~15s        | every app + package                                 |
 | `integration`     | `@cloudflare/vitest-pool-workers`, local D1/R2    | ✅ yes     | ~2m         | real worker, local bindings                         |
-| `cli-integration` | built `dist/index.mjs` spawned, no server         | ✅ yes     | ~1m         | argv/help/`--json` envelope/exit codes, every leaf  |
+| `cli-integration` | compiled `dist/better-update` spawned, no server  | ✅ yes     | ~1m         | argv/help/`--json` envelope/exit codes, every leaf  |
 | `e2e-server`      | vitest-pool-workers, **local** D1/R2              | ✅ yes     | ~1m45s      | pure-API OTA flows (~440 tests); no Cloudflare auth |
 | `e2e-server-r2`   | vitest-pool-workers, **remote** R2 binding        | ✅ yes\*   | ~20s        | the single direct-upload checksum contract          |
 | `e2e-cli`         | wrangler `createTestHarness` + real `expo export` | ✅ yes     | several min | publish / rollout / rollback / env / codesign       |

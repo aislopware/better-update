@@ -1,5 +1,4 @@
 import { open } from "node:fs/promises";
-import { createRequire } from "node:module";
 
 import { BSDIFF40_MAGIC, hasBsdiff40Magic } from "@better-update/bsdiff/magic";
 import { Context, Effect, Layer } from "effect";
@@ -53,29 +52,32 @@ const isBsdiffBinding = (value: unknown): value is BsdiffBinding =>
   value !== null &&
   typeof (value as { diffSync?: unknown }).diffSync === "function";
 
-const loadBinding = Effect.gen(function* () {
-  // createRequire keeps the native addon a runtime require, never a static
-  // import, so the napi-rs loader (index.js + the platform .node binary)
-  // resolves at runtime against the installed @better-update/bsdiff package
-  // instead of being pulled into the ESM bundle. tsdown's `noExternal`
-  // @better-update/* rule only rewrites static imports, so this dynamic require
-  // stays external — same pattern node-pty uses.
-  const loaded = yield* Effect.try({
-    try: (): unknown => createRequire(import.meta.url)("@better-update/bsdiff"),
-    catch: (cause) =>
-      new BsdiffError({
-        message:
-          "Failed to load the @better-update/bsdiff native addon. Patch generation is unavailable in " +
-          `this runtime (the prebuilt binary may be missing for this platform): ${String(cause)}`,
-      }),
-  });
-  if (!isBsdiffBinding(loaded)) {
-    return yield* new BsdiffError({
-      message: "@better-update/bsdiff loaded but does not expose a diffSync function.",
+/**
+ * Load the napi-rs addon. A plain `require` so `bun build --compile` embeds the
+ * loader (index.js) and the per-platform `.node` it references — `createRequire`
+ * is left as a runtime lookup inside the full bundle and fails in the binary.
+ * Resolved lazily, not at import time, so a missing addon is a per-command
+ * `BsdiffError` (and a `doctor` finding) instead of a crash before argv parses.
+ */
+export const loadBsdiffBinding: Effect.Effect<BsdiffBinding, BsdiffError> = Effect.gen(
+  function* () {
+    const loaded = yield* Effect.try({
+      try: (): unknown => require("@better-update/bsdiff"),
+      catch: (cause) =>
+        new BsdiffError({
+          message:
+            "Failed to load the @better-update/bsdiff native addon. Patch generation is unavailable in " +
+            `this runtime (the prebuilt binary may be missing for this platform): ${String(cause)}`,
+        }),
     });
-  }
-  return loaded;
-});
+    if (!isBsdiffBinding(loaded)) {
+      return yield* new BsdiffError({
+        message: "@better-update/bsdiff loaded but does not expose a diffSync function.",
+      });
+    }
+    return loaded;
+  },
+);
 
 /** Read the first `length` bytes of a file without loading the whole thing. */
 const readMagic = (filePath: string, length: number): Effect.Effect<string, BsdiffError> =>
@@ -97,7 +99,7 @@ const readMagic = (filePath: string, length: number): Effect.Effect<string, Bsdi
 export const BsdiffServiceLive = Layer.succeed(BsdiffService, {
   diff: (input: BsdiffDiffInput) =>
     Effect.gen(function* () {
-      const binding = yield* loadBinding;
+      const binding = yield* loadBsdiffBinding;
 
       // diffSync(oldFile, newFile, patchFile): old=base, new=target.
       yield* Effect.try({

@@ -41,12 +41,12 @@ const makeRuntimeLayer = (optedOut: boolean) =>
   });
 
 const run = async (
-  options: Parameters<typeof bootstrapVersionCheck>[3],
+  options: Parameters<typeof bootstrapVersionCheck>[2],
   optedOut = false,
   versionConfig: VersionConfig = DEFAULT_VERSION_CONFIG,
 ): Promise<void> =>
   Effect.runPromise(
-    bootstrapVersionCheck("1.0.0", "file:///x", () => undefined, options).pipe(
+    bootstrapVersionCheck("1.0.0", () => undefined, options).pipe(
       Effect.provide(
         Layer.mergeAll(makeVersionCheckLayer(versionConfig), makeRuntimeLayer(optedOut)),
       ),

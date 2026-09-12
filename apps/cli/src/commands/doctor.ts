@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import process from "node:process";
 
 import { Data, Effect } from "effect";
 import { Command } from "effect/unstable/cli";
@@ -15,6 +14,7 @@ import { printHumanTable } from "../lib/output";
 import { readProjectId } from "../lib/project-link";
 import { runCommand } from "../lib/run-command";
 import { apiClient } from "../services/api-client";
+import { loadBsdiffBinding } from "../services/bsdiff";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
 
@@ -53,14 +53,27 @@ const fail = (id: string, name: string, message: string): CheckResult => ({
   message,
 });
 
-const checkNode = (): CheckResult => {
-  const version = process.versions.node;
+// The CLI itself is a standalone binary and needs no Node; the HOST Node is
+// what Expo / Metro / prebuild run on, so it is probed like any other tool.
+const checkNode = Effect.sync((): CheckResult => {
+  const result = spawnSync("node", ["--version"], { stdio: "pipe", timeout: 5000 });
+  if (result.status !== 0) {
+    return warn("node", "Node.js version", "node not found on PATH (required for Expo builds)");
+  }
+  const version = result.stdout.toString().trim().replace(/^v/u, "");
   const major = Number.parseInt(version.split(".")[0] ?? "0", 10);
   if (major >= 22) {
     return pass("node", "Node.js version", `${version} (>= 22 required)`);
   }
   return fail("node", "Node.js version", `${version} is below the minimum required version 22`);
-};
+});
+
+// The bsdiff native addon is embedded in the binary; a build for a platform it
+// was not compiled for silently loses OTA patch precompute, so surface it here.
+const checkBsdiff = Effect.match(loadBsdiffBinding, {
+  onSuccess: () => pass("bsdiff", "bsdiff native addon", "loaded (OTA patches enabled)"),
+  onFailure: (error) => fail("bsdiff", "bsdiff native addon", error.message),
+});
 
 const checkCommand = (id: string, name: string, command: string, args: readonly string[]) =>
   Effect.sync((): CheckResult => {
@@ -158,7 +171,8 @@ const runChecks = Effect.gen(function* () {
       ? [yield* checkCommand("xcode", "Xcode CLI tools", "xcode-select", ["-p"])]
       : [];
   return [
-    checkNode(),
+    yield* checkNode,
+    yield* checkBsdiff,
     ...xcode,
     yield* checkCommand("keytool", "keytool (Android signing)", "keytool", ["-help"]),
     yield* checkServerHealth,

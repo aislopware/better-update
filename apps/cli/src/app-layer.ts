@@ -1,4 +1,4 @@
-import { NodeServices } from "@effect/platform-node";
+import { BunServices } from "@effect/platform-bun";
 import { Layer } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 
@@ -20,7 +20,7 @@ import { UpdateAssetUploaderLive } from "./services/update-asset-uploader";
 import { VaultCacheLive } from "./services/vault-cache";
 import { VersionCheckLive } from "./services/version-check";
 
-const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, NodeServices.layer, FetchHttpClient.layer);
+const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, BunServices.layer, FetchHttpClient.layer);
 const CliStoreLayer = Layer.mergeAll(
   AuthStoreLive,
   ConfigStoreLive,

@@ -3,7 +3,6 @@
   "workspaces": {
     ".": {
       "ignoreDependencies": [
-        "@lerna-lite/publish",
         "@tanstack/eslint-plugin-router",
         "@tanstack/react-query",
         "@tanstack/react-router",
@@ -29,7 +28,7 @@
     },
     "apps/cli": {
       "entry": ["tests/interactive/harness/**/*.ts"],
-      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
       "ignoreDependencies": ["expo", "@effect/platform-node-shared"],
       "ignoreBinaries": ["openssl", "keytool"]
     },
@@ -55,5 +54,5 @@
   "ignoreDependencies": ["@better-update/oxlint-config"],
   "ignoreWorkspaces": ["packages/oxlint-config", "packages/typescript-config"],
   "ignoreExportsUsedInFile": true,
-  "ignore": ["fixtures/**", "scripts/sync-bsdiff-versions.mjs"]
+  "ignore": ["fixtures/**"]
 }

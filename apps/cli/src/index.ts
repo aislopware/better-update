@@ -1,10 +1,8 @@
-#!/usr/bin/env node
-
 import { spawn } from "node:child_process";
 import { Console as NodeConsole } from "node:console";
 
-import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Console, Data, Effect, Layer, Stdio } from "effect";
+import { BunRuntime, BunServices } from "@effect/platform-bun";
+import { Console, Data, Effect, Layer, Runtime, Stdio } from "effect";
 import { CliConfig, Command } from "effect/unstable/cli";
 
 import type { CliError } from "effect/unstable/cli";
@@ -22,6 +20,7 @@ import { makeErrorEnvelope, serializeEnvelope } from "./lib/envelope";
 import { CLI_BUILT_INS, detectJsonMode, GLOBAL_FLAGS } from "./lib/global-flags";
 import { InteractiveMode } from "./lib/interactive-mode";
 import { enforceMinVersion } from "./lib/min-version-gate";
+import { isStandaloneBinary } from "./lib/standalone";
 import { bootstrapVersionCheck, refreshVersionCacheIfStale } from "./lib/version-notifier";
 import { CliRuntime, CliRuntimeLive } from "./services/cli-runtime";
 
@@ -30,8 +29,12 @@ const REFRESH_VERSION_CACHE_FLAG = "__refresh-version-cache";
 /** The server has retired this CLI version; the gate already printed why. */
 class CliRetiredError extends Data.TaggedError("CliRetiredError") {}
 
+// Re-invoke ourselves for the background cache refresh. Inside the compiled
+// single binary `process.execPath` IS the CLI, so no entry file is passed; under
+// `bun src/index.ts` (dev) the entry file has to be repeated.
 const spawnDetachedRefresh = (): void => {
-  const child = spawn(process.execPath, [import.meta.filename, REFRESH_VERSION_CACHE_FLAG], {
+  const entry = isStandaloneBinary() ? [] : [import.meta.filename];
+  const child = spawn(process.execPath, [...entry, REFRESH_VERSION_CACHE_FLAG], {
     detached: true,
     stdio: "ignore",
   });
@@ -42,12 +45,12 @@ const spawnDetachedRefresh = (): void => {
 // sees the parsed global flags). Hard gate first: refuse to run when the server
 // has retired this CLI version — fails open when the minimum can't be resolved.
 const preflight = Effect.gen(function* () {
-  const blocked = yield* enforceMinVersion(pkg.version, import.meta.url);
+  const blocked = yield* enforceMinVersion(pkg.version);
   if (blocked) {
     return yield* new CliRetiredError();
   }
   const mode = yield* InteractiveMode;
-  yield* bootstrapVersionCheck(pkg.version, import.meta.url, spawnDetachedRefresh, {
+  yield* bootstrapVersionCheck(pkg.version, spawnDetachedRefresh, {
     // Suppress the upgrade notice under --json / --non-interactive / CI — EAS
     // parity: it is stderr chrome a machine consumer has no use for.
     quiet: !mode.allow,
@@ -61,7 +64,11 @@ const tree = Command.make("better-update").pipe(
 
 // The process console: handlers always get it, so the JSON envelope lands on
 // stdout even when the surrounding parse phase was redirected (see `main`).
-const stdoutConsole = globalThis.console;
+// Backed by the `process.stdout` stream rather than `globalThis.console`: Bun's
+// own console writer is not drained at exit once the Terminal layer releases
+// stdin, so anything past the first pipe buffer (64 KiB — a completion script,
+// a long `--json` list) was silently cut off when piped.
+const stdoutConsole = new NodeConsole({ stdout: process.stdout, stderr: process.stderr });
 
 // Everything to stderr: used around the parse phase in --json mode so help /
 // usage rendering can never pollute the single-envelope stdout stream.
@@ -126,12 +133,37 @@ const main = Effect.gen(function* () {
       onSuccess: () => Effect.void,
     }),
   );
-  return yield* json ? Effect.provideService(run, Console.Console, stderrConsole) : run;
+  return yield* Effect.provideService(run, Console.Console, json ? stderrConsole : stdoutConsole);
 });
+
+// Let the stream buffers reach the pipe before `process.exit` — Bun does not
+// flush them on a forced exit (a failed / interrupted main fiber; success
+// paths set `process.exitCode` and exit naturally).
+const flushStdio = async (): Promise<void> =>
+  new Promise((resolve) => {
+    process.stdout.write("", () => {
+      process.stderr.write("", () => {
+        resolve();
+      });
+    });
+  });
 
 const program =
   process.argv[2] === REFRESH_VERSION_CACHE_FLAG
     ? refreshVersionCacheIfStale.pipe(Effect.provide(MaintenanceLive))
-    : main.pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, CliRuntimeLive)));
+    : main.pipe(Effect.provide(Layer.mergeAll(BunServices.layer, CliRuntimeLive)));
 
-NodeRuntime.runMain(program);
+BunRuntime.runMain(program, {
+  teardown: (exit, onExit) => {
+    Runtime.defaultTeardown(exit, (code) => {
+      flushStdio().then(
+        () => {
+          onExit(code);
+        },
+        () => {
+          onExit(code);
+        },
+      );
+    });
+  },
+});

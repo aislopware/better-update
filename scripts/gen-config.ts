@@ -84,6 +84,7 @@ const artifacts = (config: DeployConfig): readonly (readonly [string, string])[]
       ["DEFAULT_BASE_URL", config.appUrl],
       ["DEFAULT_WEB_URL", config.appUrl],
       ["DEFAULT_ASSET_CDN_URL", config.assetCdnUrl],
+      ["DEFAULT_RELEASE_REPO", config.cliReleaseRepo],
     ]),
   ],
 ];

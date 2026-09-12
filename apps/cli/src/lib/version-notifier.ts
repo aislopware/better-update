@@ -2,7 +2,7 @@ import { Console, Effect } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { VersionCheck } from "../services/version-check";
-import { detectInstallerFromImportMetaUrl, installCommand } from "./detect-installer";
+import { installCommand } from "./distribution";
 import { isNewerVersion } from "./semver-compare";
 
 const formatNotice = (current: string, latest: string, command: string): string =>
@@ -22,7 +22,6 @@ const isOptedOut = Effect.gen(function* () {
 
 export const bootstrapVersionCheck = (
   currentVersion: string,
-  installerHint: string,
   spawnRefresh: () => void,
   // EAS parity: suppress the upgrade notice under --json / --non-interactive / CI.
   // It is stderr (so it never corrupts the stdout envelope), but it is noise on
@@ -44,8 +43,7 @@ export const bootstrapVersionCheck = (
         latest = yield* versionCheck.fetchLatest;
       }
       if (latest && isNewerVersion(latest, currentVersion)) {
-        const installer = detectInstallerFromImportMetaUrl(installerHint);
-        yield* Console.error(formatNotice(currentVersion, latest, installCommand(installer)));
+        yield* Console.error(formatNotice(currentVersion, latest, installCommand()));
       }
     }
     if (yield* versionCheck.cacheStale) {

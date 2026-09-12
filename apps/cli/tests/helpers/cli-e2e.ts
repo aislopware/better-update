@@ -422,9 +422,9 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     extraEnv: Record<string, string>,
     ...args: readonly string[]
   ): CliCommandResult => {
-    // Use the pre-built dist binary to skip per-invocation TypeScript compile.
-    // Built once by `pretest:e2e` (`tsdown`). ~5x faster than running src/index.ts directly.
-    const result = spawnSync("bun", [path.resolve(CLI_DIR, "dist/index.mjs"), ...args], {
+    // The compiled single binary, built once by `pretest:e2e` — what users run,
+    // and far faster per invocation than `bun src/index.ts`.
+    const result = spawnSync(path.resolve(CLI_DIR, "dist/better-update"), [...args], {
       cwd: state.projectDir,
       env: {
         ...process.env,

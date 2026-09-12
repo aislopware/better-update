@@ -1,12 +1,7 @@
-import { accessSync, chmodSync, constants as fsConstants } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
+import os from "node:os";
 import process from "node:process";
 
 import { Effect } from "effect";
-import { spawn } from "node-pty";
-
-import type { IPty } from "node-pty";
 
 import { currentLogPrefix, finalCarriageSegment } from "./log-prefix";
 import { OutputMode } from "./output-mode";
@@ -17,7 +12,7 @@ export interface PtyRunInput {
   readonly cwd: string;
   readonly env: Readonly<Record<string, string>>;
   /**
-   * Terminal name the subprocess sees as `TERM` (node-pty overwrites `env.TERM`
+   * Terminal name the subprocess sees as `TERM` (the pty overwrites `env.TERM`
    * with this). Defaults to `xterm-256color`; prefixed line mode passes `dumb`
    * so tools fall back to sequential output instead of cursor-movement redraws.
    */
@@ -48,9 +43,13 @@ const ptyDimensions = (): { readonly cols: number; readonly rows: number } => {
   };
 };
 
-// node-pty wants `Record<string, string>`, but NodeJS.ProcessEnv values are
-// `string | undefined`. Drop undefined entries so the merge is type-safe.
-const mergeEnv = (overrides: Readonly<Record<string, string>>): Record<string, string> => {
+// Bun.spawn wants `Record<string, string>`, but NodeJS.ProcessEnv values are
+// `string | undefined`. Drop undefined entries so the merge is type-safe. TERM
+// is pinned to the pty name, matching what node-pty used to do.
+const mergeEnv = (
+  overrides: Readonly<Record<string, string>>,
+  terminalName: string,
+): Record<string, string> => {
   const merged: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (typeof value === "string") {
@@ -60,57 +59,58 @@ const mergeEnv = (overrides: Readonly<Record<string, string>>): Record<string, s
   for (const [key, value] of Object.entries(overrides)) {
     merged[key] = value;
   }
+  merged["TERM"] = terminalName;
   return merged;
 };
 
-// Bun's global install (and some pnpm setups) strip the executable bit from
-// prebuilt binaries shipped via `prebuild-install`. node-pty's `spawn-helper`
-// is the canonical victim: without +x, `posix_spawnp` inside the native module
-// fails with an opaque "posix_spawnp failed." We chmod it once per process so
-// the CLI works regardless of how it was installed.
-let spawnHelperChecked = false;
-const ensureSpawnHelperExecutable = (): void => {
-  if (spawnHelperChecked) {
-    return;
-  }
-  spawnHelperChecked = true;
-  if (process.platform === "win32") {
-    return;
-  }
-  try {
-    const nodeRequire = createRequire(import.meta.url);
-    const helperPath = path.join(
-      path.dirname(nodeRequire.resolve("node-pty/package.json")),
-      "prebuilds",
-      `${process.platform}-${process.arch}`,
-      "spawn-helper",
-    );
-    try {
-      accessSync(helperPath, fsConstants.X_OK);
-    } catch {
-      chmodSync(helperPath, 0o755);
-    }
-  } catch {
-    // Helper missing (linux build-from-source) or unwritable — let spawn fail
-    // with its own error rather than masking it here.
-  }
-};
+interface PtySession {
+  readonly terminal: Bun.Terminal;
+  readonly proc: Bun.Subprocess;
+  /** Resolves once the pty stream hit EOF — every byte has been delivered. */
+  readonly drained: Promise<void>;
+}
 
-const trySpawn = (input: PtyRunInput): IPty | Error => {
-  ensureSpawnHelperExecutable();
+const trySpawn = (input: PtyRunInput, onData: (chunk: Uint8Array) => void): PtySession | Error => {
   const { cols, rows } = ptyDimensions();
+  const terminalName = input.terminalName ?? "xterm-256color";
+  const { promise: drained, resolve: markDrained } = Promise.withResolvers<undefined>();
+  const terminal = new Bun.Terminal({
+    cols,
+    rows,
+    name: terminalName,
+    data: (_terminal, data) => {
+      onData(data);
+    },
+    exit: () => {
+      markDrained(undefined);
+    },
+  });
   try {
-    return spawn(input.command, [...input.args], {
-      name: input.terminalName ?? "xterm-256color",
-      cols,
-      rows,
+    const proc = Bun.spawn([input.command, ...input.args], {
+      terminal,
       cwd: input.cwd,
-      env: mergeEnv(input.env),
+      env: mergeEnv(input.env, terminalName),
     });
+    return { terminal, proc, drained };
   } catch (error) {
+    terminal.close();
     return error instanceof Error ? error : new Error(String(error));
   }
 };
+
+// Unix-style signal exit: 128 + the signal number, as a shell would report it.
+const exitCodeFor = (proc: Bun.Subprocess, exitCode: number): number => {
+  const signal = proc.signalCode;
+  if (signal === null) {
+    return exitCode;
+  }
+  return 128 + os.constants.signals[signal];
+};
+
+// After the child exits the pty can still hold unread output (Bun delivers it
+// asynchronously). Wait for EOF, but bounded: a grandchild that inherited the
+// pty keeps it open past the child's exit and must not hang the build.
+const DRAIN_GRACE_MS = 1000;
 
 /**
  * Run a command in a pseudo-terminal so the subprocess sees a real TTY
@@ -167,15 +167,8 @@ const runInPtyWithStream = (
   logStream: NodeJS.WriteStream,
 ): Effect.Effect<number> =>
   Effect.callback<number>((resume) => {
-    const spawned = trySpawn(input);
-    if (spawned instanceof Error) {
-      process.stderr.write(`Failed to spawn "${input.command}" in pty: ${spawned.message}\n`);
-      resume(Effect.succeed(1));
-      return undefined;
-    }
-    const proc = spawned;
-
     let lineBuf = "";
+    const decoder = new TextDecoder();
 
     const handleLine = (line: string): void => {
       if (input.onLine === undefined) {
@@ -187,42 +180,61 @@ const runInPtyWithStream = (
       }
     };
 
-    proc.onData((chunk) => {
+    const onData = (chunk: Uint8Array): void => {
       if (input.silent !== true) {
         logStream.write(chunk);
       }
       if (input.onLine === undefined) {
         return;
       }
-      lineBuf += chunk;
+      lineBuf += decoder.decode(chunk, { stream: true });
       let nl = lineBuf.indexOf("\n");
       while (nl !== -1) {
-        const line = lineBuf.slice(0, nl).replace(/\r$/u, "");
+        const line = lineBuf.slice(0, nl).replace(/\r+$/u, "");
         lineBuf = lineBuf.slice(nl + 1);
         handleLine(line);
         nl = lineBuf.indexOf("\n");
       }
-    });
+    };
+
+    const spawned = trySpawn(input, onData);
+    if (spawned instanceof Error) {
+      process.stderr.write(`Failed to spawn "${input.command}" in pty: ${spawned.message}\n`);
+      resume(Effect.succeed(1));
+      return undefined;
+    }
+    const { terminal, proc, drained } = spawned;
 
     const handleResize = (): void => {
       const { cols, rows } = ptyDimensions();
       try {
-        proc.resize(cols, rows);
+        terminal.resize(cols, rows);
       } catch {
         // pty closed between SIGWINCH and the resize call — ignore.
       }
     };
     process.stdout.on("resize", handleResize);
 
-    proc.onExit(({ exitCode, signal }) => {
+    const finish = (exitCode: number): void => {
       process.stdout.off("resize", handleResize);
+      terminal.close();
+      lineBuf += decoder.decode();
       if (lineBuf.length > 0) {
-        handleLine(lineBuf.replace(/\r$/u, ""));
+        handleLine(lineBuf.replace(/\r+$/u, ""));
         lineBuf = "";
       }
-      const code = signal !== undefined && signal !== 0 ? 128 + signal : exitCode;
-      resume(Effect.succeed(code));
-    });
+      resume(Effect.succeed(exitCodeFor(proc, exitCode)));
+    };
+
+    proc.exited
+      .then(async (exitCode) => {
+        await Promise.race([drained, Bun.sleep(DRAIN_GRACE_MS)]);
+        finish(exitCode);
+      })
+      .catch((error: unknown) => {
+        process.stderr.write(`pty wait failed for "${input.command}": ${String(error)}\n`);
+        finish(1);
+      });
 
     return Effect.sync(() => {
       try {
@@ -230,6 +242,7 @@ const runInPtyWithStream = (
       } catch {
         // already exited
       }
+      terminal.close();
       process.stdout.off("resize", handleResize);
     });
   });

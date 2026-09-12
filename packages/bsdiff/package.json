@@ -1,6 +1,7 @@
 {
   "name": "@better-update/bsdiff",
   "version": "0.3.2",
+  "private": true,
   "license": "MIT",
   "files": [
     "index.js",
@@ -17,16 +18,11 @@
     },
     "./magic": "./src/magic.ts"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "artifacts": "napi artifacts",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
-    "napi:prepublish": "napi prepublish -t npm",
     "test": "vitest run",
     "test:conformance": "node conformance/run-conformance.mjs"
   },
@@ -34,13 +30,6 @@
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
     "@napi-rs/cli": "^3.9.1"
-  },
-  "optionalDependencies": {
-    "@better-update/bsdiff-darwin-arm64": "0.2.25",
-    "@better-update/bsdiff-linux-arm64-gnu": "0.2.25",
-    "@better-update/bsdiff-linux-arm64-musl": "0.2.25",
-    "@better-update/bsdiff-linux-x64-gnu": "0.2.25",
-    "@better-update/bsdiff-linux-x64-musl": "0.2.25"
   },
   "napi": {
     "binaryName": "bsdiff",

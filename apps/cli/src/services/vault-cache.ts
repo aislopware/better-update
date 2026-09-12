@@ -4,7 +4,6 @@ import { promisify } from "node:util";
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
-import { Entry } from "@napi-rs/keyring";
 import { Clock, Context, Effect, Layer } from "effect";
 
 import type { VaultKind } from "@better-update/credentials-crypto";
@@ -17,7 +16,7 @@ import type { UnlockedVault } from "../application/vault-access";
  * "Unlock once, reuse" for the credential vault — the analog of macOS
  * `security unlock-keychain`. The first vault operation in a session prompts for
  * the device passphrase, unwraps the vault key, and stows it in the OS keychain
- * (`@napi-rs/keyring`: macOS Keychain / Windows Credential Manager / Linux
+ * (`Bun.secrets`: macOS Keychain / Windows Credential Manager / Linux
  * libsecret) with a short TTL; subsequent commands read it back and skip the
  * prompt + Argon2id derivation entirely until it expires.
  *
@@ -167,11 +166,13 @@ export const VaultCacheLive = Layer.effect(
     // (headless Linux without libsecret, a locked login keychain, …) must degrade
     // to "no cache" — prompt every time — rather than crash a command.
     const readRaw = (account: string) =>
-      Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).getPassword()).pipe(
-        Effect.orElseSucceed((): string | null => null),
-      );
+      Effect.tryPromise(async () =>
+        Bun.secrets.get({ service: KEYCHAIN_SERVICE, name: account }),
+      ).pipe(Effect.orElseSucceed((): string | null => null));
     const deleteRaw = (account: string) =>
-      Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).deletePassword()).pipe(Effect.ignore);
+      Effect.tryPromise(async () =>
+        Bun.secrets.delete({ service: KEYCHAIN_SERVICE, name: account }),
+      ).pipe(Effect.ignore);
     // The macOS keychain can hold an entry whose ACL is bound to a since-replaced
     // binary (e.g. a node upgrade): the keyring API then can't read, update, or
     // even delete it — only SecItemAdd still collides, failing every write with
@@ -193,9 +194,9 @@ export const VaultCacheLive = Layer.effect(
           : Effect.void,
       );
     const writeRaw = (account: string, blob: string) => {
-      const write = Effect.try(() => {
-        new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
-      });
+      const write = Effect.tryPromise(async () =>
+        Bun.secrets.set({ service: KEYCHAIN_SERVICE, name: account, value: blob }),
+      );
       return write.pipe(
         Effect.catch(() => Effect.andThen(evictStale(account), write)),
         Effect.ignore,

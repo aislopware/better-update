@@ -11,9 +11,11 @@
 # That is what stops the recurring "Fail extracting tarball" flake; the retry
 # loop in bun_ci_install is only a seatbelt for a cold cache entry.
 #
-# @better-update/bsdiff ships prebuilt natives for 5 platforms: macOS arm64
-# (built on the Mac runner) + Linux x64/arm64 in both gnu and musl (built on
-# Linux via napi-cross / cargo-zigbuild). Windows and Intel-mac are NOT built.
+# The CLI ships as a standalone `bun build --compile` binary for 5 platforms:
+# macOS arm64 (built on the Mac runner) + Linux x64/arm64 in both gnu and musl
+# (cross-compiled on Linux). The embedded @better-update/bsdiff native addon is
+# built per target the same way (napi-cross / cargo-zigbuild). Windows and
+# Intel-mac are NOT built.
 #
 # CI/CD VARIABLES (Settings → CI/CD → Variables). Project variables override the
 # `variables:` defaults below.
@@ -30,7 +32,12 @@
 #
 #   Credentials (masked + protected)
 #     CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID  — deploy-server / deploy-web
-#     NPM_TOKEN                                    — publish-cli (npm publish)
+#     NPM_TOKEN                                    — publish-cli: publishes
+#         @better-update/cli + its 5 @better-update/cli-<platform> binary packages.
+#     GITHUB_RELEASE_TOKEN                         — release + publish-cli: pushes
+#         the CLI tag to the GitHub mirror named by BU_CLI_RELEASE_REPO and
+#         uploads the binaries to its GitHub Release (what install.sh reads).
+#         Optional: without it the binaries only land on the GitLab Release.
 #     GITLAB_RELEASE_TOKEN                         — release (project/group access
 #         token, scopes write_repository + api; pushes the version commit + tags
 #         AND creates GitLab Releases; pushing tags with a real token is what
@@ -46,8 +53,8 @@ stages:
   - test
   - release
   - deploy
-  - gate
   - build-native
+  - build-cli
   - publish
 
 variables:
@@ -111,9 +118,9 @@ workflow:
 #    retry keeps the warm cache and only drops node_modules; the whole cache is
 #    cleared only as a LAST resort (nuking it would force a full cold
 #    re-download and re-roll the extraction dice on every following job).
-#  - ensure_build_deps(): node-pty (a CLI dep) has no linux-x64 prebuild, so it
-#    compiles → node-gyp + a C toolchain. Also libbz2 (bsdiff conformance links
-#    expo's bspatch.c) and jq (the release job).
+#  - ensure_build_deps(): node-pty (a CLI test dependency) has no linux-x64
+#    prebuild, so it compiles → node-gyp + a C toolchain. Also libbz2 (bsdiff
+#    conformance links expo's bspatch.c) and jq (the release job).
 .ci-setup:
   before_script:
     - |
@@ -272,7 +279,6 @@ lint-test-build:
   script:
     - bun_ci_install
     - bun run typegen:cf
-    - bun run check:bsdiff
     - bun run check
     - bun run test
     - bun run build
@@ -384,7 +390,7 @@ release:
     # packages; the private server/web/api tags are versioned but get no Release
     # entry.
     - |
-      PUBLIC_PACKAGES="@better-update/cli @better-update/bsdiff"
+      PUBLIC_PACKAGES="@better-update/cli"
       for tag in $(git tag --points-at HEAD); do
         echo "Pushing $tag"
         git push origin "refs/tags/$tag"
@@ -420,6 +426,13 @@ release:
 
         if [ ! -s "$notes_file" ]; then
           printf 'Release %s\n' "$tag" > "$notes_file"
+        fi
+
+        # The CLI binaries are published to GitHub Releases (publish-cli), which
+        # needs the tag — and its commit — on the mirror first.
+        if [ -n "${GITHUB_RELEASE_TOKEN:-}" ] && [ "$name" = "@better-update/cli" ]; then
+          echo "Pushing $tag to github.com/${BU_CLI_RELEASE_REPO:-aislopware/better-update}"
+          git push "https://x-access-token:${GITHUB_RELEASE_TOKEN}@github.com/${BU_CLI_RELEASE_REPO:-aislopware/better-update}.git" "refs/tags/$tag"
         fi
 
         echo "Creating GitLab Release $tag"
@@ -473,65 +486,49 @@ deploy-web:
     - bun run deploy
 
 # ---------------------------------------------------------------------------
-# publish (tag @better-update/cli@*) — npm publish of @better-update/cli and,
-# when bumped, @better-update/bsdiff (main + its 5 prebuilt native stubs).
+# publish (tag @better-update/cli@*) — the CLI ships as a `bun build --compile`
+# standalone binary per platform (no Node / Bun on the user's machine):
+# darwin-arm64 + linux x64/arm64 in both gnu and musl, matching bsdiff's napi
+# targets. `install.sh` and the CLI's own update check download from GitHub
+# Releases; the same files are attached to the GitLab Release as well.
 #
-# Flow: gate (is bsdiff already on npm?) → cross-build the 5 native targets only
-# when needed → publish stubs then `lerna publish from-package` (bsdiff main +
-# cli).
+# Flow: build the bsdiff native addon per target (it is embedded in the binary)
+# → compile the CLI per target (macOS on the Mac runner, the four Linux targets
+# cross-compiled on Linux) → publish-cli uploads the binaries + SHA256SUMS.
 # ---------------------------------------------------------------------------
 
-# Decide whether bsdiff still needs publishing. A CLI tag is always present when
-# bsdiff changes (bsdiff cascades a CLI bump); if bsdiff@<ver> is already on npm
-# this is a CLI-only release and the native build is skipped.
-bsdiff-gate:
-  extends: .base-bun
-  stage: gate
-  rules:
-    - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
-  script:
-    - |
-      V=$(node -p "require('./packages/bsdiff/package.json').version")
-      if npm view "@better-update/bsdiff@$V" version >/dev/null 2>&1; then
-        echo "NEEDS_BSDIFF=false" > gate.env
-        echo "bsdiff@$V already on npm — skipping native build."
-      else
-        echo "NEEDS_BSDIFF=true" > gate.env
-        echo "bsdiff@$V not on npm — will build + publish 5 stubs + main."
-      fi
-    - cat gate.env
-  artifacts:
-    reports:
-      dotenv: gate.env
-
-# Apple arm64 on the macOS Tart runner (native). Skips fast on a CLI-only release.
-build-bsdiff-apple:
+# Apple arm64 on the macOS Tart runner: native bsdiff addon, then the darwin
+# CLI binary that embeds it.
+build-cli-apple:
   extends: .macos-rust
   stage: build-native
-  needs: ["bsdiff-gate"]
   rules:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
   variables:
     TARGET: aarch64-apple-darwin
   script:
-    - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
     - bun_ci_install
     - rustup target add "$TARGET"
-    - cd packages/bsdiff
-    - bun run build --target "$TARGET"
+    - bun --filter @better-update/bsdiff run build --target "$TARGET"
+    # The CLI bakes its default server URL + release repo in at build time, so
+    # a published binary must never be built on placeholders.
+    - bun run config:gen:strict
+    - cd apps/cli && bun scripts/build.ts --target darwin-arm64
   artifacts:
     paths:
-      - packages/bsdiff/*.node
+      - apps/cli/dist/better-update-*
     expire_in: 1 day
 
-# Linux targets: gnu via napi-cross (portable glibc baseline), musl via
+# Linux bsdiff targets: gnu via napi-cross (portable glibc baseline), musl via
 # cargo-zigbuild (`-x`). The cross targets + zig + cargo-zigbuild are baked into
 # a prebuilt $BU_CI_IMAGE (ensure_zig installs them otherwise); napi-cross is
-# fetched by napi at build time.
+# fetched by napi at build time. The generated loader (index.js) is identical
+# per target and travels with the .node so the compile job never has to run
+# `napi build` on the host (which would rebuild linux-x64-gnu against the
+# runner's own glibc).
 build-bsdiff-linux:
   extends: .base-rust
   stage: build-native
-  needs: ["bsdiff-gate"]
   rules:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
   parallel:
@@ -545,7 +542,6 @@ build-bsdiff-linux:
       - TARGET: aarch64-unknown-linux-musl
         FLAGS: "-x"
   script:
-    - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
     - bun_ci_install
     - rustup target add "$TARGET"
     - if [ "$FLAGS" = "-x" ]; then ensure_zig; fi
@@ -554,48 +550,106 @@ build-bsdiff-linux:
   artifacts:
     paths:
       - packages/bsdiff/*.node
+      - packages/bsdiff/index.js
+      - packages/bsdiff/index.d.ts
     expire_in: 1 day
 
-# Collate the downloaded .node artifacts + publish: stubs first (napi prepublish),
-# then `lerna publish from-package` (bsdiff main if bumped, then cli).
+# The four Linux binaries, cross-compiled from one Linux job: bun downloads the
+# target runtime, and every linux .node from the matrix above is on disk so the
+# bundler embeds them.
+build-cli-linux:
+  extends: .base-bun
+  stage: build-cli
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
+  needs:
+    - job: build-bsdiff-linux
+      artifacts: true
+  script:
+    - bun_ci_install
+    - ls -l packages/bsdiff/*.node
+    - bun run config:gen:strict
+    - cd apps/cli
+    - for t in linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl; do bun scripts/build.ts --target "$t"; done
+  artifacts:
+    paths:
+      - apps/cli/dist/better-update-*
+    expire_in: 1 day
+
+# Upload the binaries + SHA256SUMS: to GitHub Releases (what `install.sh` and
+# the CLI's update notice read — needs GITHUB_RELEASE_TOKEN, and the tag must
+# exist on the mirror, which the release job pushes), to the GitLab Release
+# (generic package registry + release asset links, for instances without a
+# GitHub mirror), and to npm as @better-update/cli + one binary package per
+# platform (`apps/cli/scripts/npm-stage.ts`; needs NPM_TOKEN). BU_CLI_RELEASE_REPO
+# selects the GitHub repo.
 publish-cli:
-  extends: .base-rust
+  extends: .base-bun
   stage: publish
   interruptible: false
   rules:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
   needs:
-    - bsdiff-gate
-    - job: build-bsdiff-apple
+    - job: build-cli-apple
       artifacts: true
-    - job: build-bsdiff-linux
+    - job: build-cli-linux
       artifacts: true
   script:
-    - bun_ci_install
-    - bun run typegen:cf
-    # GitLab restores the build-job artifacts to packages/bsdiff/*.node, but
-    # `napi artifacts` collates from packages/bsdiff/artifacts/ — stage them
-    # there FIRST. It has to happen before `bun run build`: that rebuilds the
-    # HOST .node into the same directory and would clobber the linux-x64-gnu
-    # artifact napi-cross built against an old-glibc sysroot, silently raising
-    # the published baseline to the runner's own glibc.
-    - mkdir -p packages/bsdiff/artifacts
-    - mv packages/bsdiff/*.node packages/bsdiff/artifacts/ 2>/dev/null || true
-    # The CLI bakes its default server URL in at build time, so the published
-    # binary must never be built on placeholders.
-    - bun run config:gen:strict
-    # `bun run build` rebuilds bsdiff's git-ignored host loader (index.js/.d.ts).
-    - bun run build
-    - printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
     - |
-      if [ "$NEEDS_BSDIFF" = "true" ]; then
-        # Collate per-platform .node artifacts into npm/<platform>/, pin the 5 stub
-        # + main optionalDependency versions, verify invariants, publish the stubs.
-        ( cd packages/bsdiff && bun run artifacts )
-        node scripts/sync-bsdiff-versions.mjs
-        bun run check:bsdiff
-        ( cd packages/bsdiff && bunx napi prepublish -t npm --no-gh-release )
+      VERSION="${CI_COMMIT_TAG##*@}"
+      REPO="${BU_CLI_RELEASE_REPO:-aislopware/better-update}"
+      mkdir -p release
+      cp apps/cli/dist/better-update-* release/
+      ( cd release && sha256sum better-update-* > SHA256SUMS && cat SHA256SUMS )
+      ls -l release
+
+      # --- npm -----------------------------------------------------------------
+      if [ -n "${NPM_TOKEN:-}" ]; then
+        printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
+        ( cd apps/cli && bun scripts/npm-stage.ts )
+        # Platform packages first: the main package's optionalDependencies must
+        # resolve the moment it lands.
+        for d in apps/cli/dist/npm/cli-*; do npm publish "$d" --access public; done
+        npm publish apps/cli/dist/npm/cli --access public
+      else
+        echo "NPM_TOKEN not set — skipping npm publish."
       fi
-    # Ships every unpublished public package in dependency order (bsdiff main if
-    # bumped + its stubs now on npm, then cli). Already-published ones are skipped.
-    - bun run release:publish
+
+      # --- GitHub Releases ---------------------------------------------------
+      if [ -n "${GITHUB_RELEASE_TOKEN:-}" ]; then
+        gh_api() { curl --fail-with-body --silent --show-error \
+          --header "Authorization: Bearer ${GITHUB_RELEASE_TOKEN}" \
+          --header "Accept: application/vnd.github+json" "$@"; }
+        encoded_tag="$(jq -rn --arg t "$CI_COMMIT_TAG" '$t|@uri')"
+        release_id="$(gh_api "https://api.github.com/repos/${REPO}/releases/tags/${encoded_tag}" 2>/dev/null | jq -r .id || true)"
+        if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
+          echo "Creating GitHub release $CI_COMMIT_TAG on $REPO"
+          release_id="$(jq -n --arg tag "$CI_COMMIT_TAG" --arg sha "$CI_COMMIT_SHA" \
+              '{tag_name: $tag, name: $tag, target_commitish: $sha, body: "See CHANGELOG.md in apps/cli.", draft: false, prerelease: false}' \
+            | gh_api --data @- "https://api.github.com/repos/${REPO}/releases" | jq -r .id)"
+        fi
+        for f in release/*; do
+          name="$(basename "$f")"
+          echo "Uploading $name to GitHub release $release_id"
+          gh_api --header "Content-Type: application/octet-stream" \
+            --data-binary "@$f" \
+            "https://uploads.github.com/repos/${REPO}/releases/${release_id}/assets?name=${name}" > /dev/null
+        done
+      else
+        echo "GITHUB_RELEASE_TOKEN not set — skipping GitHub Releases upload."
+      fi
+
+      # --- GitLab Release assets -----------------------------------------------
+      pkg_base="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/better-update-cli/${VERSION}"
+      tag_path="$(jq -rn --arg t "$CI_COMMIT_TAG" '$t|@uri')"
+      for f in release/*; do
+        name="$(basename "$f")"
+        echo "Uploading $name to the GitLab package registry"
+        curl --fail-with-body --silent --show-error \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "$f" "${pkg_base}/${name}" > /dev/null
+        jq -n --arg name "$name" --arg url "${pkg_base}/${name}" '{name: $name, url: $url, link_type: "package"}' \
+          | curl --fail-with-body --silent --show-error \
+              --header "PRIVATE-TOKEN: ${GITLAB_RELEASE_TOKEN}" \
+              --header "Content-Type: application/json" --data @- \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases/${tag_path}/assets/links" > /dev/null
+      done
