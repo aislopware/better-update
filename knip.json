@@ -3,6 +3,7 @@
   "workspaces": {
     ".": {
       "ignoreDependencies": [
+        "@lerna-lite/version",
         "@tanstack/eslint-plugin-router",
         "@tanstack/react-query",
         "@tanstack/react-router",

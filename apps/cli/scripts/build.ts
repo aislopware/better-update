@@ -97,6 +97,10 @@ const compile = async (target: TargetName, outfile: string): Promise<boolean> =>
     fail(`compile failed for ${target}`);
     return false;
   }
+  // `compile` embeds the source map in the executable (stack traces already
+  // resolve to src/), but Bun still writes a sibling `.map`; it would only
+  // bloat the release.
+  fs.rmSync(`${outfile}.map`, { force: true });
   const { size } = fs.statSync(outfile);
   log(
     `built ${path.relative(CLI_DIR, outfile)} (${target}, ${(size / 1024 / 1024).toFixed(1)} MB)`,
