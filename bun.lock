@@ -34,7 +34,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.79.2",
+      "version": "0.79.3",
       "bin": {
         "better-update": "./dist/index.mjs",
       },

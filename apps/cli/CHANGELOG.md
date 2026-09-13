@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.79.3](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.2...%40better-update%2Fcli%400.79.3) (2026-09-13)
+
+### Bug Fixes
+
+* **cli:** evaluate app.config.ts dynamic configs inside the compiled binary ([fd765d0](https://github.com/aislopware/better-update/commit/fd765d00c3b5a4607276103772b388785954526d))
+
 ## [0.79.2](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.1...%40better-update%2Fcli%400.79.2) (2026-09-12)
 
 ### Bug Fixes
