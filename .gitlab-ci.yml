@@ -614,7 +614,7 @@ publish-cli:
         if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
           echo "Creating GitHub release $CI_COMMIT_TAG on $REPO"
           release_id="$(jq -n --arg tag "$CI_COMMIT_TAG" --arg sha "$CI_COMMIT_SHA" \
-              '{tag_name: $tag, name: $tag, target_commitish: $sha, body: "See CHANGELOG.md in apps/cli.", draft: false, prerelease: false}' \
+              '{tag_name: $tag, name: $tag, target_commitish: $sha, body: "See CHANGELOG.md in apps/cli.", draft: false, prerelease: false, make_latest: "true"}' \
             | gh_api --data @- "https://api.github.com/repos/${REPO}/releases" | jq -r .id)"
         fi
         for f in release/*; do

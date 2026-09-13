@@ -50,12 +50,27 @@ esac
 # --- version ----------------------------------------------------------------
 version="${BETTER_UPDATE_VERSION:-}"
 if [ -z "$version" ]; then
-  # Releases are listed newest first and mix every package's tags; the first
-  # CLI tag is the latest CLI.
-  version="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
-    "https://api.github.com/repos/$REPO/releases?per_page=30" |
+  # publish-cli marks every CLI release as the repo's "latest", so the
+  # /releases/latest redirect names it. That is a plain github.com URL, not the
+  # REST API, which allows 60 unauthenticated requests an hour per IP — CI
+  # runners behind one office IP exhaust that quickly.
+  latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)"
+  tag="$(printf '%s' "${latest_url##*/releases/tag/}" | sed 's|%40|@|g; s|%2[Ff]|/|g')"
+  case "$tag" in
+    "$TAG_PREFIX"*) version="${tag#"$TAG_PREFIX"}" ;;
+  esac
+fi
+if [ -z "$version" ]; then
+  # Fallback: releases are listed newest first and mix every package's tags;
+  # the first CLI tag is the latest CLI. GITHUB_TOKEN, when set, lifts the rate limit.
+  api="https://api.github.com/repos/$REPO/releases?per_page=30"
+  version="$(if [ -n "${GITHUB_TOKEN:-}" ]; then
+    curl -fsSL -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $GITHUB_TOKEN" "$api"
+  else
+    curl -fsSL -H 'Accept: application/vnd.github+json' "$api"
+  fi |
     grep -o "\"tag_name\": *\"$TAG_PREFIX[^\"]*\"" | head -n 1 | sed "s|.*$TAG_PREFIX||; s|\"\$||")"
-  [ -n "$version" ] || die "could not determine the latest release of $REPO"
+  [ -n "$version" ] || die "could not determine the latest release of $REPO (set BETTER_UPDATE_VERSION to skip the lookup)"
 fi
 version="${version#v}"
 
