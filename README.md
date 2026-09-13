@@ -1,4 +1,7 @@
-# better-update
+<h1 align="center">
+  <img src="docs/assets/logo/better-update-mark.svg" alt="" width="56"><br>
+  better-update
+</h1>
 
 Self-hosted mobile release platform — OTA updates, native builds, and store submissions for Expo, React Native, Kotlin Multiplatform, and native apps (any project type via custom build commands), running on Cloudflare Workers: served from one of the world's largest edge networks, with no egress fees and a free tier that covers most apps.
 

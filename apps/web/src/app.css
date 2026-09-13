@@ -84,7 +84,9 @@
      flip. `terminal` is the inverted surface a CLI block sits on. */
   --terminal: var(--color-kumo-contrast);
   --terminal-foreground: var(--text-color-kumo-inverse);
-  --brand: var(--color-kumo-brand);
+  /* better-update's colour in the aislopware family: lavender at OKLCH L 0.72,
+     the same lightness as the org's orange and slopscale's sky (#a493f9). */
+  --brand: oklch(0.72 0.146 290);
   --brand-foreground: oklch(1 0 0);
   --radius: 0.5rem;
 

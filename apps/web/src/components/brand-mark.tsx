@@ -5,17 +5,37 @@ interface BrandIconProps {
   readonly className?: string;
 }
 
+/**
+ * The aislopware family mark: nine dots, three by three, the lit ones drawing
+ * this product's glyph. better-update lights an up arrow (`... / .#. / ###`);
+ * the unlit dots stay at 0.3 opacity so the grid reads as one family with
+ * aislopware (A) and slopscale (S). Same geometry as their marks: viewBox 100,
+ * inset 20, pitch 30, r 11. Colour comes from `currentColor` — wrap it in
+ * `text-brand` for the family lavender, or leave it mono on quiet surfaces.
+ */
+const GRID = [20, 50, 80] as const;
+const ARROW = [
+  [false, false, false],
+  [false, true, false],
+  [true, true, true],
+] as const;
+const DOTS = ARROW.flatMap((row, rowIndex) =>
+  row.map((lit, colIndex) => ({ cx: GRID[colIndex], cy: GRID[rowIndex], lit })),
+);
+
 export const BrandIcon = ({ size = 40, className }: BrandIconProps) => (
   <svg
     width={size}
     height={size}
-    viewBox="0 0 40 40"
+    viewBox="0 0 100 100"
     fill="currentColor"
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden="true"
     className={className}
   >
-    <rect x="10.5" y="10.5" width="19" height="19" rx="3.5" transform="rotate(45 20 20)" />
+    {DOTS.map(({ cx, cy, lit }) => (
+      <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={11} fillOpacity={lit ? 1 : 0.3} />
+    ))}
   </svg>
 );
 
@@ -42,7 +62,7 @@ interface BrandWordmarkProps {
 
 export const BrandWordmark = ({ className, iconSize = 44 }: BrandWordmarkProps) => (
   <div className={cn("flex items-center gap-3", className)}>
-    <BrandIcon size={iconSize} className="text-kumo-default" />
+    <BrandIcon size={iconSize} className="text-brand" />
     <div className="flex flex-col leading-none">
       <span className="font-heading text-kumo-default text-lg font-semibold tracking-tight">
         Better Update

@@ -5,8 +5,8 @@
       <stop offset="1" stop-color="#18181b"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.82" cy="0.28" r="0.45">
-      <stop offset="0" stop-color="#6366f1" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+      <stop offset="0" stop-color="#a493f9" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#a493f9" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="glow2" cx="0.14" cy="0.88" r="0.4">
       <stop offset="0" stop-color="#06b6d4" stop-opacity="0.16"/>
@@ -19,8 +19,20 @@
   <rect width="1200" height="630" fill="url(#glow2)"/>
 
   <g transform="translate(96 96)">
-    <g transform="translate(0 0) scale(3)">
-      <rect x="10.5" y="10.5" width="19" height="19" rx="3.5" transform="rotate(45 20 20)" fill="#fafafa"/>
+    <g transform="translate(0 0) scale(1.2)">
+      <g fill="#a493f9" fill-opacity="0.3">
+        <circle cx="20" cy="20" r="11"/>
+        <circle cx="50" cy="20" r="11"/>
+        <circle cx="80" cy="20" r="11"/>
+        <circle cx="20" cy="50" r="11"/>
+        <circle cx="80" cy="50" r="11"/>
+      </g>
+      <g fill="#a493f9">
+        <circle cx="50" cy="50" r="11"/>
+        <circle cx="20" cy="80" r="11"/>
+        <circle cx="50" cy="80" r="11"/>
+        <circle cx="80" cy="80" r="11"/>
+      </g>
     </g>
     <text x="160" y="88" font-family="ui-sans-serif, -apple-system, Inter, Segoe UI, sans-serif" font-size="44" font-weight="600" fill="#fafafa" letter-spacing="-1">Better Update</text>
     <text x="160" y="122" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#71717a" letter-spacing="3">SHIP FASTER</text>
