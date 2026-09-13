@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.84.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.83.0...%40better-update%2Fweb%400.84.0) (2026-09-13)
+
+### Features
+
+* **web:** adopt the aislopware dot-grid mark ([a687826](https://github.com/aislopware/better-update/commit/a6878267073d639b8f5c7199efc9a4cdae9f45e2)), references [#a493f9](https://github.com/aislopware/better-update/issues/a493f9)
+
 ## [0.83.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.82.0...%40better-update%2Fweb%400.83.0) (2026-09-12)
 
 ### ⚠ BREAKING CHANGES
