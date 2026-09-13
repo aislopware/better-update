@@ -8,6 +8,7 @@ import { FileSystem, Effect, Option } from "effect";
 import { BETTER_UPDATE_PROJECT_ID_ENV } from "./eas-json";
 import { BuildProfileError, ProjectNotLinkedError, UpdatePublishError } from "./exit-codes";
 import { formatCause } from "./format-error";
+import { installStripTypeScriptTypes } from "./strip-typescript-types-shim";
 
 import type { AppMeta, Platform, RawRuntimeVersion } from "./build-profile";
 
@@ -83,9 +84,13 @@ interface ExpoConfigModule {
   readonly getConfigFilePaths: (projectRoot: string) => ConfigFilePaths;
 }
 
-const loadExpoConfigModule = (): ExpoConfigModule =>
+const loadExpoConfigModule = (): ExpoConfigModule => {
+  // The entrypoint installs this before anything else loads; repeating it here
+  // (idempotent) covers direct consumers such as unit tests under Bun.
+  installStripTypeScriptTypes();
   // eslint-disable-next-line typescript/no-unsafe-type-assertion -- CJS require returns `any`; narrow at the @expo/config boundary
-  require("@expo/config") as ExpoConfigModule;
+  return require("@expo/config") as ExpoConfigModule;
+};
 
 /**
  * Whether `@expo/config` is installed/resolvable. A non-Expo project (KMP,
@@ -148,7 +153,8 @@ const restoreEnv = (previous: Record<string, string | undefined>): void => {
 
 /**
  * Resolve the Expo config via `@expo/config`, supporting `app.json`,
- * `app.config.json`, `app.config.js`, and `app.config.ts`.
+ * `app.config.json`, `app.config.js`, and `app.config.ts` (`.ts` is transpiled
+ * by Bun via `./strip-typescript-types-shim`).
  *
  * `envVars` are applied as a scoped overlay on `process.env` for the duration
  * of the call so dynamic configs (`app.config.js`/`.ts`) can read them without

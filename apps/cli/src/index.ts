@@ -1,3 +1,9 @@
+// Must stay the FIRST import: `@expo/require-utils` snapshots the Node API
+// this installs while `@expo/config-plugins` loads during startup, so it has
+// to run before any other import is evaluated — only a bare import can.
+// eslint-disable-next-line import/no-unassigned-import -- polyfill must be evaluated before every other import; a named import + call would run after them
+import "./lib/strip-typescript-types-shim";
+
 import { spawn } from "node:child_process";
 import { Console as NodeConsole } from "node:console";
 

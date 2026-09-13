@@ -45,11 +45,12 @@ const setupStaticProject = (
 };
 
 const setupDynamicProject = (
-  jsBody: string,
+  body: string,
+  filename: "app.config.js" | "app.config.ts" = "app.config.js",
 ): { readonly dir: string; readonly dispose: () => void } => {
   const dir = makeProjectDir("expo-config-dynamic-");
   writePackageJson(dir);
-  writeFileSync(path.join(dir, "app.config.js"), jsBody);
+  writeFileSync(path.join(dir, filename), body);
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) };
 };
 
@@ -91,6 +92,59 @@ describe(readExpoConfig, () => {
       expect(config.name).toBe("Dynamic App");
       expect(config.slug).toBe("dynamic-app");
       expect(config.extra?.betterUpdate?.projectId).toBe("proj_dynamic");
+    }),
+  );
+
+  it.effect("reads from app.config.ts (dynamic, typed ESM default export)", () =>
+    Effect.gen(function* () {
+      // Type-only imports, annotations, generics and `satisfies` must all be
+      // erased before evaluation — the shape a real `app.config.ts` takes.
+      const project = setupDynamicProject(
+        `import type { ConfigContext, ExpoConfig } from "expo/config";
+
+        interface Extra {
+          readonly betterUpdate: { readonly projectId: string };
+        }
+        const extra = { betterUpdate: { projectId: "proj_ts" } } satisfies Extra;
+        const identity = <T,>(value: T): T => value;
+
+        export default ({ config }: ConfigContext): ExpoConfig => ({
+          ...config,
+          name: identity("TS App"),
+          slug: "ts-app",
+          version: "3.0.0",
+          extra,
+        });`,
+        "app.config.ts",
+      );
+      const config = yield* readExpoConfig(project.dir).pipe(
+        Effect.ensuring(Effect.sync(() => project.dispose())),
+      );
+      expect(config.name).toBe("TS App");
+      expect(config.slug).toBe("ts-app");
+      expect(config.version).toBe("3.0.0");
+      expect(config.extra?.betterUpdate?.projectId).toBe("proj_ts");
+    }),
+  );
+
+  it.effect("re-evaluates app.config.ts on each call so env overlays apply", () =>
+    Effect.gen(function* () {
+      // `@expo/require-utils` caches a transpiled `.ts` under BOTH the `.ts`
+      // path and its `.js` twin; evicting the `.ts` entry must be enough for
+      // a fresh evaluation to pick up the new overlay.
+      const project = setupDynamicProject(
+        `export default (): { name: string; slug: string } => ({
+          name: "TsEnvApp",
+          slug: process.env.SLUG_FROM_ENV ?? "missing",
+        });`,
+        "app.config.ts",
+      );
+      const first = yield* readExpoConfig(project.dir, { SLUG_FROM_ENV: "first" });
+      const second = yield* readExpoConfig(project.dir, { SLUG_FROM_ENV: "second" }).pipe(
+        Effect.ensuring(Effect.sync(() => project.dispose())),
+      );
+      expect(first.slug).toBe("first");
+      expect(second.slug).toBe("second");
     }),
   );
 

@@ -46,11 +46,11 @@ export interface SetupCliE2EOptions {
   /** Custom app.json template. ScopeKey and project name are derived from expo.owner/slug/name. */
   readonly appJsonTemplate?: Record<string, unknown>;
   /**
-   * Write the Expo config as a CommonJS dynamic `app.config.js` instead of a static `app.json`.
+   * Write the Expo config as a dynamic `app.config.js` (CommonJS) or `app.config.ts` (typed ESM) instead of a static `app.json`.
    * The template is exported as the function return value (with `expo` unwrapped to match @expo/config conventions).
    * Use this to verify the CLI works against dynamic Expo configs.
    */
-  readonly useDynamicConfig?: boolean;
+  readonly useDynamicConfig?: "js" | "ts";
   /**
    * Skip writing any Expo config (no app.json / app.config.js / package.json).
    * Use to exercise build-system-neutral (non-Expo) projects that link via the
@@ -390,25 +390,48 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
       const expo = (cleanedTemplate as { expo?: Record<string, unknown> }).expo ?? {};
       // Function-form export so process.env reads (e.g. BETTER_UPDATE_E2E_PROJECT_ID
       // For projectId injection) are evaluated on each readExpoConfig call rather
-      // Than frozen at module-load time.
+      // Than frozen at module-load time. The `.ts` twin carries real type syntax
+      // (type-only import, annotations, `satisfies`) so it only evaluates once
+      // the binary actually strips types.
+      const body =
+        options.useDynamicConfig === "ts"
+          ? [
+              `import type { ExpoConfig } from "expo/config";`,
+              ``,
+              `type Linked = ExpoConfig & { extra?: { betterUpdate?: { projectId?: string } } };`,
+              ``,
+              `export default (): Linked => {`,
+              `  const config = ${JSON.stringify(expo, null, 2)} satisfies Linked;`,
+              `  const projectId: string | undefined = process.env.BETTER_UPDATE_E2E_PROJECT_ID;`,
+              `  if (projectId) {`,
+              `    config.extra = {`,
+              `      ...(config.extra ?? {}),`,
+              `      betterUpdate: { ...(config.extra?.betterUpdate ?? {}), projectId },`,
+              `    };`,
+              `  }`,
+              `  return config;`,
+              `};`,
+              ``,
+            ]
+          : [
+              `module.exports = () => {`,
+              `  const config = ${JSON.stringify(expo, null, 2)};`,
+              `  if (process.env.BETTER_UPDATE_E2E_PROJECT_ID) {`,
+              `    config.extra = {`,
+              `      ...(config.extra ?? {}),`,
+              `      betterUpdate: {`,
+              `        ...(config.extra && config.extra.betterUpdate ? config.extra.betterUpdate : {}),`,
+              `        projectId: process.env.BETTER_UPDATE_E2E_PROJECT_ID,`,
+              `      },`,
+              `    };`,
+              `  }`,
+              `  return config;`,
+              `};`,
+              ``,
+            ];
       writeFileSync(
-        path.join(state.projectDir, "app.config.js"),
-        [
-          `module.exports = () => {`,
-          `  const config = ${JSON.stringify(expo, null, 2)};`,
-          `  if (process.env.BETTER_UPDATE_E2E_PROJECT_ID) {`,
-          `    config.extra = {`,
-          `      ...(config.extra ?? {}),`,
-          `      betterUpdate: {`,
-          `        ...(config.extra && config.extra.betterUpdate ? config.extra.betterUpdate : {}),`,
-          `        projectId: process.env.BETTER_UPDATE_E2E_PROJECT_ID,`,
-          `      },`,
-          `    };`,
-          `  }`,
-          `  return config;`,
-          `};`,
-          ``,
-        ].join("\n"),
+        path.join(state.projectDir, `app.config.${options.useDynamicConfig}`),
+        body.join("\n"),
       );
       return;
     }

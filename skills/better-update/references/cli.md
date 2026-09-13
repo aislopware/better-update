@@ -76,8 +76,11 @@ Auth token: `BETTER_UPDATE_ROBOT` env var — a robot account's bundled credenti
 auth (bearer half) and credential-vault decrypt (identity half) automatically wherever each is
 needed — see `credentials robot create`. Falls back to `~/.better-update/auth.json` (created by
 `login`).
-Project id per project: `expo.extra.betterUpdate.projectId` in `app.json` (Expo) or top-level
-`projectId` in `eas.json` (non-Expo) — written by `init`.
+Project id per project: `expo.extra.betterUpdate.projectId` in the Expo config (Expo) or top-level
+`projectId` in `eas.json` (non-Expo) — written by `init`. Every Expo config form is read —
+`app.json`, `app.config.json`, `app.config.js` and `app.config.ts` (evaluated by the binary itself,
+no project-side TypeScript needed) — and dynamic configs see the resolved env vars via
+`process.env`.
 
 Minimum-version killswitch: at startup the CLI reads the server's `/api/config`
 `requireCliVersionAbove` (Worker var `REQUIRE_CLI_VERSION_ABOVE`) and hard-blocks
@@ -116,6 +119,8 @@ better-update autocomplete <shell>       # shell ∈ bash|zsh|fish
 - `init` links the local project (Expo **or** any build system). With `--id` it links by explicit
   project id (skips slug lookup/creation). For non-Expo projects, `--name`/`--slug` default to
   package.json name / kebab-cased name, and the id is written to `eas.json`, not `app.json`.
+  A dynamic-only Expo config (`app.config.js`/`.ts`, no `app.json`) cannot be written to: `init`
+  exits with the exact `extra: { betterUpdate: { projectId } }` snippet to paste in by hand.
 
 ## projects
 
