@@ -10,20 +10,16 @@
 
 ## Install
 
-The CLI is a standalone binary (macOS arm64, Linux x64/arm64, glibc or musl); every install style
-below ends up running that same binary, so none of them needs Node or Bun at run time.
+The CLI is a standalone binary (macOS arm64, Linux x64/arm64, glibc or musl), installed with one
+script — no Node or Bun needed at run time, which also makes it the CI install:
 
-| Style                   | Command                                                                                       | Best for                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Install script          | `curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh \| sh` | machines without a JS package manager; CI images |
-| npm / bun / pnpm global | `npm i -g @better-update/cli` · `bun add -g @better-update/cli` · `pnpm add -g …`             | daily local dev when you already use one of them |
-| Per-invocation          | `bunx @better-update/cli <command>` / `npx @better-update/cli <command>`                      | trying things, CI (downloads on demand, caches)  |
-| Per-project dev dep     | `bun add -d @better-update/cli` then `bunx better-update <command>`                           | pinning a known-good version                     |
+```bash
+curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
+```
 
-The npm package `@better-update/cli` is a tiny launcher plus one `@better-update/cli-<platform>`
-optional dependency holding the binary; the package manager picks the right one. Keep optional
-dependencies enabled (`--no-optional` / `omit=optional` leaves you with a launcher that only prints
-the install-script command).
+`@better-update/cli` on npm is deprecated: it stopped at 0.79 and receives no new versions. Remove
+an npm/bun/pnpm/yarn install (global or a `package.json` dev dependency) and use the script; the
+CLI's upgrade notice prints the uninstall + install one-liner for such a copy.
 
 The install script downloads from the project's GitHub Releases into `~/.local/bin` (or `$XDG_BIN_HOME`; add it
 to `PATH` if the script says so). Knobs, all via environment:
@@ -34,8 +30,8 @@ to `PATH` if the script says so). Knobs, all via environment:
 | `BETTER_UPDATE_INSTALL_DIR` | install somewhere else (e.g. `/usr/local/bin`)                    |
 | `BETTER_UPDATE_REPO`        | download from another GitHub repo (a fork shipping its own build) |
 
-Upgrading is the same command you installed with; the CLI prints a notice with the right one when a
-newer release exists (opt out with `BETTER_UPDATE_DISABLE_UPDATE_NOTIFIER=1`).
+Upgrading is rerunning the script; the CLI prints a notice with the command when a newer release
+exists (opt out with `BETTER_UPDATE_DISABLE_UPDATE_NOTIFIER=1`).
 
 Verify with `better-update --help` — you should see the top-level command list (`login`, `init`,
 `update`, `channels`, …).

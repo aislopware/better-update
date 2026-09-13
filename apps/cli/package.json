@@ -18,7 +18,6 @@
     "dev": "bun run config:gen && bun src/index.ts",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
-    "npm:stage": "bun scripts/npm-stage.ts",
     "pretest:e2e": "bun scripts/build.ts",
     "pretest:integrations": "bun scripts/build.ts",
     "pretest:interactive": "bun scripts/build.ts",

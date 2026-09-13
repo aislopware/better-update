@@ -83,8 +83,12 @@ describe(installCommand, () => {
     );
   });
 
-  it("upgrades a package-manager install through that manager", () => {
-    expect(installCommand("bun")).toBe("bun add -g @better-update/cli@latest");
-    expect(installCommand("npm")).toBe("npm install -g @better-update/cli@latest");
+  it("moves a package-manager install over to the install script", () => {
+    expect(installCommand("bun", "acme/tool")).toBe(
+      "bun remove -g @better-update/cli && curl -fsSL https://raw.githubusercontent.com/acme/tool/main/install.sh | sh",
+    );
+    expect(installCommand("npm", "acme/tool")).toBe(
+      "npm uninstall -g @better-update/cli && curl -fsSL https://raw.githubusercontent.com/acme/tool/main/install.sh | sh",
+    );
   });
 });

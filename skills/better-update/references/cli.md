@@ -1,10 +1,8 @@
 # CLI reference (complete)
 
-Authoritative reference for the `better-update` CLI, mirroring `apps/cli/src/commands`. Install one of (all run the same standalone binary — no Node/Bun at run time):
+Authoritative reference for the `better-update` CLI, mirroring `apps/cli/src/commands`. Install the standalone binary (no Node/Bun at run time; the npm package is deprecated and gets no new versions):
 
 ```bash
-bunx @better-update/cli <command>
-bun add -g @better-update/cli && better-update <command>      # or npm i -g / pnpm add -g
 curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
 ```
 

@@ -32,8 +32,6 @@
 #
 #   Credentials (masked + protected)
 #     CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID  — deploy-server / deploy-web
-#     NPM_TOKEN                                    — publish-cli: publishes
-#         @better-update/cli + its 5 @better-update/cli-<platform> binary packages.
 #     GITHUB_RELEASE_TOKEN                         — release + publish-cli: pushes
 #         the CLI tag to the GitHub mirror named by BU_CLI_RELEASE_REPO and
 #         uploads the binaries to its GitHub Release (what install.sh reads).
@@ -584,9 +582,8 @@ build-cli-linux:
 # the CLI's update notice read — needs GITHUB_RELEASE_TOKEN, and the tag must
 # exist on the mirror, which the release job pushes), to the GitLab Release
 # (generic package registry + release asset links, for instances without a
-# GitHub mirror), and to npm as @better-update/cli + one binary package per
-# platform (`apps/cli/scripts/npm-stage.ts`; needs NPM_TOKEN). BU_CLI_RELEASE_REPO
-# selects the GitHub repo.
+# GitHub mirror). npm is not a distribution channel: @better-update/cli there is
+# deprecated. BU_CLI_RELEASE_REPO selects the GitHub repo.
 publish-cli:
   extends: .base-bun
   stage: publish
@@ -606,18 +603,6 @@ publish-cli:
       cp apps/cli/dist/better-update-* release/
       ( cd release && sha256sum better-update-* > SHA256SUMS && cat SHA256SUMS )
       ls -l release
-
-      # --- npm -----------------------------------------------------------------
-      if [ -n "${NPM_TOKEN:-}" ]; then
-        printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
-        ( cd apps/cli && bun scripts/npm-stage.ts )
-        # Platform packages first: the main package's optionalDependencies must
-        # resolve the moment it lands.
-        for d in apps/cli/dist/npm/cli-*; do npm publish "$d" --access public; done
-        npm publish apps/cli/dist/npm/cli --access public
-      else
-        echo "NPM_TOKEN not set — skipping npm publish."
-      fi
 
       # --- GitHub Releases ---------------------------------------------------
       if [ -n "${GITHUB_RELEASE_TOKEN:-}" ]; then

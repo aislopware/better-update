@@ -54,9 +54,8 @@ Two facts that prevent most mistakes:
 ## Setup (do this before anything else)
 
 ```bash
-bun add -g @better-update/cli      # or npm i -g; or bunx @better-update/cli <cmd> (no install)
-                                   # or, without any JS package manager:
-                                   # curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
+                                   # standalone binary; npm @better-update/cli is deprecated (frozen at 0.79)
 better-update login                # browser OAuth; --api-key for headless paste
 better-update init                 # from the Expo project root: links app.json → a project
 ```
@@ -67,8 +66,8 @@ other command reads it from there. Default server is the one baked into the CLI 
 `BETTER_UPDATE_URL` / `BETTER_UPDATE_WEB_URL` or `~/.better-update/config.json`. Auth can also come
 from `BETTER_UPDATE_ROBOT` (a robot account, for CI). Full detail: **`references/getting-started.md`**.
 
-To know whether a project already uses better-update, look for `@better-update/cli` in
-package.json, `expo.extra.betterUpdate.projectId` in app.json, or a better-update
+To know whether a project already uses better-update, look for a legacy `@better-update/cli` dependency in
+package.json (remove it and use the binary), `expo.extra.betterUpdate.projectId` in app.json, or a better-update
 manifest URL in `expo.updates.url`.
 
 ## Command map

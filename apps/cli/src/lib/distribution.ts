@@ -19,10 +19,11 @@ export const installScriptUrl = (repo: string = DEFAULT_RELEASE_REPO): string =>
   `https://raw.githubusercontent.com/${repo}/main/install.sh`;
 
 /**
- * How this copy of the CLI was installed. The npm package is the same binary
- * inside a `@better-update/cli-<platform>` package, so an install under a
- * package manager's tree upgrades through that manager; anything else came
- * from `install.sh` (or a hand-placed download) and upgrades the same way.
+ * How this copy of the CLI was installed. Releases up to 0.79 also shipped on
+ * npm as the same binary inside a `@better-update/cli-<platform>` package; npm
+ * gets no new versions, so an install under a package manager's tree is told to
+ * remove that copy and switch to `install.sh`. Anything else came from
+ * `install.sh` (or a hand-placed download) and upgrades the same way.
  */
 export type Installer = "npm" | "bun" | "pnpm" | "yarn" | "standalone";
 
@@ -43,21 +44,23 @@ export const detectInstaller = (binaryPath: string): Installer => {
   return "npm";
 };
 
-const PACKAGE_MANAGER_COMMANDS: Readonly<Record<Exclude<Installer, "standalone">, string>> = {
-  bun: "bun add -g @better-update/cli@latest",
-  pnpm: "pnpm add -g @better-update/cli@latest",
-  yarn: "yarn global add @better-update/cli@latest",
-  npm: "npm install -g @better-update/cli@latest",
+const PACKAGE_MANAGER_UNINSTALL: Readonly<Record<Exclude<Installer, "standalone">, string>> = {
+  bun: "bun remove -g @better-update/cli",
+  pnpm: "pnpm remove -g @better-update/cli",
+  yarn: "yarn global remove @better-update/cli",
+  npm: "npm uninstall -g @better-update/cli",
 };
 
 /** The one-liner the upgrade notice / killswitch tell the user to run. */
 export const installCommand = (
   installer: Installer = detectInstaller(process.execPath),
   repo: string = DEFAULT_RELEASE_REPO,
-): string =>
-  installer === "standalone"
-    ? `curl -fsSL ${installScriptUrl(repo)} | sh`
-    : PACKAGE_MANAGER_COMMANDS[installer];
+): string => {
+  const install = `curl -fsSL ${installScriptUrl(repo)} | sh`;
+  return installer === "standalone"
+    ? install
+    : `${PACKAGE_MANAGER_UNINSTALL[installer]} && ${install}`;
+};
 
 /**
  * Newest published CLI version among a GitHub `/releases` listing. The listing

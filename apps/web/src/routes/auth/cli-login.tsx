@@ -29,7 +29,7 @@ const RetryInstructions = () => (
       Return to your terminal and run the command again to retry. Need help? See the{" "}
       <Link
         variant="current"
-        href="https://www.npmjs.com/package/@better-update/cli"
+        href="https://github.com/aislopware/better-update"
         target="_blank"
         rel="noreferrer"
       >
