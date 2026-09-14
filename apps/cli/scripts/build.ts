@@ -88,6 +88,14 @@ const compile = async (target: TargetName, outfile: string): Promise<boolean> =>
       // BETTER_UPDATE_URL & co.
       autoloadDotenv: false,
       autoloadBunfig: false,
+      // Since Bun 1.3.4 a standalone executable ignores every package.json at
+      // runtime unless told otherwise (oven-sh/bun#42368) — including those
+      // under the USER's node_modules, so `main` / `exports` are skipped and a
+      // bare `require("@expo/config-plugins")` from an app.json config plugin
+      // (evaluated on disk by the bundled `@expo/config`) fails with "Cannot
+      // find module". Config plugins, app.config.* and their imports must
+      // resolve exactly as they do under Node.
+      autoloadPackageJson: true,
     },
   });
   if (!result.success) {

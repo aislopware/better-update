@@ -8,6 +8,7 @@ import { BETTER_UPDATE_PROJECT_ID_ENV, readEasLinkedProjectId } from "./eas-json
 import { ProjectNotLinkedError } from "./exit-codes";
 import {
   extractProjectId,
+  getConfigFilePaths,
   isExpoConfigInstalled,
   PROJECT_NOT_LINKED_MESSAGE,
   readAppMeta,
@@ -47,12 +48,15 @@ export const readProjectId: Effect.Effect<
   }
 
   // Expo fallback — only when @expo/config is installed (so the require reached
-  // inside readExpoConfig can't throw at the module boundary).
-  if (isExpoConfigInstalled()) {
-    const fromExpo = yield* readExpoConfig(projectRoot).pipe(
-      Effect.flatMap(extractProjectId),
-      Effect.option,
-    );
+  // inside readExpoConfig can't throw at the module boundary) AND the project
+  // actually has an app.json / app.config.* to read. A config that exists but
+  // fails to evaluate (a config plugin that does not resolve, a throwing
+  // app.config.ts) is surfaced as-is: hiding it behind the generic "not
+  // linked" message sent users chasing their projectId instead of the real
+  // error. Only a config with no `extra.betterUpdate.projectId` falls through.
+  if (isExpoConfigInstalled() && (yield* hasExpoConfigFile(projectRoot))) {
+    const config = yield* readExpoConfig(projectRoot);
+    const fromExpo = yield* extractProjectId(config).pipe(Effect.option);
     if (Option.isSome(fromExpo)) {
       return fromExpo.value;
     }
@@ -60,6 +64,13 @@ export const readProjectId: Effect.Effect<
 
   return yield* new ProjectNotLinkedError({ message: PROJECT_NOT_LINKED_MESSAGE });
 });
+
+/** Whether `@expo/config` would find a static or dynamic config in `projectRoot`. */
+const hasExpoConfigFile = (projectRoot: string): Effect.Effect<boolean> =>
+  getConfigFilePaths(projectRoot).pipe(
+    Effect.map((paths) => paths.staticConfigPath !== null || paths.dynamicConfigPath !== null),
+    Effect.orElseSucceed(() => false),
+  );
 
 /**
  * Spreadable `{ projectId }` fragment for credential CREATE payloads: the

@@ -83,6 +83,37 @@ describe("readProjectId resolver", () => {
     }),
   );
 
+  it.effect("surfaces an Expo config that fails to evaluate instead of 'not linked'", () =>
+    Effect.gen(function* () {
+      const dir = makeProjectDir("resolver-broken-");
+      writeFile(dir, "package.json", JSON.stringify({ name: "x", version: "1.0.0" }));
+      writeFile(
+        dir,
+        "app.json",
+        JSON.stringify({
+          expo: {
+            slug: "x",
+            extra: { betterUpdate: { projectId: "proj_expo" } },
+            plugins: ["plugin-that-does-not-exist"],
+          },
+        }),
+      );
+      const exit = yield* readProjectId.pipe(
+        Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
+        Effect.provide(Layer.mergeAll(runtimeLayer(dir), NodeFileSystem.layer)),
+        Effect.exit,
+      );
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        const err = failureError(exit);
+        expect(err).toBeInstanceOf(ProjectNotLinkedError);
+        expect(err!.message).toContain("Failed to load Expo config");
+        expect(err!.message).toContain("plugin-that-does-not-exist");
+        expect(err!.message).not.toContain("BETTER_UPDATE_PROJECT_ID");
+      }
+    }),
+  );
+
   it.effect("fails with ProjectNotLinkedError listing every source when unlinked", () =>
     Effect.gen(function* () {
       const dir = makeProjectDir("resolver-none-");
