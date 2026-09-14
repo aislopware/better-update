@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.80.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.3...%40better-update%2Fcli%400.80.0) (2026-09-14)
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** @better-update/cli and its @better-update/cli-<platform>
+  packages on npm are deprecated and receive no new versions. Install with
+  curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
+
+### Features
+
+* **cli:** stop publishing the CLI to npm ([b16adcd](https://github.com/aislopware/better-update/commit/b16adcd6b199084f48604ee3991712313dfb3c82))
+
+### Bug Fixes
+
+* **cli:** resolve app.json config plugins from the user's node_modules in the binary ([6172e5b](https://github.com/aislopware/better-update/commit/6172e5b9888ce659c2b825eb3fd527efa666fd2d)), references [oven-sh/bun#42368](https://github.com/oven-sh/bun/issues/42368)
+
 ## [0.79.3](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.2...%40better-update%2Fcli%400.79.3) (2026-09-13)
 
 ### Bug Fixes
