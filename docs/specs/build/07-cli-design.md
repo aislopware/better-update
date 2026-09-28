@@ -281,7 +281,8 @@ trap 'rm -rf "$BUILD_DIR"; security delete-keychain "$KEYCHAIN_NAME" 2>/dev/null
 
 # 3. Prebuild — installs deps + CocoaPods itself, so there is no separate
 #    `pod install` step (bare/KMP/native projects skip prebuild and run
-#    `pod install` directly against the committed ios/ dir instead)
+#    `pod install` directly against the committed ios/ dir instead — through
+#    `bundle install` + `bundle exec pod install` when the project has a Gemfile)
 npx expo prebuild --platform ios --clean
 
 # 5. Setup code signing

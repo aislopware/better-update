@@ -10,6 +10,7 @@ import { runStep } from "./run-step";
 import type { IosProfile } from "../../lib/build-profile";
 import type { IosBuildStrategy } from "../../lib/build-strategy";
 import type { PackageManager } from "../../lib/project-staging";
+import type { RunStepCommand } from "./run-step";
 
 export interface XcodeContainer {
   readonly flag: "-workspace" | "-project";
@@ -74,6 +75,47 @@ export const resolveXcodeContainer = (
   });
 
 /**
+ * Commands that install pods for a bare/native project. When the project root
+ * has a Gemfile (the React Native template ships one pinning cocoapods and its
+ * deps), pods go through bundler so `Gemfile.lock` is honoured — a bare `pod`
+ * runs whatever gems the runner has, which breaks as soon as the host Ruby
+ * moves on (e.g. json >= 2.10 rejecting cocoapods 1.15's `quirks_mode`).
+ */
+export const podInstallSteps = (params: {
+  readonly projectRoot: string;
+  readonly iosDir: string;
+  readonly hasGemfile: boolean;
+  readonly env: Record<string, string>;
+}): readonly { readonly name: string; readonly command: RunStepCommand }[] =>
+  params.hasGemfile
+    ? [
+        {
+          name: "bundle install",
+          command: {
+            command: "bundle",
+            args: ["install"],
+            cwd: params.projectRoot,
+            env: params.env,
+          },
+        },
+        {
+          name: "pod install",
+          command: {
+            command: "bundle",
+            args: ["exec", "pod", "install"],
+            cwd: params.iosDir,
+            env: params.env,
+          },
+        },
+      ]
+    : [
+        {
+          name: "pod install",
+          command: { command: "pod", args: ["install"], cwd: params.iosDir, env: params.env },
+        },
+      ];
+
+/**
  * Prepare the `ios/` dir for an xcodebuild. Expo regenerates it from app.json
  * via prebuild (which installs deps + pods itself — no separate `pod install`);
  * bare/KMP/native build the committed dir and only run `pod install` when a
@@ -111,10 +153,18 @@ export const prepareIosNative = (params: {
         .exists(path.join(params.iosDir, "Podfile"))
         .pipe(Effect.orElseSucceed(() => false));
       if (hasPodfile) {
-        yield* runStep(
-          { command: "pod", args: ["install"], cwd: params.iosDir, env: podEnv },
-          "pod install",
-        );
+        const hasGemfile = yield* fs
+          .exists(path.join(params.projectRoot, "Gemfile"))
+          .pipe(Effect.orElseSucceed(() => false));
+        const steps = podInstallSteps({
+          projectRoot: params.projectRoot,
+          iosDir: params.iosDir,
+          hasGemfile,
+          env: podEnv,
+        });
+        for (const step of steps) {
+          yield* runStep(step.command, step.name);
+        }
       }
     }
 
