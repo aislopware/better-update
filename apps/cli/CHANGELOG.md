@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.80.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.80.0...%40better-update%2Fcli%400.80.1) (2026-09-29)
+
+### Bug Fixes
+
+* **cli:** run pod install through bundler when the project has a Gemfile ([83a3b70](https://github.com/aislopware/better-update/commit/83a3b704b4351bee88325a6475bcbff77242719e))
+
 ## [0.80.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.79.3...%40better-update%2Fcli%400.80.0) (2026-09-14)
 
 ### ⚠ BREAKING CHANGES
