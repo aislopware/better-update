@@ -12,6 +12,7 @@ import {
 import { Input } from "@better-update/ui/components/input";
 import { toast } from "@better-update/ui/components/toast";
 import { FingerprintIcon } from "@phosphor-icons/react";
+import { sendSignal } from "@simplewebauthn/browser";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
@@ -301,6 +302,24 @@ export const RenamePasskeyDialog = ({
   );
 };
 
+/**
+ * Tell the browser the server no longer accepts this credential, so the
+ * password manager or platform authenticator can hide or delete it instead of
+ * offering a passkey that will only be refused. Best effort by design: the
+ * Signals API is missing from older browsers, and it is only meaningful on the
+ * vault origin, whose host IS the rpID every passkey here is bound to.
+ */
+const signalPasskeyRemoved = async (credentialID: string): Promise<void> => {
+  if (!isVaultHost()) {
+    return;
+  }
+  await sendSignal({
+    signalName: "unknownCredential",
+    rpID: globalThis.location.hostname,
+    credentialID,
+  }).catch(() => undefined);
+};
+
 /** Delete one passkey. Controlled by the row's action. */
 export const DeletePasskeyDialog = ({
   passkey,
@@ -321,6 +340,7 @@ export const DeletePasskeyDialog = ({
       ),
     onSuccess: async () => {
       toast.success("Passkey removed");
+      await signalPasskeyRemoved(passkey.credentialID);
       await invalidate();
       onOpenChange(false);
     },
