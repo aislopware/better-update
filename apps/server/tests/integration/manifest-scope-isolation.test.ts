@@ -6,7 +6,7 @@ import { incomingRequest } from "../helpers/incoming-request";
 
 // Cross-tenant cache isolation proof + legacy NULL scope_key fallback, dispatched
 // straight into worker.fetch (full route + handler + repo + Cache API stack)
-// against local D1 via @cloudflare/vitest-pool-workers — no unstable_startWorker.
+// against local D1 via @cloudflare/vitest-plugin — no unstable_startWorker.
 //
 // Two projects A and B share an identical channel / platform / runtimeVersion /
 // branch but carry DIFFERENT projects.scope_key origins. Because scopeKey is now

@@ -1,7 +1,7 @@
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Exit, Layer } from "effect";
 import { systemError } from "effect/PlatformError";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcessSpawner } from "effect/process";
 
 import { RuntimeVersionError } from "./exit-codes";
 import { resolveRuntimeVersion } from "./runtime-version";

@@ -1,6 +1,6 @@
 import { Effect, Stdio } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
-import { ChildProcess } from "effect/unstable/process";
+import { Argument, Command, Flag } from "effect/cli";
+import { ChildProcess } from "effect/process";
 
 import { runExitCode } from "../../lib/child-process";
 import { pullEnvVars } from "../../lib/env-exporter";

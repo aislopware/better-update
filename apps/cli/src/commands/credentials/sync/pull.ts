@@ -3,7 +3,7 @@ import path from "node:path";
 import { fromBase64 } from "@better-update/encoding";
 import { compact, toOptional } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import {
   openFromDownload,

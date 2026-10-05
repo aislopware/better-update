@@ -1,5 +1,5 @@
 import { FileSystem, Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { pullConfig } from "../../../application/app-store-config";
 import {

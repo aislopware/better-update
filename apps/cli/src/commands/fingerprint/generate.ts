@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { runFingerprintForPlatform, runFingerprintFull } from "../../lib/fingerprint";
 import { printHuman } from "../../lib/output";

@@ -2,9 +2,9 @@ import path from "node:path";
 
 import { asRecord } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
-import { ChildProcess } from "effect/unstable/process";
+import { ChildProcess } from "effect/process";
 
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { runExitCode, runText } from "./child-process";

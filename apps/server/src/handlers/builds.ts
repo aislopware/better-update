@@ -6,7 +6,7 @@ import {
   STORE_DISTRIBUTIONS,
 } from "@better-update/api";
 import { Effect, Schema } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 
 import type { CompleteBuildBody, CreateBuildBody, BuildAudience } from "@better-update/api";
 

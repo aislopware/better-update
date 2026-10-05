@@ -1,6 +1,6 @@
 import { it } from "@effect/vitest";
 import { Data, Effect, Exit } from "effect";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcessSpawner } from "effect/process";
 
 import {
   extractKeystoreCertificate,

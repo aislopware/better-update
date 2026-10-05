@@ -2,7 +2,7 @@
 # Launch the `e2e-pool-r2` vitest project with real Cloudflare creds for the
 # wrangler remote R2 proxy.
 #
-# The direct-upload e2e file runs on @cloudflare/vitest-pool-workers with its R2
+# The direct-upload e2e file runs on @cloudflare/vitest-plugin with its R2
 # binding `remote: true`, so wrangler opens a remote proxy session to the real
 # `*-e2e` bucket. That proxy is a child process; it reads CLOUDFLARE_ACCOUNT_ID +
 # CLOUDFLARE_API_TOKEN from the environment it inherits at spawn time, so a

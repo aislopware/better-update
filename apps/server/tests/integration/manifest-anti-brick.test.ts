@@ -6,7 +6,7 @@ import { incomingRequest } from "../helpers/incoming-request";
 
 // Anti-brick ingestion + manifest-filters emission, dispatched straight into
 // worker.fetch (full route + handler + repo + Cache API stack) against local D1
-// via @cloudflare/vitest-pool-workers — no unstable_startWorker.
+// via @cloudflare/vitest-plugin — no unstable_startWorker.
 //
 // Proves the load-bearing safety invariants of the P1 cluster:
 //   (A) a device-reported failed update is NEVER served — the prior good update

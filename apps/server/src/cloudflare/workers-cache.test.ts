@@ -6,7 +6,7 @@ import { WorkersCache, WorkersCacheLive } from "./workers-cache";
 // purgeTags guards are what make the port safe to call unconditionally from
 // delete handlers: it must no-op (never die, never reject the request) when
 // there is nothing to purge, when Workers Cache is not enabled for the runtime
-// (local dev / vitest-pool-workers have no ctx.cache), and when the purge API
+// (local dev / vitest-plugin have no ctx.cache), and when the purge API
 // itself rejects (shared zone rate limiter).
 
 const mockEnv = { DB: { withSession: () => ({}) } } as unknown as Env;

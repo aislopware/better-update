@@ -2,7 +2,7 @@ import { generateIdentity, unwrapVaultKey, wrapVaultKey } from "@better-update/c
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import type { UserEncryptionKey } from "@better-update/api";
 

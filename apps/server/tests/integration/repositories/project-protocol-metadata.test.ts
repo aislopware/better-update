@@ -8,7 +8,7 @@ import {
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // Real D1 round-trip for the per-(project, scopeKey) protocol metadata store via
-// @cloudflare/vitest-pool-workers. Proves full-replace semantics, per-scope
+// @cloudflare/vitest-plugin. Proves full-replace semantics, per-scope
 // isolation, and the (project_id, scope_key) single-row guarantee.
 
 const run = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectProtocolMetadataRepo>) =>

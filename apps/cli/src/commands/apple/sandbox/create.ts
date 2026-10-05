@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { Config, Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { createSandboxTester } from "../../../application/apple-sandbox";
 import { openCookieContext } from "../../../application/asc-cookie-session";

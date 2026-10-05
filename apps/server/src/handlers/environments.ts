@@ -1,6 +1,6 @@
 import { BUILTIN_ENVIRONMENTS } from "@better-update/api";
 import { Effect } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";

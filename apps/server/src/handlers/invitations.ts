@@ -1,6 +1,6 @@
 import { compact, toDbNull, toOptional } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 
 import type { Invitation } from "@better-update/api";
 

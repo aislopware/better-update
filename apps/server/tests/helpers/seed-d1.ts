@@ -22,7 +22,7 @@ const stripLeadingComments = (fragment: string): string => {
  * semicolons inside string literals), drop leading-comment / empty fragments,
  * and batch the prepared statements in one transaction. Replaces the old
  * `wrangler d1 execute --persist-to` shell-out, which has no equivalent under
- * vitest-pool-workers (D1 lives in-runtime, not on disk).
+ * vitest-plugin (D1 lives in-runtime, not on disk).
  */
 export const seedD1 = async (sql: string): Promise<void> => {
   const statements = sql

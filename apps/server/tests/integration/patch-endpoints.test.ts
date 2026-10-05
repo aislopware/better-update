@@ -10,7 +10,7 @@ import { runWithLayerAndEnv } from "../helpers/runtime";
 
 // Integration tests for the Stage-1 patch-pipeline plumbing the CLI consumes,
 // running against the real local D1 + R2 bindings via
-// `@cloudflare/vitest-pool-workers` (no wrangler, no unstable_startWorker):
+// `@cloudflare/vitest-plugin` (no wrangler, no unstable_startWorker):
 //
 //   (a) UpdateRepo.listPatchBases — recency, embedded-baseline force-include,
 //       rollback exclusion, and (project, branch, rv, platform) scoping.

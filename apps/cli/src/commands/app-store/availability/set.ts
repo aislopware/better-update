@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { setAvailability } from "../../../application/app-store-commerce";
 import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";

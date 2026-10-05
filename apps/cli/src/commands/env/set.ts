@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { parseKeyValue } from "../../lib/cli-schemas";
 import { uploadEnvVars } from "../../lib/env-exporter";

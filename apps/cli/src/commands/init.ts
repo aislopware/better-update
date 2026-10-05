@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { compact, isRecord } from "@better-update/type-guards";
 import { FileSystem, Effect, Option } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { ensureDefaultBuildProfiles, readEasJsonRaw, writeEasJsonPatch } from "../lib/eas-json";
 import { ProjectNotLinkedError } from "../lib/exit-codes";

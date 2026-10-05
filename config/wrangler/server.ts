@@ -34,7 +34,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
   $schema: "./node_modules/wrangler/config-schema.json",
   name: config.serverWorkerName,
   compatibility_flags: ["nodejs_compat"],
-  compatibility_date: "2026-07-04",
+  compatibility_date: "2026-10-01",
   main: "src/index.ts",
   // Workers Cache: an HTTP cache in FRONT of the fetch handler — hits return
   // without invoking the Worker (no CPU billed, no D1/R2 touched). Opt-in per
@@ -47,7 +47,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
   // bytes, and flushing them on every release would re-pay a cold R2 read per
   // bundle per colo. Escape hatch: ctx.cache.purge({ purgeEverything: true }).
   cache: { enabled: true, cross_version_cache: true },
-  observability: { enabled: true },
+  observability: { enabled: true, issues: { enabled: true } },
   d1_databases: [
     {
       binding: "DB",

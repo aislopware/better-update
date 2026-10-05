@@ -7,7 +7,7 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 import type { Platform, UpdateAssetRefModel } from "../../../src/models";
 
-// Repository-level integration coverage (real D1 via @cloudflare/vitest-pool-workers)
+// Repository-level integration coverage (real D1 via @cloudflare/vitest-plugin)
 // for the Kysely-converted read/aggregate/delete paths that the deleted mock-d1
 // unit test used to assert: findByProject (project-scope subquery filter + the
 // total_asset_size SUM correlated subselect + platform filter + pagination),

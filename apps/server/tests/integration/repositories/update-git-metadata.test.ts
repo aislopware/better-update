@@ -10,7 +10,7 @@ import { runWithLayerAndEnv } from "../../helpers/runtime";
 // them into the DO -> publish-coordination -> UpdateRepo.insert, which binds the
 // git_commit / git_dirty columns added in migration 0052. Reads hydrate them
 // back through toUpdate -> toApiUpdate. Runs against real local D1 via
-// @cloudflare/vitest-pool-workers (no wrangler / unstable_startWorker): we drive
+// @cloudflare/vitest-plugin (no wrangler / unstable_startWorker): we drive
 // the repository directly (the HTTP/auth path is e2e-covered) to assert the
 // column binding + the default-when-absent behaviour the migration guarantees.
 

@@ -1,6 +1,6 @@
 import { compact, toOptional } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { createApp } from "../../../application/app-store-apps";
 import { openCookieContext } from "../../../application/asc-cookie-session";

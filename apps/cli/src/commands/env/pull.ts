@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { FileSystem, Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";

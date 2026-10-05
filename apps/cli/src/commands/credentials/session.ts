@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { getActiveOrgId } from "../../application/credential-cipher";
 import { activeRecipient } from "../../application/identity";

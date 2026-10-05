@@ -33,7 +33,7 @@ describe("cookie-based auth", () => {
     expect(createResponse.status).toBe(200);
     const createBody = await createResponse.json();
     state.organizationId = createBody.id;
-    state.cookies = parseCookies(createResponse) || state.cookies;
+    state.cookies = parseCookies(createResponse, state.cookies);
 
     const activateResponse = await post(
       "/api/auth/organization/set-active",
@@ -41,7 +41,7 @@ describe("cookie-based auth", () => {
       { cookie: state.cookies },
     );
     expect(activateResponse.status).toBe(200);
-    state.cookies = parseCookies(activateResponse) || state.cookies;
+    state.cookies = parseCookies(activateResponse, state.cookies);
   });
 
   it("gET /api/projects with cookie returns 200", async () => {

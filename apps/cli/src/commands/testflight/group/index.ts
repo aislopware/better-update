@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { groupAddBuildCommand } from "./add-build";
 import { groupCreateCommand } from "./create";

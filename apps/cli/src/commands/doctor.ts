@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 
 import { Data, Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import {

@@ -92,7 +92,7 @@ export const applePortalExitCodes = exitCodeOverrides({ InteractiveProhibitedErr
 
 /** `PlatformError` wraps either a rejected argument or an OS-level failure; say which. */
 const describePlatformError = (error: TaggedFailure): string =>
-  error instanceof PlatformError.PlatformError && error.reason._tag === "BadArgument"
+  PlatformError.isPlatformError(error) && error.reason._tag === "BadArgument"
     ? `Invalid argument: ${error.message}`
     : `Filesystem error: ${error.message}`;
 

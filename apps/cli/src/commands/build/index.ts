@@ -1,5 +1,5 @@
 import { compact } from "@better-update/type-guards";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { runBuildWorkflow } from "../../application/build-workflow";
 import { runBuildWorkflowAll } from "../../application/build-workflow-all";

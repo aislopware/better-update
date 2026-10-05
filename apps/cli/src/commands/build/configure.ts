@@ -1,5 +1,5 @@
 import { FileSystem, Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { easJsonPath, parseEasConfig } from "../../lib/eas-config";
 import {

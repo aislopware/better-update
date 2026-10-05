@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcessSpawner } from "effect/process";
 
 import type { PlatformError } from "effect/PlatformError";
-import type { ChildProcess } from "effect/unstable/process";
+import type { ChildProcess } from "effect/process";
 
 /**
  * The two ways this CLI runs an external process.

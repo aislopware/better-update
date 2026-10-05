@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { FileSystem, Context, Effect, Layer } from "effect";
-import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest } from "effect/http";
 
 import { BaseDownloadError } from "../lib/exit-codes";
 import { sha256Namespaced } from "../lib/sha256";

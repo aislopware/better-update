@@ -29,7 +29,7 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@napi-rs/cli": "^3.9.1"
+    "@napi-rs/cli": "^3.10.6"
   },
   "napi": {
     "binaryName": "bsdiff",

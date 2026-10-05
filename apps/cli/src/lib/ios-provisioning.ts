@@ -2,10 +2,10 @@ import os from "node:os";
 import path from "node:path";
 
 import { FileSystem, Effect } from "effect";
-import { ChildProcess } from "effect/unstable/process";
+import { ChildProcess } from "effect/process";
 
 import type { Scope } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { runText } from "./child-process";
 import { ProvisioningError } from "./exit-codes";

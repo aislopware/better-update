@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { openCookieContext } from "../../../application/asc-cookie-session";
 import { listAscApiKeysViaAppleId } from "../../../lib/credentials-generator-asc-key";

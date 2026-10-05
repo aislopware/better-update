@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 
 import { printHuman } from "../../lib/output";
 import { yesFlag } from "../../lib/params";

@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 
 import type { CreateEnvVarBody, UpsertEnvVarDescriptionBody } from "@better-update/api";
 

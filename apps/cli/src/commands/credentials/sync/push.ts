@@ -1,9 +1,9 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import type { FileSystem } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { exitCodeOverrides } from "../../../lib/command-errors";
 import { readCredentialsJson, resolveCredentialPath } from "../../../lib/credentials-json";

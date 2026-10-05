@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { ASC_AUTH_ARGS, openAscContext } from "../../../application/app-store-connect";
 import { listCapabilities, resolveBundleId } from "../../../application/apple-signing-inventory";

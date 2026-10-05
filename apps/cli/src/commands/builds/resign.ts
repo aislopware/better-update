@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";

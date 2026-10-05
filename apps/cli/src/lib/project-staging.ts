@@ -205,28 +205,27 @@ const isDirectory = async (file: string): Promise<boolean> => {
  * the entries a just-loaded nested `.gitignore` adds. The root `.gitignore` is
  * added by the caller, so the walk skips it.
  */
-const addNestedGitignores = (workspaceRoot: string, ig: Ignore): Effect.Effect<void> =>
-  Effect.promise(async () => {
-    const walk = async (absDir: string, relDir: string): Promise<void> => {
-      const entries = await safeReadDir(absDir);
-      if (relDir !== "" && entries.some((entry) => entry.isFile() && entry.name === ".gitignore")) {
-        const content = await safeReadText(path.join(absDir, ".gitignore"));
-        if (content !== "") {
-          ig.add(rebaseGitignore(relDir, content));
-        }
+const addNestedGitignores = (workspaceRoot: string, ig: Ignore): Effect.Effect<void> => {
+  const walk = async (absDir: string, relDir: string): Promise<void> => {
+    const entries = await safeReadDir(absDir);
+    if (relDir !== "" && entries.some((entry) => entry.isFile() && entry.name === ".gitignore")) {
+      const content = await safeReadText(path.join(absDir, ".gitignore"));
+      if (content !== "") {
+        ig.add(rebaseGitignore(relDir, content));
       }
-      const subdirs = entries.filter((entry) => entry.isDirectory());
-      for (const entry of subdirs) {
-        const childRel = relDir === "" ? entry.name : `${relDir}/${entry.name}`;
-        // `foo/` rules only match with a trailing slash, so test both forms;
-        // pruning here keeps the walk out of huge ignored trees entirely.
-        if (!ig.ignores(childRel) && !ig.ignores(`${childRel}/`)) {
-          await walk(path.join(absDir, entry.name), childRel);
-        }
+    }
+    const subdirs = entries.filter((entry) => entry.isDirectory());
+    for (const entry of subdirs) {
+      const childRel = relDir === "" ? entry.name : `${relDir}/${entry.name}`;
+      // `foo/` rules only match with a trailing slash, so test both forms;
+      // pruning here keeps the walk out of huge ignored trees entirely.
+      if (!ig.ignores(childRel) && !ig.ignores(`${childRel}/`)) {
+        await walk(path.join(absDir, entry.name), childRel);
       }
-    };
-    await walk(workspaceRoot, "");
-  });
+    }
+  };
+  return Effect.promise(async () => walk(workspaceRoot, ""));
+};
 
 /**
  * Build an `Ignore` matcher for the workspace root. `.easignore` REPLACES every
@@ -353,15 +352,15 @@ const initGitRepo = (stagingRoot: string): Effect.Effect<void, StagingError> =>
  * and a failure is non-fatal — the build proceeds and `EXPO_NO_GIT_STATUS`
  * still covers newer Expo.
  */
-export const commitStagingSnapshot = (stagingRoot: string): Effect.Effect<void> =>
-  Effect.tryPromise(async () => {
-    const run = async (args: readonly string[]): Promise<unknown> =>
-      execFileAsync("git", [...args], {
-        cwd: stagingRoot,
-        // Don't fire the user's git hooks (lefthook / husky / simple-git-hooks,
-        // installed by the staged postinstall) on this throwaway snapshot.
-        env: { ...process.env, LEFTHOOK: "0", HUSKY: "0" },
-      });
+export const commitStagingSnapshot = (stagingRoot: string): Effect.Effect<void> => {
+  const run = async (args: readonly string[]): Promise<unknown> =>
+    execFileAsync("git", [...args], {
+      cwd: stagingRoot,
+      // Don't fire the user's git hooks (lefthook / husky / simple-git-hooks,
+      // installed by the staged postinstall) on this throwaway snapshot.
+      env: { ...process.env, LEFTHOOK: "0", HUSKY: "0" },
+    });
+  return Effect.tryPromise(async () => {
     await run(["add", "-A"]);
     await run([
       "-c",
@@ -378,6 +377,7 @@ export const commitStagingSnapshot = (stagingRoot: string): Effect.Effect<void> 
       "better-update staging snapshot",
     ]);
   }).pipe(Effect.ignore);
+};
 
 /**
  * Install args per package manager, frozen-lockfile variants matching EAS

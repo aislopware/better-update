@@ -6,7 +6,7 @@ import process from "node:process";
 import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcessSpawner } from "effect/process";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";

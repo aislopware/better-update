@@ -102,11 +102,12 @@ const DateRangePanel = ({
   const [pendingRange, setPendingRange] = useState<DateRange | undefined>(value);
   const [fromTime, setFromTime] = useState(formatTime(value?.from, "00:00"));
   const [toTime, setToTime] = useState(formatTime(value?.to, "23:59"));
-  // The calendar reads this on its first render only, so recomputing it costs
-  // nothing: open onto the month already in force, or this month when nothing
-  // is selected.
-  const defaultMonth = value?.from ?? new Date();
-
+  // The calendar reads this on its first render only: open onto the month
+  // already in force, or this month when nothing is selected. The clock read
+  // lives in a lazy initializer because React Compiler treats `new Date()` in
+  // render as impure and would skip the whole component.
+  // eslint-disable-next-line react/hook-use-state -- seeded once on mount, never set
+  const [defaultMonth] = useState(() => value?.from ?? new Date());
   const handleApply = (): void => {
     if (pendingRange?.from) {
       const from = applyTimeToDate(pendingRange.from, fromTime, false);

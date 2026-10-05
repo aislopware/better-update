@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import path from "node:path";
 
-import type { Command } from "effect/unstable/cli";
+import type { Command } from "effect/cli";
 
 import { commandRegistry } from "./command-registry";
 
@@ -155,7 +155,7 @@ describe("command coverage (by-construction --json / --non-interactive)", () => 
 
   it("only lib/prompts.ts runs terminal prompts (every prompt is gated)", () => {
     // Static guarantee that no prompt bypasses the InteractiveMode gate: the
-    // Prompt module from effect/unstable/cli is imported in exactly one place.
+    // Prompt module from effect/cli is imported in exactly one place.
     const offenders = grepFiles(
       String.raw`-E 'Prompt\.(run|String|Password|Select|MultiSelect|AutoComplete|Confirm|Toggle|List)\('`,
     )

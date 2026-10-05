@@ -150,6 +150,47 @@ export class VaultCache extends Context.Service<
   }
 >()("cli/VaultCache") {}
 
+// All keyring access is best-effort. A machine with no usable OS keychain
+// (headless Linux without libsecret, a locked login keychain, …) must degrade
+// to "no cache" — prompt every time — rather than crash a command.
+const readRaw = (account: string) =>
+  Effect.tryPromise(async () => Bun.secrets.get({ service: KEYCHAIN_SERVICE, name: account })).pipe(
+    Effect.orElseSucceed((): string | null => null),
+  );
+const deleteRaw = (account: string) =>
+  Effect.tryPromise(async () =>
+    Bun.secrets.delete({ service: KEYCHAIN_SERVICE, name: account }),
+  ).pipe(Effect.ignore);
+// The macOS keychain can hold an entry whose ACL is bound to a since-replaced
+// binary (e.g. a node upgrade): the keyring API then can't read, update, or
+// even delete it — only SecItemAdd still collides, failing every write with
+// errSecDuplicateItem. The `security` CLI goes through the legacy keychain
+// API and can still find and delete such an item.
+const evictStale = (account: string) =>
+  Effect.andThen(
+    deleteRaw(account),
+    process.platform === "darwin"
+      ? Effect.tryPromise(async () =>
+          execFileAsync("security", [
+            "delete-generic-password",
+            "-s",
+            KEYCHAIN_SERVICE,
+            "-a",
+            account,
+          ]),
+        ).pipe(Effect.ignore)
+      : Effect.void,
+  );
+const writeRaw = (account: string, blob: string) => {
+  const write = Effect.tryPromise(async () =>
+    Bun.secrets.set({ service: KEYCHAIN_SERVICE, name: account, value: blob }),
+  );
+  return write.pipe(
+    Effect.catch(() => Effect.andThen(evictStale(account), write)),
+    Effect.ignore,
+  );
+};
+
 export const VaultCacheLive = Layer.effect(
   VaultCache,
   Effect.gen(function* () {
@@ -161,47 +202,6 @@ export const VaultCacheLive = Layer.effect(
       const flag = yield* runtime.getEnv("BETTER_UPDATE_NO_CACHE");
       return flag !== undefined && flag.length > 0 && flag !== "0" && flag !== "false";
     });
-
-    // All keyring access is best-effort. A machine with no usable OS keychain
-    // (headless Linux without libsecret, a locked login keychain, …) must degrade
-    // to "no cache" — prompt every time — rather than crash a command.
-    const readRaw = (account: string) =>
-      Effect.tryPromise(async () =>
-        Bun.secrets.get({ service: KEYCHAIN_SERVICE, name: account }),
-      ).pipe(Effect.orElseSucceed((): string | null => null));
-    const deleteRaw = (account: string) =>
-      Effect.tryPromise(async () =>
-        Bun.secrets.delete({ service: KEYCHAIN_SERVICE, name: account }),
-      ).pipe(Effect.ignore);
-    // The macOS keychain can hold an entry whose ACL is bound to a since-replaced
-    // binary (e.g. a node upgrade): the keyring API then can't read, update, or
-    // even delete it — only SecItemAdd still collides, failing every write with
-    // errSecDuplicateItem. The `security` CLI goes through the legacy keychain
-    // API and can still find and delete such an item.
-    const evictStale = (account: string) =>
-      Effect.andThen(
-        deleteRaw(account),
-        process.platform === "darwin"
-          ? Effect.tryPromise(async () =>
-              execFileAsync("security", [
-                "delete-generic-password",
-                "-s",
-                KEYCHAIN_SERVICE,
-                "-a",
-                account,
-              ]),
-            ).pipe(Effect.ignore)
-          : Effect.void,
-      );
-    const writeRaw = (account: string, blob: string) => {
-      const write = Effect.tryPromise(async () =>
-        Bun.secrets.set({ service: KEYCHAIN_SERVICE, name: account, value: blob }),
-      );
-      return write.pipe(
-        Effect.catch(() => Effect.andThen(evictStale(account), write)),
-        Effect.ignore,
-      );
-    };
 
     return {
       get: (key) =>

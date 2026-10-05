@@ -1,7 +1,7 @@
 import { it } from "@effect/vitest";
 import { FileSystem, Effect } from "effect";
 import { systemError } from "effect/PlatformError";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcessSpawner } from "effect/process";
 
 import type { PlatformError } from "effect/PlatformError";
 

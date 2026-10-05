@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { listApps } from "../../../application/app-store-apps";
 import { ASC_AUTH_ARGS, openAscContext } from "../../../application/app-store-connect";

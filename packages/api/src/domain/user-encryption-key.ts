@@ -13,12 +13,12 @@ export type EncryptionKeyKind = typeof EncryptionKeyKind.Type;
 /** An age recipient string (`age1...`) — a public key safe for the server to hold. */
 export const AgeRecipient = Schema.String.check(
   Schema.isMinLength(1),
-  Schema.isStartsWith("age1"),
+  Schema.isStartingWith("age1"),
 ).annotate({ description: "age recipient public key (age1...)" });
 
 /** An SSH-style key fingerprint (`SHA256:...`) shown for out-of-band verification. */
 export const KeyFingerprint = Schema.String.check(
-  Schema.isStartsWith("SHA256:"),
+  Schema.isStartingWith("SHA256:"),
   Schema.isMinLength(8),
 ).annotate({ description: "SSH-style key fingerprint (SHA256:...)" });
 

@@ -1,7 +1,7 @@
 import { ManagementApi } from "@better-update/api";
 import { Effect, Ref } from "effect";
-import { FetchHttpClient } from "effect/unstable/http";
-import { HttpApiClient } from "effect/unstable/httpapi";
+import { FetchHttpClient } from "effect/http";
+import { HttpApiClient } from "effect/http-api";
 
 const baseUrlRef = Effect.runSync(Ref.make<string>(""));
 

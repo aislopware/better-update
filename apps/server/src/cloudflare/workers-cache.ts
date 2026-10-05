@@ -26,7 +26,7 @@ export const WorkersCacheLive = Layer.succeed(WorkersCache, {
       }
       const ctx = yield* cloudflareCtx;
       // `ctx.cache` is absent when Workers Cache is not enabled for this worker
-      // (local dev, vitest-pool-workers, preview) — purging is then a no-op.
+      // (local dev, vitest-plugin, preview) — purging is then a no-op.
       const { cache } = ctx;
       if (!cache) {
         return;

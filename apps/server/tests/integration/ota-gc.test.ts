@@ -14,7 +14,7 @@ import { UpdateRepoLive } from "../../src/repositories/updates";
 import { runWithLayerAndEnv } from "../helpers/runtime";
 
 // Integration tests for the OTA retention reaper against the real local D1 + R2
-// bindings (@cloudflare/vitest-pool-workers — no wrangler, no startWorker).
+// bindings (@cloudflare/vitest-plugin — no wrangler, no startWorker).
 //
 // Drives the application/ota-reaper programs directly with explicit cutoffs (the
 // handler only wraps these with env-var parsing + ServerInfrastructureLayer). It

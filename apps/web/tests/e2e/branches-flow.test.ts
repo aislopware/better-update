@@ -30,7 +30,7 @@ describe("dashboard branches journey", () => {
     const body = await response.json();
     expect(body.id).toBeDefined();
     state.organizationId = body.id;
-    state.cookies = parseCookies(response) || state.cookies;
+    state.cookies = parseCookies(response, state.cookies);
   });
 
   it("sets the organization as active", async () => {
@@ -40,7 +40,7 @@ describe("dashboard branches journey", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
-    state.cookies = parseCookies(response) || state.cookies;
+    state.cookies = parseCookies(response, state.cookies);
   });
 
   // ── Section 2: Project prerequisite ────────────────────────────

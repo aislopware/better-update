@@ -1,4 +1,4 @@
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { runUploadWorkflow } from "../../application/upload-workflow";
 import { optionalFlag } from "../../lib/params";

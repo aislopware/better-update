@@ -6,7 +6,7 @@ import {
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { getActiveOrgId } from "../../application/credential-cipher";
 import { orgHasCutOver, unlockEnvVaultKeyInteractive } from "../../application/env-vault-access";

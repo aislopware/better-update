@@ -4,16 +4,40 @@ import {
 } from "../../../server/tests/helpers/e2e-harness-client";
 import { webE2EBaseUrl } from "./e2e-shared-env";
 
-const parseCookies = (response: Response): string => {
-  const raw = response.headers.get("set-cookie") ?? "";
-  if (!raw) {
-    return "";
+const cookiePair = (header: string): [string, string] | undefined => {
+  const pair = header.split(";")[0]?.trim() ?? "";
+  const eq = pair.indexOf("=");
+  return eq > 0 ? [pair.slice(0, eq), pair.slice(eq + 1)] : undefined;
+};
+
+const isExpired = (header: string): boolean => /;\s*max-age=0(?:;|$)/iu.test(header);
+
+/**
+ * Fold a response's `Set-Cookie` headers into the `Cookie` header sent so far,
+ * the way a browser cookie jar does: a re-set cookie replaces its old value, an
+ * expired one is dropped, and every cookie the response does not mention is
+ * kept. better-auth re-sets only its `session_data` cache cookie on some
+ * responses (e.g. organization/create), so replacing the whole header would
+ * lose `session_token`.
+ */
+const parseCookies = (response: Response, previous = ""): string => {
+  const jar = new Map(
+    previous
+      .split(";")
+      .map((part) => cookiePair(part))
+      .filter((pair) => pair !== undefined),
+  );
+  for (const header of response.headers.getSetCookie()) {
+    const pair = cookiePair(header);
+    if (pair) {
+      if (isExpired(header)) {
+        jar.delete(pair[0]);
+      } else {
+        jar.set(pair[0], pair[1]);
+      }
+    }
   }
-  return raw
-    .split(/, (?=\w+=)/)
-    .map((cookie) => cookie.split(";")[0]?.trim())
-    .filter(Boolean)
-    .join("; ");
+  return [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
 };
 
 // better-auth force-validates the Origin as soon as a request carries any

@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 
 import { forgetCachedEnvVaultKey } from "../application/env-vault-access";
 import { switchOrganization } from "../application/org";

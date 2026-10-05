@@ -6,7 +6,7 @@ import { incomingRequest } from "../../helpers/incoming-request";
 
 // RTV-constrained branch-rollout routing + manifest-cache isolation, dispatched
 // straight into worker.fetch (full route + branch-mapping evaluator + repo +
-// Cache API) against local D1 via @cloudflare/vitest-pool-workers.
+// Cache API) against local D1 via @cloudflare/vitest-plugin.
 //
 // A single channel carries an RTV-constrained branch mapping:
 //   ["and", {runtimeVersion == RTV_A}, {rolloutToken hash_lt 1.00}]  -> branch X

@@ -10,7 +10,7 @@ import { seedAssetObject, setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 // E2E coverage for the publish-time code-signing verification gate + Gap-D
 // render. Authored per repo policy; do NOT auto-run (slow). Mirrors the
-// vitest-pool-workers harness used by manifest-serving.test.ts / updates-flow.
+// vitest-plugin harness used by manifest-serving.test.ts / updates-flow.
 const { get, parseCookies, post, postNoBody } = setupE2EWorker(".wrangler/state/e2e-code-signing");
 
 // PUBLIC_API_URL the worker serves + negotiates from (wrangler.jsonc var).

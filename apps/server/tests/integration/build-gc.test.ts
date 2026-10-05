@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers";
 import { handleBuildGc } from "../../src/handlers/build-gc";
 
 // Integration tests for the BUILD-artifact retention reaper against the real
-// local D1 + R2 bindings (@cloudflare/vitest-pool-workers — no wrangler, no
+// local D1 + R2 bindings (@cloudflare/vitest-plugin — no wrangler, no
 // startWorker). Mirrors ota-gc.test.ts but for the SEPARATE build-gc handler.
 //
 // handleBuildGc reads retention purely from env.BUILD_RETENTION_* (wrangler.jsonc

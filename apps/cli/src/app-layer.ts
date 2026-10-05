@@ -1,6 +1,6 @@
 import { BunServices } from "@effect/platform-bun";
 import { Layer } from "effect";
-import { FetchHttpClient } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/http";
 
 import { GlobalFlagsLayer } from "./lib/global-flags";
 import { ApiClientLive } from "./services/api-client";

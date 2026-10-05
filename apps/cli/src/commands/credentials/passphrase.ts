@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { changePassphrase } from "../../application/passphrase-change";
 import { IdentityError } from "../../lib/exit-codes";

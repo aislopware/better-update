@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { ageRatingGetCommand } from "./get";
 import { ageRatingSetCommand } from "./set";

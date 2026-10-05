@@ -7,7 +7,7 @@ import worker from "../../src";
 import { incomingRequest } from "./incoming-request";
 
 /**
- * E2E HTTP client backed by `@cloudflare/vitest-pool-workers`: requests are
+ * E2E HTTP client backed by `@cloudflare/vitest-plugin`: requests are
  * dispatched straight into the worker's `fetch` handler (full middleware +
  * handler stack) against local D1/R2/KV — no real HTTP server, no wrangler, no
  * Cloudflare auth. `waitOnExecutionContext` drains the request's `ctx.waitUntil`

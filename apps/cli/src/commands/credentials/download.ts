@@ -3,7 +3,7 @@ import path from "node:path";
 import { fromBase64 } from "@better-update/encoding";
 import { compact, toOptional } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { openFromDownload, openVaultSessionInteractive } from "../../application/credential-cipher";
 import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";

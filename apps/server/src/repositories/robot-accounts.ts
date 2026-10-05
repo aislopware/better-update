@@ -181,6 +181,25 @@ const toModel = (row: RobotAccountRow): RobotAccountModel => ({
   createdAt: row.created_at,
 });
 
+// Shared by `findById` and `update` (an empty patch degrades to a read).
+const findById = (params: { readonly id: string; readonly organizationId: string }) =>
+  Effect.gen(function* () {
+    const db = yield* kyselyDb;
+    const row = yield* Effect.promise(async () =>
+      db
+        .selectFrom("robot_account")
+        .select(PUBLIC_COLUMNS)
+        .where("id", "=", params.id)
+        .where("organization_id", "=", params.organizationId)
+        .where("revoked_at", "is", null)
+        .executeTakeFirst(),
+    );
+    if (row === undefined) {
+      return yield* new NotFound({ message: "Robot account not found" });
+    }
+    return toModel(row);
+  });
+
 export const RobotAccountRepoLive = Layer.effect(
   RobotAccountRepo,
   Effect.gen(function* () {
@@ -193,25 +212,6 @@ export const RobotAccountRepoLive = Layer.effect(
       const hash = yield* cryptoService.sha256Base64Url(plaintext).pipe(Effect.orDie);
       return { plaintext, hash, start: plaintext.slice(0, START_LENGTH) };
     });
-
-    // Hoisted so `update` can reuse it (an empty patch degrades to a read).
-    const findById = (params: { readonly id: string; readonly organizationId: string }) =>
-      Effect.gen(function* () {
-        const db = yield* kyselyDb;
-        const row = yield* Effect.promise(async () =>
-          db
-            .selectFrom("robot_account")
-            .select(PUBLIC_COLUMNS)
-            .where("id", "=", params.id)
-            .where("organization_id", "=", params.organizationId)
-            .where("revoked_at", "is", null)
-            .executeTakeFirst(),
-        );
-        if (row === undefined) {
-          return yield* new NotFound({ message: "Robot account not found" });
-        }
-        return toModel(row);
-      });
 
     return {
       create: (params) =>

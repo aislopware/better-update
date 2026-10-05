@@ -11,7 +11,7 @@ import { incomingRequest } from "../helpers/incoming-request";
 // handler: the only opt-ins are full OTA bundles and /api/config; everything
 // else must say `no-store` (or its own explicit private/no-store) so a front
 // cache can never store presigned redirects, plists, or management responses.
-// The cache itself is not simulated by vitest-pool-workers — headers are the
+// The cache itself is not simulated by vitest-plugin — headers are the
 // testable surface; hit/miss behavior is verified in prod via Cf-Cache-Status.
 
 const BASE = "http://localhost";

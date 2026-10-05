@@ -31,7 +31,7 @@ describe("dashboard updates and builds flow", () => {
     expect(createOrgResponse.status).toBe(200);
     const createOrgBody = await createOrgResponse.json();
     state.organizationId = createOrgBody.id;
-    state.cookies = parseCookies(createOrgResponse) || state.cookies;
+    state.cookies = parseCookies(createOrgResponse, state.cookies);
 
     const setActiveResponse = await post(
       "/api/auth/organization/set-active",
@@ -39,7 +39,7 @@ describe("dashboard updates and builds flow", () => {
       { cookie: state.cookies },
     );
     expect(setActiveResponse.status).toBe(200);
-    state.cookies = parseCookies(setActiveResponse) || state.cookies;
+    state.cookies = parseCookies(setActiveResponse, state.cookies);
   });
 
   it("creates project, branches, channel, and starts a rollout", async () => {

@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 import qrcode from "qrcode-terminal";
 
 import { InvalidArgumentError } from "../../lib/exit-codes";

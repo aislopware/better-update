@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 
 import { Effect } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 
 import { extractSlug, readExpoConfig } from "../lib/expo-config";
 import { printHuman } from "../lib/output";

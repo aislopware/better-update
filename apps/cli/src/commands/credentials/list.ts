@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { APPLE_CERTIFICATE_TYPE_LABELS } from "../../lib/apple-certificate-type";
 import { isoDate } from "../../lib/credential-choices";

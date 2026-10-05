@@ -1,5 +1,5 @@
 import { FileSystem, Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { uploadEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";

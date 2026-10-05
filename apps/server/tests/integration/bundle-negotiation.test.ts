@@ -10,7 +10,7 @@ import { runWithLayerAndEnv } from "../helpers/runtime";
 // Cross-flow integration tests for the Expo OTA bundle route (RFC-3229 / A-IM
 // bsdiff content negotiation). Requests are dispatched straight into the
 // worker's `fetch` handler (full route + handler + repo stack) against local D1
-// + R2 via `@cloudflare/vitest-pool-workers` — no wrangler, no
+// + R2 via `@cloudflare/vitest-plugin` — no wrangler, no
 // `unstable_startWorker`. Patch/full-bundle bytes are seeded directly into the
 // ASSETS_BUCKET miniflare binding; D1 rows are inserted via raw prepared
 // statements.

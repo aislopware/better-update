@@ -40,7 +40,7 @@ describe("dashboard environment variables flow (read-only)", () => {
     expect(createOrgResponse.status).toBe(200);
     const createOrgBody = await createOrgResponse.json();
     state.organizationId = createOrgBody.id;
-    state.cookies = parseCookies(createOrgResponse) || state.cookies;
+    state.cookies = parseCookies(createOrgResponse, state.cookies);
 
     const setActiveResponse = await post(
       "/api/auth/organization/set-active",
@@ -48,7 +48,7 @@ describe("dashboard environment variables flow (read-only)", () => {
       { cookie: state.cookies },
     );
     expect(setActiveResponse.status).toBe(200);
-    state.cookies = parseCookies(setActiveResponse) || state.cookies;
+    state.cookies = parseCookies(setActiveResponse, state.cookies);
   });
 
   it("creates a project and seeds encrypted env vars", async () => {

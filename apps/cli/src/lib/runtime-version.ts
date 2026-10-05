@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { FileSystem } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { RuntimeVersionError } from "./exit-codes";
 import { resolveInstalledExpoSdkVersion } from "./expo-config";

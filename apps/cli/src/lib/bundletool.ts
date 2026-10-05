@@ -2,10 +2,10 @@ import path from "node:path";
 import process from "node:process";
 
 import { FileSystem, Effect } from "effect";
-import { ChildProcess } from "effect/unstable/process";
+import { ChildProcess } from "effect/process";
 
 import type { PlatformError } from "effect/PlatformError";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { runExitCode, runText } from "./child-process";
 import { BuildFailedError } from "./exit-codes";

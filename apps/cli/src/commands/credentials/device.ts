@@ -1,5 +1,5 @@
 import { Effect, Result } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 
 import type { UserEncryptionKey } from "@better-update/api";
 

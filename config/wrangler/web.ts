@@ -9,8 +9,8 @@ export const webWranglerConfig = (config: DeployConfig): Record<string, unknown>
   name: config.webWorkerName,
   main: "@tanstack/react-start/server-entry",
   compatibility_flags: ["nodejs_compat"],
-  compatibility_date: "2026-07-04",
-  observability: { enabled: true },
+  compatibility_date: "2026-10-01",
+  observability: { enabled: true, issues: { enabled: true } },
   // Catch-all per origin: /api/* is claimed by the server worker (a more
   // specific route), everything else serves the SPA shell. The vault origin
   // renders the same app, host-gated in app code.

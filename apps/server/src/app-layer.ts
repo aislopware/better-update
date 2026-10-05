@@ -1,9 +1,9 @@
 import { Effect, Layer } from "effect";
-import { HttpRouter, HttpServer } from "effect/unstable/http";
-import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi";
+import { HttpRouter, HttpServer } from "effect/http";
+import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
 
+import type { HttpServerResponse } from "effect/http";
 import type { unhandled } from "effect/Types";
-import type { HttpServerResponse } from "effect/unstable/http";
 
 import { ManagementApi } from "./api";
 import { AuthenticationLive } from "./auth/middleware";

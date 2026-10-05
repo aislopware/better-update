@@ -2,7 +2,7 @@ import { Console as NodeConsole } from "node:console";
 import { Writable } from "node:stream";
 
 import { Console, Effect, Option } from "effect";
-import { Argument, Command, GlobalFlag } from "effect/unstable/cli";
+import { Argument, Command, GlobalFlag } from "effect/cli";
 
 import { CliRoot } from "../lib/cli-root";
 import { CLI_BUILT_INS } from "../lib/global-flags";

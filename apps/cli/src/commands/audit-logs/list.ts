@@ -1,6 +1,6 @@
 import { AuditLogResourceType, csvList } from "@better-update/api";
 import { Effect, Schema } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printList } from "../../lib/output";

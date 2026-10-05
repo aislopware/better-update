@@ -9,9 +9,9 @@ import { Console as NodeConsole } from "node:console";
 
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { Console, Data, Effect, Layer, Runtime, Stdio } from "effect";
-import { CliConfig, Command } from "effect/unstable/cli";
+import { CliConfig, Command } from "effect/cli";
 
-import type { CliError } from "effect/unstable/cli";
+import type { CliError } from "effect/cli";
 
 import pkg from "../package.json" with { type: "json" };
 import { CliLive, MaintenanceLive } from "./app-layer";

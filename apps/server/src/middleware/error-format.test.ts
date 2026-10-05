@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { HttpServerResponse } from "effect/unstable/http";
+import { HttpServerResponse } from "effect/http";
 
 import { pascalToUpperSnake, rewriteErrorResponse } from "./error-format";
 

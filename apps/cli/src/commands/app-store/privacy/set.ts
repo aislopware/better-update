@@ -1,7 +1,7 @@
 import { compact } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import {
   ASC_COMMON_ARGS,

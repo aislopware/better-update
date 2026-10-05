@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { setAgeRating } from "../../../application/app-store-age-rating";
 import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";

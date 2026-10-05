@@ -1,6 +1,6 @@
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { ASC_AUTH_ARGS, coerceEnum, openAscContext } from "../../../application/app-store-connect";
 import { enableCapability, resolveBundleId } from "../../../application/apple-signing-inventory";

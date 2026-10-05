@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { parseDotenvContent } from "@better-update/dotenv";
-import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 const parseEnvFile = (filePath: string): Record<string, string> =>
@@ -52,7 +52,7 @@ export default defineConfig(async () => {
   // bindings, so both run the real worker against local bindings.
   const workersTestOptions = {
     wrangler: { configPath: "./wrangler.jsonc" },
-    // Match the vite plugin in vite.config.ts — vitest-pool-workers also
+    // Match the vite plugin in vite.config.ts — the Workers vitest plugin also
     // chokes on remote bindings when Durable Object bindings are present
     // (CF API 10375 on edge-preview).
     remoteBindings: false,

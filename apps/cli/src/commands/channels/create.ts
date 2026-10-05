@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { drainPages } from "../../lib/drain-cursor";
 import { printKeyValue } from "../../lib/output";

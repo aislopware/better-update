@@ -1,5 +1,5 @@
 import { Console, Effect, Redacted } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 
 import { InteractiveProhibitedError } from "./exit-codes";
 import { InteractiveMode } from "./interactive-mode";

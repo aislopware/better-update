@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";
 import { publishPrivacy } from "../../../application/app-store-privacy";

@@ -6,7 +6,7 @@ import { Effect } from "effect";
 
 import type { ManifestAssetData } from "@better-update/expo-protocol";
 import type { FileSystem } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { UpdatePublishError } from "../lib/exit-codes";

@@ -1,20 +1,22 @@
 {
   "expo": {
-    "name": "OTA Lifecycle App",
-    "slug": "ota-lifecycle-app",
-    "owner": "ota-lifecycle",
+    "name": "Revert Router App",
+    "slug": "revert-router-app",
+    "owner": "revert-router",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
     "ios": {
-      "bundleIdentifier": "com.example.otalifecycle",
+      "bundleIdentifier": "com.example.revertrouter",
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.example.otalifecycle",
+      "package": "com.example.revertrouter",
       "versionCode": 1
     },
     "extra": {
-      "betterUpdate": {}
+      "betterUpdate": {
+        "projectId": "9af3bb0d-b292-4455-9a37-fa3de25b21fa"
+      }
     }
   }
 }

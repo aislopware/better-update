@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { FileSystem, Effect } from "effect";
 
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";

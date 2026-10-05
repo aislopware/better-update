@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { usersInviteCommand } from "./invite";
 import { usersListCommand } from "./list";

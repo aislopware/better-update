@@ -1,7 +1,7 @@
 import { ManagementApi } from "@better-update/api";
 import { Context, Effect, Layer, Option, Schedule, Schema } from "effect";
-import { Headers, HttpClient, HttpClientRequest } from "effect/unstable/http";
-import { HttpApiClient } from "effect/unstable/httpapi";
+import { Headers, HttpClient, HttpClientRequest } from "effect/http";
+import { HttpApiClient } from "effect/http-api";
 
 import { AuthRequiredError, LoginError, OrgError } from "../lib/exit-codes";
 import { AuthStore } from "./auth-store";

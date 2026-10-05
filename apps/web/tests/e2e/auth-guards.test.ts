@@ -32,7 +32,7 @@ describe("auth guards contract", () => {
     );
     expect(createOrgResponse.status).toBe(200);
     const orgBody = await createOrgResponse.json();
-    const updatedCookies = parseCookies(createOrgResponse) || cookies;
+    const updatedCookies = parseCookies(createOrgResponse, cookies);
 
     const activateResponse = await post(
       "/api/auth/organization/set-active",
@@ -40,7 +40,7 @@ describe("auth guards contract", () => {
       { cookie: updatedCookies },
     );
     expect(activateResponse.status).toBe(200);
-    const sessionCookies = parseCookies(activateResponse) || updatedCookies;
+    const sessionCookies = parseCookies(activateResponse, updatedCookies);
 
     const response = await get("/api/projects", { cookie: sessionCookies });
     expect(response.status).toBe(200);

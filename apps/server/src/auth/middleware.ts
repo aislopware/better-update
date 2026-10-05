@@ -1,10 +1,10 @@
 import { AuthContext, Authentication } from "@better-update/api";
 import { isRecord } from "@better-update/type-guards";
 import { Effect, Layer, Redacted } from "effect";
-import { HttpServerRequest } from "effect/unstable/http";
+import { HttpServerRequest } from "effect/http";
 
+import type { HttpServerResponse } from "effect/http";
 import type { unhandled } from "effect/Types";
-import type { HttpServerResponse } from "effect/unstable/http";
 
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";

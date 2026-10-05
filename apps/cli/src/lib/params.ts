@@ -1,5 +1,5 @@
 import { Option, Schema } from "effect";
-import { Argument, Flag } from "effect/unstable/cli";
+import { Argument, Flag } from "effect/cli";
 
 /**
  * Optional flag flattened to `undefined` when absent. The application layer

@@ -1,7 +1,7 @@
 import { Console, Effect } from "effect";
-import { ChildProcess } from "effect/unstable/process";
+import { ChildProcess } from "effect/process";
 
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { createBrowserLoginServer } from "../lib/browser-login";
 import { runExitCode } from "../lib/child-process";

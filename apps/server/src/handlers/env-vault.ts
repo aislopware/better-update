@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 
 import { ManagementApi } from "../api";
 import { assertEnvWrapSet } from "../application/assert-env-wrap-set";

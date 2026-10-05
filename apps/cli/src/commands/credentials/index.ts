@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { runCredentialsManager } from "../../application/credentials-manager";
 import { runCommand } from "../../lib/run-command";

@@ -37,37 +37,43 @@
     "verify:e2e": "node scripts/self-verify.mjs --only=e2e"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.102.8",
-    "@tanstack/react-router": "^1.170.35",
-    "kysely": "^0.29.5"
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
+    "kysely": "^0.29.6"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.2.2",
-    "@commitlint/config-conventional": "^21.2.2",
-    "@effect/language-service": "^0.87.2",
-    "@effect/vitest": "4.0.0-rc.113",
-    "@lerna-lite/cli": "^5.6.1",
-    "@lerna-lite/version": "^5.6.1",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@effect/language-service": "^0.87.3",
+    "@effect/vitest": "4.0.1",
+    "@lerna-lite/cli": "^5.6.2",
+    "@lerna-lite/version": "^5.6.2",
     "@tanstack/eslint-plugin-router": "^1.162.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.4",
     "conventional-changelog-conventionalcommits": "^10.4.0",
-    "knip": "^6.35.1",
-    "lefthook": "^2.1.12",
-    "oxfmt": "^0.67.0",
-    "oxlint": "^1.82.0",
-    "oxlint-plugin-eslint": "1.82.0",
-    "oxlint-tsgolint": "^7.0.2001",
-    "portless": "^0.15.6",
-    "turbo": "^2.10.12",
-    "type-fest": "^5.9.0",
+    "knip": "^6.39.0",
+    "lefthook": "^2.1.16",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "oxlint-plugin-eslint": "1.86.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "portless": "^0.15.7",
+    "turbo": "^2.11.7",
+    "type-fest": "^5.10.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "kysely": "0.29.5"
+    "kysely": "0.29.6"
   },
-  "packageManager": "bun@1.4.2",
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.2",
+      "onFail": "error"
+    }
+  },
   "patchedDependencies": {
-    "@tanstack/router-core@1.171.29": "patches/@tanstack%2Frouter-core@1.171.29.patch"
+    "@tanstack/router-core@1.171.34": "patches/@tanstack%2Frouter-core@1.171.34.patch"
   }
 }

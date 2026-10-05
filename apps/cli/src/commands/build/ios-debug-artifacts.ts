@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { FileSystem, Effect } from "effect";
 
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { formatCause } from "../../lib/format-error";
 import { printWarn } from "../../lib/warning-style";

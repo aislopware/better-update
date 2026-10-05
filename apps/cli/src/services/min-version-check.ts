@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { isRecord } from "@better-update/type-guards";
 import { FileSystem, Context, Effect, Layer } from "effect";
-import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest } from "effect/http";
 
 import { CliRuntime } from "./cli-runtime";
 import { ConfigStore } from "./config-store";

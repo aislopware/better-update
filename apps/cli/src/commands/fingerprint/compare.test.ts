@@ -1,6 +1,6 @@
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Exit, Layer } from "effect";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcessSpawner } from "effect/process";
 
 import { FingerprintMismatchError } from "../../lib/exit-codes";
 import { FingerprintError } from "../../lib/fingerprint";

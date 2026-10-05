@@ -60,42 +60,39 @@ const listEntries = (dirPath: string) =>
   Effect.promise(async () => readdir(dirPath, { withFileTypes: true }));
 
 /**
- * Recursively collect nested code inside `appPath`: bundle directories and
+ * Recursively collect nested code inside `dirPath`: bundle directories and
  * loose Mach-O files. Symlinks are never followed (framework `Versions/Current`
  * links would double-visit), and the outer bundle itself is NOT in the result —
  * the caller signs it last with the entitlements.
  */
-export const collectNestedCode = (appPath: string): Effect.Effect<readonly string[]> => {
-  const walk = (dirPath: string): Effect.Effect<readonly string[]> =>
-    Effect.gen(function* () {
-      const entries = yield* listEntries(dirPath);
-      const collected = yield* Effect.all(
-        entries.map((entry) =>
-          Effect.gen(function* () {
-            if (entry.isSymbolicLink()) {
-              return [] as readonly string[];
-            }
-            const entryPath = path.join(dirPath, entry.name);
-            if (entry.isDirectory()) {
-              // Descend even into bundle dirs: frameworks carry loose dylibs of
-              // their own that need individual signatures underneath the
-              // framework's.
-              const own = hasExtension(entry.name, NESTED_BUNDLE_EXTENSIONS) ? [entryPath] : [];
-              return [...own, ...(yield* walk(entryPath))];
-            }
-            if (!entry.isFile()) {
-              return [];
-            }
-            const looksLikeCode =
-              hasExtension(entry.name, CODE_FILE_EXTENSIONS) || (yield* isMachO(entryPath));
-            return looksLikeCode ? [entryPath] : [];
-          }),
-        ),
-      );
-      return collected.flat();
-    });
-  return walk(appPath);
-};
+export const collectNestedCode = (dirPath: string): Effect.Effect<readonly string[]> =>
+  Effect.gen(function* () {
+    const entries = yield* listEntries(dirPath);
+    const collected = yield* Effect.all(
+      entries.map((entry) =>
+        Effect.gen(function* () {
+          if (entry.isSymbolicLink()) {
+            return [] as readonly string[];
+          }
+          const entryPath = path.join(dirPath, entry.name);
+          if (entry.isDirectory()) {
+            // Descend even into bundle dirs: frameworks carry loose dylibs of
+            // their own that need individual signatures underneath the
+            // framework's.
+            const own = hasExtension(entry.name, NESTED_BUNDLE_EXTENSIONS) ? [entryPath] : [];
+            return [...own, ...(yield* collectNestedCode(entryPath))];
+          }
+          if (!entry.isFile()) {
+            return [];
+          }
+          const looksLikeCode =
+            hasExtension(entry.name, CODE_FILE_EXTENSIONS) || (yield* isMachO(entryPath));
+          return looksLikeCode ? [entryPath] : [];
+        }),
+      ),
+    );
+    return collected.flat();
+  });
 
 /**
  * Inside-out signing order: deepest paths first so every nested item is sealed

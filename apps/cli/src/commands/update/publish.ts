@@ -1,6 +1,6 @@
 import { DEFAULT_PATCH_BASE_WINDOW } from "@better-update/expo-protocol";
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { formatSavingsPct } from "../../application/update-patch-phase";
 import { runUpdatePublish } from "../../application/update-publish";

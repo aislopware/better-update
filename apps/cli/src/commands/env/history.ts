@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { printList } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";

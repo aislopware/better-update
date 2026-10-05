@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";
 import { createBetaGroup } from "../../../application/testflight-groups";

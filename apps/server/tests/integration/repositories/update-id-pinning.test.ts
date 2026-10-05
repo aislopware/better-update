@@ -10,7 +10,7 @@ import { runResultWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runt
 import type { ChannelRepo } from "../../../src/repositories/channels";
 import type { ProjectRepo } from "../../../src/repositories/projects";
 
-// Repository-level integration coverage (real D1 via @cloudflare/vitest-pool-workers)
+// Repository-level integration coverage (real D1 via @cloudflare/vitest-plugin)
 // for the embedded-baseline id-pinning contract: insert() binds an explicit id
 // when supplied (the embedded path pins the binary's app.manifest UUID) and
 // mints a server crypto.randomUUID() otherwise (the default + signed-render

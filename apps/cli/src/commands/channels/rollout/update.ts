@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { parseRolloutPercentage } from "../../../lib/cli-schemas";
 import { printHuman } from "../../../lib/output";

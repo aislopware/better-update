@@ -1,6 +1,6 @@
 import { Context } from "effect";
 
-import type { Command } from "effect/unstable/cli";
+import type { Command } from "effect/cli";
 
 /**
  * The composed root command + CLI version, for commands that introspect the

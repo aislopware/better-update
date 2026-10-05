@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { reviewSetDetailCommand } from "./set-detail";
 import { reviewStatusCommand } from "./status";

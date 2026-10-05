@@ -1,6 +1,6 @@
 import { fromBase64, fromBase64Url, toBase64, toBase64Url } from "@better-update/encoding";
 import { Effect } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 import { uniq } from "es-toolkit";
 
 import { ManagementApi } from "../api";

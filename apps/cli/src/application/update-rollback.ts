@@ -5,7 +5,7 @@ import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { isRecord } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
 
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";

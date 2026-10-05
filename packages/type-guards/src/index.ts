@@ -37,8 +37,8 @@ type Compacted<T> = {
 // possibly-undefined keys become optional with `undefined` excluded — so the
 // result is assignable to schemas under `exactOptionalPropertyTypes` without
 // per-field `...(x === undefined ? {} : { x })` spreads.
-export const compact = <T extends Record<string, unknown>>(obj: T): Compacted<T> =>
+export const compact = <T extends Record<string, unknown>>(obj: T): Compacted<T> => {
+  const defined = Object.entries(obj).filter(([, value]) => value !== undefined);
   // eslint-disable-next-line typescript/no-unsafe-type-assertion -- runtime filters undefined keys so the resulting shape matches the Compacted<T> mapped type
-  Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== undefined),
-  ) as Compacted<T>;
+  return Object.fromEntries(defined) as Compacted<T>;
+};

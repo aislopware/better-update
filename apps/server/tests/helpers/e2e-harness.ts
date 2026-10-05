@@ -21,7 +21,7 @@ import { E2E_BASE_URL_ENV, E2E_CONTROL_URL_ENV } from "./e2e-harness-client";
  * listener, so an external process — the CLI binary under test, the vite dev
  * proxy, chromium — can talk to it over plain HTTP. Server-side suites do NOT
  * belong here: `tests/integration` and `tests/e2e` run *inside* workerd on
- * `@cloudflare/vitest-pool-workers` and import `src/**` directly, which a
+ * `@cloudflare/vitest-plugin` and import `src/**` directly, which a
  * black-box harness cannot express.
  */
 

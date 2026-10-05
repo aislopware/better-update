@@ -1,6 +1,6 @@
 import AppleUtils from "@expo/apple-utils";
 import { Effect, Result } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { createAscKeyViaLogin } from "../../application/asc-key-resolve";
 import { buildTokenRequestContext, wrapConnect } from "../../lib/apple-asc-connect";

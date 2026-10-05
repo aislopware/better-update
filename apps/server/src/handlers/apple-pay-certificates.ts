@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
+import { HttpApiBuilder } from "effect/http-api";
 
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";

@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { DebugArtifactType } from "@better-update/api";
 import { FileSystem, Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { UploadFailedError } from "../../lib/exit-codes";
 import { fetchBytes } from "../../lib/fetch-bytes";

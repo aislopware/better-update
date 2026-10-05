@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { printList } from "../../lib/output";
 import { optionalFlag } from "../../lib/params";

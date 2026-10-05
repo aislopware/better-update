@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { printHumanTable } from "../../lib/output";
 import { runCommand } from "../../lib/run-command";

@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { compareCommand } from "./compare";
 import { generateCommand } from "./generate";

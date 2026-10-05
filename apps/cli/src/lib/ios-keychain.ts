@@ -2,10 +2,10 @@ import { randomBytes, randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { Effect } from "effect";
-import { ChildProcess } from "effect/unstable/process";
+import { ChildProcess } from "effect/process";
 
 import type { Scope } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 
 import { runText } from "./child-process";
 import { KeychainError } from "./exit-codes";

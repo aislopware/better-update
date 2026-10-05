@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 
 import { printHumanKeyValue } from "../../lib/output";
 import { runCommand } from "../../lib/run-command";

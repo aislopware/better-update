@@ -29,7 +29,7 @@ describe("dashboard full journey", () => {
     expect(body.id).toBeDefined();
     expect(body.slug).toBe("dashboard-org");
     state.organizationId = body.id;
-    state.cookies = parseCookies(response) || state.cookies;
+    state.cookies = parseCookies(response, state.cookies);
   });
 
   it("sets the organization as active", async () => {
@@ -39,7 +39,7 @@ describe("dashboard full journey", () => {
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
-    state.cookies = parseCookies(response) || state.cookies;
+    state.cookies = parseCookies(response, state.cookies);
   });
 
   it("lists organizations - new org appears", async () => {

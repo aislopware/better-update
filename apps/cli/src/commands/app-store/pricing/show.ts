@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { showPricing } from "../../../application/app-store-commerce";
 import { ASC_COMMON_ARGS, openAscSession } from "../../../application/app-store-connect";

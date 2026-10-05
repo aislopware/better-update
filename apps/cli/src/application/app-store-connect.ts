@@ -15,7 +15,7 @@ import { compact } from "@better-update/type-guards";
 // read off the default import (see apple-asc-connect.ts for the rationale).
 import AppleUtils from "@expo/apple-utils";
 import { Config, Effect } from "effect";
-import { Flag } from "effect/unstable/cli";
+import { Flag } from "effect/cli";
 
 import { wrapConnect } from "../lib/apple-asc-connect";
 import { ascKeyRequestContext } from "../lib/credentials-generator-apple";
@@ -311,7 +311,7 @@ interface ResolveAscSessionInput extends ResolveAscContextInput {
 export const loadSubmitProfile = (projectRoot: string, profileName: string) =>
   readSubmitProfile(projectRoot, profileName).pipe(
     Effect.map((resolved) => resolved.ios),
-    Effect.orElseSucceed<EasIosSubmitProfile | undefined>(() => undefined),
+    Effect.orElseSucceed((): EasIosSubmitProfile | undefined => undefined),
   );
 
 /** Build the Token context + resolved key id from flags/profile (no app resolution). */

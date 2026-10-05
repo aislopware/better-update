@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option, Stdio } from "effect";
 
-import type { Command } from "effect/unstable/cli";
+import type { Command } from "effect/cli";
 
 import { globalFlagAt } from "./global-flags";
 

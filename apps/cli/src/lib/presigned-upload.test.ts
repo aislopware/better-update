@@ -5,9 +5,9 @@ import path from "node:path";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { FileSystem, Effect, Exit, Layer } from "effect";
-import { HttpClient, HttpClientResponse } from "effect/unstable/http";
+import { HttpClient, HttpClientResponse } from "effect/http";
 
-import type { HttpClientRequest } from "effect/unstable/http";
+import type { HttpClientRequest } from "effect/http";
 
 import { PresignedUploadClientLive } from "../services/presigned-upload";
 import { PresignedUrlExpiredError, UploadFailedError } from "./exit-codes";

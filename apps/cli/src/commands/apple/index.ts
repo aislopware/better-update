@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { applePortalExitCodes } from "../../lib/command-errors";
 import { appleAccountsCommand } from "./accounts";

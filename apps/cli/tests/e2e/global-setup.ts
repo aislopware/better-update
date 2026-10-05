@@ -3,7 +3,7 @@ import { startServerE2EStack } from "../../../server/tests/helpers/e2e-harness";
 /**
  * Boots one server Worker for the whole CLI e2e run. The CLI under test is a
  * real subprocess (`dist/index.mjs`) speaking real HTTP, so it needs a listening
- * port — `createTestHarness` provides one; the in-runtime `vitest-pool-workers`
+ * port — `createTestHarness` provides one; the in-runtime `vitest-plugin`
  * path the server's own suites use cannot.
  *
  * `update publish` / `build upload` PUT bytes to a presigned

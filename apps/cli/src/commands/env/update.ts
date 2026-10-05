@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { sealForUpload } from "../../application/credential-cipher";
 import { openEnvVaultSessionInteractive } from "../../application/env-vault-access";
