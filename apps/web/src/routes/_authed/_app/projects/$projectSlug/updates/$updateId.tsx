@@ -35,7 +35,7 @@ import {
   TablePanelSkeleton,
   TableRowsSkeleton,
 } from "../../../../../../components/skeletons";
-import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
+import { CopyButton, CopyableId, CopyableText } from "../../../../../../lib/copy-button";
 import {
   ClientPaginationBar,
   ListPanel,
@@ -148,10 +148,7 @@ const AssetRows = ({ assets }: { assets: readonly UpdateAsset[] }) => (
         <TableRow key={`${asset.hash}:${asset.key}`}>
           <TableCell className={PRIMARY_COLUMN_CLASS}>
             <span className="flex min-w-0 items-center gap-2">
-              <code className="min-w-0 truncate font-mono text-xs" title={asset.key}>
-                {asset.key}
-              </code>
-              <CopyButton value={asset.key} label="Asset key" size="xs" />
+              <CopyableText value={asset.key} label="Asset key" />
               {/* One asset in a manifest launches the bundle, so the mark rides
                   in the row it belongs to rather than in a column of blanks. */}
               {asset.isLaunch ? <Badge variant="secondary">Launch</Badge> : null}

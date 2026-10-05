@@ -27,7 +27,7 @@ import {
 import { DetailHeader, DetailNotFound } from "../../../../../../components/detail-header";
 import { DetailStat, DetailStatStrip } from "../../../../../../components/detail-stats";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
-import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
+import { CopyButton, CopyableId, CopyableText } from "../../../../../../lib/copy-button";
 import {
   ClientPaginationBar,
   ListPanel,
@@ -87,12 +87,7 @@ const BuildMetadataCard = ({
         {build.bundleId === null ? (
           <Badge variant="warning">Missing</Badge>
         ) : (
-          <>
-            <span className="truncate font-mono text-xs" title={build.bundleId}>
-              {build.bundleId}
-            </span>
-            <CopyButton value={build.bundleId} label="Bundle ID" />
-          </>
+          <CopyableText value={build.bundleId} label="Bundle ID" />
         )}
       </DetailStat>
       <DetailStat label="Git ref">
@@ -103,9 +98,8 @@ const BuildMetadataCard = ({
           <span className="text-kumo-subtle italic">Not provided</span>
         ) : (
           <>
-            <code className="font-mono text-xs">{build.gitCommit.slice(0, 12)}</code>
+            <CopyableId value={build.gitCommit} label="Git commit" length={12} />
             {build.gitDirty ? <span className="text-kumo-warning text-xs">·dirty</span> : null}
-            <CopyButton value={build.gitCommit} label="Git commit" />
           </>
         )}
       </DetailStat>
@@ -155,14 +149,10 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
           <span className="truncate font-mono text-xs">{build.artifact.contentType}</span>
         </DetailStat>
         <DetailStat label="SHA-256">
-          <code className="font-mono text-xs">{build.artifact.sha256.slice(0, 16)}</code>
-          <CopyButton value={build.artifact.sha256} label="SHA-256" />
+          <CopyableId value={build.artifact.sha256} label="SHA-256" length={16} />
         </DetailStat>
         <DetailStat label="Storage key">
-          <span className="truncate font-mono text-xs" title={build.artifact.r2Key}>
-            {build.artifact.r2Key}
-          </span>
-          <CopyButton value={build.artifact.r2Key} label="Storage key" />
+          <CopyableText value={build.artifact.r2Key} label="Storage key" />
         </DetailStat>
         {/* An App Bundle is Play-only; the universal APK beside it is what a
             device installs, so its presence (or absence) belongs with the file. */}

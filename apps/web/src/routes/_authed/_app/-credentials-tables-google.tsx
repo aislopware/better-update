@@ -9,7 +9,7 @@ import {
 
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
-import { CopyButton, CopyableId } from "../../../lib/copy-button";
+import { CopyableId, CopyableText } from "../../../lib/copy-button";
 import { PRIMARY_COLUMN_CLASS } from "../../../lib/data-table";
 import { RelativeTime } from "../../../lib/relative-time";
 import { BindingRowActions, BoundProjectsCell } from "./-credential-bindings";
@@ -42,18 +42,17 @@ export const GoogleServiceAccountKeysTable = ({
         <TableRow key={key.id}>
           <TableCell className={PRIMARY_COLUMN_CLASS}>
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span
-                className="flex items-center gap-1"
-                title={key.clientId === null ? undefined : `Client ID: ${key.clientId}`}
-              >
-                <span className="truncate font-mono text-xs font-medium">{key.clientEmail}</span>
-                <CopyButton value={key.clientEmail} label="Client email" size="xs" />
-              </span>
+              <CopyableText
+                value={key.clientEmail}
+                label="Client email"
+                title={key.clientId === null ? key.clientEmail : `Client ID: ${key.clientId}`}
+                className="font-medium"
+              />
               {/* Two abbreviated ids side by side are already as short as they
                   go, so the sub-line has nothing left to give when the column
                   is at its floor — without this it pushes the cell open and
                   prints over the column to its right. It clips instead; the
-                  full value is a click away on either copy button. */}
+                  full value is a click away on either id. */}
               <span className="text-kumo-subtle flex min-w-0 items-center gap-1 overflow-hidden font-mono text-xs">
                 <CopyableId value={key.googleProjectId} label="Project ID" length={16} />
                 <span aria-hidden>·</span>

@@ -4,7 +4,7 @@ import { LockIcon } from "@phosphor-icons/react";
 
 import type { AppleTeamItem } from "@better-update/api-client/react";
 
-import { CopyButton } from "../../../lib/copy-button";
+import { CopyableText } from "../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatShortDate } from "../../../lib/format-date";
 import { formatAppleTeamType, formatFingerprint } from "./-credentials-utils";
@@ -12,18 +12,15 @@ import { formatAppleTeamType, formatFingerprint } from "./-credentials-utils";
 export const EmptyDash = () => <span className="text-kumo-subtle">—</span>;
 
 // A keystore fingerprint is 32–95 characters of colon-separated hex that nobody
-// reads across — it is compared, and comparing is what the copy button is for.
+// reads across — it is compared, and comparing is what copying it is for.
 // Head and tail are enough to tell two keystores apart at a glance.
 export const FingerprintCell = ({ value, label }: { value: string | null; label: string }) =>
   value === null ? (
     <span className="font-mono text-xs">—</span>
   ) : (
-    <span className="flex items-center gap-1">
-      <span className="font-mono text-xs" title={value}>
-        {formatFingerprint(value)}
-      </span>
-      <CopyButton value={value} label={label} />
-    </span>
+    <CopyableText value={value} label={label}>
+      {formatFingerprint(value)}
+    </CopyableText>
   );
 
 // Read-only per-row protected indicator (GITLAB-RBAC-SPEC §3b) for

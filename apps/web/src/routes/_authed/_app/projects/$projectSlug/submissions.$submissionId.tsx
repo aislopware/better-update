@@ -14,7 +14,7 @@ import {
 import { DetailHeader } from "../../../../../components/detail-header";
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
-import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
+import { CopyButton, CopyableId, CopyableText } from "../../../../../lib/copy-button";
 import { ListPanel, ListPanelHeader } from "../../../../../lib/data-table";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { RelativeTime } from "../../../../../lib/relative-time";
@@ -24,6 +24,15 @@ import { readSubmissionDestination } from "./-submissions-columns";
 // A submission's fields used to be a stack of label-in-a-40-width-column rows,
 // which put every value in the left third of a full-width card and left the rest
 // of the page blank. They are short facts, so they read across.
+const DetailValue = ({ value, copyLabel }: { value: string; copyLabel: string | undefined }) =>
+  copyLabel ? (
+    <CopyableText value={value} label={copyLabel} />
+  ) : (
+    <span className="truncate font-mono text-xs" title={value}>
+      {value}
+    </span>
+  );
+
 const DetailField = ({
   label,
   value,
@@ -37,12 +46,7 @@ const DetailField = ({
     {value === null || value === undefined || value === "" ? (
       <span className="text-kumo-subtle">—</span>
     ) : (
-      <>
-        <span className="truncate font-mono text-xs" title={value}>
-          {value}
-        </span>
-        {copyLabel ? <CopyButton value={value} label={copyLabel} /> : null}
-      </>
+      <DetailValue value={value} copyLabel={copyLabel} />
     )}
   </DetailStat>
 );

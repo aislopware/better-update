@@ -9,7 +9,7 @@ import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/reac
 
 import { DetailStat, DetailStatStrip } from "../../../../../components/detail-stats";
 import { SectionTitle } from "../../../../../components/page-header";
-import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
+import { CopyableMono, CopyableText } from "../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
 import { CredentialSection, EmptyBindingMessage } from "./-credential-section";
@@ -39,8 +39,9 @@ const GsaCard = ({
           <CopyableMono value={sa.googleProjectId} label="Project ID" />
         </DetailStat>
         <DetailStat label="Private key ID">
-          <span className="truncate font-mono text-xs">{truncatePrivateKey(sa.privateKeyId)}</span>
-          <CopyButton value={sa.privateKeyId} label="Private key ID" />
+          <CopyableText value={sa.privateKeyId} label="Private key ID">
+            {truncatePrivateKey(sa.privateKeyId)}
+          </CopyableText>
         </DetailStat>
         <DetailStat label="Client email">
           <CopyableMono value={sa.clientEmail} label="Client email" />

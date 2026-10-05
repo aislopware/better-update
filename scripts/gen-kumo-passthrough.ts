@@ -34,6 +34,7 @@ const COMPONENTS = [
   "empty",
   "flow",
   "grid",
+  "inline-copy-text",
   "input",
   "input-group",
   "label",
