@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fui%400.10.4...%40better-update%2Fui%400.11.0) (2026-10-05)
+
+### Features
+
+* **web:** copy identifiers in place with Kumo InlineCopyText ([7dc0c59](https://gitlab.jmango360.com/mobile/better-update/-/commit/7dc0c593f5e118d7f49fa31bb8bae5b95558a42d))
+
 ## [0.10.4](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fui%400.10.3...%40better-update%2Fui%400.10.4) (2026-09-12)
 
 ### Bug Fixes

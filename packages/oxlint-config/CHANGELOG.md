@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.3](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Foxlint-config%400.6.2...%40better-update%2Foxlint-config%400.6.3) (2026-10-05)
+
+**Note:** Version bump only for package @better-update/oxlint-config
+
 ## [0.6.2](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Foxlint-config%400.6.1...%40better-update%2Foxlint-config%400.6.2) (2026-09-12)
 
 ### Bug Fixes

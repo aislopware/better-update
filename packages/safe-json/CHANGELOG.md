@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.23](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fsafe-json%400.1.22...%40better-update%2Fsafe-json%400.1.23) (2026-10-05)
+
+**Note:** Version bump only for package @better-update/safe-json
+
 ## [0.1.22](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fsafe-json%400.1.21...%40better-update%2Fsafe-json%400.1.22) (2026-09-12)
 
 **Note:** Version bump only for package @better-update/safe-json

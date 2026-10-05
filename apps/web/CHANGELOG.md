@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.86.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.85.0...%40better-update%2Fweb%400.86.0) (2026-10-05)
+
+### Features
+
+* **web:** copy identifiers in place with Kumo InlineCopyText ([7dc0c59](https://github.com/aislopware/better-update/commit/7dc0c593f5e118d7f49fa31bb8bae5b95558a42d))
+* **web:** signal a removed passkey to the browser ([e84cdc0](https://github.com/aislopware/better-update/commit/e84cdc0a4b5f1ad742c23243a3223b9f08522a9e))
+
 ## [0.85.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.84.0...%40better-update%2Fweb%400.85.0) (2026-09-14)
 
 ### ⚠ BREAKING CHANGES
