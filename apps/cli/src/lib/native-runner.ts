@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import path from "node:path";
+import process from "node:process";
 
 import { asRecord } from "@better-update/type-guards";
 import { FileSystem, Data, Effect } from "effect";
@@ -46,19 +47,23 @@ const runInherit = (
 
 /**
  * Locate a tool on PATH. Returns the absolute path or fails with NativeRunError.
+ * Windows has `where`, which lists every match (and tries PATHEXT); the first wins.
  */
 export const which = (
   bin: string,
 ): Effect.Effect<string, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
-    const output = yield* runText(ChildProcess.make("which", [bin])).pipe(
-      Effect.mapError(() => new NativeRunError({ message: `${bin} not found in PATH` })),
-    );
-    const trimmed = output.trim();
-    if (trimmed === "") {
+    const output = yield* runText(
+      ChildProcess.make(process.platform === "win32" ? "where" : "which", [bin]),
+    ).pipe(Effect.mapError(() => new NativeRunError({ message: `${bin} not found in PATH` })));
+    const located = output
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find((line) => line !== "");
+    if (located === undefined) {
       return yield* new NativeRunError({ message: `${bin} not found in PATH` });
     }
-    return trimmed;
+    return located;
   });
 
 /**

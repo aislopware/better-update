@@ -462,10 +462,9 @@ better-update builds upload --platform windows|linux <file>…   # artifacts bui
   (`sh -c`; `cmd /c` on Windows) with the profile env, then uploads **every** file `artifactPath`
   matches (a real glob: `*`, `**`, `{a,b}`) that the command wrote. Lifecycle hooks run as for
   other builds. `--output` copies one artifact to the path, several into it as a directory.
-- **Where the CLI runs**: its binary ships for macOS and Linux only. Build Windows installers on a
-  Windows runner and hand the files to a Linux/macOS job that runs `builds upload --platform
-windows` (any OS uploads any platform's files), or cross-build on Linux (`electron-builder --win`
-  with Wine, Tauri `cargo xwin`) and use `build --platform windows` there.
+- **Where the CLI runs**: macOS, Linux and Windows x64 (`install.ps1`), so a Windows runner runs
+  `build --platform windows` itself. Cross-building on Linux (`electron-builder --win` with Wine,
+  Tauri `cargo xwin`) works too, and any OS uploads any platform's files (`builds upload`).
 - **What a build records**, first source that knows: the profile's `windows` / `linux` section ›
   the app's config (`src-tauri/tauri.conf.json` with `tauri.<os>.conf.json` over it — productName,
   version, identifier, updater pubkey; else `package.json` / `electron-builder.json` —

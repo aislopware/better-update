@@ -31,6 +31,8 @@ export interface PtyRunInput {
    * `onLine` is the only output channel.
    */
   readonly onLine?: (line: string) => string | undefined;
+  /** Hand `args` to a Windows child unescaped (`cmd.exe` parses its own command line). */
+  readonly windowsVerbatimArguments?: boolean | undefined;
 }
 
 // @types/node declares columns/rows as `number` but at runtime they can be
@@ -90,6 +92,7 @@ const trySpawn = (input: PtyRunInput, onData: (chunk: Uint8Array) => void): PtyS
       terminal,
       cwd: input.cwd,
       env: mergeEnv(input.env, terminalName),
+      windowsVerbatimArguments: input.windowsVerbatimArguments ?? false,
     });
     return { terminal, proc, drained };
   } catch (error) {

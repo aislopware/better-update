@@ -78,16 +78,22 @@ describe(detectInstaller, () => {
 
 describe(installCommand, () => {
   it("points a standalone install at the repo's install script", () => {
-    expect(installCommand("standalone", "acme/tool")).toBe(
+    expect(installCommand("standalone", "acme/tool", "darwin")).toBe(
       "curl -fsSL https://raw.githubusercontent.com/acme/tool/main/install.sh | sh",
     );
   });
 
+  it("points Windows at the PowerShell installer", () => {
+    expect(installCommand("standalone", "acme/tool", "win32")).toBe(
+      'powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/acme/tool/main/install.ps1 | iex"',
+    );
+  });
+
   it("moves a package-manager install over to the install script", () => {
-    expect(installCommand("bun", "acme/tool")).toBe(
+    expect(installCommand("bun", "acme/tool", "linux")).toBe(
       "bun remove -g @better-update/cli && curl -fsSL https://raw.githubusercontent.com/acme/tool/main/install.sh | sh",
     );
-    expect(installCommand("npm", "acme/tool")).toBe(
+    expect(installCommand("npm", "acme/tool", "linux")).toBe(
       "npm uninstall -g @better-update/cli && curl -fsSL https://raw.githubusercontent.com/acme/tool/main/install.sh | sh",
     );
   });

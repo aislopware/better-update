@@ -10,11 +10,18 @@
 
 ## Install
 
-The CLI is a standalone binary (macOS arm64, Linux x64/arm64, glibc or musl), installed with one
-script — no Node or Bun needed at run time, which also makes it the CI install:
+The CLI is a standalone binary (macOS arm64, Linux x64/arm64 glibc or musl, Windows x64), installed
+with one script — no Node or Bun needed at run time, which also makes it the CI install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
+```
+
+On Windows, from PowerShell (installs `better-update.exe` into `~\.local\bin` and adds it to the user
+`PATH`; `BETTER_UPDATE_NO_MODIFY_PATH=1` skips that, the other knobs below apply too):
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/aislopware/better-update/main/install.ps1 | iex"
 ```
 
 `@better-update/cli` on npm is deprecated: it stopped at 0.79 and receives no new versions. Remove

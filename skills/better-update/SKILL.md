@@ -62,6 +62,7 @@ Two facts that prevent most mistakes:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
                                    # standalone binary; npm @better-update/cli is deprecated (frozen at 0.79)
+                                   # Windows (PowerShell): powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/aislopware/better-update/main/install.ps1 | iex"
 better-update login                # browser OAuth; --api-key for headless paste
 better-update init                 # from the Expo project root: links app.json → a project
 ```

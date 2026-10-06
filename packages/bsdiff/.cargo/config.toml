@@ -1,0 +1,8 @@
+# Link the MSVC C runtime statically: a dynamic one makes the addon import
+# VCRUNTIME140.dll, which a Windows machine without the Visual C++
+# Redistributable lacks, and LoadLibrary then fails with "Module not found".
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

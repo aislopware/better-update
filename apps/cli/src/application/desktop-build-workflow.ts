@@ -9,12 +9,11 @@
  * package signing stay with the toolchain, which reads its own variables.
  */
 import path from "node:path";
-import process from "node:process";
 
 import { compact } from "@better-update/type-guards";
 import { Effect, Result } from "effect";
 
-import { runStep } from "../commands/build/run-step";
+import { runStep, shellInvocation } from "../commands/build/run-step";
 import { findArtifactsByGlob } from "../lib/artifact-finder";
 import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
@@ -50,12 +49,6 @@ const EXAMPLE_COMMAND: Record<DesktopUploadPlatform, string> = {
   linux:
     '"custom": { "linux": { "command": "npx tauri build", "artifactPath": "src-tauri/target/release/bundle/**/*.{AppImage,deb,rpm}" } }',
 };
-
-/** The custom command through the platform's shell: `cmd` on Windows, `sh` elsewhere. */
-const shellInvocation = (command: string) =>
-  process.platform === "win32"
-    ? { command: "cmd.exe", args: ["/d", "/s", "/c", command] }
-    : { command: "sh", args: ["-c", command] };
 
 /** Run the command; every matching file it wrote is a deliverable. */
 const runDesktopCustomBuild = (params: {

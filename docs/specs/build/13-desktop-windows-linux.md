@@ -202,4 +202,10 @@ The dashboard shows per release downloads and checks by client version over
 4. Analytics.
 5. Dashboard: desktop releases per platform, Windows/Linux builds, analytics.
 6. Real-client end-to-end tests.
-7. CLI binary for Windows (needs a Windows host to verify).
+7. CLI binary for Windows x64: `bun-windows-x64` compile, bsdiff addon
+   cross-built with cargo-xwin (static CRT, so no VC++ Redistributable),
+   `install.ps1`, `where` for PATH lookups, custom commands through
+   `cmd.exe /d /s /c "<command>"` verbatim. Checked under Wine 10 only
+   (`--version`, `--help`, direct addon load); Wine cannot spawn children
+   under Rosetta nor extract Bun's embedded addon, so a real Windows host
+   still has to confirm `build --platform windows` and OTA patch generation.

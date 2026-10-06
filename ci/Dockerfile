@@ -10,7 +10,7 @@
 #   docker push  <your-registry>/better-update-ci:node24
 #   # then set CI/CD variable BU_CI_IMAGE=<your-registry>/better-update-ci:node24
 #
-# Bumping BUN_VERSION / RUST / ZIG_VERSION → rebuild + push a new tag.
+# Bumping BUN_VERSION / RUST / ZIG_VERSION / cargo-xwin → rebuild + push a new tag.
 #
 # IMPORTANT: rust is installed to the DEFAULT ~/.cargo / ~/.rustup (NOT
 # CARGO_HOME/RUSTUP_HOME) because `turbo run build` runs in strict env mode and
@@ -19,7 +19,7 @@ FROM node:24-bookworm
 
 ARG BUN_VERSION=1.4.2
 ARG ZIG_VERSION=0.16.0
-ARG RUST_TARGETS="x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-musl"
+ARG RUST_TARGETS="x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-musl x86_64-pc-windows-msvc"
 
 ENV BUN_VERSION=${BUN_VERSION} \
     ZIG_VERSION=${ZIG_VERSION} \
@@ -51,3 +51,13 @@ RUN ZIG_ARCH="$(uname -m)" \
     && mv "/usr/local/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}" /usr/local/zig \
     && cargo install --locked cargo-zigbuild \
     && zig version && cargo-zigbuild --version
+
+# cargo-xwin (Windows MSVC cross via `napi build -x`); it fetches the MSVC CRT +
+# Windows SDK on first use. bsdiff's C compiles with clang-cl + llvm-lib, names
+# Debian doesn't ship: clang / llvm-ar take MSVC mode from the invoked name.
+RUN apt-get update && apt-get install -y --no-install-recommends llvm \
+    && rm -rf /var/lib/apt/lists/* \
+    && LLVM_BIN="$(ls -d /usr/lib/llvm-*/bin | sort -V | tail -n 1)" \
+    && ln -s "$LLVM_BIN/clang" /usr/local/bin/clang-cl \
+    && ln -s "$LLVM_BIN/llvm-ar" /usr/local/bin/llvm-lib \
+    && cargo install --locked cargo-xwin && cargo-xwin --version

@@ -15,7 +15,26 @@ export interface RunStepCommand {
   readonly args: readonly string[];
   readonly cwd: string;
   readonly env: Readonly<Record<string, string>>;
+  /** Pass `args` to the Windows child unescaped — what `cmd.exe /s /c "<command>"` needs. */
+  readonly windowsVerbatimArguments?: boolean;
 }
+
+/**
+ * A user's build command through the platform's shell: `sh -c` elsewhere,
+ * `cmd.exe /d /s /c "<command>"` on Windows — verbatim, as Node's `shell: true`
+ * does, because cmd parses its own command line and the default escaping
+ * would mangle the command's quotes.
+ */
+export const shellInvocation = (
+  command: string,
+): Pick<RunStepCommand, "command" | "args" | "windowsVerbatimArguments"> =>
+  process.platform === "win32"
+    ? {
+        command: "cmd.exe",
+        args: ["/d", "/s", "/c", `"${command}"`],
+        windowsVerbatimArguments: true,
+      }
+    : { command: "sh", args: ["-c", command] };
 
 const buildFailed = (step: string, exitCode: number, message: string) =>
   new BuildFailedError({ step, exitCode, message });
@@ -37,6 +56,7 @@ export const runStep = (
     args: cmd.args,
     cwd: cmd.cwd,
     env: cmd.env,
+    windowsVerbatimArguments: cmd.windowsVerbatimArguments,
     onLine: annotateWarning,
   }).pipe(
     Effect.flatMap((code) =>
@@ -76,6 +96,7 @@ export const runStepFormatted = (
       args: cmd.args,
       cwd: cmd.cwd,
       env: cmd.env,
+      windowsVerbatimArguments: cmd.windowsVerbatimArguments,
       silent: true,
       onLine: (line) => {
         const formatted = formatter.pipe(line);

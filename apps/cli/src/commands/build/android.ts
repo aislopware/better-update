@@ -22,7 +22,7 @@ import { capitalize } from "../../lib/string-utils";
 import { setAndroidUpdateChannel } from "../../lib/update-channel-native";
 import { printWarn } from "../../lib/warning-style";
 import { CliRuntime } from "../../services/cli-runtime";
-import { runStep } from "./run-step";
+import { runStep, shellInvocation } from "./run-step";
 
 import type { AndroidProfile, CredentialsSource } from "../../lib/build-profile";
 import type { AndroidBuildStrategy } from "../../lib/build-strategy";
@@ -386,8 +386,7 @@ const runAndroidCustom = (input: RunAndroidBuildInput, commandEnv: Record<string
 
     yield* runStep(
       {
-        command: "sh",
-        args: ["-c", custom.command],
+        ...shellInvocation(custom.command),
         cwd,
         env: { ...commandEnv, ...credEnv, ...custom.env },
       },

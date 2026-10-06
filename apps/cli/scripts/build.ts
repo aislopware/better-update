@@ -6,6 +6,8 @@
  *                                        # one target → dist/better-update-<target>
  *   bun scripts/build.ts --all           # every target → dist/better-update-<target>
  *
+ * Windows binaries get the `.exe` suffix (`dist/better-update-windows-x64.exe`).
+ *
  * The binary embeds the bundle, every static `.node` addon it references
  * (`@better-update/bsdiff` — the file for the target must exist in
  * packages/bsdiff, which is what CI's native build jobs produce) and the Bun
@@ -28,6 +30,7 @@ const TARGETS = {
   "linux-arm64": "bun-linux-arm64",
   "linux-x64-musl": "bun-linux-x64-musl",
   "linux-arm64-musl": "bun-linux-arm64-musl",
+  "windows-x64": "bun-windows-x64",
 } as const satisfies Record<string, Bun.Build.CompileTarget>;
 
 type TargetName = keyof typeof TARGETS;
@@ -38,9 +41,16 @@ const ALL_TARGETS: readonly TargetName[] = [
   "linux-arm64",
   "linux-x64-musl",
   "linux-arm64-musl",
+  "windows-x64",
 ];
 
 const isTargetName = (value: string): value is TargetName => value in TARGETS;
+
+/** `process.platform` names Windows `win32`; release assets say `windows`. */
+const HOST_OS: Partial<Record<NodeJS.Platform, string>> = { win32: "windows" };
+
+const outfileFor = (target: TargetName, base: string): string =>
+  target.startsWith("windows-") ? `${base}.exe` : base;
 
 const log = (line: string): void => {
   process.stdout.write(`${line}\n`);
@@ -127,22 +137,22 @@ const main = async (): Promise<void> => {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (args.includes("--all")) {
     for (const target of ALL_TARGETS) {
-      if (!(await compile(target, path.join(OUT_DIR, `${BINARY}-${target}`)))) {
+      if (!(await compile(target, outfileFor(target, path.join(OUT_DIR, `${BINARY}-${target}`))))) {
         return;
       }
     }
     return;
   }
   if (explicit !== undefined) {
-    await compile(explicit, path.join(OUT_DIR, `${BINARY}-${explicit}`));
+    await compile(explicit, outfileFor(explicit, path.join(OUT_DIR, `${BINARY}-${explicit}`)));
     return;
   }
-  const host = `${process.platform}-${process.arch}`;
+  const host = `${HOST_OS[process.platform] ?? process.platform}-${process.arch}`;
   if (!isTargetName(host)) {
     fail(`no release target for host ${host}; pass --target <${ALL_TARGETS.join("|")}>`);
     return;
   }
-  await compile(host, path.join(OUT_DIR, BINARY));
+  await compile(host, outfileFor(host, path.join(OUT_DIR, BINARY)));
 };
 
 // eslint-disable-next-line node/no-top-level-await -- bun script entry, never require()d

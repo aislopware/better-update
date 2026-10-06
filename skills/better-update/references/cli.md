@@ -4,6 +4,8 @@ Authoritative reference for the `better-update` CLI, mirroring `apps/cli/src/com
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aislopware/better-update/main/install.sh | sh
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/aislopware/better-update/main/install.ps1 | iex"
 ```
 
 Conventions below: `<x>` = required positional, `[x]` = optional, `--flag` defaults noted inline.

@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import { isRecord } from "@better-update/type-guards";
 
 import { DEFAULT_RELEASE_REPO } from "../services/service-defaults.generated";
@@ -15,8 +17,11 @@ export const RELEASE_TAG_PREFIX = "@better-update/cli@";
 export const releasesApiUrl = (repo: string = DEFAULT_RELEASE_REPO): string =>
   `https://api.github.com/repos/${repo}/releases?per_page=30`;
 
-export const installScriptUrl = (repo: string = DEFAULT_RELEASE_REPO): string =>
-  `https://raw.githubusercontent.com/${repo}/main/install.sh`;
+/** `install.sh` for macOS / Linux, `install.ps1` for Windows. */
+export const installScriptUrl = (
+  repo: string = DEFAULT_RELEASE_REPO,
+  script: "install.sh" | "install.ps1" = "install.sh",
+): string => `https://raw.githubusercontent.com/${repo}/main/${script}`;
 
 /**
  * How this copy of the CLI was installed. Releases up to 0.79 also shipped on
@@ -51,11 +56,18 @@ const PACKAGE_MANAGER_UNINSTALL: Readonly<Record<Exclude<Installer, "standalone"
   npm: "npm uninstall -g @better-update/cli",
 };
 
-/** The one-liner the upgrade notice / killswitch tell the user to run. */
+/**
+ * The one-liner the upgrade notice / killswitch tell the user to run. Windows
+ * never shipped on npm, so there it is always the PowerShell installer.
+ */
 export const installCommand = (
   installer: Installer = detectInstaller(process.execPath),
   repo: string = DEFAULT_RELEASE_REPO,
+  platform: NodeJS.Platform = process.platform,
 ): string => {
+  if (platform === "win32") {
+    return `powershell -ExecutionPolicy ByPass -c "irm ${installScriptUrl(repo, "install.ps1")} | iex"`;
+  }
   const install = `curl -fsSL ${installScriptUrl(repo)} | sh`;
   return installer === "standalone"
     ? install

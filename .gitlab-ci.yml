@@ -11,11 +11,11 @@
 # That is what stops the recurring "Fail extracting tarball" flake; the retry
 # loop in bun_ci_install is only a seatbelt for a cold cache entry.
 #
-# The CLI ships as a standalone `bun build --compile` binary for 5 platforms:
+# The CLI ships as a standalone `bun build --compile` binary for 6 platforms:
 # macOS arm64 (built on the Mac runner) + Linux x64/arm64 in both gnu and musl
-# (cross-compiled on Linux). The embedded @better-update/bsdiff native addon is
-# built per target the same way (napi-cross / cargo-zigbuild). Windows and
-# Intel-mac are NOT built.
+# + Windows x64 (cross-compiled on Linux). The embedded @better-update/bsdiff
+# native addon is built per target the same way (napi-cross / cargo-zigbuild /
+# cargo-xwin). Windows arm64 and Intel-mac are NOT built.
 #
 # CI/CD VARIABLES (Settings → CI/CD → Variables). Project variables override the
 # `variables:` defaults below.
@@ -174,6 +174,23 @@ workflow:
           export PATH="/usr/local/zig:$PATH"
         fi
         cargo install --locked cargo-zigbuild
+      }
+
+      # Windows MSVC cross-compilation only (`napi build -x` on a *-windows-msvc
+      # target). cargo-xwin fetches the MSVC CRT + Windows SDK on first use and
+      # compiles bsdiff's C (divsufsort) with clang-cl + llvm-lib. Debian ships
+      # neither name, but clang and llvm-ar switch to MSVC mode by the name they
+      # are invoked as, so symlinks do.
+      ensure_xwin() {
+        export XWIN_ACCEPT_LICENSE=1
+        if ! ls /usr/lib/llvm-*/bin/llvm-ar >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+          apt-get update && apt-get install -y --no-install-recommends llvm
+        fi
+        llvm_bin="$(ls -d /usr/lib/llvm-*/bin | sort -V | tail -n 1)"
+        export PATH="$llvm_bin:$PATH"
+        command -v clang-cl >/dev/null 2>&1 || ln -s "$llvm_bin/clang" /usr/local/bin/clang-cl
+        command -v llvm-lib >/dev/null 2>&1 || ln -s "$llvm_bin/llvm-ar" /usr/local/bin/llvm-lib
+        command -v cargo-xwin >/dev/null 2>&1 || cargo install --locked cargo-xwin
       }
     - |
       bun_ci_install() {
@@ -497,13 +514,13 @@ deploy-web:
 # ---------------------------------------------------------------------------
 # publish (tag @better-update/cli@*) — the CLI ships as a `bun build --compile`
 # standalone binary per platform (no Node / Bun on the user's machine):
-# darwin-arm64 + linux x64/arm64 in both gnu and musl, matching bsdiff's napi
-# targets. `install.sh` and the CLI's own update check download from GitHub
+# darwin-arm64 + linux x64/arm64 in both gnu and musl + windows-x64, matching
+# bsdiff's napi targets. `install.sh` and the CLI's own update check download from GitHub
 # Releases; the same files are attached to the GitLab Release as well.
 #
 # Flow: build the bsdiff native addon per target (it is embedded in the binary)
-# → compile the CLI per target (macOS on the Mac runner, the four Linux targets
-# cross-compiled on Linux) → publish-cli uploads the binaries + SHA256SUMS.
+# → compile the CLI per target (macOS on the Mac runner, the Linux + Windows
+# targets cross-compiled on Linux) → publish-cli uploads the binaries + SHA256SUMS.
 # ---------------------------------------------------------------------------
 
 # Apple arm64 on the macOS Tart runner: native bsdiff addon, then the darwin
@@ -560,9 +577,10 @@ build-cli-apple:
       - apps/cli/dist/better-update-*
     expire_in: 1 day
 
-# Linux bsdiff targets: gnu via napi-cross (portable glibc baseline), musl via
-# cargo-zigbuild (`-x`). The cross targets + zig + cargo-zigbuild are baked into
-# a prebuilt $BU_CI_IMAGE (ensure_zig installs them otherwise); napi-cross is
+# Linux + Windows bsdiff targets: gnu via napi-cross (portable glibc baseline),
+# musl via cargo-zigbuild (`-x`), Windows via cargo-xwin (`-x` on an msvc
+# target). The cross targets + zig + cargo-zigbuild + cargo-xwin are baked into
+# a prebuilt $BU_CI_IMAGE (ensure_zig / ensure_xwin install them otherwise); napi-cross is
 # fetched by napi at build time. The generated loader (index.js) is identical
 # per target and travels with the .node so the compile job never has to run
 # `napi build` on the host (which would rebuild linux-x64-gnu against the
@@ -582,10 +600,16 @@ build-bsdiff-linux:
         FLAGS: "-x"
       - TARGET: aarch64-unknown-linux-musl
         FLAGS: "-x"
+      - TARGET: x86_64-pc-windows-msvc
+        FLAGS: "-x"
   script:
     - bun_ci_install
     - rustup target add "$TARGET"
-    - if [ "$FLAGS" = "-x" ]; then ensure_zig; fi
+    - |
+      case "$TARGET" in
+        *-musl) ensure_zig ;;
+        *-windows-msvc) ensure_xwin ;;
+      esac
     - cd packages/bsdiff
     - bun run build --target "$TARGET" $FLAGS
   artifacts:
@@ -595,9 +619,9 @@ build-bsdiff-linux:
       - packages/bsdiff/index.d.ts
     expire_in: 1 day
 
-# The four Linux binaries, cross-compiled from one Linux job: bun downloads the
-# target runtime, and every linux .node from the matrix above is on disk so the
-# bundler embeds them.
+# The four Linux binaries + the Windows one, cross-compiled from one Linux job:
+# bun downloads the target runtime, and every .node from the matrix above is on
+# disk so the bundler embeds them.
 build-cli-linux:
   extends: .base-bun
   stage: build-cli
@@ -611,7 +635,7 @@ build-cli-linux:
     - ls -l packages/bsdiff/*.node
     - bun run config:gen:strict
     - cd apps/cli
-    - for t in linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl; do bun scripts/build.ts --target "$t"; done
+    - for t in linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl windows-x64; do bun scripts/build.ts --target "$t"; done
   artifacts:
     paths:
       - apps/cli/dist/better-update-*

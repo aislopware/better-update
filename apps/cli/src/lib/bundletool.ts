@@ -7,8 +7,9 @@ import { ChildProcess } from "effect/process";
 import type { PlatformError } from "effect/PlatformError";
 import type { ChildProcessSpawner } from "effect/process";
 
-import { runExitCode, runText } from "./child-process";
+import { runExitCode } from "./child-process";
 import { BuildFailedError } from "./exit-codes";
+import { which } from "./native-runner";
 
 /**
  * Google's bundletool, the reference `.aab` → `.apk` converter. Not shipped
@@ -39,11 +40,7 @@ export interface UniversalApkInput {
 }
 
 const locateOnPath = (bin: string) =>
-  runText(ChildProcess.make("which", [bin])).pipe(
-    Effect.map((output) => output.trim()),
-    Effect.map((located) => (located === "" ? null : located)),
-    Effect.orElseSucceed((): string | null => null),
-  );
+  which(bin).pipe(Effect.orElseSucceed((): string | null => null));
 
 /**
  * `BUNDLETOOL_JAR` wins (explicit beats discovered), then a `bundletool`
