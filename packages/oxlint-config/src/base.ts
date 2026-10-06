@@ -148,6 +148,10 @@ export default defineConfig({
     "unicorn/no-nested-ternary": "off",
     "unicorn/no-null": "off",
     "unicorn/no-useless-undefined": "off",
+    // oxfmt prints hex digits in lowercase and this rule demands uppercase, so every hex
+    // literal with a letter fails one of them. The formatter owns literal casing (as
+    // eslint-config-prettier does for prettier).
+    "unicorn/number-literal-case": "off",
     // Rules newly implemented/enabled in oxlint 1.71 that clash with this codebase's idioms.
     // `throw-new-error`'s autofix wrongly inserts `new` before Effect's `Schema.TaggedError()` /
     // `Data.TaggedError()` factory calls in class `extends` clauses (not throws), breaking them —
