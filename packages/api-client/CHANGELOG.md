@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi-client%400.39.5...%40better-update%2Fapi-client%400.40.0) (2026-10-06)
+
+### Features
+
+* **macos:** ship Developer ID apps through Sparkle, electron-updater and Tauri feeds ([2812157](https://gitlab.jmango360.com/mobile/better-update/-/commit/2812157bf23941fd815df0fdb821b6526cba6682))
+
 ## [0.39.5](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi-client%400.39.4...%40better-update%2Fapi-client%400.39.5) (2026-10-05)
 
 **Note:** Version bump only for package @better-update/api-client

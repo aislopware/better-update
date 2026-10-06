@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.0.27](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fencoding%400.0.26...%40better-update%2Fencoding%400.0.27) (2026-10-06)
+
+**Note:** Version bump only for package @better-update/encoding
+
 ## [0.0.26](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fencoding%400.0.25...%40better-update%2Fencoding%400.0.26) (2026-10-05)
 
 **Note:** Version bump only for package @better-update/encoding

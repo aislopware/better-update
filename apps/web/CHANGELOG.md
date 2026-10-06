@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.87.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.86.0...%40better-update%2Fweb%400.87.0) (2026-10-06)
+
+### Features
+
+* **macos:** ship Developer ID apps through Sparkle, electron-updater and Tauri feeds ([2812157](https://github.com/aislopware/better-update/commit/2812157bf23941fd815df0fdb821b6526cba6682))
+
 ## [0.86.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.85.0...%40better-update%2Fweb%400.86.0) (2026-10-05)
 
 ### Features

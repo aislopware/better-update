@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.1](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fui%400.11.0...%40better-update%2Fui%400.11.1) (2026-10-06)
+
+**Note:** Version bump only for package @better-update/ui
+
 ## [0.11.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fui%400.10.4...%40better-update%2Fui%400.11.0) (2026-10-05)
 
 ### Features

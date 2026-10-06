@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.18](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fexpo-protocol%400.1.17...%40better-update%2Fexpo-protocol%400.1.18) (2026-10-06)
+
+**Note:** Version bump only for package @better-update/expo-protocol
+
 ## [0.1.17](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fexpo-protocol%400.1.16...%40better-update%2Fexpo-protocol%400.1.17) (2026-10-05)
 
 **Note:** Version bump only for package @better-update/expo-protocol
