@@ -34,7 +34,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.83.0",
+      "version": "0.84.0",
       "dependencies": {
         "@better-update/bsdiff": "workspace:*",
         "@effect/platform-bun": "4.0.0",
@@ -213,7 +213,7 @@
     },
     "packages/bsdiff": {
       "name": "@better-update/bsdiff",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",

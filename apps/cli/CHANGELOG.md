@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.84.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.83.0...%40better-update%2Fcli%400.84.0) (2026-10-06)
+
+### Features
+
+* **cli:** ship a windows x64 binary ([c2850b0](https://github.com/aislopware/better-update/commit/c2850b0db9b334a97df080f16c20ce651925b558))
+
 ## [0.83.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.82.1...%40better-update%2Fcli%400.83.0) (2026-10-06)
 
 ### Features

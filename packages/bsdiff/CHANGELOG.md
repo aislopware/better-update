@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fbsdiff%400.4.2...%40better-update%2Fbsdiff%400.5.0) (2026-10-06)
+
+### Features
+
+* **cli:** ship a windows x64 binary ([c2850b0](https://gitlab.jmango360.com/mobile/better-update/-/commit/c2850b0db9b334a97df080f16c20ce651925b558))
+
 ## [0.4.2](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fbsdiff%400.4.1...%40better-update%2Fbsdiff%400.4.2) (2026-10-06)
 
 **Note:** Version bump only for package @better-update/bsdiff
