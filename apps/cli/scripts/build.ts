@@ -116,9 +116,9 @@ const compile = async (target: TargetName, outfile: string): Promise<boolean> =>
     return false;
   }
   // `compile` embeds the source map in the executable (stack traces already
-  // resolve to src/), but Bun still writes a sibling `.map`; it would only
-  // bloat the release.
-  fs.rmSync(`${outfile}.map`, { force: true });
+  // resolve to src/), but Bun still writes a sibling `.map` (named without
+  // the `.exe` for Windows); it would only bloat the release.
+  fs.rmSync(`${outfile.replace(/\.exe$/u, "")}.map`, { force: true });
   const { size } = fs.statSync(outfile);
   log(
     `built ${path.relative(CLI_DIR, outfile)} (${target}, ${(size / 1024 / 1024).toFixed(1)} MB)`,
