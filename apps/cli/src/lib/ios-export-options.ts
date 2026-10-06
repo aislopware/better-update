@@ -1,4 +1,4 @@
-export type ExportMethod = "app-store" | "ad-hoc" | "enterprise" | "development";
+export type ExportMethod = "app-store" | "ad-hoc" | "enterprise" | "development" | "developer-id";
 
 export interface ProvisioningProfileMapping {
   readonly bundleId: string;
@@ -10,6 +10,11 @@ export interface RenderExportOptionsPlistInput {
   readonly teamId: string;
   readonly provisioningProfiles: readonly ProvisioningProfileMapping[];
   readonly compileBitcode?: boolean;
+  /**
+   * `signingCertificate`: a name prefix ("Developer ID Application") or a
+   * SHA-1. Required for `developer-id`, where no profile names the identity.
+   */
+  readonly signingCertificate?: string;
 }
 
 // Xcode 15.3+ renamed the ExportOptions.plist `method` strings; the legacy
@@ -20,6 +25,8 @@ const XCODE_METHOD: Record<ExportMethod, string> = {
   "ad-hoc": "release-testing",
   development: "debugging",
   enterprise: "enterprise",
+  // Unchanged by the Xcode 15.3 rename (only the iOS names moved).
+  "developer-id": "developer-id",
 };
 
 const escapeXml = (value: string): string =>
@@ -46,6 +53,7 @@ export const renderExportOptionsPlist = ({
   teamId,
   provisioningProfiles,
   compileBitcode = false,
+  signingCertificate,
 }: RenderExportOptionsPlistInput): string => {
   const lines: string[] = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -58,6 +66,9 @@ export const renderExportOptionsPlist = ({
     `\t<string>${escapeXml(teamId)}</string>`,
     "\t<key>signingStyle</key>",
     "\t<string>manual</string>",
+    ...(signingCertificate === undefined
+      ? []
+      : ["\t<key>signingCertificate</key>", `\t<string>${escapeXml(signingCertificate)}</string>`]),
     "\t<key>compileBitcode</key>",
     `\t${boolTag(compileBitcode)}`,
     "\t<key>provisioningProfiles</key>",

@@ -3,6 +3,7 @@ import path from "node:path";
 import { asRecord, asVersionSlot, compact } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
 
+import { parseMacosProfile } from "./eas-macos-config";
 import {
   asBooleanValue,
   asStringValue,
@@ -14,6 +15,7 @@ import { parseSubmitProfile } from "./eas-submit-config";
 import { BuildProfileError } from "./exit-codes";
 import { formatCause } from "./format-error";
 
+import type { EasMacosProfile } from "./eas-macos-config";
 import type { EasSubmitProfile } from "./eas-submit-config";
 
 export type EasDistribution = "internal" | "store";
@@ -81,6 +83,7 @@ export interface CustomCommandSpec {
 export interface CustomCommandProfile {
   readonly ios?: CustomCommandSpec;
   readonly android?: CustomCommandSpec;
+  readonly macos?: CustomCommandSpec;
 }
 
 export interface EasBuildProfile {
@@ -92,6 +95,7 @@ export interface EasBuildProfile {
   readonly env?: Record<string, string>;
   readonly ios?: EasIosProfile;
   readonly android?: EasAndroidProfile;
+  readonly macos?: EasMacosProfile;
   readonly credentialsSource?: EasCredentialsSource;
   readonly autoIncrement?: EasAutoIncrement;
   readonly withoutCredentials?: boolean;
@@ -285,7 +289,8 @@ const parseCustomCommandProfile = (raw: unknown): CustomCommandProfile | undefin
   }
   const ios = parseCustomCommandSpec(record["ios"]);
   const android = parseCustomCommandSpec(record["android"]);
-  const result = compact({ ios, android });
+  const macos = parseCustomCommandSpec(record["macos"]);
+  const result = compact({ ios, android, macos });
   return Object.keys(result).length === 0 ? undefined : result;
 };
 
@@ -302,6 +307,7 @@ export const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => 
   const env = asEnv(record["env"]);
   const ios = parseIosProfile(record["ios"]);
   const android = parseAndroidProfile(record["android"]);
+  const macos = parseMacosProfile(record["macos"]);
   const credentialsSource = asCredentialsSource(record["credentialsSource"]);
   const autoIncrement = asAutoIncrement(record["autoIncrement"]);
   const withoutCredentials = asBooleanValue(record["withoutCredentials"]);
@@ -315,6 +321,7 @@ export const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => 
     env,
     ios,
     android,
+    macos,
     credentialsSource,
     autoIncrement,
     withoutCredentials,
@@ -418,6 +425,7 @@ const mergeCustom = (
 const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuildProfile => {
   const ios = shallowMerge(base.ios, overlay.ios);
   const android = shallowMerge(base.android, overlay.android);
+  const macos = shallowMerge(base.macos, overlay.macos);
   const env = shallowMerge(base.env, overlay.env);
   const custom = mergeCustom(base.custom, overlay.custom);
   const developmentClient = overlay.developmentClient ?? base.developmentClient;
@@ -436,6 +444,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
     env,
     ios,
     android,
+    macos,
     credentialsSource,
     autoIncrement,
     withoutCredentials,

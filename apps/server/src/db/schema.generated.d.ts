@@ -294,6 +294,24 @@ export interface Channels {
   project_id: string;
 }
 
+export interface DesktopReleases {
+  build_id: string;
+  channel: string;
+  created_at: Generated<string>;
+  critical: Generated<number>;
+  halted: Generated<number>;
+  id: string | null;
+  phased_rollout_hours: number | null;
+  project_id: string;
+  release_notes: string | null;
+  rollout_percentage: Generated<number>;
+  sha512: string;
+  sparkle_ed_signature: string | null;
+  tauri_signature: string | null;
+  blockmap: Generated<number>;
+  updated_at: Generated<string>;
+}
+
 export interface DeviceRegistrationRequests {
   apple_team_id: string | null;
   consumed_at: string | null;
@@ -736,6 +754,7 @@ export interface DB {
   build_install_artifacts: BuildInstallArtifacts;
   builds: Builds;
   channels: Channels;
+  desktop_releases: DesktopReleases;
   device_registration_requests: DeviceRegistrationRequests;
   devices: Devices;
   devices_fts: DevicesFts;

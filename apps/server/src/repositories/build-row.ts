@@ -1,7 +1,14 @@
 import type { Kysely } from "kysely";
 
+import { artifactBlockmapKey } from "../domain/desktop-feeds";
+
 import type { DB } from "../db/schema";
-import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
+import type {
+  ArtifactFormat,
+  BuildPlatform,
+  BuildWithArtifactModel,
+  Distribution,
+} from "../models";
 
 /**
  * Base build projection: every stored column plus the LEFT-joined artifact
@@ -20,7 +27,7 @@ export const selectBuildsWithArtifact = (db: Kysely<DB>) =>
     .select((eb) => [
       eb.ref("b.id").$castTo<string>().as("id"),
       "b.project_id",
-      eb.ref("b.platform").$castTo<Platform>().as("platform"),
+      eb.ref("b.platform").$castTo<BuildPlatform>().as("platform"),
       "b.profile",
       eb.ref("b.distribution").$castTo<Distribution>().as("distribution"),
       "b.runtime_version",
@@ -49,7 +56,7 @@ export const selectBuildsWithArtifact = (db: Kysely<DB>) =>
 interface BuildWithArtifactRow {
   id: string;
   project_id: string;
-  platform: Platform;
+  platform: BuildPlatform;
   profile: string;
   distribution: Distribution;
   runtime_version: string | null;
@@ -113,3 +120,18 @@ export const toBuildWithArtifact = (row: BuildWithArtifactRow): BuildWithArtifac
         }
       : null,
 });
+
+/**
+ * Every builds-bucket object a build owns: its artifact, the universal APK
+ * next to it, and the electron-updater blockmap a zip release stores beside
+ * the artifact (deleting a key that was never written is a no-op).
+ */
+export const ownedKeys = (row: {
+  readonly r2_key: string;
+  readonly format: string;
+  readonly install_r2_key: string | null;
+}): readonly string[] => [
+  row.r2_key,
+  ...(row.format === "zip" ? [artifactBlockmapKey(row.r2_key)] : []),
+  ...(row.install_r2_key ? [row.install_r2_key] : []),
+];

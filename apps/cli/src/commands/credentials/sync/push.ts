@@ -16,6 +16,7 @@ import { apiClient } from "../../../services/api-client";
 import { CliRuntime } from "../../../services/cli-runtime";
 
 import type { CredentialsJson } from "../../../lib/credentials-json";
+import type { OutputMode } from "../../../lib/output-mode";
 import type { PromptServices } from "../../../lib/prompts";
 import type { ApiClient } from "../../../services/api-client";
 import type { DeviceUnlockMemo } from "../../../services/device-unlock-memo";
@@ -29,6 +30,7 @@ type PushRequirements =
   | CliRuntime
   | DeviceUnlockMemo
   | IdentityStore
+  | OutputMode
   | PromptServices;
 
 const pushIos = (

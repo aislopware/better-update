@@ -54,7 +54,7 @@ const CompatibleBuildsList = ({
   const { data } = useSuspenseQuery(
     buildsQueryOptions(orgId, projectId, {
       runtimeVersion,
-      platform,
+      platform: [platform],
       distribution: QA_DISTRIBUTIONS,
       limit: DROPDOWN_FETCH_LIMIT,
     }),

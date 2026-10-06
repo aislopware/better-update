@@ -5,13 +5,13 @@ import { Effect } from "effect";
 
 import type { RequestContext } from "@expo/apple-utils";
 
-import { wrap } from "./credentials-generator-apple";
+import { enableBundleIdCapability } from "./apple-asc-connect";
+import { AppleIdGenerateFailedError, wrap } from "./credentials-generator-apple";
 
 /**
  * Enable the Apple Pay capability on an App ID, registering the App ID first if
  * it does not exist yet. Returns once the capability is on. Works over both a
- * token and a cookie `RequestContext` (apple-utils routes both through its
- * provisioning client).
+ * token and a cookie `RequestContext`.
  */
 const enableApplePayCapability = (ctx: RequestContext, bundleIdentifier: string) =>
   Effect.gen(function* () {
@@ -27,11 +27,10 @@ const enableApplePayCapability = (ctx: RequestContext, bundleIdentifier: string)
           platform: AppleUtils.BundleIdPlatform.IOS,
         }),
       ));
-    yield* wrap("apple-enable-apple-pay", async () =>
-      bundle.updateBundleIdCapabilityAsync({
-        capabilityType: AppleUtils.CapabilityType.APPLE_PAY,
-        option: AppleUtils.CapabilityTypeOption.ON,
-      }),
+    yield* enableBundleIdCapability(bundle, AppleUtils.CapabilityType.APPLE_PAY).pipe(
+      Effect.mapError(
+        (error) => new AppleIdGenerateFailedError({ step: error.step, message: error.message }),
+      ),
     );
   });
 

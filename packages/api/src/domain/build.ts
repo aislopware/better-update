@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Option, Schema } from "effect";
 
 import {
   csvList,
@@ -6,11 +6,18 @@ import {
   DeletedResult,
   Id,
   PaginationParams,
-  Platform,
   sortParam,
   UploadHeaders,
 } from "./common";
 import { BuildInstallArtifact } from "./install-artifact";
+
+/**
+ * Platforms a build can target. Wider than `Platform`, which is the OTA
+ * update platform: a macOS app is built, signed, notarized and distributed
+ * here, but never receives Expo updates.
+ */
+export const BuildPlatform = Schema.Literals(["ios", "android", "macos"]);
+export type BuildPlatform = typeof BuildPlatform.Type;
 
 export const Distribution = Schema.Literals([
   "app-store",
@@ -20,6 +27,7 @@ export const Distribution = Schema.Literals([
   "simulator",
   "play-store",
   "direct",
+  "developer-id",
 ]);
 
 export const BuildAudience = Schema.Literals(["internal", "store"]);
@@ -30,6 +38,7 @@ export const INTERNAL_DISTRIBUTIONS = [
   "enterprise",
   "simulator",
   "direct",
+  "developer-id",
 ] as const satisfies readonly (typeof Distribution.Type)[];
 
 export const STORE_DISTRIBUTIONS = [
@@ -53,7 +62,50 @@ export const OTA_INSTALLABLE_DISTRIBUTIONS = [
 export const isOtaInstallableDistribution = (distribution: typeof Distribution.Type): boolean =>
   (OTA_INSTALLABLE_DISTRIBUTIONS as readonly string[]).includes(distribution);
 
-export const ArtifactFormat = Schema.Literals(["ipa", "apk", "aab", "tar.gz"]);
+export const ArtifactFormat = Schema.Literals(["ipa", "apk", "aab", "tar.gz", "dmg", "zip", "pkg"]);
+
+/**
+ * Containers a Developer ID-signed macOS app ships in. `tar.gz` is the
+ * `.app.tar.gz` the Tauri updater installs (Sparkle reads it too).
+ */
+export const MacosArtifactFormat = Schema.Literals(["dmg", "zip", "pkg", "tar.gz"]);
+
+/** How far Apple's notary service got with a build's shipped container. */
+export const MacosNotarization = Schema.Struct({
+  status: Schema.Literals(["accepted", "pending", "skipped"]),
+  submissionId: Schema.optional(Schema.String),
+  stapled: Schema.Boolean,
+});
+export type MacosNotarization = typeof MacosNotarization.Type;
+
+/**
+ * What a macOS build records under `metadata.macos`: the CLI writes it at
+ * upload, the dashboard reads it back. `pending` is a submission Apple had not
+ * finished with when the build uploaded — the app opens once it is accepted,
+ * just without a stapled ticket for offline first launch.
+ */
+export const MacosBuildMetadata = Schema.Struct({
+  /** The `.app` name without extension — what update feeds name the download. */
+  appName: Schema.optional(Schema.String),
+  minimumSystemVersion: Schema.optional(Schema.String),
+  architectures: Schema.optional(Schema.Array(Schema.String)),
+  teamId: Schema.optional(Schema.String),
+  /** The app's `SUPublicEDKey`: releases must carry a signature it verifies. */
+  sparklePublicKey: Schema.optional(Schema.String),
+  /** A Tauri app's `plugins.updater.pubkey`: Tauri feed entries must be signed for it. */
+  tauriPublicKey: Schema.optional(Schema.String),
+  /** Absent when an upload did not go through the CLI's notarize step. */
+  notarization: Schema.optional(MacosNotarization),
+});
+export type MacosBuildMetadata = typeof MacosBuildMetadata.Type;
+
+const decodeMacosMetadataJson = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ macos: MacosBuildMetadata })),
+);
+
+/** A build's `metadata.macos`, or undefined when absent or not in this shape. */
+export const readMacosBuildMetadata = (metadataJson: string): MacosBuildMetadata | undefined =>
+  Option.getOrUndefined(decodeMacosMetadataJson(metadataJson))?.macos;
 const Sha256Hex = Schema.String.check(
   Schema.isPattern(/^[a-fA-F0-9]{64}$/u),
   Schema.isMaxLength(64),
@@ -79,7 +131,7 @@ const CreateBuildCommonFields = {
 export const Build = Schema.Struct({
   id: Id,
   projectId: Id,
-  platform: Platform,
+  platform: BuildPlatform,
   profile: Schema.String,
   distribution: Distribution,
   runtimeVersion: Schema.NullOr(Schema.String),
@@ -148,6 +200,12 @@ export const CreateBuildBody = Schema.Union([
     distribution: Schema.Literal("direct"),
     artifactFormat: Schema.Literal("apk"),
   }),
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("macos"),
+    distribution: Schema.Literal("developer-id"),
+    artifactFormat: MacosArtifactFormat,
+  }),
 ]);
 
 export const BuildSortColumn = Schema.Literals([
@@ -162,7 +220,8 @@ export const BuildSort = sortParam(BuildSortColumn);
 
 export const ListBuildsParams = Schema.Struct({
   projectId: Id,
-  platform: Schema.optional(Platform),
+  // A list: with three build platforms, "any two" is a real filter.
+  platform: Schema.optional(csvList(BuildPlatform)),
   profile: Schema.optional(Schema.String),
   runtimeVersion: Schema.optional(Schema.String),
   distribution: Schema.optional(csvList(Distribution)),

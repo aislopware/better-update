@@ -11,6 +11,21 @@ export const DistributionType = Schema.Literals([
 ]);
 export type DistributionTypeValue = typeof DistributionType.Type;
 
+/**
+ * What a stored profile can be: the iOS kinds above, plus `DEVELOPER_ID` — a
+ * macOS profile (App Store Connect `MAC_APP_DIRECT`) a Developer ID app embeds
+ * to claim entitlements Apple must authorize. iOS build configuration keeps
+ * using {@link DistributionType}.
+ */
+export const ProfileDistributionType = Schema.Literals([
+  "APP_STORE",
+  "AD_HOC",
+  "ENTERPRISE",
+  "DEVELOPMENT",
+  "DEVELOPER_ID",
+]);
+export type ProfileDistributionTypeValue = typeof ProfileDistributionType.Type;
+
 export const BundleIdentifier = Schema.String.check(
   Schema.isPattern(/^[A-Za-z0-9.\-_]{1,200}$/u, {
     message: "Bundle identifier must be reverse-domain style (letters, digits, dot, dash)",
@@ -23,7 +38,7 @@ export const AppleProvisioningProfile = Schema.Struct({
   appleTeamId: Id,
   appleDistributionCertificateId: Schema.NullOr(Id),
   bundleIdentifier: Schema.String,
-  distributionType: DistributionType,
+  distributionType: ProfileDistributionType,
   developerPortalIdentifier: Schema.NullOr(Schema.String),
   profileName: Schema.NullOr(Schema.String),
   validUntil: Schema.NullOr(DateTimeString),
@@ -49,13 +64,13 @@ export const DownloadAppleProvisioningProfileResult = Schema.Struct({
   id: Id,
   profileBase64: Schema.String,
   bundleIdentifier: Schema.String,
-  distributionType: DistributionType,
+  distributionType: ProfileDistributionType,
   profileName: Schema.NullOr(Schema.String),
   developerPortalIdentifier: Schema.NullOr(Schema.String),
 });
 
 export const ListAppleProvisioningProfilesParams = Schema.Struct({
   bundleIdentifier: Schema.optional(BundleIdentifier),
-  distributionType: Schema.optional(DistributionType),
+  distributionType: Schema.optional(ProfileDistributionType),
   appleTeamId: Schema.optional(Id),
 });

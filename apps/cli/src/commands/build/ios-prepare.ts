@@ -30,7 +30,9 @@ const baseName = (entry: string): string => entry.replace(/\.(?<ext>xcworkspace|
 export const resolveXcodeContainer = (
   projectRoot: string,
   iosDir: string,
-  iosProfile: IosProfile,
+  iosProfile: Pick<IosProfile, "workspace" | "project">,
+  /** The eas.json section named in the "nothing found" hint. */
+  section: "ios" | "macos" = "ios",
 ): Effect.Effect<XcodeContainer, BuildFailedError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     if (iosProfile.workspace !== undefined) {
@@ -70,7 +72,7 @@ export const resolveXcodeContainer = (
     return yield* new BuildFailedError({
       step: "resolve Xcode container",
       exitCode: 1,
-      message: `No .xcworkspace or .xcodeproj found under ${iosDir}. Set ios.workspace / ios.project in eas.json.`,
+      message: `No .xcworkspace or .xcodeproj found under ${iosDir}. Set ${section}.workspace / ${section}.project in eas.json.`,
     });
   });
 

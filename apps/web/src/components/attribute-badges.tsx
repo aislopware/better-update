@@ -7,17 +7,19 @@ import {
   CodeIcon,
   DownloadSimpleIcon,
   FlaskIcon,
+  LaptopIcon,
   MonitorIcon,
   PaperPlaneTiltIcon,
   PlayIcon,
   RocketIcon,
+  SealCheckIcon,
   StorefrontIcon,
   TagIcon,
   WarningIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
 
-import type { BuildDistribution, PlatformValue } from "@better-update/api-client/react";
+import type { BuildDistribution, BuildPlatformValue } from "@better-update/api-client/react";
 import type { ComponentType, ReactElement } from "react";
 
 import { AndroidIcon } from "./android-icon";
@@ -55,10 +57,13 @@ interface Definition {
   variant: BadgeVariant;
 }
 
+// Keyed by the build platforms, a superset of the OTA ones, so every component
+// below renders an update's platform and a build's alike.
 const PLATFORM_DEFS = {
   ios: { label: "iOS", icon: AppleIcon, variant: "outline" },
   android: { label: "Android", icon: AndroidIcon, variant: "outline" },
-} as const satisfies Record<PlatformValue, Definition>;
+  macos: { label: "macOS", icon: LaptopIcon, variant: "outline" },
+} as const satisfies Record<BuildPlatformValue, Definition>;
 
 const DISTRIBUTION_DEFS = {
   "app-store": { label: "App Store", icon: StorefrontIcon, variant: "info" },
@@ -68,6 +73,7 @@ const DISTRIBUTION_DEFS = {
   simulator: { label: "Simulator", icon: MonitorIcon, variant: "secondary" },
   "play-store": { label: "Play Store", icon: PlayIcon, variant: "success" },
   direct: { label: "Direct", icon: DownloadSimpleIcon, variant: "outline" },
+  "developer-id": { label: "Developer ID", icon: SealCheckIcon, variant: "outline" },
 } as const satisfies Record<BuildDistribution, Definition>;
 
 // Environments are identity, not status — they render neutral (icon carries the
@@ -97,7 +103,7 @@ export const PlatformBadge = ({
   platform,
   size,
   className,
-}: AttributeBadgeProps & { platform: PlatformValue }): ReactElement =>
+}: AttributeBadgeProps & { platform: BuildPlatformValue }): ReactElement =>
   renderBadge(PLATFORM_DEFS[platform], size, className);
 
 /**
@@ -110,7 +116,7 @@ export const PlatformGlyph = ({
   platform,
   className,
 }: {
-  platform: PlatformValue;
+  platform: BuildPlatformValue;
   className?: string;
 }): ReactElement => {
   const { icon: Icon } = PLATFORM_DEFS[platform];
@@ -126,7 +132,7 @@ export const PlatformIndicator = ({
   platform,
   className,
 }: {
-  platform: PlatformValue;
+  platform: BuildPlatformValue;
   className?: string;
 }): ReactElement => {
   const { label, icon: Icon } = PLATFORM_DEFS[platform];
@@ -213,6 +219,7 @@ export const DISTRIBUTION_BADGE_LABELS: Record<BuildDistribution, string> = {
   development: DISTRIBUTION_DEFS.development.label,
   enterprise: DISTRIBUTION_DEFS.enterprise.label,
   simulator: DISTRIBUTION_DEFS.simulator.label,
+  "developer-id": DISTRIBUTION_DEFS["developer-id"].label,
   "play-store": DISTRIBUTION_DEFS["play-store"].label,
   direct: DISTRIBUTION_DEFS.direct.label,
 };

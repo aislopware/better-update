@@ -7,6 +7,12 @@ import type { AuditLogSource } from "./authz-models";
 
 export type Platform = "ios" | "android";
 
+/** Build target platforms: the OTA {@link Platform}s plus macOS (never updated over the air). */
+export type BuildPlatform = Platform | "macos";
+
+/** The build platforms that take OTA updates — the filter for every OTA query over `builds`. */
+export const OTA_PLATFORMS: readonly Platform[] = ["ios", "android"];
+
 export type Distribution =
   | "app-store"
   | "ad-hoc"
@@ -14,11 +20,14 @@ export type Distribution =
   | "enterprise"
   | "simulator"
   | "play-store"
-  | "direct";
+  | "direct"
+  | "developer-id";
 
-export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
+export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz" | "dmg" | "zip" | "pkg";
 
 export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
+/** A stored profile's kind: the iOS kinds plus macOS Developer ID (`MAC_APP_DIRECT`). */
+export type ProfileDistributionType = DistributionType | "DEVELOPER_ID";
 export type AppleTeamType = "IN_HOUSE" | "COMPANY_ORGANIZATION" | "INDIVIDUAL";
 
 // Same single-source treatment as AuditLogResourceType below: the certificate
@@ -301,7 +310,7 @@ export interface AppleProvisioningProfileModel {
   readonly appleTeamId: string;
   readonly appleDistributionCertificateId: string | null;
   readonly bundleIdentifier: string;
-  readonly distributionType: DistributionType;
+  readonly distributionType: ProfileDistributionType;
   readonly developerPortalIdentifier: string | null;
   readonly profileName: string | null;
   readonly validUntil: string | null;
@@ -402,7 +411,7 @@ export interface BuildArtifactModel {
 export interface BuildModel {
   readonly id: string;
   readonly projectId: string;
-  readonly platform: Platform;
+  readonly platform: BuildPlatform;
   readonly profile: string;
   readonly distribution: Distribution;
   readonly runtimeVersion: string | null;

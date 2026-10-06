@@ -7,7 +7,7 @@ import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 
 import type { AppleProvisioningProfiles } from "../db/schema";
-import type { AppleProvisioningProfileModel, DistributionType } from "../models";
+import type { AppleProvisioningProfileModel, ProfileDistributionType } from "../models";
 
 // -- Port -------------------------------------------------------------------
 
@@ -18,7 +18,7 @@ export interface AppleProvisioningProfileRepository {
     readonly appleTeamId: string;
     readonly appleDistributionCertificateId: string | null;
     readonly bundleIdentifier: string;
-    readonly distributionType: DistributionType;
+    readonly distributionType: ProfileDistributionType;
     readonly developerPortalIdentifier: string | null;
     readonly profileName: string | null;
     readonly validUntil: string | null;
@@ -38,7 +38,7 @@ export interface AppleProvisioningProfileRepository {
   readonly list: (params: {
     readonly organizationId: string;
     readonly bundleIdentifier?: string | undefined;
-    readonly distributionType?: DistributionType | undefined;
+    readonly distributionType?: ProfileDistributionType | undefined;
     readonly appleTeamId?: string | undefined;
   }) => Effect.Effect<readonly AppleProvisioningProfileModel[]>;
 

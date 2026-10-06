@@ -29,12 +29,13 @@ const DISTRIBUTION_OPTIONS = [
   "simulator",
   "play-store",
   "direct",
+  "developer-id",
 ] as const;
 
 export const listCommand = Command.make(
   "list",
   {
-    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+    platform: Flag.Literals("platform", ["ios", "android", "macos"]).pipe(
       Flag.withDescription("Filter by platform"),
       optionalFlag,
     ),
@@ -66,7 +67,7 @@ export const listCommand = Command.make(
         projectId,
         limit,
         ...compact({
-          platform: args.platform,
+          platform: args.platform ? [args.platform] : undefined,
           profile: args.profile,
           runtimeVersion: args["runtime-version"],
           distribution: args.distribution ? [args.distribution] : undefined,

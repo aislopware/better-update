@@ -12,7 +12,7 @@ import {
 import { APPLE_TEAM_ID_PATTERN } from "./apple-identifiers";
 
 import type { PlistObject } from "../lib/plist";
-import type { DistributionType } from "../models";
+import type { ProfileDistributionType } from "../models";
 
 export class InvalidProvisioningProfile extends Data.TaggedError("InvalidProvisioningProfile")<{
   readonly message: string;
@@ -20,7 +20,7 @@ export class InvalidProvisioningProfile extends Data.TaggedError("InvalidProvisi
 
 export interface ParsedProvisioningProfile {
   readonly bundleIdentifier: string;
-  readonly distributionType: DistributionType;
+  readonly distributionType: ProfileDistributionType;
   readonly appleTeamId: string;
   readonly teamName: string | null;
   readonly developerPortalIdentifier: string | null;
@@ -33,6 +33,7 @@ const PLIST_START = "<?xml";
 const PLIST_END = "</plist>";
 
 const extractPlist = (bytes: Uint8Array): string | null => {
+  // A single-byte decoding keeps string offsets equal to byte offsets.
   const text = new TextDecoder("latin1").decode(bytes);
   const start = text.indexOf(PLIST_START);
   if (start === -1) {
@@ -42,11 +43,22 @@ const extractPlist = (bytes: Uint8Array): string | null => {
   if (end === -1) {
     return null;
   }
-  return text.slice(start, end + PLIST_END.length);
+  // The plist itself is UTF-8: a profile name need not be ASCII.
+  return new TextDecoder().decode(bytes.subarray(start, end + PLIST_END.length));
 };
 
-const readApplicationIdentifier = (plist: PlistObject): string | null =>
-  getPlistString(getPlistObject(plist, "Entitlements") ?? plist, "application-identifier");
+// iOS profiles name the app id `application-identifier`; macOS ones
+// `com.apple.application-identifier`.
+const readApplicationIdentifier = (plist: PlistObject): string | null => {
+  const entitlements = getPlistObject(plist, "Entitlements") ?? plist;
+  return (
+    getPlistString(entitlements, "application-identifier") ??
+    getPlistString(entitlements, "com.apple.application-identifier")
+  );
+};
+
+const isMacProfile = (plist: PlistObject): boolean =>
+  getPlistStringArray(plist, "Platform").includes("OSX");
 
 const hasProvisionedDevices = (plist: PlistObject): boolean =>
   getPlistStringArray(plist, "ProvisionedDevices").length > 0;
@@ -59,9 +71,11 @@ const hasGetTaskAllow = (plist: PlistObject): boolean => {
   );
 };
 
-const inferDistributionType = (plist: PlistObject): DistributionType => {
+const inferDistributionType = (plist: PlistObject): ProfileDistributionType => {
+  // A profile valid on every device is in-house on iOS and Developer ID on
+  // macOS (App Store Connect `IOS_APP_INHOUSE` / `MAC_APP_DIRECT`).
   if (getPlistBoolean(plist, "ProvisionsAllDevices")) {
-    return "ENTERPRISE";
+    return isMacProfile(plist) ? "DEVELOPER_ID" : "ENTERPRISE";
   }
   const hasDevices = hasProvisionedDevices(plist);
 

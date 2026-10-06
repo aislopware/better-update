@@ -11,6 +11,7 @@ import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import type { Channel } from "@better-update/api";
+import type { BuildPlatformValue } from "@better-update/api-client/react";
 import type { ReactElement, ReactNode } from "react";
 
 import { PlatformIndicator } from "../../../../../components/attribute-badges";
@@ -128,7 +129,7 @@ const LiveNowCard = ({
 interface RecentEntry {
   readonly key: string;
   readonly title: string;
-  readonly platform: "ios" | "android";
+  readonly platform: BuildPlatformValue;
   readonly meta: string;
   readonly createdAt: string;
   readonly detailId: string;

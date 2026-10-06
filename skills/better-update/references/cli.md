@@ -52,7 +52,7 @@ better-update
 ├── analytics                      adoption · updates · downloads · channels · platforms
 ├── audit-logs                     list
 ├── apple                          login · logout · whoami (Apple Developer session)
-├── macos                          sign · notarize — Developer ID signing + Apple notary service
+├── macos                          sign · package · notarize · release — Developer ID signing, DMG/zip/pkg, notary, update feeds
 ├── submit                         Submit a build to App Store Connect / Google Play
 ├── testflight                     group (list/create/delete) — TestFlight beta groups
 ├── app-store                      version (list/create/set/localize) · submit · status ·
@@ -251,41 +251,42 @@ better-update channels rollout revert <channelId>
 ## build
 
 ```bash
-better-update build [--platform <ios|android|all>] [flags]
+better-update build [--platform <ios|android|macos|all>] [flags]
 better-update build configure [--force]      # scaffold/top-up eas.json default profiles (--force overwrites)
 ```
 
 `--platform` is **optional** — auto-detected from `app.json` when omitted. `--platform all` builds
 ios and android **in parallel** (output lines are tagged `[ios]` / `[android]`); not combinable with
-`--json` or `--output`.
+`--json` or `--output`. `--platform macos` (never auto-detected, never part of `all`) builds a
+Developer ID app from the profile's `macos` section — see `references/native-builds.md#macos-developer-id-builds-signing--notarization`.
 
-| Flag                                | Default      | Notes                                                                                                                            |
-| ----------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `--platform <ios\|android\|all>`    | auto         | Auto-detected when omitted; `all` = both platforms in parallel.                                                                  |
-| `--profile <name>`                  | `production` | Build profile (matches `eas.json` profile names).                                                                                |
-| `--message <text>`                  | —            | Free-form description on the build record.                                                                                       |
-| `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                                                                            |
-| `--output <path>`                   | —            | Copy the built artifact to this path.                                                                                            |
-| `--raw-output`                      | off          | Raw Gradle/Xcode output instead of the formatted spinner.                                                                        |
-| `--clear-cache`                     | off          | Clear project-scoped build caches before building.                                                                               |
-| `--freeze-credentials`              | off          | Fail fast if credentials are missing instead of prompting (CI). A stale profile still regenerates headless given a team ASC key. |
-| `--allow-dirty`                     | off          | Proceed even with uncommitted git changes.                                                                                       |
-| `--auto-submit`, `-s`               | off          | After upload, submit using the eas.json submit profile of the same name.                                                         |
-| `--auto-submit-with-profile <name>` | —            | After upload, submit using a specific submit profile.                                                                            |
-| `--what-to-test <text>`             | —            | iOS-only TestFlight changelog when auto-submitting.                                                                              |
+| Flag                                    | Default      | Notes                                                                                                                            |
+| --------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `--platform <ios\|android\|macos\|all>` | auto         | Auto-detected when omitted; `all` = ios + android in parallel; `macos` = Developer ID build.                                     |
+| `--profile <name>`                      | `production` | Build profile (matches `eas.json` profile names).                                                                                |
+| `--message <text>`                      | —            | Free-form description on the build record.                                                                                       |
+| `--no-upload`                           | off          | Upload is on by default; `--no-upload` for a dry run.                                                                            |
+| `--output <path>`                       | —            | Copy the built artifact to this path.                                                                                            |
+| `--raw-output`                          | off          | Raw Gradle/Xcode output instead of the formatted spinner.                                                                        |
+| `--clear-cache`                         | off          | Clear project-scoped build caches before building.                                                                               |
+| `--freeze-credentials`                  | off          | Fail fast if credentials are missing instead of prompting (CI). A stale profile still regenerates headless given a team ASC key. |
+| `--allow-dirty`                         | off          | Proceed even with uncommitted git changes.                                                                                       |
+| `--auto-submit`, `-s`                   | off          | After upload, submit using the eas.json submit profile of the same name.                                                         |
+| `--auto-submit-with-profile <name>`     | —            | After upload, submit using a specific submit profile.                                                                            |
+| `--what-to-test <text>`                 | —            | iOS-only TestFlight changelog when auto-submitting.                                                                              |
 
 ## builds
 
 ```bash
-better-update builds list [--platform <ios|android>] [--profile <name>] [--runtime-version <v>] \
-                          [--distribution <app-store|ad-hoc|development|enterprise|simulator|play-store|direct>] \
+better-update builds list [--platform <ios|android|macos>] [--profile <name>] [--runtime-version <v>] \
+                          [--distribution <app-store|ad-hoc|development|enterprise|simulator|play-store|direct|developer-id>] \
                           [--sort <createdAt|platform|distribution|runtimeVersion|appVersion>] [--limit <n>=10]
-better-update builds get <id>
+better-update builds get <id>                                 # macOS builds add notarization, min macOS, archs, team
 better-update builds download <id> [--output <path>] [--apk]  # download artifact (.ipa/.apk/.aab); --apk = universal APK of an .aab build
 better-update builds download-symbols <id> [--type <dsym|js-sourcemap|proguard-mapping|native-symbols>] \
                                       [--output <dir>]        # download stored debug symbols for crash symbolication
-better-update builds run [<id>] [--latest] [--platform <ios|android>] [--simulator <name|udid>] \
-                         [--device-id <udid>] [--device] [--emulator <serial>] [--package <name>]   # install + launch on a sim/emulator/device
+better-update builds run [<id>] [--latest] [--platform <ios|android|macos>] [--simulator <name|udid>] \
+                         [--device-id <udid>] [--device] [--emulator <serial>] [--package <name>]   # install + launch on a sim/emulator/device, or open a macOS build on this Mac
 better-update builds delete <id>
 better-update builds install-link <id>                        # → artifactUrl, installUrl (iOS itms-services / Android APK / null), expires
 better-update builds compatibility-matrix                     # runtime-version coverage per channel; flags gaps
@@ -584,34 +585,62 @@ better-update apple sandbox delete --id <testerId>
 
 ```bash
 better-update macos sign <path-to.app|binary> [--certificate-id <id>] [--entitlements <plist>] \
-  [--notarize] [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
+  [--notarize] [--notarize-timeout <dur>] [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
+better-update macos package <path-to.app> [--format <dmg|zip|pkg|tar.gz>=dmg] [--output <path>] [--notarize=true] \
+  [--certificate-id <id>] [--installer-certificate-id <id>] [--timeout <dur>] \
+  [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
 better-update macos notarize <path-to .app|.dmg|.pkg|.zip> [--asc-key-id <id>] \
-  [--apple-id <email> --team-id <TEAMID>] [--wait=true] [--staple=true]
+  [--apple-id <email> --team-id <TEAMID>] [--wait=true] [--staple=true] [--timeout <dur>] [--submission-id <id>]
+better-update macos release create [<buildId>] [--channel <name>=latest] [--notes <text> | --notes-file <path>] \
+  [--critical] [--rollout <1-100>] [--phased-rollout-hours <1-720>] [--sparkle-key-file <path>] \
+  [--tauri-key-file <path>] [--environment <env>] [--file <path>]
+better-update macos release list [--channel <name>] [--limit <n>=20]
+better-update macos release rollout <releaseId> [--percentage <1-100>] [--phased-rollout-hours <0-720>]
+better-update macos release halt|resume|delete <releaseId>
 ```
 
-Signs and notarizes macOS apps distributed **outside** the Mac App Store, using the vault:
+Signs, packages and notarizes macOS apps distributed **outside** the Mac App Store, using the vault
+(`build --platform macos` runs the same steps after building — see `references/native-builds.md`):
 
 - **`macos sign`** downloads + decrypts the stored **Developer ID Application** `.p12` (create one
   with `credentials generate distribution-certificate --type developer-id`, or upload an exported
   one with `credentials upload --platform macos --type macos-certificate`), imports it into an
-  ephemeral keychain (torn down on every exit path), then signs **inside-out**: every nested
-  framework / helper app / XPC service / dylib / loose Mach-O first, the outer bundle last — always
-  with the hardened runtime (`--options runtime`) + a secure timestamp, both required by
-  notarization. `--entitlements` applies to the outer bundle only. Ends with
-  `codesign --verify --deep --strict`. Cert resolution: `--certificate-id` › lone stored
-  Developer ID cert (printed) › interactive picker. A bare Mach-O binary (CLI tool) signs directly.
-  `--notarize` chains straight into the notarize flow below (wait + staple).
-- **`macos notarize`** submits to Apple's notary service via `xcrun notarytool`. An `.app` is
-  zipped automatically (`ditto -c -k --keepParent`); `.dmg`/`.pkg`/`.zip` upload as-is. Auth
-  mirrors `submit` (key over password): `--asc-key-id` (the `.p8` is decrypted and staged in a
-  private temp dir for the call) › `--apple-id` + `--team-id` with the app-specific password read
-  from `EXPO_APPLE_APP_SPECIFIC_PASSWORD` › the shared team-labeled ASC-key picker
-  (create-from-Apple-ID included; non-interactive runs fail with guidance). On **Accepted** it
-  staples the ticket (`stapler staple` + `validate`) — skipped for `.zip`, which cannot carry a
-  ticket (staple the `.app` inside instead). On **Invalid/Rejected** it fetches and prints the
-  notary developer log before failing. `--wait=false` uploads and returns the submission id
-  without polling. Exit codes: 2 validation, 5 missing vault credentials, 6 codesign/keychain/
-  notarization failure.
+  ephemeral keychain (no auto-lock, Apple's intermediates included, torn down on every exit path),
+  then signs **inside-out** — never `--deep`: every nested framework / helper app / XPC service /
+  dylib / loose Mach-O (including sidecar executables beside the main one in `Contents/MacOS`)
+  first, the outer bundle last, always with the hardened runtime + a secure timestamp. Each item
+  keeps its own entitlements minus `com.apple.security.get-task-allow`; ad-hoc/linker-signed loose
+  code gets a real identifier (`<bundleId>.<name>`). `--entitlements` replaces the outer bundle's
+  only. Ends with `codesign --verify --deep --strict` and a Developer ID audit. Cert resolution:
+  `--certificate-id` › lone stored Developer ID cert (printed) › interactive picker. A bare Mach-O
+  binary (CLI tool) signs directly. `--notarize` chains into the notarize flow below.
+- **`macos package`** audits the app first (refuses one that is not Developer ID-ready), then
+  builds the container: **dmg** (HFS+ UDZO with an Applications link, signed with the Application
+  identity as `<bundleId>.dmg`), **zip** (notarizes + staples the `.app`, then `ditto` zips it —
+  a zip cannot carry a ticket), **tar.gz** (the same, archived as the `.app.tar.gz` the Tauri
+  updater installs), or **pkg** (`productbuild` signed with a stored **Developer ID
+  Installer** certificate; upload-only — ASC cannot create one). Only the outermost container is
+  notarized and stapled.
+- **`macos notarize`** submits via `xcrun notarytool` and prints the submission id at once. An
+  `.app` is zipped automatically; `.dmg`/`.pkg`/`.zip` upload as-is. Auth mirrors `submit` (key
+  over password): `--asc-key-id` › `--apple-id` + `--team-id` with the app-specific password from
+  `EXPO_APPLE_APP_SPECIFIC_PASSWORD` › the team-labeled ASC-key picker (non-interactive runs fail
+  with guidance). `--timeout` bounds the wait (a new certificate's first submissions can take
+  hours); a timed-out submission is not a failure — rerun with `--submission-id <id>` to keep
+  waiting and staple. On **Accepted** it staples (`stapler staple` + `validate`; skipped for `.zip`).
+  On **Invalid** it prints Apple's issues grouped per file. `--wait=false` returns after upload.
+  Exit codes: 2 validation, 5 missing vault credentials, 6 codesign/keychain/notarization failure.
+- **`macos release`** publishes a finished Developer ID build to the project's public update feeds
+  (Sparkle `appcast.xml`, electron-updater `<channel>-mac.yml`, Tauri `<channel>-tauri.json`).
+  `create` downloads the stored
+  artifact (or hashes `--file` after checking it is the same bytes), computes the sha512 and the
+  Sparkle EdDSA signature (and, for a `tar.gz` build, the Tauri minisign signature; for a `zip`, the
+  electron-updater blockmap for differential downloads) locally, and
+  refuses a release the app would reject (unsigned or wrong key versus the recorded `SUPublicEDKey`
+  / Tauri updater `pubkey`). `--phased-rollout-hours` adds Sparkle's own phased rollout
+  (7 client groups, one more every N hours; `0` on `rollout` turns it off). `rollout` / `halt` /
+  `resume` / `delete` manage it. Details:
+  `references/native-builds.md#auto-update-feeds--sparkle-electron-updater--tauri`.
 
 ## submit
 
@@ -969,7 +998,8 @@ better-update credentials revoke asc-key [--id <localKeyId>] [--keep-local]   # 
 
 - **`capability enable`** validates `--capability` against Apple's `CapabilityType` and turns it `ON`. Capabilities
   with per-type option variants (Data Protection, iCloud, Sign In with Apple, Push) are enabled with their default
-  option. Pass the App ID by its ASC id (`--bundle-id`) or its bundle identifier (`--identifier`).
+  option. Pass the App ID by its ASC id (`--bundle-id`) or its bundle identifier (`--identifier`). Works with an ASC
+  API key (CI-safe) or an Apple ID session; a capability already on is left alone.
 
 ## devices
 

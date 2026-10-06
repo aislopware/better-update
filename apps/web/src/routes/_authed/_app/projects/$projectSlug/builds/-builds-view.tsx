@@ -1,4 +1,4 @@
-import type { BuildAudience } from "@better-update/api-client/react";
+import type { BuildAudience, BuildPlatformValue } from "@better-update/api-client/react";
 
 import { DISTRIBUTION_LABELS } from "../-build-helpers";
 import { DataTableFacetedFilter } from "../../../../../../lib/data-table";
@@ -6,6 +6,7 @@ import { DataTableFacetedFilter } from "../../../../../../lib/data-table";
 const PLATFORM_OPTIONS = [
   { label: "iOS", value: "ios" },
   { label: "Android", value: "android" },
+  { label: "macOS", value: "macos" },
 ] as const;
 
 const AUDIENCE_OPTIONS = [
@@ -21,8 +22,8 @@ const DISTRIBUTION_OPTIONS = Object.entries(DISTRIBUTION_LABELS).map(([value, la
 const isAudience = (value: string): value is BuildAudience =>
   value === "internal" || value === "store";
 
-const isPlatform = (value: string): value is "ios" | "android" =>
-  value === "ios" || value === "android";
+const isPlatform = (value: string): value is BuildPlatformValue =>
+  PLATFORM_OPTIONS.some((option) => option.value === value);
 
 export const BuildsFilterBar = ({
   platformFilter,
@@ -32,10 +33,10 @@ export const BuildsFilterBar = ({
   onDistributionFilter,
   onAudienceFilter,
 }: {
-  platformFilter: readonly ("ios" | "android")[];
+  platformFilter: readonly BuildPlatformValue[];
   distributionFilter: readonly string[];
   audienceFilter: readonly BuildAudience[];
-  onPlatformFilter: (value: readonly ("ios" | "android")[]) => void;
+  onPlatformFilter: (value: readonly BuildPlatformValue[]) => void;
   onDistributionFilter: (value: readonly string[]) => void;
   onAudienceFilter: (value: readonly BuildAudience[]) => void;
 }) => (

@@ -15,6 +15,8 @@ export interface P12Info {
   readonly expiresAt: Date | undefined;
   readonly subject: string;
   readonly issuerCN: string | undefined;
+  /** Issuer OU — `G2` marks the current Developer ID intermediate. */
+  readonly issuerOrgUnit: string | undefined;
   readonly signingIdentity: string;
   readonly teamId: string | undefined;
   /** Which kind of Apple certificate this is, read off the common name. */
@@ -75,6 +77,8 @@ export const inspectP12 = (params: {
 
       const issuerCNValue = cert.issuer.getField("CN")?.value;
       const issuerCN = typeof issuerCNValue === "string" ? issuerCNValue : undefined;
+      const issuerOUValue = cert.issuer.getField("OU")?.value;
+      const issuerOrgUnit = typeof issuerOUValue === "string" ? issuerOUValue : undefined;
 
       // Signing identity = Common Name from subject, e.g. "Apple Distribution: Name (TEAMID)"
       const cnValue = cert.subject.getField("CN")?.value;
@@ -93,6 +97,7 @@ export const inspectP12 = (params: {
         expiresAt,
         subject,
         issuerCN,
+        issuerOrgUnit,
         signingIdentity,
         teamId,
         certificateType: certificateTypeFromCommonName(cn),

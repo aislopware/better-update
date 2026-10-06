@@ -208,3 +208,70 @@ export const findAndroidArtifact = ({
     }
     return pickedFallback.path;
   });
+
+const walkForBundles = (
+  root: string,
+  extension: string,
+): Effect.Effect<readonly FoundFile[], PlatformError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const entries = yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []));
+    // eslint-disable-next-line unicorn/no-array-method-this-argument -- false positive: Effect.forEach(array, callback) is not Array.prototype.forEach
+    const found = yield* Effect.forEach(entries, (entry) =>
+      Effect.gen(function* () {
+        const fullPath = path.join(root, entry);
+        const stat = yield* fs.stat(fullPath).pipe(Effect.option);
+        if (Option.isNone(stat) || stat.value.type !== "Directory" || entry === "node_modules") {
+          return [];
+        }
+        // A bundle is the match itself; its insides are never a second match.
+        if (entry.toLowerCase().endsWith(extension)) {
+          return [
+            {
+              path: fullPath,
+              mtimeMs: Option.match(stat.value.mtime, {
+                onNone: () => 0,
+                onSome: (date) => date.getTime(),
+              }),
+            },
+          ];
+        }
+        return yield* walkForBundles(fullPath, extension);
+      }),
+    );
+    return found.flat();
+  });
+
+/**
+ * {@link findArtifactByGlob} for a directory bundle (`dist/mac/*.app`): the
+ * newest `<ext>` directory under the pattern's fixed prefix. Bundle dirs are
+ * matched whole and never searched inside.
+ */
+export const findBundleByGlob = ({
+  baseDir,
+  pattern,
+  minMtimeMs,
+}: FindArtifactByGlobOptions): Effect.Effect<
+  string,
+  ArtifactNotFoundError | PlatformError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    if (!/[*?[]/u.test(pattern)) {
+      return yield* findArtifactByGlob({ baseDir, pattern });
+    }
+    const wildcardIndex = pattern.search(/[*?[]/u);
+    const fixedPrefix = pattern.slice(0, wildcardIndex);
+    const prefixDir = fixedPrefix.includes("/")
+      ? fixedPrefix.slice(0, fixedPrefix.lastIndexOf("/"))
+      : "";
+    const searchRoot = prefixDir === "" ? baseDir : path.join(baseDir, prefixDir);
+    const bundles = yield* walkForBundles(searchRoot, path.extname(pattern).toLowerCase());
+    const picked = newest(bundles, minMtimeMs);
+    if (!picked) {
+      return yield* new ArtifactNotFoundError({
+        message: `No bundle matching "${pattern}" found under "${searchRoot}".`,
+      });
+    }
+    return picked.path;
+  });

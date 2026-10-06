@@ -10,6 +10,8 @@ import type { ProjectType } from "./detect-project-type";
  */
 export type AndroidBuildStrategy = "expo" | "gradle" | "custom";
 export type IosBuildStrategy = "expo" | "xcode" | "custom";
+/** macOS has no prebuild: the committed project is archived, or a custom command runs. */
+export type MacosBuildStrategy = "xcode" | "custom";
 
 export const resolveAndroidStrategy = (
   profile: BuildProfile,
@@ -30,3 +32,6 @@ export const resolveIosStrategy = (
   }
   return projectType === "expo" ? "expo" : "xcode";
 };
+
+export const resolveMacosStrategy = (profile: BuildProfile): MacosBuildStrategy =>
+  profile.customCommand?.macos === undefined ? "xcode" : "custom";

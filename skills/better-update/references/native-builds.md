@@ -236,32 +236,191 @@ better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]
   itself, so it downloads the profile/cert to a tmp path and gives you the commands plus a
   re-upload path (iOS only; the build id is the `--build` flag, not a positional). For **macOS**
   apps, signing IS driven by the CLI — see the section below.
+- `submit --id` refuses a build of another platform (a macOS DMG never goes to a store).
 
-## macOS Developer ID signing & notarization
+## macOS Developer ID builds, signing & notarization
 
-For apps distributed **outside** the Mac App Store (a `.app`, `.dmg`, `.pkg`, or a bare CLI binary):
+For apps distributed **outside** the Mac App Store. One-time: put a **Developer ID Application**
+certificate in the vault (only the Account Holder can create one):
 
 ```bash
-# One-time: store a Developer ID Application cert in the vault (Account Holder only)
 better-update credentials generate distribution-certificate --type developer-id
 # …or upload one you already exported from Keychain Access (any macOS certificate kind)
 better-update credentials upload --platform macos --type macos-certificate \
   --name "Developer ID Application" --file ./DeveloperID.p12 --password "..."
+```
 
+### `build --platform macos` — build, sign, package, notarize, upload
+
+Driven by a `macos` section in the eas.json build profile (a better-update extension; nothing in
+it applies to iOS/Android, and the shared `distribution` shorthand never implies it):
+
+```jsonc
+"desktop": {
+  "macos": {
+    "artifact": "dmg",              // dmg (default) | zip (Sparkle/Squirrel) | pkg | tar.gz (Tauri updater)
+    "notarize": true,               // default; Gatekeeper blocks an unnotarized download
+    "notarizeTimeout": "45m",       // stop waiting; the build uploads as "pending with Apple"
+    "ascApiKeyId": "<vault key id>",// else: the one stored key of the cert's team, else a picker
+    "universal": true,              // ARCHS="arm64 x86_64" (Xcode 27 drops Intel at macOS 27+)
+    "workspace": "macos/App.xcworkspace", "scheme": "App-macOS", "buildConfiguration": "Release",
+    "entitlements": "macos/App.entitlements"   // only when the CLI (re-)signs the outer app
+  }
+}
+```
+
+- **Xcode projects** (AppKit/SwiftUI at the root, react-native-macos / Flutter under `macos/`):
+  `xcodebuild archive -destination generic/platform=macOS` with the vault identity forced onto
+  every target (manual signing, `ENABLE_HARDENED_RUNTIME=YES`), then `-exportArchive` with
+  `method=developer-id`. Targets claim no profile unless their entitlements need one (below). A "Generic Xcode Archive" (a framework/tool target
+  with `SKIP_INSTALL=NO`) cannot be exported; the CLI warns and signs the archived app itself.
+  `pod install` runs when `macos/Podfile` exists; dSYMs upload with the build.
+- **Custom commands** (Tauri, Electron, Compose, Flutter CLI, anything): `custom.macos` with
+  `command` + `artifactPath` (a `.app`, or a `.dmg`/`.zip`/`.pkg` the tool packaged). The command
+  sees the identity in every toolchain's own variables — `BETTER_UPDATE_MACOS_SIGNING_IDENTITY`
+  (SHA-1) / `_SIGNING_IDENTITY_NAME` / `_KEYCHAIN` / `_P12_PATH` / `_P12_PASSWORD` / `_TEAM_ID`,
+  Tauri `APPLE_SIGNING_IDENTITY`, electron-builder `CSC_LINK` + `CSC_KEY_PASSWORD`, Flutter
+  `FLUTTER_XCODE_*`, Compose `ORG_GRADLE_PROJECT_compose.desktop.mac.*`. No notary credentials
+  are exposed: the CLI notarizes the final container once.
+- **Tauri**: point `artifactPath` at the `.app` and set `"macos.artifact": "tar.gz"` — the CLI
+  re-signs if needed, notarizes, staples and archives it as the `.app.tar.gz` the updater installs
+  (a `.app.tar.gz` Tauri made is unpacked and finished the same way; its `.sig` is not used —
+  `macos release` signs the stored bytes). Leave `createUpdaterArtifacts` off. The build records
+  `plugins.updater.pubkey` from `src-tauri/tauri.conf.json` (`tauri.macos.conf.json` first) so a
+  release signed with another key is refused. Tauri's CLI reads `CI` as `true`/`false`: set
+  `"env": { "CI": "true" }` on the custom command when the shell exports `CI=1`.
+  ```jsonc
+  "custom": { "macos": { "command": "bun tauri build --bundles app", "cwd": "src-tauri",
+                         "artifactPath": "target/release/bundle/macos/*.app" } }
+  ```
+- After the build, every app is **audited** (Developer ID authority + team, hardened runtime on
+  executables, secure timestamp, no `get-task-allow`, restricted entitlements need a profile).
+  An app that fails is **re-signed** by the CLI (inside-out, entitlements preserved) and
+  re-audited; a container a tool packaged is opened and audited in place (re-signing it would
+  mean repackaging, so point `artifactPath` at the `.app` instead). An unsigned tool-made DMG is
+  signed; an already-stapled container is not notarized twice.
+- Notarization waits for Apple's verdict (a new certificate's first submissions can take hours).
+  With `notarizeTimeout`, an unfinished submission does not fail the build: it uploads, the build
+  records `pending`, and `macos notarize <file> --submission-id <id>` resumes and staples later.
+- Recorded on the build: platform `macos`, distribution `developer-id`, version/build number and
+  bundle id read from the built app, and `metadata.macos` (minimum macOS, architectures, team,
+  notarization state) — shown by `builds get` and the dashboard. `builds run <id>` on a Mac
+  mounts/unzips the container and opens the app (a `.pkg` opens in Installer).
+
+### Developer ID provisioning profiles
+
+Most Developer ID apps need no profile. One that claims an entitlement Apple must authorize —
+iCloud, push, associated domains, keychain sharing, App Groups with a team prefix, … (anything not
+`com.apple.security.*`) — is killed at launch without a `MAC_APP_DIRECT` profile embedded as
+`Contents/embedded.provisionprofile`. The build handles it with no configuration:
+
+- Before archiving it reads each target's bundle id + `CODE_SIGN_ENTITLEMENTS` from the scheme. For
+  a target that needs a profile it uses the stored `DEVELOPER_ID` profile for that bundle id +
+  certificate (valid > 7 days, granting every claimed entitlement), else creates one on Apple with
+  the build's ASC API key (`macos.ascApiKeyId`, else the notary key) and stores it. The App ID is
+  registered if Apple does not know it.
+- The profile is installed for the build only and selected per target in the staged project; the
+  export (or the CLI signer) embeds it and adds `com.apple.application-identifier` +
+  `com.apple.developer.team-identifier` to the signature.
+- If even a fresh profile lacks an entitlement, the App ID lacks the capability — the build stops
+  and names it: `better-update credentials capability enable --identifier <bundleId> --capability
+ASSOCIATED_DOMAINS` (or the portal), then build again.
+- Custom-command and re-signed apps get the same treatment from the post-build audit.
+- Profiles show up in `credentials list --type provisioning-profile` as `DEVELOPER_ID`. Sign in
+  with Apple, Game Center and In-App Purchase are not available to Developer ID apps.
+
+### Signing or notarizing an existing app
+
+```bash
 # Sign (ephemeral keychain, inside-out nested signing, hardened runtime + timestamp)
-better-update macos sign ./dist/MyApp.app [--entitlements ./entitlements.plist]
+better-update macos sign ./dist/MyApp.app [--entitlements ./entitlements.plist] [--notarize]
 
-# Sign and notarize in one go
-better-update macos sign ./dist/MyApp.app --notarize
+# Package a signed app as a signed DMG / zip / pkg, then notarize + staple the container
+better-update macos package ./dist/MyApp.app --format dmg [--output ./MyApp.dmg]
 
 # Notarize + staple an already-signed artifact (.app auto-zipped; .dmg/.pkg/.zip as-is)
-better-update macos notarize ./dist/MyApp.dmg [--asc-key-id <id>]
+better-update macos notarize ./dist/MyApp.dmg [--asc-key-id <id>] [--timeout 30m]
+better-update macos notarize ./dist/MyApp.dmg --submission-id <id>   # resume a timed-out one
 ```
 
 Notary auth follows the same precedence as `submit`: ASC API key (vault-stored, `.p8` staged in a
 private temp dir) over Apple ID + app-specific password (`--apple-id` + `--team-id`, password from
-`EXPO_APPLE_APP_SPECIFIC_PASSWORD`). Rejections print Apple's notary developer log; acceptance
+`EXPO_APPLE_APP_SPECIFIC_PASSWORD`). Rejections print Apple's issues grouped per file; acceptance
 staples and validates the ticket. Full flag reference: `references/cli.md#macos`.
+
+### Auto-update feeds — Sparkle, electron-updater & Tauri
+
+A macOS build reaches installed apps only once **released** to a feed channel. The server renders
+the feeds from releases; the CLI hashes and EdDSA-signs the stored artifact locally, so the Sparkle
+private key never leaves the machine.
+
+```bash
+better-update macos release create [<buildId>]          # default: newest Developer ID build
+  [--channel latest] [--notes "…" | --notes-file CHANGES.md] [--critical] [--rollout 20] \
+  [--phased-rollout-hours 24] [--sparkle-key-file ./sparkle_private_key] \
+  [--environment production] [--file ./MyApp.dmg]
+better-update macos release list [--channel <name>]     # + the feed URLs
+better-update macos release rollout <releaseId> [--percentage 50] [--phased-rollout-hours 0]
+better-update macos release halt|resume|delete <releaseId>
+```
+
+| Feed (public, no auth)                                  | For                                 |
+| ------------------------------------------------------- | ----------------------------------- |
+| `<server>/feeds/<projectId>/macos/appcast.xml`          | Sparkle 2 `SUFeedURL`               |
+| `<server>/feeds/<projectId>/macos/<channel>-mac.yml`    | electron-updater `generic` provider |
+| `<server>/feeds/<projectId>/macos/<channel>-tauri.json` | Tauri updater `endpoints` (static)  |
+| `…/<channel>-tauri.json?arch={{arch}}`                  | Tauri updater (dynamic, per arch)   |
+
+- **Channels**: `latest` is the default — untagged in the appcast (every Sparkle client) and
+  `latest-mac.yml`. Any other name (`beta`, …) is opt-in: `sparkle:channel` (the app returns it from
+  `allowedChannels(for:)`) / `<name>-mac.yml` (electron-updater `channel: "<name>"`). Re-releasing a
+  build to the same channel replaces it and resumes it if halted.
+- **Sparkle key**: `generate_keys -x <file>` exports it (32-byte seed; the 96-byte pre-2.0 format
+  works too). Looked up as `--sparkle-key-file` › `$SPARKLE_PRIVATE_KEY` › `SPARKLE_PRIVATE_KEY` in
+  the `--environment`'s variables. `build --platform macos` records the app's `SUPublicEDKey`, and
+  `release create` **refuses** to publish unsigned or with a key that does not match it (the app
+  would reject the update). Without a key and without `SUPublicEDKey` it warns and publishes
+  unsigned (fine for electron-updater).
+- **Tauri**: a `tar.gz` build is signed at release with the Tauri updater key —
+  `--tauri-key-file` › `$TAURI_SIGNING_PRIVATE_KEY` (the key or a path to it, as Tauri reads it) ›
+  the `--environment`'s `TAURI_SIGNING_PRIVATE_KEY`; password `$TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  (empty when unset). The signature binds the app version, so `requireSignedVersion: true` works.
+  `<channel>-tauri.json` serves the newest signed semver release: the static form with a
+  `darwin-aarch64` / `darwin-x86_64` entry per architecture released at that version (a universal
+  build fills both), or — with `?arch={{arch}}` in the endpoint — the dynamic form for that Mac;
+  204 means no update. Percentage rollout reads `installId` from the query or an `X-Install-Id`
+  header (`check({ headers })` in JS, `.header()` on the Rust `updater_builder()`).
+- **Formats**: the appcast lists dmg/zip/pkg/tar.gz releases; electron-updater (Squirrel.Mac) only takes a
+  **zip**, so `<channel>-mac.yml` serves the newest zip version of the channel (404 otherwise) —
+  build with `"artifact": "zip"` for Electron apps.
+- **Differential updates (electron-updater)**: `release create` cuts every zip into a blockmap
+  (content-defined chunks) and uploads it; the feed serves it as `<file>.blockmap`, finds the
+  running version's blockmap from the URL electron-updater derives (the new URL with the old
+  version), and answers range requests itself (`multipart/byteranges`). An app that already holds
+  the previous update's zip downloads only the changed chunks — nothing to configure. The first
+  update after a fresh install is always a full download (electron-updater has no cached zip yet).
+  Releases created by an older CLI carry no blockmap and fall back to full downloads.
+- **Architectures** (from the build's `metadata.macos.architectures`): an arm64-only build gets
+  `sparkle:hardwareRequirements arm64` (Sparkle 2.9+ hides it from Intel Macs) and a `-arm64` file
+  name; an Intel-only one `-x64`. electron-updater gives Apple silicon the file named `arm64` and
+  Intel the rest, so `<channel>-mac.yml` lists the newest version's arm64-only zip **and** its
+  newest other zip when both are released — release per-arch builds of one version side by side,
+  or one universal build. Sparkle has no Intel-only marker: prefer universal builds there.
+- **Staged rollout**, two kinds:
+  - `--rollout N` (percentage). The server decides for Sparkle and Tauri: an item under 100 % is
+    listed only for installs whose install id (`installId` query parameter or `X-Install-Id`
+    header) hashes into the bucket (Sparkle: a stable per-install UUID via
+    `feedParameters(for:)`; without one, only fully rolled-out releases are listed).
+    electron-updater stages itself from `stagingPercentage`.
+  - `--phased-rollout-hours H` (Sparkle only, no app code): `sparkle:phasedRolloutInterval` — each
+    client sits in one of 7 random groups, and one more group gets the release every H hours after
+    it is published (all of them after 6·H). Critical updates and "Check for Updates…" skip it.
+    `release rollout <id> --phased-rollout-hours 0` turns it off.
+- **Halt** stops offering a release (Macs that installed it keep it); the previous live release
+  becomes the newest item again. `--critical` sets `sparkle:criticalUpdate`. `minimumSystemVersion`
+  comes from the app's `LSMinimumSystemVersion`.
+- Releasing needs the `developer` role (same as creating a build); deleting needs `maintainer`.
+  Released builds are never garbage-collected.
 
 ## `submit` — upload to the stores
 

@@ -28,6 +28,11 @@ export type BuildTarget =
       readonly platform: "android";
       readonly distribution: "direct";
       readonly artifactFormat: "apk";
+    }
+  | {
+      readonly platform: "macos";
+      readonly distribution: "developer-id";
+      readonly artifactFormat: "dmg" | "zip" | "pkg" | "tar.gz";
     };
 
 export interface ReserveAndUploadInput {
@@ -46,6 +51,8 @@ export interface ReserveAndUploadInput {
   };
   readonly message?: string;
   readonly fingerprintHash?: string;
+  /** Free-form build metadata (a macOS build records `metadata.macos`). */
+  readonly metadata?: Readonly<Record<string, unknown>>;
   readonly artifactPath: string;
   readonly sha256: string;
   readonly byteSize: number;
@@ -67,6 +74,7 @@ const buildReserveCommon = (input: ReserveAndUploadInput) =>
       gitCommit: input.gitContext.commit,
       message: input.message,
       fingerprintHash: input.fingerprintHash,
+      metadata: input.metadata,
     }),
   }) as const;
 
@@ -91,6 +99,16 @@ const callReserve = (api: ApiClient, input: ReserveAndUploadInput) => {
             artifactFormat: "ipa",
           },
         });
+  }
+  if (target.platform === "macos") {
+    return api.builds.reserve({
+      payload: {
+        ...common,
+        platform: "macos",
+        distribution: "developer-id",
+        artifactFormat: target.artifactFormat,
+      },
+    });
   }
   return target.distribution === "play-store"
     ? api.builds.reserve({

@@ -42,6 +42,18 @@ export const notarizeCommand = Command.make(
       Flag.withDescription("Staple the ticket to the artifact after acceptance (skipped for .zip)"),
       Flag.withDefault(true),
     ),
+    timeout: Flag.String("timeout").pipe(
+      Flag.withDescription(
+        'Stop waiting after this long (e.g. "30m", "2h"); Apple keeps processing and --submission-id resumes it',
+      ),
+      optionalFlag,
+    ),
+    "submission-id": Flag.String("submission-id").pipe(
+      Flag.withDescription(
+        "Resume an earlier submission (wait for it, then staple) instead of uploading again",
+      ),
+      optionalFlag,
+    ),
   },
   Effect.fn(
     function* (args) {
@@ -59,11 +71,13 @@ export const notarizeCommand = Command.make(
         auth,
         wait: args.wait,
         staple: args.staple,
+        timeout: args.timeout,
+        submissionId: args["submission-id"],
       });
       yield* printHuman("");
       yield* printHumanKeyValue([
         ["Path", result.artifactPath],
-        ["Submission", result.submissionId ?? "-"],
+        ["Submission", result.submissionId],
         ["Status", result.status],
         ["Stapled", result.stapled ? "yes" : "no"],
       ]);
@@ -73,6 +87,6 @@ export const notarizeCommand = Command.make(
   ),
 ).pipe(
   Command.withDescription(
-    "Notarize a signed macOS artifact (.app is zipped automatically; .dmg/.pkg/.zip upload as-is) and staple the ticket",
+    "Notarize a signed macOS artifact (.app is zipped automatically; .dmg/.pkg/.zip upload as-is) and staple the ticket; --submission-id resumes an earlier submission",
   ),
 );

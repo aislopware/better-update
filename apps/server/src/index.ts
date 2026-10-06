@@ -6,6 +6,7 @@ import {
   handleBundleRequest,
   handleScheduled,
   matchBuildRoute,
+  matchDesktopFeedRoute,
   matchDeviceRegistrationRoute,
   serveManifest,
 } from "./handlers";
@@ -156,8 +157,11 @@ const routeRequest = async (
     return serveManifest(request, env, ctx, manifestMatch[1]);
   }
 
-  // Build routes — artifact download + iOS install plist
-  const buildResponse = await matchBuildRoute(request, env, url.pathname);
+  // Build routes — artifact download + iOS install plist — and the public
+  // macOS update feeds (Sparkle / electron-updater) serving released builds.
+  const buildResponse =
+    (await matchDesktopFeedRoute(request, env, url)) ??
+    (await matchBuildRoute(request, env, url.pathname));
   if (buildResponse) {
     return buildResponse;
   }

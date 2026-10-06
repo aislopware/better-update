@@ -1,121 +1,46 @@
 /**
  * Developer ID code-signing for a macOS `.app` bundle: discover every nested
- * code item (frameworks, helper apps, XPC services, dylibs, extra Mach-O
+ * code item (frameworks, helper apps, XPC services, dylibs, sidecar
  * executables), sign them inside-out with the hardened runtime + a secure
  * timestamp (both required by notarization), then sign and verify the outer
  * bundle. This is the walk `codesign --deep` used to approximate — done
- * explicitly because `--deep` is deprecated and misses loose Mach-Os.
+ * explicitly because `--deep` is deprecated, misses loose Mach-Os, and applies
+ * one entitlement set to everything.
+ *
+ * Re-signing keeps what the build put there: each item is signed with its own
+ * current entitlements (minus `get-task-allow`), and identifiers are only
+ * assigned to code that has no real identity yet (ad-hoc or linker-signed, as
+ * cargo/ld emit). A plain `codesign --force` would silently drop both.
  */
-import { open, readdir } from "node:fs/promises";
+import { copyFile, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { Effect } from "effect";
 
 import { execFailureDetail, runTool } from "./exec-tool";
 import { CodesignError } from "./exit-codes";
+import {
+  collectNestedCode,
+  looseCodeIdentifier,
+  orderForSigning,
+  readBundleInfo,
+} from "./macos-code-discovery";
+import {
+  distributionEntitlements,
+  hasRealIdentity,
+  inspectSignature,
+  readEntitlements,
+} from "./macos-code-inspect";
+import { buildPlistXml, parsePlist } from "./plist";
 
-// ── discovery ─────────────────────────────────────────────────────
+import type { NestedCodeItem } from "./macos-code-discovery";
+import type { PlistObject } from "./plist";
 
-/** Bundle-shaped directories codesign treats as one nested code unit. */
-const NESTED_BUNDLE_EXTENSIONS = [".framework", ".app", ".xpc", ".appex", ".bundle", ".plugin"];
-
-/** Loose files that are always code, regardless of exec bit. */
-const CODE_FILE_EXTENSIONS = [".dylib", ".so", ".node"];
-
-const hasExtension = (name: string, extensions: readonly string[]): boolean => {
-  const lower = name.toLowerCase();
-  return extensions.some((ext) => lower.endsWith(ext));
-};
-
-// Mach-O magics as hex strings (oxfmt/unicorn disagree on numeric hex-literal
-// case): 32/64-bit thin binaries (both byte orders) and fat binaries (both
-// byte orders).
-const MACHO_MAGICS: ReadonlySet<string> = new Set([
-  "feedface",
-  "feedfacf",
-  "cefaedfe",
-  "cffaedfe",
-  "cafebabe",
-  "bebafeca",
-]);
-
-/**
- * Whether the file starts with a Mach-O (thin or fat) magic. Filters exec-bit
- * shell scripts and data files out of the signing list — signing those would
- * churn resources for no gain and can break scripts that self-inspect.
- */
-const isMachO = (filePath: string) =>
-  Effect.promise(async () => {
-    const handle = await open(filePath, "r");
-    try {
-      const buffer = Buffer.alloc(4);
-      const { bytesRead } = await handle.read(buffer, 0, 4, 0);
-      return bytesRead >= 4 && MACHO_MAGICS.has(buffer.toString("hex"));
-    } finally {
-      await handle.close();
-    }
-  });
-
-const listEntries = (dirPath: string) =>
-  Effect.promise(async () => readdir(dirPath, { withFileTypes: true }));
-
-/**
- * Recursively collect nested code inside `dirPath`: bundle directories and
- * loose Mach-O files. Symlinks are never followed (framework `Versions/Current`
- * links would double-visit), and the outer bundle itself is NOT in the result —
- * the caller signs it last with the entitlements.
- */
-export const collectNestedCode = (dirPath: string): Effect.Effect<readonly string[]> =>
-  Effect.gen(function* () {
-    const entries = yield* listEntries(dirPath);
-    const collected = yield* Effect.all(
-      entries.map((entry) =>
-        Effect.gen(function* () {
-          if (entry.isSymbolicLink()) {
-            return [] as readonly string[];
-          }
-          const entryPath = path.join(dirPath, entry.name);
-          if (entry.isDirectory()) {
-            // Descend even into bundle dirs: frameworks carry loose dylibs of
-            // their own that need individual signatures underneath the
-            // framework's.
-            const own = hasExtension(entry.name, NESTED_BUNDLE_EXTENSIONS) ? [entryPath] : [];
-            return [...own, ...(yield* collectNestedCode(entryPath))];
-          }
-          if (!entry.isFile()) {
-            return [];
-          }
-          const looksLikeCode =
-            hasExtension(entry.name, CODE_FILE_EXTENSIONS) || (yield* isMachO(entryPath));
-          return looksLikeCode ? [entryPath] : [];
-        }),
-      ),
-    );
-    return collected.flat();
-  });
-
-/**
- * Inside-out signing order: deepest paths first so every nested item is sealed
- * before the code that contains it. Ties break lexicographically for
- * determinism. The outer bundle is appended by the caller, never here.
- */
-export const orderForSigning = (paths: readonly string[]): readonly string[] =>
-  [...paths].toSorted((left, right) => {
-    const depthLeft = left.split(path.sep).length;
-    const depthRight = right.split(path.sep).length;
-    return depthRight === depthLeft ? left.localeCompare(right) : depthRight - depthLeft;
-  });
-
-/**
- * The main executable (and anything else directly under `Contents/MacOS`) is
- * sealed by the outer-bundle signature, so signing it standalone first would be
- * immediately overwritten by the final `--force` pass. Everything else nested
- * keeps its own signature.
- */
-export const isSealedByOuterSignature = (appPath: string, itemPath: string): boolean =>
-  path.dirname(itemPath) === path.join(appPath, "Contents", "MacOS");
-
-// ── signing ───────────────────────────────────────────────────────
+/** A Developer ID provisioning profile on disk, for the bundle it is issued to. */
+export interface EmbeddedProfile {
+  readonly path: string;
+  readonly teamId: string;
+}
 
 export interface SignMacosAppOptions {
   readonly appPath: string;
@@ -123,28 +48,35 @@ export interface SignMacosAppOptions {
   readonly identity: string;
   /** Ephemeral keychain holding the imported `.p12` (from acquireKeychain). */
   readonly keychainPath: string;
-  /** Entitlements plist applied to the OUTER bundle only. */
+  /**
+   * Entitlements plist for the OUTER bundle (or the bare binary). Replaces its
+   * current entitlements; when omitted they are preserved.
+   */
   readonly entitlementsPath?: string | undefined;
+  /** Private scratch dir for the per-item entitlement files. */
+  readonly workDir: string;
+  /**
+   * Developer ID profiles by bundle id. A bundle with one gets it embedded as
+   * `Contents/embedded.provisionprofile` and claims the app id + team the
+   * profile authorizes; the others are signed without.
+   */
+  readonly provisioningProfiles?: ReadonlyMap<string, EmbeddedProfile> | undefined;
 }
 
-const codesignArgs = (
-  options: SignMacosAppOptions,
-  target: string,
-  withEntitlements: boolean,
-): readonly string[] => [
-  "--force",
-  "--timestamp",
-  "--options",
-  "runtime",
-  "--sign",
-  options.identity,
-  "--keychain",
-  options.keychainPath,
-  ...(withEntitlements && options.entitlementsPath !== undefined
-    ? ["--entitlements", options.entitlementsPath]
-    : []),
-  target,
-];
+/**
+ * What a bundle carrying a profile must claim besides its own entitlements:
+ * the app id and team the profile is issued to (Xcode adds both when it signs
+ * with a profile; codesign does not).
+ */
+export const profileIdentityEntitlements = (bundleId: string, teamId: string): PlistObject => ({
+  "com.apple.application-identifier": `${teamId}.${bundleId}`,
+  "com.apple.developer.team-identifier": teamId,
+});
+
+export interface SignMacosAppResult {
+  /** Nested items that received their own signature, inside-out order. */
+  readonly signedNested: readonly string[];
+}
 
 const codesignOrFail = (args: readonly string[], target: string) =>
   Effect.gen(function* () {
@@ -157,56 +89,197 @@ const codesignOrFail = (args: readonly string[], target: string) =>
     return undefined;
   });
 
-export interface SignMacosAppResult {
-  /** Nested items that received their own signature, inside-out order. */
-  readonly signedNested: readonly string[];
-}
-
-/**
- * Sign a single Mach-O (a bare CLI tool / helper binary outside a bundle) and
- * verify it. Entitlements apply directly to the file.
- */
-export const signMacosFile = (options: SignMacosAppOptions) =>
+const writeEntitlementsFile = (
+  entitlements: PlistObject | undefined,
+  workDir: string,
+  index: number,
+) =>
   Effect.gen(function* () {
-    yield* codesignOrFail(codesignArgs(options, options.appPath, true), options.appPath);
-    const verify = yield* runTool("codesign", ["--verify", "--strict", options.appPath]);
-    if (verify.exitCode !== 0) {
-      return yield* new CodesignError({
-        message: `Signature verification failed: ${execFailureDetail(verify)}`,
-      });
+    if (entitlements === undefined) {
+      return undefined;
     }
-    return { signedNested: [] } satisfies SignMacosAppResult;
+    const filePath = path.join(workDir, `entitlements-${index}.plist`);
+    yield* Effect.promise(async () => writeFile(filePath, buildPlistXml(entitlements), "utf8"));
+    return filePath;
   });
 
 /**
- * Sign the whole bundle inside-out with the hardened runtime and a secure
- * timestamp, then verify with `codesign --verify --deep --strict`. Fails with
- * {@link CodesignError} carrying the first failing target's codesign output.
+ * Write `target`'s current entitlements (minus `get-task-allow`), plus
+ * `extra`, to a scratch plist so the re-sign keeps them. `undefined` when
+ * there are none.
  */
-export const signMacosApp = (options: SignMacosAppOptions) =>
+const preservedEntitlementsFile = (
+  target: string,
+  workDir: string,
+  index: number,
+  extra?: PlistObject,
+) =>
   Effect.gen(function* () {
-    const nested = yield* collectNestedCode(options.appPath);
-    const ordered = orderForSigning(
-      nested.filter((item) => !isSealedByOuterSignature(options.appPath, item)),
+    const kept = distributionEntitlements(yield* readEntitlements(target));
+    return yield* writeEntitlementsFile(
+      kept === undefined && extra === undefined ? undefined : { ...kept, ...extra },
+      workDir,
+      index,
     );
-    yield* Effect.forEach(
-      ordered,
-      (target) => codesignOrFail(codesignArgs(options, target, false), target),
-      { discard: true },
-    );
-    yield* codesignOrFail(codesignArgs(options, options.appPath, true), options.appPath);
+  });
 
+/** Embed `bundleId`'s profile, returning the entitlements it requires (none without one). */
+const embedProfile = (
+  options: SignMacosAppOptions,
+  bundlePath: string,
+  bundleId: string | undefined,
+) =>
+  Effect.gen(function* () {
+    const profile =
+      bundleId === undefined ? undefined : options.provisioningProfiles?.get(bundleId);
+    if (bundleId === undefined || profile === undefined) {
+      return undefined;
+    }
+    yield* Effect.promise(async () =>
+      copyFile(profile.path, path.join(bundlePath, "Contents", "embedded.provisionprofile")),
+    );
+    return profileIdentityEntitlements(bundleId, profile.teamId);
+  });
+
+/** The caller's entitlements for the outer bundle, with what its profile requires. */
+const outerEntitlementsFile = (options: SignMacosAppOptions, extra: PlistObject | undefined) =>
+  Effect.gen(function* () {
+    const { entitlementsPath } = options;
+    if (entitlementsPath === undefined) {
+      return yield* preservedEntitlementsFile(options.appPath, options.workDir, 0, extra);
+    }
+    if (extra === undefined) {
+      return entitlementsPath;
+    }
+    const given = yield* Effect.promise(async () => parsePlist(await readFile(entitlementsPath)));
+    return yield* writeEntitlementsFile({ ...given, ...extra }, options.workDir, 0);
+  });
+
+interface SignItem {
+  readonly target: string;
+  readonly entitlementsPath: string | undefined;
+  readonly identifier: string | undefined;
+}
+
+const signItem = (options: SignMacosAppOptions, item: SignItem) =>
+  codesignOrFail(
+    [
+      "--force",
+      "--timestamp",
+      "--options",
+      "runtime",
+      "--sign",
+      options.identity,
+      "--keychain",
+      options.keychainPath,
+      ...(item.identifier === undefined ? [] : ["--identifier", item.identifier]),
+      ...(item.entitlementsPath === undefined ? [] : ["--entitlements", item.entitlementsPath]),
+      item.target,
+    ],
+    item.target,
+  );
+
+/**
+ * Identifier for a loose code file: keep a real one, otherwise derive
+ * `<owner bundle id>.<file name>` — codesign would otherwise fall back to the
+ * bare file name (or the linker's hash-suffixed name).
+ */
+const identifierFor = (item: NestedCodeItem, ownerBundleId: string | undefined) =>
+  Effect.gen(function* () {
+    if (item.kind === "bundle" || ownerBundleId === undefined) {
+      return undefined;
+    }
+    const signature = yield* inspectSignature(item.path);
+    return hasRealIdentity(signature) ? undefined : looseCodeIdentifier(ownerBundleId, item.path);
+  });
+
+const verifyOrFail = (target: string, deep: boolean) =>
+  Effect.gen(function* () {
     const verify = yield* runTool("codesign", [
       "--verify",
-      "--deep",
+      ...(deep ? ["--deep"] : []),
       "--strict",
       "--verbose=2",
-      options.appPath,
+      target,
     ]);
     if (verify.exitCode !== 0) {
       return yield* new CodesignError({
         message: `Signature verification failed: ${execFailureDetail(verify)}`,
       });
     }
-    return { signedNested: ordered } satisfies SignMacosAppResult;
+    return undefined;
+  });
+
+/**
+ * Sign a single Mach-O (a bare CLI tool / helper binary outside a bundle) and
+ * verify it. `--entitlements` replaces its entitlements; otherwise they are
+ * preserved.
+ */
+export const signMacosFile = (options: SignMacosAppOptions) =>
+  Effect.gen(function* () {
+    const entitlementsPath =
+      options.entitlementsPath ??
+      (yield* preservedEntitlementsFile(options.appPath, options.workDir, 0));
+    yield* signItem(options, { target: options.appPath, entitlementsPath, identifier: undefined });
+    yield* verifyOrFail(options.appPath, false);
+    return { signedNested: [] } satisfies SignMacosAppResult;
+  });
+
+/**
+ * Sign the whole bundle inside-out, then verify with `codesign --verify --deep
+ * --strict`. Every bundle's main executable (the outer one's included) is left
+ * to its bundle's signature; every other Mach-O — sidecars directly under
+ * `Contents/MacOS` included — gets its own. Fails with {@link CodesignError}
+ * carrying the first failing target's codesign output.
+ */
+export const signMacosApp = (options: SignMacosAppOptions) =>
+  Effect.gen(function* () {
+    const outer = yield* readBundleInfo(options.appPath);
+    const nested = yield* collectNestedCode(options.appPath);
+    const bundleInfos = yield* Effect.forEach(
+      nested.filter((item) => item.kind === "bundle"),
+      (item) =>
+        readBundleInfo(item.path).pipe(Effect.map((info) => ({ ...info, path: item.path }))),
+    );
+    const bundleIds = new Map(bundleInfos.map((info) => [info.path, info.bundleId]));
+    const mainExecutables = new Set(
+      [outer, ...bundleInfos]
+        .map((info) => info.mainExecutable)
+        .filter((value): value is string => value !== undefined),
+    );
+    const ordered = orderForSigning(nested.filter((item) => !mainExecutables.has(item.path)));
+
+    yield* Effect.forEach(
+      ordered,
+      (item, index) =>
+        Effect.gen(function* () {
+          // Library code takes no entitlements (Apple: "Don't apply
+          // entitlements to library code"); executables and executable
+          // bundles keep their own.
+          const carriesEntitlements =
+            item.kind === "executable" ||
+            (item.kind === "bundle" && !item.path.toLowerCase().endsWith(".framework"));
+          const required = carriesEntitlements
+            ? yield* embedProfile(options, item.path, bundleIds.get(item.path))
+            : undefined;
+          const entitlementsPath = carriesEntitlements
+            ? yield* preservedEntitlementsFile(item.path, options.workDir, index + 1, required)
+            : undefined;
+          const identifier = yield* identifierFor(item, outer.bundleId);
+          yield* signItem(options, { target: item.path, entitlementsPath, identifier });
+        }),
+      { discard: true },
+    );
+
+    const outerEntitlements = yield* outerEntitlementsFile(
+      options,
+      yield* embedProfile(options, options.appPath, outer.bundleId),
+    );
+    yield* signItem(options, {
+      target: options.appPath,
+      entitlementsPath: outerEntitlements,
+      identifier: undefined,
+    });
+    yield* verifyOrFail(options.appPath, true);
+    return { signedNested: ordered.map((item) => item.path) } satisfies SignMacosAppResult;
   });

@@ -1,15 +1,13 @@
-import os from "node:os";
 import path from "node:path";
 
 import { FileSystem, Effect } from "effect";
-import { ChildProcess } from "effect/process";
 
 import type { Scope } from "effect";
-import type { ChildProcessSpawner } from "effect/process";
 
-import { runText } from "./child-process";
 import { ProvisioningError } from "./exit-codes";
 import { parsePlistXml } from "./plist";
+import { profilePlistXml } from "./provisioning-profile-plist";
+import { xcodeProfileDirectories } from "./xcode-profile-dirs";
 
 import type { PlistObject } from "./plist";
 
@@ -35,8 +33,8 @@ const getFirstArrayString = (obj: PlistObject, key: string): string | undefined 
 };
 
 /**
- * Extract `UUID`, `Name`, and the first `TeamIdentifier` from the XML plist
- * output of `security cms -D -i <path>`. Returns `ProvisioningError` when any
+ * Extract `UUID`, `Name`, and the first `TeamIdentifier` from a profile's
+ * XML plist. Returns `ProvisioningError` when any
  * of the three fields are missing.
  */
 export const extractProvisioningInfo = (
@@ -88,12 +86,8 @@ interface AcquiredProvisioning extends InstalledProvisioning {
   readonly ownsInstallation: boolean;
 }
 
-const userProvisioningProfilesDir = (): string =>
-  path.join(os.homedir(), "Library", "MobileDevice", "Provisioning Profiles");
-
 /**
- * Scoped installation of a provisioning profile: parses its metadata via
- * `security cms -D -i`, copies it into `~/Library/MobileDevice/Provisioning Profiles`
+ * Scoped installation of a provisioning profile: parses its metadata, copies it into `~/Library/MobileDevice/Provisioning Profiles`
  * under `<uuid>.mobileprovision`, and removes the copy on scope close — but
  * only if we installed it. If the target file already existed when we arrived
  * (e.g., Xcode had it), we leave both the file and the contents untouched.
@@ -103,25 +97,33 @@ export const installProvisioningProfile = ({
 }: InstallProvisioningProfileOptions): Effect.Effect<
   InstalledProvisioning,
   ProvisioningError,
-  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | Scope.Scope
+  FileSystem.FileSystem | Scope.Scope
 > =>
   Effect.acquireRelease(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
 
-      const plistXml = yield* runText(
-        ChildProcess.make("security", ["cms", "-D", "-i", profilePath]),
-      ).pipe(
-        Effect.mapError(
-          (cause) =>
+      const plistXml = yield* fs.readFile(profilePath).pipe(
+        Effect.map(profilePlistXml),
+        Effect.catch(
+          (error) =>
             new ProvisioningError({
-              message: `security cms -D failed for ${profilePath}: ${String(cause)}`,
+              message: `Could not read the provisioning profile ${profilePath}: ${String(error)}`,
             }),
+        ),
+        Effect.flatMap((xml) =>
+          xml === undefined
+            ? Effect.fail(
+                new ProvisioningError({
+                  message: `${profilePath} is not a provisioning profile (no property list in it).`,
+                }),
+              )
+            : Effect.succeed(xml),
         ),
       );
 
       const info = yield* extractProvisioningInfo(plistXml);
-      const targetDir = userProvisioningProfilesDir();
+      const targetDir = (yield* xcodeProfileDirectories).mobileDevice;
       const installedPath = path.join(targetDir, `${info.uuid}.mobileprovision`);
 
       yield* fs.makeDirectory(targetDir, { recursive: true }).pipe(

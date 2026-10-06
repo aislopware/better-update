@@ -1,0 +1,25 @@
+{
+  "productName": "TauriFixture",
+  "version": "1.0.0",
+  "identifier": "com.example.taurifixture",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "windows": []
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": ["icons/icon.png", "icons/icon.icns"],
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE1NzMxMjNDMDkwMzBDMTcKUldRWERBTUpQQkp6cFMvaVVlR1VIbjFzcEx1TjVjcFdValhVWURWVHJFclpsMk9qV1RKT0VzVlIK",
+      "endpoints": ["https://updates.example.com/feeds/project/macos/latest-tauri.json"],
+      "requireSignedVersion": true,
+      "dangerousInsecureTransportProtocol": true
+    }
+  }
+}

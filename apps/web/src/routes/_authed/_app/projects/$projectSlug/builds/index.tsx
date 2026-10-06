@@ -13,6 +13,7 @@ import { z } from "zod";
 import type {
   BuildAudience,
   BuildDistribution,
+  BuildPlatformValue,
   BuildSortColumn,
 } from "@better-update/api-client/react";
 
@@ -54,7 +55,7 @@ const SORT_COLUMNS = [
 
 const DEFAULT_SORT = "-createdAt" as const;
 
-const PLATFORMS = ["ios", "android"] as const;
+const PLATFORMS = ["ios", "android", "macos"] as const satisfies readonly BuildPlatformValue[];
 const DISTRIBUTIONS = [
   "app-store",
   "ad-hoc",
@@ -63,6 +64,7 @@ const DISTRIBUTIONS = [
   "simulator",
   "play-store",
   "direct",
+  "developer-id",
 ] as const satisfies readonly BuildDistribution[];
 const AUDIENCES = ["internal", "store"] as const satisfies readonly BuildAudience[];
 
@@ -161,7 +163,7 @@ const BuildsContent = () => {
     },
   });
 
-  const handlePlatformChange = (next: readonly ("ios" | "android")[]) => {
+  const handlePlatformChange = (next: readonly BuildPlatformValue[]) => {
     fireAndForget(
       routeNavigate({
         ...IN_PLACE,
@@ -207,13 +209,14 @@ const BuildsContent = () => {
     );
   };
 
-  // platform/audience are two-value enums, so "both selected" ≡ no filter and
-  // the API keeps its single-value param; distribution is a true multi filter.
+  // audience is a two-value enum, so "both selected" ≡ no filter and the API
+  // keeps its single-value param; platform and distribution are true multi
+  // filters (every platform selected is sent as-is — it matches everything).
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...buildsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
-      ...(platform.length === 1 ? { platform: platform[0] } : {}),
+      ...(platform.length > 0 ? { platform } : {}),
       ...(distribution.length > 0 ? { distribution } : {}),
       ...(audience.length === 1 ? { audience: audience[0] } : {}),
       ...(runtimeVersion ? { runtimeVersion } : {}),

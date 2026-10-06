@@ -39,6 +39,8 @@
     "@expo/pkcs12": "^0.6.0",
     "@expo/plist": "^0.8.1",
     "@expo/xcpretty": "^4.4.6",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
     "bplist-parser": "^0.5.0",
     "chalk": "^6.0.1",
     "effect": "4.0.1",

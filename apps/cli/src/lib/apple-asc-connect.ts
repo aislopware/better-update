@@ -9,9 +9,11 @@
  */
 // @expo/apple-utils is ncc-bundled CJS; the entity managers + `Token` are read
 // off the default import (see credentials-generator-apple-id.ts for the rationale).
-import { compact, toOptional } from "@better-update/type-guards";
+import { asRecord, compact, toOptional } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Data, Effect } from "effect";
+
+import { formatAscErrors, parseAscErrors } from "./asc-build-upload-parse";
 
 import type { AscCredentials } from "./asc-credentials";
 
@@ -63,3 +65,73 @@ export const wrapConnect = <T>(step: string, run: () => Promise<T>) =>
     try: run,
     catch: (cause) => new AppleConnectError({ step, message: messageOf(cause) }),
   });
+
+const ASC_API_BASE = "https://api.appstoreconnect.apple.com/v1";
+
+const bearerOf = async (token: string | AppleUtils.Token) =>
+  typeof token === "string" ? token : token.getToken();
+
+/**
+ * Turn a capability on for an App ID, with its default option where it has
+ * variants (Data Protection, iCloud, Sign In with Apple, Push). apple-utils
+ * sends a PATCH of the App ID's capability relationships, which only the
+ * developer-portal (cookie) API accepts; the public ASC API refuses that body
+ * and enables a capability with `POST /bundleIdCapabilities` instead. A
+ * capability already on is left as it is.
+ */
+export const enableBundleIdCapability = (
+  bundleId: AppleUtils.BundleId,
+  capabilityType: AppleUtils.CapabilityType,
+): Effect.Effect<void, AppleConnectError> => {
+  const { token } = bundleId.context;
+  const step = "apple-enable-capability";
+  if (token === undefined) {
+    return wrapConnect(step, async () =>
+      bundleId.updateBundleIdCapabilityAsync({
+        capabilityType,
+        option: AppleUtils.CapabilityTypeOption.ON,
+      }),
+    ).pipe(Effect.asVoid);
+  }
+  return Effect.gen(function* () {
+    const existing = yield* wrapConnect("apple-list-capabilities", async () =>
+      bundleId.hasCapabilityAsync(capabilityType),
+    );
+    if (existing !== null) {
+      return;
+    }
+    const settings: unknown = asRecord(
+      AppleUtils.createCapabilityRelationship({
+        capabilityType,
+        option: AppleUtils.CapabilityTypeOption.ON,
+      }).attributes,
+    )?.["settings"];
+    const { status, body } = yield* wrapConnect(step, async () => {
+      const response = await fetch(`${ASC_API_BASE}/bundleIdCapabilities`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${await bearerOf(token)}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          data: {
+            type: "bundleIdCapabilities",
+            attributes: { capabilityType, settings: Array.isArray(settings) ? settings : [] },
+            relationships: { bundleId: { data: { type: "bundleIds", id: bundleId.id } } },
+          },
+        }),
+      });
+      const text = await response.text();
+      return {
+        status: response.status,
+        body: text.length > 0 ? (JSON.parse(text) as unknown) : {},
+      };
+    });
+    if (status !== 201) {
+      return yield* new AppleConnectError({
+        step,
+        message: `Enabling ${capabilityType} on ${bundleId.attributes.identifier} failed (${String(status)}): ${formatAscErrors(parseAscErrors(body))}`,
+      });
+    }
+  });
+};

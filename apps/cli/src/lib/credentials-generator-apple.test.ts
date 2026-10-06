@@ -555,18 +555,23 @@ describe(listDistributionCerts, () => {
     }),
   );
 
-  it.effect("filters by DEVELOPER_ID_APPLICATION for macOS Developer ID certs", () =>
+  it.effect("lists both Developer ID generations, which share Apple's limit", () =>
     Effect.gen(function* () {
       mocks.certificateGetAsync.mockResolvedValue([]);
 
       const result = yield* listDistributionCerts(context, "DEVELOPER_ID_APPLICATION");
 
       expect(result).toStrictEqual([]);
-      const [, args] = mocks.certificateGetAsync.mock.calls[0] as [
-        unknown,
-        { query: { filter: { certificateType: string } } },
-      ];
-      expect(args.query.filter.certificateType).toBe("DEVELOPER_ID_APPLICATION");
+      const queried = (
+        mocks.certificateGetAsync.mock.calls as [
+          unknown,
+          { query: { filter: { certificateType: string } } },
+        ][]
+      ).map(([, args]) => args.query.filter.certificateType);
+      expect(queried.toSorted()).toStrictEqual([
+        "DEVELOPER_ID_APPLICATION",
+        "DEVELOPER_ID_APPLICATION_G2",
+      ]);
     }),
   );
 });

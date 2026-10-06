@@ -1,5 +1,6 @@
 import {
   ArtifactFormat,
+  BuildPlatform,
   Distribution,
   INTERNAL_DISTRIBUTIONS,
   isOtaInstallableDistribution,
@@ -71,6 +72,9 @@ const FORMAT_CONTENT_TYPES: Record<string, string> = {
   apk: "application/vnd.android.package-archive",
   aab: "application/x-authorware-bin",
   "tar.gz": "application/gzip",
+  dmg: "application/x-apple-diskimage",
+  zip: "application/zip",
+  pkg: "application/vnd.apple.installer+xml",
 };
 
 const formatForContentType = (format: string) =>
@@ -93,7 +97,7 @@ const resolveAudience = (
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
   projectId: Schema.String,
-  platform: Schema.Literals(["ios", "android"]),
+  platform: BuildPlatform,
   profile: Schema.String,
   distribution: Distribution,
   artifactFormat: ArtifactFormat,
@@ -367,7 +371,8 @@ const handleDelete = ({ params }: { readonly params: { readonly id: string } }) 
  * installable — see `InstallLinkResult` in `@better-update/api`. iOS needs
  * the itms-services manifest (and a provisioning profile that allows a direct
  * install); Android installs the universal APK attached to an `aab` build, or
- * the `apk` artifact itself.
+ * the `apk` artifact itself; a Mac opens the Developer ID-signed DMG / pkg /
+ * zip directly (Gatekeeper checks its notarization on first launch).
  */
 const resolveInstallUrl = (params: {
   readonly build: BuildWithArtifactModel;
@@ -376,6 +381,9 @@ const resolveInstallUrl = (params: {
   readonly signed: string;
 }): string | null => {
   const { build, origin, artifactUrl, signed } = params;
+  if (build.platform === "macos") {
+    return build.artifact === null ? null : artifactUrl;
+  }
   if (build.platform === "ios") {
     return isOtaInstallableDistribution(build.distribution) &&
       build.artifact?.format === "ipa" &&
@@ -445,7 +453,7 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
 
           const { items, total } = yield* repo.list({
             projectId: query.projectId,
-            ...(query.platform ? { platform: query.platform } : {}),
+            ...(query.platform?.length ? { platforms: query.platform } : {}),
             ...(query.profile ? { profile: query.profile } : {}),
             ...(query.runtimeVersion ? { runtimeVersion: query.runtimeVersion } : {}),
             ...(query.distribution?.length ? { distribution: query.distribution } : {}),

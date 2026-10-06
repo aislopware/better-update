@@ -1,12 +1,9 @@
 import path from "node:path";
 
 import { FileSystem, Effect } from "effect";
-import { ChildProcess } from "effect/process";
 
-import type { ChildProcessSpawner } from "effect/process";
-
-import { runText } from "./child-process";
 import { parsePlist, parsePlistXml } from "./plist";
+import { profilePlistXml } from "./provisioning-profile-plist";
 import { printWarn } from "./warning-style";
 
 export interface ExpectedSignedTarget {
@@ -45,11 +42,7 @@ const validateOneBundle = (
   bundleDir: string,
   expectedByBundleId: ReadonlyMap<string, ExpectedSignedTarget>,
   expectedTeamId: string,
-): Effect.Effect<
-  BundleValidationResult,
-  never,
-  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
-> =>
+): Effect.Effect<BundleValidationResult, never, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const bundleId = yield* readBundleId(bundleDir).pipe(Effect.orElseSucceed(() => undefined));
     if (!bundleId) {
@@ -175,20 +168,16 @@ const validateEmbeddedProfile = (
   expectedUuid: string,
   expectedTeamId: string,
   bundleId: string,
-): Effect.Effect<
-  readonly string[],
-  unknown,
-  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
-> =>
+): Effect.Effect<readonly string[], unknown, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const warnings: string[] = [];
     const profilePath = path.join(bundleDir, "embedded.mobileprovision");
-
-    const plistXml = yield* runText(
-      ChildProcess.make("security", ["cms", "-D", "-i", profilePath]),
-    );
-
-    const parsed = parsePlistXml(plistXml);
+    const fs = yield* FileSystem.FileSystem;
+    const xml = profilePlistXml(yield* fs.readFile(profilePath));
+    if (xml === undefined) {
+      return [`[${bundleId}] embedded.mobileprovision holds no property list`];
+    }
+    const parsed = parsePlistXml(xml);
 
     const actualUuid = parsed["UUID"];
     if (typeof actualUuid === "string" && actualUuid !== expectedUuid) {

@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { kyselyDb } from "../cloudflare/db";
+import { OTA_PLATFORMS } from "../models";
 
 import type { Platform } from "../models";
 
@@ -99,9 +100,12 @@ export const RuntimeRepoLive = Layer.succeed(RuntimeRepo, {
               eb.fn.max("created_at").as("latest"),
             ])
             .where("project_id", "=", params.projectId)
-            // Non-Expo builds carry no runtime version and have no OTA runtime row.
+            // Non-Expo builds carry no runtime version and have no OTA runtime
+            // row; macOS builds never take OTA updates at all.
+            .where("platform", "in", OTA_PLATFORMS)
             .where("runtime_version", "is not", null)
             .groupBy(["runtime_version", "platform"])
+            .$narrowType<{ platform: Platform }>()
             .execute(),
           db
             .selectFrom("updates")

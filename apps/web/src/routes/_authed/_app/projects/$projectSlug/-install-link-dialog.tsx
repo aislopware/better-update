@@ -48,9 +48,14 @@ const ExpiryBadge = ({ expires }: { expires: number }) => {
  * What the primary link does, so the badge and the QR caption tell the truth:
  * an iOS install manifest, an Android APK a device installs on tap, or a bare
  * download of something a device cannot install (an App Store `.ipa`, a
- * simulator tarball, or an App Bundle uploaded without its universal APK).
+ * simulator tarball, or an App Bundle uploaded without its universal APK). A
+ * macOS build's link is its signed, notarized container: a Mac downloads it
+ * and opens it, so it is a download — but one meant for installing.
  */
 const linkKind = (build: BuildWithArtifact, installUrl: string | null) => {
+  if (build.platform === "macos") {
+    return "macos-download" as const;
+  }
   if (installUrl === null) {
     return "download" as const;
   }
@@ -60,6 +65,7 @@ const linkKind = (build: BuildWithArtifact, installUrl: string | null) => {
 const LINK_BADGES = {
   "ios-install": { variant: "secondary", label: "iOS Install" },
   "android-apk": { variant: "secondary", label: "Android APK" },
+  "macos-download": { variant: "secondary", label: "macOS download" },
   download: { variant: "outline", label: "Download link" },
 } as const;
 
@@ -128,9 +134,12 @@ const InstallLinkBody = ({ build }: { build: BuildWithArtifact }) => {
             />
           ) : null}
 
-          <div className="rounded-md border bg-white p-4">
-            <QRCodeSVG value={primaryUrl} size={200} level="M" />
-          </div>
+          {/* A phone cannot do anything with a DMG. */}
+          {kind === "macos-download" ? null : (
+            <div className="rounded-md border bg-white p-4">
+              <QRCodeSVG value={primaryUrl} size={200} level="M" />
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -225,7 +234,9 @@ export const InstallLinkDialog = ({
           <DialogHeader>
             <DialogTitle>Install link</DialogTitle>
             <DialogDescription>
-              Scan the QR code on a device, or copy the link to share.
+              {build.platform === "macos"
+                ? "Copy the link to share. It downloads the signed app, ready to open on a Mac."
+                : "Scan the QR code on a device, or copy the link to share."}
             </DialogDescription>
           </DialogHeader>
           <InstallLinkBody key={resetKey} build={build} />

@@ -176,6 +176,7 @@ export {
   DeleteAppleProvisioningProfileResult,
   DistributionType,
   ListAppleProvisioningProfilesParams,
+  ProfileDistributionType,
   UploadAppleProvisioningProfileBody,
 } from "./domain/apple-provisioning-profile";
 export {
@@ -214,6 +215,16 @@ export {
   SubmissionArchiveSource,
 } from "./domain/submission";
 export {
+  CreateDesktopReleaseBody,
+  DEFAULT_DESKTOP_CHANNEL,
+  DeleteDesktopReleaseResult,
+  DesktopRelease,
+  DesktopReleaseChannel,
+  ElectronBlockmapChunks,
+  ListDesktopReleasesParams,
+  UpdateDesktopReleaseBody,
+} from "./domain/desktop-release";
+export {
   AndroidApplicationIdentifier,
   AndroidPackageName,
   CreateAndroidApplicationIdentifierBody,
@@ -246,6 +257,7 @@ export {
   Build,
   BuildArtifact,
   BuildAudience,
+  BuildPlatform,
   BuildSort,
   BuildSortColumn,
   BuildWithArtifact,
@@ -256,7 +268,11 @@ export {
   INTERNAL_DISTRIBUTIONS,
   InstallLinkResult,
   isOtaInstallableDistribution,
+  MacosArtifactFormat,
+  MacosBuildMetadata,
+  MacosNotarization,
   OTA_INSTALLABLE_DISTRIBUTIONS,
+  readMacosBuildMetadata,
   ReserveBuildResult,
   STORE_DISTRIBUTIONS,
 } from "./domain/build";

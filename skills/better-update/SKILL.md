@@ -11,8 +11,10 @@ description: >-
   in app.json, or a better-update manifest URL), OR when the user asks to publish /
   ship an OTA update, stage a rollout or roll back a release, cut a release candidate, promote an
   update between channels, build an IPA/APK/AAB locally, manage keystores / distribution certs /
-  provisioning profiles / APNs push keys, sign or notarize a macOS app with a Developer ID
-  certificate, or configure per-environment secrets — even if they never say the words
+  provisioning profiles / APNs push keys, build / sign / package / notarize a macOS app with a
+  Developer ID certificate, publish macOS auto-updates (Sparkle appcast / electron-updater / Tauri
+  updater feed), or
+  configure per-environment secrets — even if they never say the words
   "better-update". Covers every command, every flag, and the
   publish → branch → channel → device routing model.
 ---
@@ -23,7 +25,9 @@ better-update is a self-hosted mobile release platform for Expo, React Native, K
 and native apps — any project type, including ones driven by a custom build command — running on
 Cloudflare. It does OTA JS updates (Expo Updates protocol-compatible), local native builds (EAS
 Build-compatible), an end-to-end-encrypted credential vault, server-side env vars, store
-submission, and macOS Developer ID signing + notarization (`macos sign` / `macos notarize`) — all
+submission, and macOS Developer ID builds, signing, packaging + notarization (`build --platform
+macos`, `macos sign` / `macos package` / `macos notarize`) with Sparkle / electron-updater / Tauri
+update feeds (`macos release`) — all
 driven from one CLI, `better-update`. This skill is how you operate that CLI on a user's behalf.
 
 ## The one mental model that explains everything

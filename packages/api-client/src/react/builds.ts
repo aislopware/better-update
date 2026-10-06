@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import type {
   BuildAudience as BuildAudienceSchema,
+  BuildPlatform as BuildPlatformSchema,
   BuildSort as BuildSortSchema,
   BuildSortColumn as BuildSortColumnSchema,
   DebugArtifactType as DebugArtifactTypeSchema,
@@ -10,8 +11,6 @@ import type {
 } from "@better-update/api";
 
 import { runApi } from "../index";
-
-import type { PlatformValue } from "./types";
 
 export const buildsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "builds"] as const;
@@ -27,10 +26,13 @@ export type BuildSort = typeof BuildSortSchema.Type;
 
 export type BuildDistribution = typeof DistributionSchema.Type;
 
+/** A build's platform: the OTA platforms plus `macos`, which builds but never takes updates. */
+export type BuildPlatformValue = typeof BuildPlatformSchema.Type;
+
 export type BuildAudience = typeof BuildAudienceSchema.Type;
 
 export interface BuildsFilters {
-  readonly platform?: PlatformValue;
+  readonly platform?: readonly BuildPlatformValue[];
   readonly profile?: string;
   readonly runtimeVersion?: string;
   readonly distribution?: readonly BuildDistribution[];

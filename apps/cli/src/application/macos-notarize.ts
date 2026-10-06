@@ -19,8 +19,11 @@ import { NotarizationError } from "../lib/exit-codes";
 import {
   canStaple,
   classifyMacosArtifact,
+  formatNotaryIssues,
+  isNotaryTimeout,
   notaryFailureDetail,
-  parseNotarySubmission,
+  parseNotaryLog,
+  parseNotaryResult,
   runDitto,
   runNotarytool,
   runStapler,
@@ -29,7 +32,7 @@ import { printHuman } from "../lib/output";
 import { pickOrCreateAscApiKey } from "./asc-key-resolve";
 import { APPLE_APP_SPECIFIC_PASSWORD_ENV } from "./submit-ios-altool";
 
-import type { MacosArtifactKind } from "../lib/macos-notary";
+import type { MacosArtifactKind, NotaryIssue } from "../lib/macos-notary";
 import type { ApiClient } from "../services/api-client";
 
 /**
@@ -123,9 +126,12 @@ export const resolveNotaryAuth = (
   });
 
 export interface NotarizeMacosResult {
-  readonly submissionId: string | null;
+  readonly submissionId: string;
+  /** Apple's verdict (`Accepted`), or `In Progress` when not waited for / timed out. */
   readonly status: string;
   readonly stapled: boolean;
+  /** True when `--timeout` elapsed first; the submission keeps processing at Apple. */
+  readonly timedOut: boolean;
   readonly artifactPath: string;
 }
 
@@ -136,6 +142,14 @@ export interface NotarizeMacosOptions {
   readonly wait: boolean;
   /** Staple the ticket after acceptance (default; skipped for `.zip`). */
   readonly staple: boolean;
+  /**
+   * Bound on the wait, in notarytool's `<n>[s|m|h]` form. When it elapses the
+   * result is `In Progress` + `timedOut`, never a failure: Apple keeps
+   * processing, and the submission id resumes it.
+   */
+  readonly timeout?: string | undefined;
+  /** Resume an earlier submission instead of uploading again. */
+  readonly submissionId?: string | undefined;
 }
 
 const requireArtifactKind = (artifactPath: string) => {
@@ -193,14 +207,19 @@ const stageSubmitPath = (artifactPath: string, kind: MacosArtifactKind, workDir:
     return zipPath;
   });
 
-const printDeveloperLog = (submissionId: string, authArgs: readonly string[]) =>
+/**
+ * Fetch the developer log of a rejected submission and turn it into one line
+ * per problem. Falls back to the raw log when it does not parse.
+ */
+const describeRejection = (submissionId: string, authArgs: readonly string[]) =>
   Effect.gen(function* () {
     const log = yield* runNotarytool(["log", submissionId, ...authArgs]);
-    if (log.exitCode === 0 && log.stdout.trim().length > 0) {
-      yield* printHuman("");
-      yield* printHuman("Notary developer log:");
-      yield* printHuman(log.stdout.trim());
+    const issues: readonly NotaryIssue[] = log.exitCode === 0 ? parseNotaryLog(log.stdout) : [];
+    if (issues.length > 0) {
+      return formatNotaryIssues(issues);
     }
+    const raw = log.stdout.trim();
+    return raw.length > 0 ? raw : "the developer log was unavailable";
   });
 
 const stapleArtifact = (targetPath: string) =>
@@ -236,6 +255,33 @@ export const notarizeMacosArtifact = (api: ApiClient, options: NotarizeMacosOpti
     );
   });
 
+const submitArtifact = (
+  options: NotarizeMacosOptions,
+  kind: MacosArtifactKind,
+  workDir: string,
+  authArgs: readonly string[],
+) =>
+  Effect.gen(function* () {
+    const submitPath = yield* stageSubmitPath(options.artifactPath, kind, workDir);
+    yield* printHuman("Uploading to the Apple notary service...");
+    // No `--wait` here: the id comes back as soon as the upload finishes, so an
+    // interrupted or timed-out wait can always be resumed.
+    const submit = yield* runNotarytool([
+      "submit",
+      submitPath,
+      ...authArgs,
+      "--output-format",
+      "json",
+    ]);
+    const { id } = parseNotaryResult(submit);
+    if (submit.exitCode !== 0 || id === undefined) {
+      return yield* new NotarizationError({
+        message: `notarytool submit failed: ${notaryFailureDetail(submit)}`,
+      });
+    }
+    return id;
+  });
+
 const runNotarization = (
   api: ApiClient,
   options: NotarizeMacosOptions,
@@ -244,52 +290,46 @@ const runNotarization = (
 ) =>
   Effect.gen(function* () {
     const authArgs = yield* stageAuth(api, options.auth, workDir);
-    const submitPath = yield* stageSubmitPath(options.artifactPath, kind, workDir);
+    const submissionId =
+      options.submissionId ?? (yield* submitArtifact(options, kind, workDir, authArgs));
+    const resumeHint = `better-update macos notarize "${options.artifactPath}" --submission-id ${submissionId}`;
+    yield* printHuman(`Submission ${submissionId} (resume any time: ${resumeHint})`);
+    const inProgress = (timedOut: boolean): NotarizeMacosResult => ({
+      submissionId,
+      status: "In Progress",
+      stapled: false,
+      timedOut,
+      artifactPath: options.artifactPath,
+    });
+    if (!options.wait) {
+      return inProgress(false);
+    }
 
     yield* printHuman(
-      options.wait
-        ? "Submitting to the Apple notary service and waiting for the verdict (typically a few minutes)..."
-        : "Submitting to the Apple notary service...",
+      "Waiting for Apple's verdict (usually minutes; a new certificate's first submissions can take hours)...",
     );
-    const submit = yield* runNotarytool([
-      "submit",
-      submitPath,
+    const waited = yield* runNotarytool([
+      "wait",
+      submissionId,
       ...authArgs,
       "--output-format",
       "json",
-      ...(options.wait ? ["--wait"] : []),
+      ...(options.timeout === undefined ? [] : ["--timeout", options.timeout]),
     ]);
-    const parsed = parseNotarySubmission(submit.stdout);
-    const submissionId = parsed.id === undefined ? null : parsed.id;
-
-    if (submit.exitCode !== 0) {
-      if (submissionId !== null) {
-        yield* printDeveloperLog(submissionId, authArgs);
-      }
+    if (isNotaryTimeout(waited)) {
+      yield* printHuman(`Still processing at Apple. Resume with: ${resumeHint}`);
+      return inProgress(true);
+    }
+    const { status } = parseNotaryResult(waited);
+    if (status === undefined) {
       return yield* new NotarizationError({
-        message: `notarytool submit failed${submissionId === null ? "" : ` (submission ${submissionId})`}: ${notaryFailureDetail(submit)}`,
+        message: `notarytool wait failed (submission ${submissionId}): ${notaryFailureDetail(waited)}`,
       });
     }
-
-    if (!options.wait) {
-      yield* printHuman(
-        `Uploaded. Submission id: ${submissionId ?? "unknown"} — check later with \`xcrun notarytool info ${submissionId ?? "<id>"}\` or re-run with --wait.`,
-      );
-      return {
-        submissionId,
-        status: "In Progress",
-        stapled: false,
-        artifactPath: options.artifactPath,
-      } satisfies NotarizeMacosResult;
-    }
-
-    const status = parsed.status ?? "unknown";
     if (status !== "Accepted") {
-      if (submissionId !== null) {
-        yield* printDeveloperLog(submissionId, authArgs);
-      }
+      const detail = yield* describeRejection(submissionId, authArgs);
       return yield* new NotarizationError({
-        message: `Notarization ${status.toLowerCase()}${submissionId === null ? "" : ` (submission ${submissionId})`}: ${parsed.message ?? "see the developer log above"}.`,
+        message: `Notarization ${status.toLowerCase()} (submission ${submissionId}):\n${detail}`,
       });
     }
     yield* printHuman("Notarization accepted.");
@@ -307,6 +347,7 @@ const runNotarization = (
       submissionId,
       status,
       stapled: shouldStaple,
+      timedOut: false,
       artifactPath: options.artifactPath,
     } satisfies NotarizeMacosResult;
   });

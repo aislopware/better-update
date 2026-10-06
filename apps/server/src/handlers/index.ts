@@ -37,6 +37,8 @@ export { CredentialBindingsGroupLive } from "./credential-bindings";
 export { ProjectMembersGroupLive } from "./project-members";
 export { OrganizationGroupLive } from "./organization";
 export { SubmissionsGroupLive } from "./submissions";
+export { DesktopReleasesGroupLive } from "./desktop-releases";
+export { matchDesktopFeedRoute } from "./desktop-feeds";
 export { serveManifest } from "./manifest";
 export { MeGroupLive } from "./me";
 export { OrgVaultGroupLive } from "./org-vault";

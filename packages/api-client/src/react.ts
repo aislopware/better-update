@@ -19,10 +19,15 @@ export {
 export type {
   BuildAudience,
   BuildDistribution,
+  BuildPlatformValue,
   BuildSort,
   BuildSortColumn,
   BuildsFilters,
 } from "./react/builds";
+export {
+  buildDesktopReleasesQueryKey,
+  buildDesktopReleasesQueryOptions,
+} from "./react/desktop-releases";
 export {
   androidApplicationIdentifiersQueryKey,
   androidApplicationIdentifiersQueryOptions,

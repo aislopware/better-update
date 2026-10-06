@@ -5,6 +5,7 @@ import { kyselyDb } from "../cloudflare/db";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { collectServableUpdates } from "../domain/update-rollout";
 import { toDbNull } from "../lib/nullable";
+import { OTA_PLATFORMS } from "../models";
 
 import type {
   BuildCompatibilityChannelModel,
@@ -92,15 +93,17 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
       const [buildKeys, channelRows, updateRows] = yield* Effect.all(
         [
           Effect.promise(async () =>
-            // platform is always "ios"|"android"; runtime_version IS NOT NULL filter
-            // makes it non-nullable at runtime despite the nullable schema column
+            // OTA platforms only (a macOS build never takes updates); the
+            // runtime_version IS NOT NULL filter makes it non-nullable at
+            // runtime despite the nullable schema column.
             db
               .selectFrom("builds")
               .select(["platform", "runtime_version"])
               .distinct()
               .where("project_id", "=", params.projectId)
+              .where("platform", "in", OTA_PLATFORMS)
               .where("runtime_version", "is not", null)
-              .$narrowType<{ runtime_version: string }>()
+              .$narrowType<{ platform: Platform; runtime_version: string }>()
               .execute(),
           ),
           Effect.promise(async () =>

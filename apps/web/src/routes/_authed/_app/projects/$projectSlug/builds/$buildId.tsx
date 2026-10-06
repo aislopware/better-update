@@ -41,6 +41,8 @@ import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLink } from "../../../../../../lib/resource-link";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
+import { MacosDistributionCard } from "./-macos-distribution-card";
+import { MacosReleasesCard } from "./-macos-releases-card";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "../-compatibility-join";
 
@@ -56,6 +58,14 @@ const hasMetadata = (metadataJson: string): boolean => {
     ? Object.keys(parsed).length > 0
     : metadataJson.trim().length > 0;
 };
+
+/** A macOS app never takes Expo updates, so it has no runtime to be missing. */
+const MissingRuntime = ({ build }: { build: BuildWithArtifact }) =>
+  build.platform === "macos" ? (
+    <span className="text-kumo-subtle">Not applicable</span>
+  ) : (
+    <Badge variant="warning">Missing</Badge>
+  );
 
 // A build's own identity, laid across the panel.
 //
@@ -77,11 +87,7 @@ const BuildMetadataCard = ({
         <CopyableId value={build.id} label="Build ID" length={20} />
       </DetailStat>
       <DetailStat label="Runtime version">
-        {build.runtimeVersion ? (
-          `v${build.runtimeVersion}`
-        ) : (
-          <Badge variant="warning">Missing</Badge>
-        )}
+        {build.runtimeVersion ? `v${build.runtimeVersion}` : <MissingRuntime build={build} />}
       </DetailStat>
       <DetailStat label="Bundle ID">
         {build.bundleId === null ? (
@@ -180,7 +186,7 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
 );
 
 const DEBUG_ARTIFACT_LABELS: Record<BuildDebugArtifact["type"], string> = {
-  dsym: "iOS debug symbols (dSYM)",
+  dsym: "Apple debug symbols (dSYM)",
   "js-sourcemap": "JS bundle sourcemap",
   "proguard-mapping": "R8/ProGuard mapping",
   "native-symbols": "Android native symbols",
@@ -433,7 +439,17 @@ const BuildDetailContent = () => {
           <ArtifactCard build={build} />
           <DebugSymbolsCard buildId={build.id} artifacts={debugArtifacts.items} />
         </div>
-        <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
+        {build.platform === "macos" ? (
+          // min-w-0: a grid item grows to its longest feed URL otherwise.
+          <div className="flex min-w-0 flex-col gap-4">
+            <MacosDistributionCard build={build} />
+            <Suspense fallback={<DetailCardSkeleton rows={1} columns={1} hasDescription={false} />}>
+              <MacosReleasesCard orgId={orgId} projectId={projectId} buildId={build.id} />
+            </Suspense>
+          </div>
+        ) : (
+          <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
+        )}
       </div>
     </>
   );

@@ -1,17 +1,16 @@
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 
 import { Effect } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 
-import {
-  fetchDeveloperIdP12,
-  resolveDeveloperIdCertificateId,
-} from "../../application/macos-developer-id";
 import { notarizeMacosArtifact, resolveNotaryAuth } from "../../application/macos-notarize";
+import {
+  acquireDeveloperIdIdentity,
+  acquireMacosWorkDir,
+} from "../../application/macos-signing-identity";
 import { CodesignError } from "../../lib/exit-codes";
-import { acquireKeychain } from "../../lib/ios-keychain";
+import { auditDeveloperIdApp, formatAuditIssues } from "../../lib/macos-code-inspect";
 import { signMacosApp, signMacosFile } from "../../lib/macos-signing";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { optionalFlag } from "../../lib/params";
@@ -75,6 +74,12 @@ export const signCommand = Command.make(
       Flag.withDescription("10-character Apple team ID (required with --apple-id)"),
       optionalFlag,
     ),
+    "notarize-timeout": Flag.String("notarize-timeout").pipe(
+      Flag.withDescription(
+        'With --notarize: stop waiting after this long (e.g. "30m"); resume with `macos notarize --submission-id`',
+      ),
+      optionalFlag,
+    ),
   },
   Effect.fn(
     function* (args) {
@@ -88,48 +93,54 @@ export const signCommand = Command.make(
           ? undefined
           : path.resolve(cwd, args.entitlements);
 
-      const certificateId = yield* resolveDeveloperIdCertificateId(api, args["certificate-id"]);
-      const p12 = yield* fetchDeveloperIdP12(api, certificateId);
-
       const signed = yield* Effect.scoped(
         Effect.gen(function* () {
-          const workDir = yield* Effect.acquireRelease(
-            Effect.promise(async () => mkdtemp(path.join(tmpdir(), "better-update-macos-"))),
-            (dir) => Effect.promise(async () => rm(dir, { recursive: true, force: true })),
-          );
-          const p12Path = path.join(workDir, "signing.p12");
-          yield* Effect.promise(async () => writeFile(p12Path, p12.p12Bytes));
-          const keychain = yield* acquireKeychain({
-            tempDir: workDir,
-            p12Path,
-            p12Password: p12.p12Password,
+          const workDir = yield* acquireMacosWorkDir;
+          const identity = yield* acquireDeveloperIdIdentity(api, {
+            kind: "DEVELOPER_ID_APPLICATION",
+            certificateId: args["certificate-id"],
+            workDir,
           });
-          yield* printHuman(`Signing with identity "${keychain.signingIdentity}"...`);
+          yield* printHuman(`Signing with identity "${identity.name}"...`);
           const options = {
             appPath: targetPath,
-            identity: keychain.signingIdentity,
-            keychainPath: keychain.keychainPath,
+            identity: identity.hash,
+            keychainPath: identity.keychainPath,
             entitlementsPath,
+            workDir,
           };
           const result =
             shape === "bundle" ? yield* signMacosApp(options) : yield* signMacosFile(options);
-          return { identity: keychain.signingIdentity, ...result };
+          return { identity, ...result };
         }),
       );
+      const { identity } = signed;
+
+      // Catch what the notary would reject before a submission that can take
+      // hours: runtime, timestamp, identity, get-task-allow, unprofiled
+      // restricted entitlements.
+      if (shape === "bundle") {
+        const issues = yield* auditDeveloperIdApp(targetPath, { expectedTeamId: identity.teamId });
+        if (issues.length > 0) {
+          return yield* new CodesignError({
+            message: `Signed, but not ready for Developer ID distribution:\n${formatAuditIssues(issues)}`,
+          });
+        }
+      }
 
       yield* printHuman("Signed and verified.");
       yield* printHumanKeyValue([
         ["Path", targetPath],
-        ["Identity", signed.identity],
+        ["Identity", identity.name],
         ["Nested items signed", String(signed.signedNested.length)],
-        ["Certificate", `${p12.serialNumber} (team ${p12.appleTeamIdentifier})`],
+        ["Certificate", `${identity.serialNumber} (team ${identity.teamId})`],
       ]);
 
       if (!args.notarize) {
         return {
           path: targetPath,
-          identity: signed.identity,
-          certificateId,
+          identity: identity.name,
+          certificateId: identity.certificateId,
           nestedSigned: signed.signedNested.length,
           notarization: null,
         };
@@ -145,16 +156,17 @@ export const signCommand = Command.make(
         auth,
         wait: true,
         staple: true,
+        timeout: args["notarize-timeout"],
       });
       yield* printHumanKeyValue([
-        ["Submission", notarization.submissionId ?? "-"],
+        ["Submission", notarization.submissionId],
         ["Status", notarization.status],
         ["Stapled", notarization.stapled ? "yes" : "no"],
       ]);
       return {
         path: targetPath,
-        identity: signed.identity,
-        certificateId,
+        identity: identity.name,
+        certificateId: identity.certificateId,
         nestedSigned: signed.signedNested.length,
         notarization,
       };

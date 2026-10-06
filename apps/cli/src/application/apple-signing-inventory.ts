@@ -9,7 +9,7 @@ import { toDbNull } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
 
-import { wrapConnect } from "../lib/apple-asc-connect";
+import { enableBundleIdCapability, wrapConnect } from "../lib/apple-asc-connect";
 import { AppStoreError } from "../lib/exit-codes";
 
 /** A signing certificate projected to the fields the CLI surfaces. */
@@ -174,9 +174,6 @@ export const enableCapability = (
   bundleId: AppleUtils.BundleId,
   capabilityType: AppleUtils.CapabilityType,
 ) =>
-  wrapConnect("apple-enable-capability", async () =>
-    bundleId.updateBundleIdCapabilityAsync({
-      capabilityType,
-      option: AppleUtils.CapabilityTypeOption.ON,
-    }),
-  ).pipe(Effect.map((updated) => ({ id: updated.id, capabilityType })));
+  enableBundleIdCapability(bundleId, capabilityType).pipe(
+    Effect.as({ id: bundleId.id, capabilityType }),
+  );

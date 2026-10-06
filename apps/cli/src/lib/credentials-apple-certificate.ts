@@ -8,9 +8,11 @@ import {
   toUploadEnvelope,
 } from "../application/credential-cipher";
 import { isMacosCertificateType } from "./apple-certificate-type";
+import { developerIdCaGeneration, developerIdG1Warning } from "./developer-id-ca";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
 import { autoBindProjectId } from "./project-link";
+import { printWarn } from "./warning-style";
 
 import type { ApiClient } from "../services/api-client";
 import type { UploadCredentialInput } from "./credentials-manager";
@@ -50,6 +52,9 @@ export const uploadAppleCertificate =
             ? `"${info.signingIdentity}" is a macOS ${info.certificateType} certificate — upload it with --platform macos --type macos-certificate.`
             : `"${info.signingIdentity}" is an iOS ${info.certificateType} certificate — upload it with --platform ios --type distribution-certificate.`,
         });
+      }
+      if (developerIdCaGeneration(info) === "G1") {
+        yield* printWarn(developerIdG1Warning(info.signingIdentity));
       }
       const metadata = compact({
         serialNumber: info.serialNumber,

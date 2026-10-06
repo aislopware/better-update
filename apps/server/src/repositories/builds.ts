@@ -3,9 +3,11 @@ import { Context, Effect, Layer } from "effect";
 
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
-import { selectBuildsWithArtifact, toBuildWithArtifact } from "./build-row";
+import { ownedKeys, selectBuildsWithArtifact, toBuildWithArtifact } from "./build-row";
 
-import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
+import type { ArtifactFormat, BuildWithArtifactModel, Distribution } from "../models";
+
+type BuildPlatform = BuildWithArtifactModel["platform"];
 
 export type BuildSortKey =
   | "createdAt"
@@ -22,7 +24,7 @@ export interface BuildRepository {
   readonly insert: (params: {
     readonly id: string;
     readonly projectId: string;
-    readonly platform: Platform;
+    readonly platform: BuildPlatform;
     readonly profile: string;
     readonly distribution: Distribution;
     readonly runtimeVersion: string | null;
@@ -69,9 +71,8 @@ export interface BuildRepository {
   } | null>;
 
   /**
-   * Builds past the retention cutoff that still hold an artifact. `r2Keys`
-   * lists every builds-bucket object the build owns (primary artifact plus
-   * the universal APK when one is attached) so GC removes them together.
+   * Builds past the retention cutoff that still hold an artifact and are in no
+   * desktop update feed, with every builds-bucket key they own (`ownedKeys`).
    */
   readonly findExpiredArtifactBatch: (params: {
     readonly profile: string;
@@ -101,7 +102,7 @@ export interface BuildRepository {
 
   readonly list: (params: {
     readonly projectId: string;
-    readonly platform?: Platform;
+    readonly platforms?: readonly BuildPlatform[];
     readonly profile?: string;
     readonly runtimeVersion?: string;
     /** User-facing distribution filter (multi-value). */
@@ -283,20 +284,23 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .selectFrom("builds as b")
           .innerJoin("build_artifacts as a", "a.build_id", "b.id")
           .leftJoin("build_install_artifacts as i", "i.build_id", "b.id")
+          .leftJoin("desktop_releases as r", "r.build_id", "b.id")
           .select((eb) => [
             eb.ref("b.id").$castTo<string>().as("id"),
             "a.r2_key",
+            "a.format",
             eb.ref("i.r2_key").as("install_r2_key"),
           ])
           .where("b.profile", "=", params.profile)
           .where("b.created_at", "<", params.cutoff)
+          .where("r.id", "is", null)
           .limit(params.limit)
           .execute(),
       );
 
       return rows.map((row) => ({
         id: row.id,
-        r2Keys: [row.r2_key, ...(row.install_r2_key ? [row.install_r2_key] : [])],
+        r2Keys: ownedKeys(row),
       }));
     }),
 
@@ -389,7 +393,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .where((eb) =>
             eb.and([
               eb("project_id", "=", params.projectId),
-              ...(params.platform ? [eb("platform", "=", params.platform)] : []),
+              ...(params.platforms?.length ? [eb("platform", "in", params.platforms)] : []),
               ...(params.profile ? [eb("profile", "=", params.profile)] : []),
               ...(params.runtimeVersion ? [eb("runtime_version", "=", params.runtimeVersion)] : []),
               ...(params.distribution && params.distribution.length > 0
@@ -419,7 +423,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .where((eb) =>
             eb.and([
               eb("b.project_id", "=", params.projectId),
-              ...(params.platform ? [eb("b.platform", "=", params.platform)] : []),
+              ...(params.platforms?.length ? [eb("b.platform", "in", params.platforms)] : []),
               ...(params.profile ? [eb("b.profile", "=", params.profile)] : []),
               ...(params.runtimeVersion
                 ? [eb("b.runtime_version", "=", params.runtimeVersion)]
@@ -476,7 +480,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         db
           .selectFrom("build_artifacts as a")
           .leftJoin("build_install_artifacts as i", "i.build_id", "a.build_id")
-          .select((eb) => ["a.r2_key", eb.ref("i.r2_key").as("install_r2_key")])
+          .select((eb) => ["a.r2_key", "a.format", eb.ref("i.r2_key").as("install_r2_key")])
           .where("a.build_id", "=", params.id)
           .executeTakeFirst(),
       );
@@ -490,7 +494,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       }
 
       return {
-        r2Keys: keys ? [keys.r2_key, ...(keys.install_r2_key ? [keys.install_r2_key] : [])] : [],
+        r2Keys: keys ? ownedKeys(keys) : [],
       };
     }),
 });

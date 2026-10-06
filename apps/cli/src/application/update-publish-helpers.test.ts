@@ -272,11 +272,11 @@ describe(warnOnSlugDivergence, () => {
     const lines = await captureStdout(
       warnOnSlugDivergence({
         target: { projectId: "proj_acme-store", name: "acme-store", slug: "acme-store" },
-        localSlug: "jmango360",
+        localSlug: "example-mobile-app",
       }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false)))),
     );
     const output = lines.join("\n");
-    expect(output).toContain('slug "jmango360"');
+    expect(output).toContain('slug "example-mobile-app"');
     expect(output).toContain('slug "acme-store"');
     expect(output).toContain("proj_acme-store");
     // The word the old failure never printed — without it the user had no thread
@@ -298,7 +298,7 @@ describe(warnOnSlugDivergence, () => {
     const lines = await captureStdout(
       warnOnSlugDivergence({
         target: { projectId: "proj_1", name: undefined, slug: undefined },
-        localSlug: "jmango360",
+        localSlug: "example-mobile-app",
       }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, makeOutputModeLayer(false)))),
     );
     expect(lines).toStrictEqual([]);

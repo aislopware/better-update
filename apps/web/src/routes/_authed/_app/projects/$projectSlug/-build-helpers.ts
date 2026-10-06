@@ -11,6 +11,9 @@ export const FORMAT_LABELS: Record<ArtifactFormatValue, string> = {
   apk: "APK",
   aab: "AAB",
   "tar.gz": "tar.gz",
+  dmg: "DMG",
+  zip: "ZIP",
+  pkg: "PKG",
 };
 
 export { formatBytes } from "../../../../../lib/format-bytes";

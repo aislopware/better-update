@@ -18,8 +18,22 @@ import { openFromDownload, openVaultSessionInteractive } from "./credential-ciph
 
 import type { ApiClient } from "../services/api-client";
 
-const GENERATE_HINT =
-  "Create one with `better-update credentials generate distribution-certificate --type developer-id` (Apple only issues these to the team's Account Holder), or upload an exported .p12 with `better-update credentials upload --platform macos --type macos-certificate`.";
+/** The two Developer ID kinds: one signs code and DMGs, the other signs pkgs. */
+export type DeveloperIdKind = "DEVELOPER_ID_APPLICATION" | "DEVELOPER_ID_INSTALLER";
+
+const KIND_LABEL: Readonly<Record<DeveloperIdKind, string>> = {
+  DEVELOPER_ID_APPLICATION: "Developer ID Application",
+  DEVELOPER_ID_INSTALLER: "Developer ID Installer",
+};
+
+const UPLOAD_HINT =
+  "upload an exported .p12 with `better-update credentials upload --platform macos --type macos-certificate`";
+
+const MISSING_HINT: Readonly<Record<DeveloperIdKind, string>> = {
+  DEVELOPER_ID_APPLICATION: `Create one with \`better-update credentials generate distribution-certificate --type developer-id\` (Apple only issues these to the team's Account Holder), or ${UPLOAD_HINT}.`,
+  // App Store Connect has no API certificate type for Developer ID Installer.
+  DEVELOPER_ID_INSTALLER: `Apple's API cannot issue these: have the Account Holder create one in the developer portal, then ${UPLOAD_HINT}.`,
+};
 
 /**
  * Resolve which stored Developer ID Application certificate to sign with:
@@ -32,12 +46,14 @@ const GENERATE_HINT =
  * certificate, and codesign's complaint about it names neither the flag nor the
  * certificate kind.
  */
-export const resolveDeveloperIdCertificateId = (api: ApiClient, flagCertId: string | undefined) =>
+export const resolveDeveloperIdCertificateId = (
+  api: ApiClient,
+  flagCertId: string | undefined,
+  kind: DeveloperIdKind = "DEVELOPER_ID_APPLICATION",
+) =>
   Effect.gen(function* () {
     const listing = yield* api.appleDistributionCertificates.list();
-    const candidates = listing.items.filter(
-      (cert) => cert.certificateType === "DEVELOPER_ID_APPLICATION",
-    );
+    const candidates = listing.items.filter((cert) => cert.certificateType === kind);
     if (flagCertId !== undefined && flagCertId.length > 0) {
       const flagged = candidates.find((cert) => cert.id === flagCertId);
       if (flagged === undefined) {
@@ -46,14 +62,14 @@ export const resolveDeveloperIdCertificateId = (api: ApiClient, flagCertId: stri
           message:
             stored === undefined
               ? `Certificate ${flagCertId} is not stored for this organization.`
-              : `Certificate ${flagCertId} is a ${stored.certificateType} certificate; signing a macOS app needs a Developer ID Application certificate.`,
+              : `Certificate ${flagCertId} is a ${stored.certificateType} certificate, not a ${KIND_LABEL[kind]} certificate.`,
         });
       }
       return flagged.id;
     }
     if (candidates.length === 0) {
       return yield* new CredentialValidationError({
-        message: `No Developer ID Application certificate stored for this organization. ${GENERATE_HINT}`,
+        message: `No ${KIND_LABEL[kind]} certificate stored for this organization. ${MISSING_HINT[kind]}`,
       });
     }
     const teamLabel = makeAppleTeamLabeler((yield* api.appleTeams.list()).items);
@@ -61,11 +77,11 @@ export const resolveDeveloperIdCertificateId = (api: ApiClient, flagCertId: stri
       `${cert.developerIdIdentifier ?? cert.serialNumber} — ${teamLabel(cert.appleTeamId)}, serial ${cert.serialNumber.slice(0, 12)}…, valid until ${cert.validUntil.slice(0, 10)}`;
     const [lone] = candidates;
     if (candidates.length === 1 && lone !== undefined) {
-      yield* printHuman(`Using stored Developer ID certificate: ${label(lone)}`);
+      yield* printHuman(`Using stored ${KIND_LABEL[kind]} certificate: ${label(lone)}`);
       return lone.id;
     }
     return yield* promptSelect<string>(
-      "Which Developer ID certificate should sign this app?",
+      `Which ${KIND_LABEL[kind]} certificate should sign this?`,
       candidates.map((cert) => ({ value: cert.id, label: label(cert) })),
     );
   });

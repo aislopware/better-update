@@ -54,6 +54,14 @@ const resolveArchive = (
       return { archiveSource: "url" as const, archiveUrl: args.url, buildId: undefined };
     }
     if (args.id !== undefined) {
+      // A build of another platform (a macOS DMG, an Android bundle for an iOS
+      // submit) would only fail later, inside the store upload.
+      const build = yield* api.builds.get({ params: { id: args.id } });
+      if (build.platform !== platform) {
+        return yield* new InvalidArgumentError({
+          message: `Build ${args.id} is a ${build.platform} build; this is a ${platform} submission.`,
+        });
+      }
       const link = yield* api.builds.getInstallLink({ params: { id: args.id } });
       return {
         archiveSource: "build" as const,
@@ -63,7 +71,7 @@ const resolveArchive = (
     }
     if (args.latest) {
       const { items } = yield* api.builds.list({
-        query: { projectId, limit: 1, platform, sort: "-createdAt" },
+        query: { projectId, limit: 1, platform: [platform], sort: "-createdAt" },
       });
       const [latest] = items;
       if (latest === undefined) {

@@ -1,0 +1,57 @@
+# Source of truth for MacosFixture.xcodeproj — regenerate with `xcodegen generate`
+# after editing. A deliberately awkward Developer ID shape: an embedded
+# framework, an XPC service, and a command-line tool installed into
+# Contents/Helpers. Signing is left Automatic with no team, the way a project
+# lands in a repo; `better-update build --platform macos` forces Developer ID.
+name: MacosFixture
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget: { macOS: "13.0" }
+settings:
+  base:
+    MARKETING_VERSION: "1.4.0"
+    CURRENT_PROJECT_VERSION: "140"
+targets:
+  MacosFixture:
+    type: application
+    platform: macOS
+    sources: [MacosFixture]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.macosfixture
+        CODE_SIGN_ENTITLEMENTS: MacosFixture/MacosFixture.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        # Merged into the generated plist: keys Xcode has no setting for.
+        INFOPLIST_FILE: MacosFixture/Info.plist
+    dependencies:
+      - target: FixtureKit
+      - target: FixtureHelper
+      - target: fixture-tool
+        embed: true
+        copy: { destination: executables, subpath: "../Helpers" }
+  FixtureKit:
+    type: framework
+    platform: macOS
+    sources: [FixtureKit]
+    settings:
+      base:
+        { PRODUCT_BUNDLE_IDENTIFIER: com.example.macosfixture.kit, GENERATE_INFOPLIST_FILE: YES }
+  FixtureHelper:
+    type: xpc-service
+    platform: macOS
+    sources: [FixtureHelper]
+    settings:
+      base:
+        { PRODUCT_BUNDLE_IDENTIFIER: com.example.macosfixture.helper, GENERATE_INFOPLIST_FILE: YES }
+  fixture-tool:
+    type: tool
+    platform: macOS
+    sources: [fixture-tool]
+    settings:
+      base: { PRODUCT_BUNDLE_IDENTIFIER: com.example.macosfixture.tool, SKIP_INSTALL: YES }
+schemes:
+  MacosFixture:
+    build:
+      targets: { MacosFixture: all }
+    archive:
+      config: Release

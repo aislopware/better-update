@@ -9,6 +9,7 @@ import { bundleIdCommand } from "./bundle-id";
 import { capabilityCommand } from "./capability";
 import { certificateCommand } from "./certificate";
 import { configureCommand } from "./configure";
+import { csrCommand } from "./csr";
 import { deleteCommand } from "./delete";
 import { deviceCommand } from "./device";
 import { downloadCommand } from "./download";
@@ -58,6 +59,7 @@ export const credentialsCommand = Command.make("credentials", {}, managerHandler
     viewCommand,
     downloadCommand,
     uploadCommand,
+    csrCommand,
     uploadAscKeyCommand,
     generateCommand,
     regenerateProfileCommand,

@@ -342,3 +342,4 @@ export const toApiIosAppMetadata = (model: IosAppMetadataModel): IosAppMetadata 
 // Submission mappers live in to-api-submission.ts (extracted for the line
 // budget); re-exported here so existing import sites stay stable.
 export { toApiSubmission } from "./to-api-submission";
+export { toApiDesktopRelease } from "./to-api-desktop-release";

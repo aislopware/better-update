@@ -372,3 +372,57 @@ export const installAndLaunchAndroid = (params: {
       "1",
     );
   });
+
+/**
+ * Copy the `.app` out of a Developer ID DMG: attach read-only without Finder,
+ * `ditto` the bundle (it keeps the symlinks and xattrs a signature seals), and
+ * detach on scope close even when the copy fails.
+ */
+export const extractAppFromDmg = (params: {
+  readonly dmgPath: string;
+  readonly mountPoint: string;
+  readonly destDir: string;
+}): Effect.Effect<
+  string,
+  NativeRunError,
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
+> =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      yield* Effect.acquireRelease(
+        runInherit(
+          "hdiutil attach",
+          "hdiutil",
+          "attach",
+          "-nobrowse",
+          "-readonly",
+          "-noautoopen",
+          "-quiet",
+          "-mountpoint",
+          params.mountPoint,
+          params.dmgPath,
+        ),
+        () =>
+          runInherit("hdiutil detach", "hdiutil", "detach", "-quiet", params.mountPoint).pipe(
+            Effect.ignore,
+          ),
+      );
+      const mountedApp = yield* findAppBundle(params.mountPoint);
+      const appPath = path.join(params.destDir, path.basename(mountedApp));
+      yield* runInherit("ditto", "ditto", mountedApp, appPath);
+      return appPath;
+    }),
+  );
+
+/** Unpack a `ditto -c -k --keepParent` zip with `ditto`, which restores what `unzip` can drop. */
+export const extractMacosZip = (
+  archive: string,
+  destDir: string,
+): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runInherit("ditto -x -k", "ditto", "-x", "-k", archive, destDir);
+
+/** Launch a Mac app (a new instance) or hand a `.pkg` to Installer. */
+export const openOnMac = (
+  target: string,
+): Effect.Effect<void, NativeRunError, ChildProcessSpawner.ChildProcessSpawner> =>
+  runInherit("open", "open", ...(target.endsWith(".app") ? ["-n"] : []), target);

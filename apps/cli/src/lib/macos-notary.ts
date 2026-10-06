@@ -6,6 +6,7 @@
  * and the real reason is parsed out of notarytool's `--output-format json`
  * stdout.
  */
+import { toOptional } from "@better-update/type-guards";
 import { Schema } from "effect";
 
 import { execFailureDetail, runTool } from "./exec-tool";
@@ -58,14 +59,116 @@ export const parseNotarySubmission = (stdout: string): NotarySubmission => {
   }
 };
 
+/**
+ * Parse whichever stream carries notarytool's JSON: stdout on success, but
+ * stderr when `wait`/`submit --wait` times out (exit 124) or the call fails.
+ */
+export const parseNotaryResult = (result: ExecResult): NotarySubmission => {
+  const fromStdout = parseNotarySubmission(result.stdout);
+  return fromStdout.id !== undefined || fromStdout.message !== undefined
+    ? fromStdout
+    : parseNotarySubmission(result.stderr);
+};
+
+/** notarytool's exit status when `--timeout` elapses; the submission keeps processing. */
+const NOTARY_TIMEOUT_EXIT = 124;
+
+export const isNotaryTimeout = (result: ExecResult): boolean => {
+  const { message } = parseNotaryResult(result);
+  return (
+    result.exitCode === NOTARY_TIMEOUT_EXIT ||
+    (message !== undefined && /^Timeout of .* was reached/u.test(message))
+  );
+};
+
 /** Best human-readable notarytool failure detail: parsed message, else raw streams. */
 export const notaryFailureDetail = (result: ExecResult): string => {
-  const parsed = parseNotarySubmission(result.stdout);
+  const parsed = parseNotaryResult(result);
   if (parsed.message !== undefined && parsed.message.length > 0) {
     return parsed.message;
   }
   return execFailureDetail(result);
 };
+
+// ── developer log ─────────────────────────────────────────────────
+
+export interface NotaryIssue {
+  readonly severity: string;
+  /** Path inside the submission, without the archive's own name. */
+  readonly path: string;
+  readonly architecture: string | undefined;
+  readonly message: string;
+}
+
+const NotaryLogSchema = Schema.Struct({
+  archiveFilename: Schema.optional(Schema.String),
+  issues: Schema.optional(
+    Schema.NullOr(
+      Schema.Array(
+        Schema.Struct({
+          severity: Schema.String,
+          path: Schema.String,
+          architecture: Schema.optional(Schema.NullOr(Schema.String)),
+          message: Schema.String,
+        }),
+      ),
+    ),
+  ),
+});
+
+/**
+ * Pull the issue list out of `notarytool log <id>` JSON. Each issue names one
+ * file and one architecture; paths are prefixed with the submitted archive's
+ * name, which is noise to the user and is stripped. Unparseable logs yield no
+ * issues (the caller then shows the raw log).
+ */
+export const parseNotaryLog = (json: string): readonly NotaryIssue[] => {
+  const start = json.indexOf("{");
+  if (start === -1) {
+    return [];
+  }
+  try {
+    const log = Schema.decodeUnknownSync(NotaryLogSchema, { onExcessProperty: "ignore" })(
+      JSON.parse(json.slice(start)),
+    );
+    const prefix = log.archiveFilename === undefined ? undefined : `${log.archiveFilename}/`;
+    return (log.issues ?? []).map((issue) => ({
+      severity: issue.severity,
+      path:
+        prefix !== undefined && issue.path.startsWith(prefix)
+          ? issue.path.slice(prefix.length)
+          : issue.path,
+      architecture: toOptional(issue.architecture),
+      message: issue.message,
+    }));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * One line per (path, message), with the affected architectures folded
+ * together — the raw log repeats every issue once per slice of a universal
+ * binary.
+ */
+const issueKey = (issue: NotaryIssue): string =>
+  `${issue.severity}\u0000${issue.path}\u0000${issue.message}`;
+
+export const formatNotaryIssues = (issues: readonly NotaryIssue[]): string =>
+  [...new Set(issues.map(issueKey))]
+    .flatMap((key) => {
+      const group = issues.filter((issue) => issueKey(issue) === key);
+      const [first] = group;
+      if (first === undefined) {
+        return [];
+      }
+      const archs = group
+        .map((issue) => issue.architecture)
+        .filter((arch): arch is string => arch !== undefined);
+      const archSuffix = archs.length === 0 ? "" : ` (${archs.join(", ")})`;
+      return [`  - [${first.severity}] ${first.path}${archSuffix}: ${first.message}`];
+    })
+    .join("\n");
 
 // ── artifact classification ───────────────────────────────────────
 

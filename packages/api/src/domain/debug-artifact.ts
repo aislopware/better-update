@@ -4,7 +4,7 @@ import { DateTimeString, Id, UploadHeaders } from "./common";
 
 /**
  * Crash-symbolication artifacts attached to a build or an update. Native
- * builds attach at most one artifact per type: `dsym` (iOS debug symbols,
+ * builds attach at most one artifact per type: `dsym` (iOS/macOS debug symbols,
  * zipped), `js-sourcemap` (the sourcemap of the JS bundle embedded in the
  * binary), `proguard-mapping` (Android R8/ProGuard mapping.txt) and
  * `native-symbols` (Android NDK native-debug-symbols.zip). OTA publishes

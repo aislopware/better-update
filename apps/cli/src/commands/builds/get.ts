@@ -1,9 +1,37 @@
+import { readMacosBuildMetadata } from "@better-update/api";
 import { Effect } from "effect";
 import { Argument, Command } from "effect/cli";
+
+import type { MacosNotarization } from "@better-update/api";
 
 import { printKeyValue } from "../../lib/output";
 import { runCommand } from "../../lib/run-command";
 import { apiClient } from "../../services/api-client";
+
+const notarizationLabel = (notarization: MacosNotarization | undefined): string => {
+  if (notarization === undefined) {
+    return "-";
+  }
+  if (notarization.status === "accepted") {
+    return notarization.stapled ? "accepted (stapled)" : "accepted";
+  }
+  return notarization.status === "pending"
+    ? `pending with Apple (submission ${notarization.submissionId ?? "unknown"})`
+    : "skipped";
+};
+
+/** Developer ID facts a macOS build records; nothing for other platforms. */
+const macosRows = (metadataJson: string): readonly (readonly [string, string])[] => {
+  const macos = readMacosBuildMetadata(metadataJson);
+  return macos === undefined
+    ? []
+    : [
+        ["Notarization", notarizationLabel(macos.notarization)],
+        ["Minimum macOS", macos.minimumSystemVersion ?? "-"],
+        ["Architectures", macos.architectures?.join(", ") ?? "-"],
+        ["Team ID", macos.teamId ?? "-"],
+      ];
+};
 
 export const getCommand = Command.make(
   "get",
@@ -30,6 +58,7 @@ export const getCommand = Command.make(
           ? `${build.artifact.format} (${String(build.artifact.byteSize)} bytes)`
           : "none",
       ],
+      ...macosRows(build.metadataJson),
       ["Created", build.createdAt],
     ]);
   }, runCommand()),

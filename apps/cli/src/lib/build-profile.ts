@@ -12,6 +12,7 @@ import type {
   EasBuildProfile,
   EasIosProfile,
 } from "./eas-config";
+import type { EasMacosArtifact } from "./eas-macos-config";
 import type { BuildProfileError } from "./exit-codes";
 import type { ExpoConfig } from "./expo-config";
 
@@ -68,6 +69,29 @@ export interface AndroidProfile {
   readonly metaOverride?: AndroidMetaOverride;
 }
 
+export interface MacosMetaOverride {
+  readonly bundleIdentifier?: string;
+  readonly version?: string;
+  readonly buildNumber?: string;
+}
+
+/** A resolved `macos` profile section; see `EasMacosProfile` for the fields. */
+export interface MacosProfile {
+  readonly distribution: "developer-id";
+  readonly artifact: EasMacosArtifact;
+  readonly notarize: boolean;
+  readonly notarizeTimeout?: string;
+  readonly ascApiKeyId?: string;
+  readonly universal: boolean;
+  readonly buildConfiguration?: string;
+  readonly scheme?: string;
+  readonly workspace?: string;
+  readonly project?: string;
+  readonly podInstall?: boolean;
+  readonly entitlements?: string;
+  readonly metaOverride?: MacosMetaOverride;
+}
+
 export type CredentialsSource = "remote" | "local";
 
 export interface BuildProfile {
@@ -77,6 +101,7 @@ export interface BuildProfile {
   readonly env?: Record<string, string>;
   readonly ios?: IosProfile;
   readonly android?: AndroidProfile;
+  readonly macos?: MacosProfile;
   readonly credentialsSource?: CredentialsSource;
   /** Mirror of EAS `developmentClient` — drives Debug/debug variant + dev-client validation. */
   readonly developmentClient?: boolean;
@@ -268,9 +293,44 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
   });
 };
 
+/**
+ * Only an explicit `macos` section (or a custom macOS command) opts a profile
+ * in: the shared `distribution` shorthand means iOS/Android store or internal,
+ * neither of which a Developer ID build is.
+ */
+const toMacosProfile = (eas: EasBuildProfile): MacosProfile | undefined => {
+  const macos = eas.macos ?? (eas.custom?.macos === undefined ? undefined : {});
+  if (macos === undefined) {
+    return undefined;
+  }
+  const metaOverride = compact({
+    bundleIdentifier: macos.bundleIdentifier,
+    version: macos.version,
+    buildNumber: macos.buildNumber,
+  });
+  return compact({
+    distribution: "developer-id" as const,
+    artifact: macos.artifact ?? "dmg",
+    notarize: macos.notarize ?? true,
+    notarizeTimeout: macos.notarizeTimeout,
+    ascApiKeyId: macos.ascApiKeyId,
+    universal: macos.universal ?? false,
+    // EAS parity with the iOS mapping: a dev-client profile builds Debug.
+    buildConfiguration:
+      macos.buildConfiguration ?? (eas.developmentClient === true ? "Debug" : undefined),
+    scheme: macos.scheme,
+    workspace: macos.workspace,
+    project: macos.project,
+    podInstall: macos.podInstall,
+    entitlements: macos.entitlements,
+    metaOverride: Object.keys(metaOverride).length === 0 ? undefined : metaOverride,
+  });
+};
+
 export const fromGenericProfile = (eas: EasBuildProfile, profileName: string): BuildProfile => {
   const ios = toIosProfile(eas);
   const android = toAndroidProfile(eas);
+  const macos = toMacosProfile(eas);
   return compact({
     name: profileName,
     environment: eas.environment ?? "production",
@@ -278,6 +338,7 @@ export const fromGenericProfile = (eas: EasBuildProfile, profileName: string): B
     env: eas.env,
     ios,
     android,
+    macos,
     credentialsSource: eas.credentialsSource,
     developmentClient: eas.developmentClient,
     withoutCredentials: eas.withoutCredentials,

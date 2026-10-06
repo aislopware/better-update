@@ -73,7 +73,7 @@ const dirExists = (root: string, name: string) =>
  * failures fail the build; failure-path hooks are best-effort so they never
  * mask the original build error.
  */
-const runBuildLifecycleHooks = (params: {
+export const runBuildLifecycleHooks = (params: {
   readonly succeeded: boolean;
   readonly projectRoot: string;
   readonly packageManager: PackageManager;

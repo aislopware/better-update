@@ -3,9 +3,13 @@ import path from "node:path";
 import { FileSystem, Effect } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 
+import type { ArtifactFormat as ArtifactFormatSchema } from "@better-update/api";
+
 import { InvalidArgumentError, UploadFailedError } from "../../lib/exit-codes";
 import { fetchBytes } from "../../lib/fetch-bytes";
 import {
+  extractAppFromDmg,
+  extractMacosZip,
   extractTarGz,
   extractZip,
   findAppBundle,
@@ -13,6 +17,7 @@ import {
   installAndLaunchIosDevice,
   installAndLaunchIosSimulator,
   NativeRunError,
+  openOnMac,
   pickAndroidDevice,
   pickSimulator,
   readApkPackageName,
@@ -27,13 +32,14 @@ import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
 
-type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
+type ArtifactFormat = typeof ArtifactFormatSchema.Type;
+type BuildPlatform = "ios" | "android" | "macos";
 
 const resolveBuild = (params: {
   readonly api: ApiClient;
   readonly id: string | undefined;
   readonly latest: boolean;
-  readonly platform: "ios" | "android" | undefined;
+  readonly platform: BuildPlatform | undefined;
   readonly projectId: string;
 }) =>
   Effect.gen(function* () {
@@ -42,16 +48,16 @@ const resolveBuild = (params: {
     }
     if (!params.latest) {
       return yield* new InvalidArgumentError({
-        message: "Pass a build id, or use --latest --platform <ios|android>.",
+        message: "Pass a build id, or use --latest --platform <ios|android|macos>.",
       });
     }
     if (!params.platform) {
       return yield* new InvalidArgumentError({
-        message: "--latest requires --platform <ios|android>.",
+        message: "--latest requires --platform <ios|android|macos>.",
       });
     }
     const list = yield* params.api.builds.list({
-      query: { projectId: params.projectId, platform: params.platform, limit: 1 },
+      query: { projectId: params.projectId, platform: [params.platform], limit: 1 },
     });
     const [first] = list.items;
     if (!first) {
@@ -193,6 +199,59 @@ const runAndroid = (params: AndroidRunParams) =>
     ]);
   });
 
+interface MacosRunParams {
+  readonly tempDir: string;
+  readonly artifactPath: string;
+  readonly format: ArtifactFormat;
+}
+
+/** Unpack the signed container and open the app; a `.pkg` goes to Installer. */
+const runMacos = (params: MacosRunParams) =>
+  Effect.gen(function* () {
+    if (params.format === "pkg") {
+      yield* printHuman("Opening the installer package...");
+      yield* openOnMac(params.artifactPath);
+      return;
+    }
+    if (params.format !== "dmg" && params.format !== "zip" && params.format !== "tar.gz") {
+      return yield* new NativeRunError({
+        message: `Cannot run ${params.format} on macOS; only dmg, zip, tar.gz and pkg are supported.`,
+      });
+    }
+    const fs = yield* FileSystem.FileSystem;
+    const destDir = path.join(params.tempDir, "macos");
+    yield* fs.makeDirectory(destDir, { recursive: true });
+    const appPath =
+      params.format === "dmg"
+        ? yield* Effect.gen(function* () {
+            const mountPoint = path.join(params.tempDir, "mount");
+            yield* fs.makeDirectory(mountPoint, { recursive: true });
+            return yield* extractAppFromDmg({
+              dmgPath: params.artifactPath,
+              mountPoint,
+              destDir,
+            });
+          })
+        : yield* (
+            params.format === "zip"
+              ? extractMacosZip(params.artifactPath, destDir)
+              : extractTarGz(params.artifactPath, destDir)
+          ).pipe(Effect.andThen(findAppBundle(destDir)));
+    yield* printHuman(`Launching ${path.basename(appPath)}...`);
+    yield* openOnMac(appPath);
+    yield* printHumanKeyValue([["App", appPath]]);
+  });
+
+const runForPlatform = (
+  platform: BuildPlatform,
+  params: IosRunParams & AndroidRunParams & MacosRunParams,
+) => {
+  if (platform === "ios") {
+    return runIos(params);
+  }
+  return platform === "android" ? runAndroid(params) : runMacos(params);
+};
+
 export const runBuildCommand = Command.make(
   "run",
   {
@@ -204,7 +263,7 @@ export const runBuildCommand = Command.make(
       Flag.withDescription("Pick the most recent build for --platform"),
       Flag.withDefault(false),
     ),
-    platform: Flag.Literals("platform", ["ios", "android"]).pipe(
+    platform: Flag.Literals("platform", ["ios", "android", "macos"]).pipe(
       Flag.withDescription("Platform filter (required with --latest)"),
       optionalFlag,
     ),
@@ -269,21 +328,16 @@ export const runBuildCommand = Command.make(
         const fs = yield* FileSystem.FileSystem;
         yield* fs.writeFile(artifactPath, bytes);
 
-        yield* build.platform === "ios"
-          ? runIos({
-              tempDir,
-              artifactPath,
-              format: installable.format,
-              simulatorSelector: args.simulator,
-              deviceSelector: args["device-id"],
-              useDevice: args.device,
-            })
-          : runAndroid({
-              artifactPath,
-              format: installable.format,
-              emulatorSelector: args.emulator,
-              packageOverride: args.package,
-            });
+        yield* runForPlatform(build.platform, {
+          tempDir,
+          artifactPath,
+          format: installable.format,
+          simulatorSelector: args.simulator,
+          deviceSelector: args["device-id"],
+          useDevice: args.device,
+          emulatorSelector: args.emulator,
+          packageOverride: args.package,
+        });
         return {
           buildId: build.id,
           platform: build.platform,
@@ -292,4 +346,8 @@ export const runBuildCommand = Command.make(
         };
       }),
     ).pipe(runCommand({ json: "value" })),
-).pipe(Command.withDescription("Install and launch a build on a simulator/emulator or device"));
+).pipe(
+  Command.withDescription(
+    "Install and launch a build on a simulator/emulator, a device, or this Mac",
+  ),
+);

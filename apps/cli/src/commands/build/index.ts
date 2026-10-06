@@ -3,6 +3,7 @@ import { Command, Flag } from "effect/cli";
 
 import { runBuildWorkflow } from "../../application/build-workflow";
 import { runBuildWorkflowAll } from "../../application/build-workflow-all";
+import { runMacosBuildWorkflow } from "../../application/macos-build-workflow";
 import { optionalFlag } from "../../lib/params";
 import { runCommand } from "../../lib/run-command";
 import { configureBuildCommand } from "./configure";
@@ -10,9 +11,9 @@ import { configureBuildCommand } from "./configure";
 export const buildCommand = Command.make(
   "build",
   {
-    platform: Flag.Literals("platform", ["ios", "android", "all"]).pipe(
+    platform: Flag.Literals("platform", ["ios", "android", "macos", "all"]).pipe(
       Flag.withDescription(
-        'Target platform; "all" builds ios and android in parallel (auto-detected from app.json when omitted)',
+        'Target platform; "all" builds ios and android in parallel; "macos" builds a Developer ID app from the profile\'s macos section (auto-detected from app.json when omitted)',
       ),
       optionalFlag,
     ),
@@ -82,6 +83,9 @@ export const buildCommand = Command.make(
         whatToTest: args["what-to-test"],
       }),
     };
+    if (args.platform === "macos") {
+      return runMacosBuildWorkflow(options).pipe(runCommand());
+    }
     return args.platform === "all"
       ? runBuildWorkflowAll(options).pipe(runCommand())
       : runBuildWorkflow({ ...options, platform: args.platform }).pipe(runCommand());

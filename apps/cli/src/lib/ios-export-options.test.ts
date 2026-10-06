@@ -107,4 +107,20 @@ describe(renderExportOptionsPlist, () => {
     expect(plist).not.toContain("com.a&b.app");
     expect(plist).not.toContain('<test & "name">');
   });
+
+  it("developer-id keeps its name, pins the signing certificate and still emits an empty profile dict", () => {
+    const plist = renderExportOptionsPlist({
+      method: "developer-id",
+      teamId: "ABCD1234EF",
+      provisioningProfiles: [],
+      signingCertificate: "0123456789ABCDEF0123456789ABCDEF01234567",
+    });
+    expect(plist).toContain("<key>method</key>\n\t<string>developer-id</string>");
+    expect(plist).toContain(
+      "<key>signingCertificate</key>\n\t<string>0123456789ABCDEF0123456789ABCDEF01234567</string>",
+    );
+    // Xcode < 16 crashes on a manual export without the dict, even empty.
+    expect(plist).toContain("<key>provisioningProfiles</key>\n\t<dict>\n\t</dict>");
+    expect(plist).not.toContain("uploadSymbols");
+  });
 });

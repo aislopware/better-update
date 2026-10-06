@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyLists-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sparkle public key for a synthetic test seed (32 bytes of 0x2a); the
+	     CLI records it so `macos release create` refuses mismatched keys. -->
+	<key>SUPublicEDKey</key>
+	<string>GX9rI+FshTLGq8g4+s1ep4m+DHaykgM0A5v6iz02jWE=</string>
+</dict>
+</plist>

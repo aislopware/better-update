@@ -1,10 +1,13 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Stream } from "effect";
 
+import { sliceReadChunk } from "../lib/http-range";
 import { toDbNull } from "../lib/nullable";
 import { r2Operation, toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
 import { r2Checksums, r2ListCursor } from "./r2-accessors";
 import { generateDownloadUrl, generateUploadUrl } from "./signed-url";
+
+import type { ByteRange, ObjectRead } from "../lib/http-range";
 
 export interface StoredBuildBlob {
   readonly body: ReadableStream | null;
@@ -41,6 +44,20 @@ export interface BuildRuntimeService {
   readonly deleteReservation: (params: { readonly id: string }) => Effect.Effect<void>;
   readonly getObject: (params: { readonly key: string }) => Effect.Effect<StoredBuildBlob | null>;
   readonly getObjectBytes: (params: { readonly key: string }) => Effect.Effect<Uint8Array | null>;
+  /** One byte range of an object (`body` holds just those bytes). */
+  readonly getObjectRange: (params: {
+    readonly key: string;
+    readonly range: ByteRange;
+  }) => Effect.Effect<StoredBuildBlob | null>;
+  /**
+   * The bytes of several ranges of an object as one stream, each between its
+   * prefix and suffix — a `multipart/byteranges` body. Each read is one
+   * ranged R2 get, made when the stream reaches it.
+   */
+  readonly streamObjectReads: (params: {
+    readonly key: string;
+    readonly reads: readonly ObjectRead[];
+  }) => Effect.Effect<ReadableStream<Uint8Array>>;
   readonly putObject: (params: {
     readonly key: string;
     readonly body: ReadableStream | ArrayBuffer | ArrayBufferView | Uint8Array;
@@ -135,6 +152,47 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
         return null;
       }
       return yield* r2Operation(async () => new Uint8Array(await object.arrayBuffer()));
+    }),
+
+  getObjectRange: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const object = yield* r2Operation(async () =>
+        env.BUILD_BUCKET.get(params.key, { range: params.range }),
+      );
+      return object ? toStoredBuildBlob(object) : null;
+    }),
+
+  streamObjectReads: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const readStream = (read: ObjectRead) =>
+        Stream.unwrap(
+          Effect.gen(function* () {
+            const object = yield* r2Operation(async () =>
+              env.BUILD_BUCKET.get(params.key, {
+                range: { offset: read.offset, length: read.length },
+              }),
+            );
+            if (object === null) {
+              return yield* Effect.die(new Error(`R2 object ${params.key} is gone`));
+            }
+            return Stream.fromReadableStream<Uint8Array, Error>({
+              evaluate: () => object.body,
+              onError: (cause) => new Error("R2 read failed", { cause }),
+            }).pipe(
+              Stream.mapAccum(
+                () => read.offset,
+                (offset, chunk) =>
+                  [offset + chunk.length, sliceReadChunk(read, offset, chunk)] as const,
+              ),
+            );
+          }),
+        );
+      return Stream.fromIterable(params.reads).pipe(
+        Stream.flatMap(readStream),
+        Stream.toReadableStream(),
+      );
     }),
 
   putObject: (params) =>

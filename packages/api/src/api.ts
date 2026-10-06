@@ -22,6 +22,7 @@ import { BuildCredentialsGroup } from "./groups/build-credentials";
 import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
 import { CredentialBindingsGroup } from "./groups/credential-bindings";
+import { DesktopReleasesGroup } from "./groups/desktop-releases";
 import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
 import { EnvVaultGroup } from "./groups/env-vault";
@@ -54,6 +55,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AssetsGroup)
   .add(AnalyticsGroup)
   .add(BuildsGroup)
+  .add(DesktopReleasesGroup)
   .add(RuntimesGroup)
   .add(EnvVarsGroup)
   .add(FingerprintsGroup)

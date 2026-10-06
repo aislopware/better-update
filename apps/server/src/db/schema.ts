@@ -23,6 +23,7 @@ import type { DebugArtifactType } from "../debug-artifact-models";
 import type {
   AppleCertificateType,
   ArtifactFormat,
+  BuildPlatform,
   AppleTeamType,
   AuditLogResourceType,
   AuditLogSource,
@@ -34,6 +35,7 @@ import type {
   EnvVarScope,
   EnvVarVisibility,
   Platform,
+  ProfileDistributionType,
   ProjectPrincipalType,
   ProjectRole,
 } from "../models";
@@ -69,7 +71,7 @@ export type AppleDistributionCertificates = WithNonNullId<
   Narrow<Gen.AppleDistributionCertificates, { certificate_type: Generated<AppleCertificateType> }>
 >;
 export type AppleProvisioningProfiles = WithNonNullId<
-  Narrow<Gen.AppleProvisioningProfiles, { distribution_type: DistributionType }>
+  Narrow<Gen.AppleProvisioningProfiles, { distribution_type: ProfileDistributionType }>
 >;
 export type ApplePushKeys = WithNonNullId<Gen.ApplePushKeys>;
 export type ApplePushCertificates = WithNonNullId<Gen.ApplePushCertificates>;
@@ -88,9 +90,10 @@ export type BuildDebugArtifacts = WithNonNullId<
 >;
 export type BuildInstallArtifacts = WithNonNullId<Gen.BuildInstallArtifacts>;
 export type Builds = WithNonNullId<
-  Narrow<Gen.Builds, { distribution: Distribution; platform: Platform }>
+  Narrow<Gen.Builds, { distribution: Distribution; platform: BuildPlatform }>
 >;
 export type Channels = WithNonNullId<Gen.Channels>;
+export type DesktopReleases = WithNonNullId<Gen.DesktopReleases>;
 export type DeviceRegistrationRequests = WithNonNullId<
   Narrow<Gen.DeviceRegistrationRequests, { device_class_hint: DeviceClass | null }>
 >;
@@ -185,6 +188,7 @@ export interface DB {
   build_install_artifacts: BuildInstallArtifacts;
   builds: Builds;
   channels: Channels;
+  desktop_releases: DesktopReleases;
   device_registration_requests: DeviceRegistrationRequests;
   devices: Devices;
   devices_fts: DevicesFts;

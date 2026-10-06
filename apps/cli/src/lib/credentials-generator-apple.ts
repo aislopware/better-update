@@ -20,6 +20,7 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
+import { ascCertificateTypes, ascCertificateTypesOfKind } from "./apple-asc-certificate-types";
 import {
   buildTokenRequestContext,
   isCertificateLimitMessage,
@@ -201,12 +202,15 @@ export const listDistributionCerts = (
   certificateType: GeneratableCertificateType = "IOS_DISTRIBUTION",
 ) =>
   Effect.gen(function* () {
-    const certs = yield* wrap("apple-list-certificates", async () =>
-      AppleUtils.Certificate.getAsync(ctx, {
-        query: { filter: { certificateType: certificateTypeOf(certificateType) } },
-      }),
+    const lists = yield* Effect.forEach(
+      ascCertificateTypesOfKind(certificateTypeOf(certificateType)),
+      (type) =>
+        wrap("apple-list-certificates", async () =>
+          AppleUtils.Certificate.getAsync(ctx, { query: { filter: { certificateType: type } } }),
+        ),
+      { concurrency: 2 },
     );
-    return certs.map(
+    return lists.flat().map(
       (entry) =>
         ({
           developerPortalIdentifier: entry.id,
@@ -240,31 +244,6 @@ export interface RevokeLocalDistributionCertificateResult {
 }
 
 /**
- * Which App Store Connect certificate lists to search for a stored row's serial.
- *
- * The stored type is the authority, so a macOS certificate is looked for among
- * macOS certificates. Two exceptions keep this from missing a match: a stored
- * `IOS_*` type also searches its sibling (Apple issues one universal "Apple
- * Distribution" certificate and a row could have been classified either way),
- * and `DEVELOPER_ID_INSTALLER` has no `@expo/apple-utils` enum member so it
- * cannot be queried at all — the revoke then only removes the local row.
- */
-const ascSearchTypes = (
-  certificateType: AppleCertificateType,
-): readonly AppleUtils.CertificateType[] => {
-  if (certificateType === "IOS_DISTRIBUTION" || certificateType === "IOS_DEVELOPMENT") {
-    return [
-      AppleUtils.CertificateType.IOS_DISTRIBUTION,
-      AppleUtils.CertificateType.IOS_DEVELOPMENT,
-    ];
-  }
-  if (certificateType === "DEVELOPER_ID_INSTALLER") {
-    return [];
-  }
-  return [CERTIFICATE_TYPE_TO_APPLE[certificateType]];
-};
-
-/**
  * Revoke the certificate behind a stored row: match it on Apple by serial
  * (within the lists its stored type can live in), delete it there, and
  * optionally delete the local row. Builds a headless Token context from the ASC
@@ -289,7 +268,7 @@ export const revokeLocalDistributionCertificate = (
     const targetSerial = normalizeAppleSerial(local.serialNumber);
 
     const matching = yield* Effect.all(
-      ascSearchTypes(local.certificateType).map((certificateType) =>
+      ascCertificateTypes(local.certificateType).map((certificateType) =>
         wrap("apple-list-certificates", async () =>
           AppleUtils.Certificate.getAsync(ctx, { query: { filter: { certificateType } } }),
         ),
@@ -325,7 +304,12 @@ export const revokeLocalDistributionCertificate = (
     } satisfies RevokeLocalDistributionCertificateResult;
   });
 
-const findOrCreateBundleId = (ctx: AppleUtils.RequestContext, bundleIdentifier: string) =>
+/** An existing bundle id of any platform, or a new one registered for `platform`. */
+export const findOrCreateBundleId = (
+  ctx: AppleUtils.RequestContext,
+  bundleIdentifier: string,
+  platform: AppleUtils.BundleIdPlatform = AppleUtils.BundleIdPlatform.IOS,
+) =>
   Effect.gen(function* () {
     const existing = yield* wrap("apple-find-bundle-id", async () =>
       AppleUtils.BundleId.findAsync(ctx, { identifier: bundleIdentifier }),
@@ -337,27 +321,31 @@ const findOrCreateBundleId = (ctx: AppleUtils.RequestContext, bundleIdentifier: 
       AppleUtils.BundleId.createAsync(ctx, {
         identifier: bundleIdentifier,
         name: bundleIdentifier,
-        platform: AppleUtils.BundleIdPlatform.IOS,
+        platform,
       }),
     );
     return created.id;
   });
 
-const findAscCertificateId = (
+/** The App Store Connect id of the certificate with `serialNumber`, searched under `certificateTypes`. */
+export const findAscCertificateId = (
   ctx: AppleUtils.RequestContext,
   serialNumber: string,
-  certificateType: AppleUtils.CertificateType,
+  certificateTypes: readonly AppleUtils.CertificateType[],
 ) =>
   Effect.gen(function* () {
-    const certs = yield* wrap("apple-list-certificates", async () =>
-      AppleUtils.Certificate.getAsync(ctx, {
-        query: { filter: { certificateType } },
-      }),
+    const lists = yield* Effect.forEach(
+      certificateTypes,
+      (certificateType) =>
+        wrap("apple-list-certificates", async () =>
+          AppleUtils.Certificate.getAsync(ctx, { query: { filter: { certificateType } } }),
+        ),
+      { concurrency: 2 },
     );
     const target = normalizeAppleSerial(serialNumber);
-    const match = certs.find(
-      (entry) => normalizeAppleSerial(entry.attributes.serialNumber) === target,
-    );
+    const match = lists
+      .flat()
+      .find((entry) => normalizeAppleSerial(entry.attributes.serialNumber) === target);
     if (match === undefined) {
       return yield* new AppleIdGenerateFailedError({
         step: "match-apple-certificate",
@@ -414,7 +402,7 @@ export const generateAndUploadProvisioningProfile = (
 
     const [certAscId, bundleIdAscId] = yield* Effect.all(
       [
-        findAscCertificateId(ctx, cert.serialNumber, certificateType),
+        findAscCertificateId(ctx, cert.serialNumber, [certificateType]),
         findOrCreateBundleId(ctx, input.bundleIdentifier),
       ],
       { concurrency: 2 },

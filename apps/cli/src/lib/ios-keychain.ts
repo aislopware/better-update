@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 
 import { Effect } from "effect";
@@ -7,6 +9,7 @@ import { ChildProcess } from "effect/process";
 import type { Scope } from "effect";
 import type { ChildProcessSpawner } from "effect/process";
 
+import { APPLE_INTERMEDIATE_CAS } from "./apple-intermediate-cas";
 import { runText } from "./child-process";
 import { KeychainError } from "./exit-codes";
 
@@ -14,12 +17,26 @@ export interface AcquireKeychainOptions {
   readonly tempDir: string;
   readonly p12Path: string;
   readonly p12Password: string;
+  /**
+   * `security find-identity` policy used to locate the imported identity.
+   * Code-signing certificates match `codesigning` (the default); installer
+   * certificates (Developer ID Installer) are not code-signing identities and
+   * only show up under `basic`.
+   */
+  readonly policy?: "codesigning" | "basic";
 }
 
 export interface KeychainHandle {
   readonly keychainName: string;
   readonly keychainPath: string;
+  /** Common name, e.g. `Developer ID Application: Example Corp (ABCDE12345)`. */
   readonly signingIdentity: string;
+  /**
+   * SHA-1 of the identity's certificate. Unambiguous where the name is not: a
+   * login keychain still holding an older certificate with the same common name
+   * makes name-based signing fail as "ambiguous".
+   */
+  readonly signingIdentityHash: string;
 }
 
 // ── shell helpers ─────────────────────────────────────────────────
@@ -53,16 +70,18 @@ const listCurrentKeychains = Effect.gen(function* () {
 // Parse `security find-identity -v <keychain>` output to extract the first
 // Signing identity. Lines look like:
 //   1) 1A2B3C4D... "Apple Distribution: Your Name (TEAMID)"
-const parseSigningIdentity = (output: string): string | undefined => {
-  const lines = output.split("\n");
-  for (const line of lines) {
-    const match = /"(?<identity>[^"]+)"/u.exec(line);
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-  return undefined;
-};
+export const parseSigningIdentity = (
+  output: string,
+): { readonly name: string; readonly hash: string } | undefined =>
+  output
+    .split("\n")
+    .map((line) => /^\s*\d+\)\s+(?<hash>[0-9A-F]{40})\s+"(?<name>[^"]+)"/u.exec(line)?.groups)
+    .flatMap((groups) =>
+      groups?.["hash"] === undefined || groups["name"] === undefined
+        ? []
+        : [{ name: groups["name"], hash: groups["hash"] }],
+    )
+    .at(0);
 
 // ── acquireRelease ────────────────────────────────────────────────
 
@@ -76,6 +95,7 @@ export const acquireKeychain = ({
   tempDir,
   p12Path,
   p12Password,
+  policy = "codesigning",
 }: AcquireKeychainOptions): Effect.Effect<
   KeychainHandle,
   KeychainError,
@@ -100,9 +120,31 @@ export const acquireKeychain = ({
         "unlock-keychain",
       );
 
+      // No auto-lock: no timeout flag and no lock-on-sleep. The keychain lives
+      // only for this command and is deleted on release, but a long archive or
+      // a slow notarization wait can outlast any timeout — and a locked
+      // keychain makes codesign pop a GUI password prompt (CI: hang, or
+      // errSecInternalComponent) for a password nobody but this process knows.
       yield* runOrFail(
-        ChildProcess.make("security", ["set-keychain-settings", "-t", "3600", "-l", keychainPath]),
+        ChildProcess.make("security", ["set-keychain-settings", keychainPath]),
         "set-keychain-settings",
+      );
+
+      // A `.p12` carries only the leaf; without the issuing intermediate in a
+      // reachable keychain the identity is not valid and codesign cannot build
+      // its chain (clean CI runners, a process with its own HOME).
+      const caPaths = yield* Effect.promise(async () =>
+        Promise.all(
+          APPLE_INTERMEDIATE_CAS.map(async (ca) => {
+            const caPath = path.join(tempDir, `${randomUUID()}-${ca.fileName}`);
+            await writeFile(caPath, Buffer.from(ca.derBase64, "base64"));
+            return caPath;
+          }),
+        ),
+      );
+      yield* runOrFail(
+        ChildProcess.make("security", ["add-certificates", "-k", keychainPath, ...caPaths]),
+        "add-certificates",
       );
 
       yield* runOrFail(
@@ -132,6 +174,14 @@ export const acquireKeychain = ({
         "set-key-partition-list",
       );
 
+      // `list-keychains -d user -s` persists into ~/Library/Preferences and
+      // silently does nothing when that directory is missing (containers, a
+      // sandboxed HOME) — leaving the keychain off the search list, so neither
+      // chain building nor xcodebuild export can see it.
+      yield* Effect.promise(async () =>
+        mkdir(path.join(homedir(), "Library", "Preferences"), { recursive: true }),
+      );
+
       // Prepend our keychain to the search list while preserving the user's
       // Existing ones.
       yield* runOrFail(
@@ -146,19 +196,33 @@ export const acquireKeychain = ({
         "list-keychains -s (add)",
       );
 
+      // Matched by the uuid-unique file name: `security` reports the resolved
+      // path (`/private/var/...` for a `/var/...` temp dir).
+      const searchList = yield* listCurrentKeychains;
+      if (!searchList.some((entry) => path.basename(entry) === keychainName)) {
+        return yield* new KeychainError({
+          message: `Could not add the signing keychain to the user keychain search list (HOME=${homedir()}).`,
+        });
+      }
+
       const identitiesOutput = yield* runOrFail(
-        ChildProcess.make("security", ["find-identity", "-v", "-p", "codesigning", keychainPath]),
+        ChildProcess.make("security", ["find-identity", "-v", "-p", policy, keychainPath]),
         "find-identity",
       );
-      const signingIdentity = parseSigningIdentity(identitiesOutput);
-      if (!signingIdentity) {
+      const identity = parseSigningIdentity(identitiesOutput);
+      if (!identity) {
         return yield* new KeychainError({
-          message: "No code signing identity found after importing .p12 into ephemeral keychain.",
+          message: "No signing identity found after importing .p12 into ephemeral keychain.",
         });
       }
 
       return {
-        handle: { keychainName, keychainPath, signingIdentity },
+        handle: {
+          keychainName,
+          keychainPath,
+          signingIdentity: identity.name,
+          signingIdentityHash: identity.hash,
+        },
         priorKeychains,
       };
     }),

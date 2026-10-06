@@ -54,6 +54,20 @@ describe(parseProvisioningProfile, () => {
     expect(result.profileName).toBe("Example & Profile");
   });
 
+  it("reads non-ASCII names as UTF-8", async () => {
+    const plist = `
+      <dict>
+        <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
+        <key>TeamName</key><string>Société Exemple</string>
+        <key>application-identifier</key><string>ABCDE12345.com.example.app</string>
+        <key>Name</key><string>Café Ad Hoc ✓</string>
+      </dict>
+    `;
+    const result = await Effect.runPromise(parseProvisioningProfile(buildProfile(plist)));
+    expect(result.teamName).toBe("Société Exemple");
+    expect(result.profileName).toBe("Café Ad Hoc ✓");
+  });
+
   it("infers AD_HOC from ProvisionedDevices", async () => {
     const plist = `
       <dict>
@@ -89,6 +103,24 @@ describe(parseProvisioningProfile, () => {
     `;
     const result = await Effect.runPromise(parseProvisioningProfile(buildProfile(plist)));
     expect(result.distributionType).toBe("ENTERPRISE");
+  });
+
+  it("infers DEVELOPER_ID from a macOS profile valid on every device", async () => {
+    const plist = `
+      <dict>
+        <key>Platform</key><array><string>OSX</string></array>
+        <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
+        <key>ProvisionsAllDevices</key><true/>
+        <key>Entitlements</key>
+        <dict>
+          <key>com.apple.application-identifier</key><string>ABCDE12345.com.example.desktop</string>
+          <key>com.apple.developer.team-identifier</key><string>ABCDE12345</string>
+        </dict>
+      </dict>
+    `;
+    const result = await Effect.runPromise(parseProvisioningProfile(buildProfile(plist)));
+    expect(result.distributionType).toBe("DEVELOPER_ID");
+    expect(result.bundleIdentifier).toBe("com.example.desktop");
   });
 
   it("rejects missing plist", async () => {
