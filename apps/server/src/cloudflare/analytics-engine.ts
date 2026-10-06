@@ -34,6 +34,8 @@ export interface AnalyticsDatasets {
   readonly updates: string;
   /** Bundle downloads. `DELIVERY_ANALYTICS` / `BU_DELIVERY_ANALYTICS_DATASET`. */
   readonly deliveries: string;
+  /** Desktop feed checks and downloads. `DESKTOP_ANALYTICS` / `BU_DESKTOP_ANALYTICS_DATASET`. */
+  readonly desktop: string;
 }
 
 const DATASET_NAME_RE = /^[A-Za-z0-9_]{1,64}$/u;
@@ -59,6 +61,7 @@ export const AnalyticsEngineLive = Layer.succeed(AnalyticsEngine, {
     return {
       updates: sanitizeDataset(env.ANALYTICS_DATASET, "update_events"),
       deliveries: sanitizeDataset(env.DELIVERY_ANALYTICS_DATASET, "delivery_events"),
+      desktop: sanitizeDataset(env.DESKTOP_ANALYTICS_DATASET, "desktop_events"),
     };
   }),
 

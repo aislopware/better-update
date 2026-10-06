@@ -14,7 +14,7 @@ import {
   TimeseriesChart,
 } from "@better-update/ui/components/chart";
 import { Skeleton } from "@better-update/ui/components/skeleton";
-import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 
 import {
@@ -47,7 +47,7 @@ export const PERIOD_LABELS: Record<string, string> = {
 
 export type AnalyticsPeriod = (typeof PERIODS)[number];
 
-const useIsDarkMode = (): boolean => useTheme().resolvedTheme === "dark";
+export const useIsDarkMode = (): boolean => useTheme().resolvedTheme === "dark";
 
 export const chartSkeleton = <Skeleton className="h-45 w-full rounded-md" />;
 
@@ -72,37 +72,9 @@ const ChartEmptyState = ({ message }: { message: string }) => (
 export const ANALYTICS_UNAVAILABLE_MESSAGE =
   "Analytics unavailable — the server could not query Cloudflare Analytics Engine.";
 
-const ChartUnavailableState = () => <ChartEmptyState message={ANALYTICS_UNAVAILABLE_MESSAGE} />;
-
-/**
- * What the section can draw, decided once for all four cards.
- *
- * `unavailable` is the read path being down; `empty` is the far more common
- * case of a project no device has checked into yet. Reads the same cache keys
- * as the adoption and platform charts below, so asking a beat early costs no
- * extra request — and it lets the section say it once instead of four times.
- */
-export type AnalyticsStatus = "unavailable" | "empty" | "ready";
-
-export const useAnalyticsStatus = (
-  orgId: string,
-  projectId: string,
-  period: AnalyticsPeriod,
-): AnalyticsStatus =>
-  useSuspenseQueries({
-    queries: [
-      adoptionQueryOptions(orgId, projectId, period),
-      platformAnalyticsQueryOptions(orgId, projectId, period),
-    ],
-    combine: ([adoption, platform]) => {
-      if (adoption.data.unavailable || platform.data.unavailable) {
-        return "unavailable";
-      }
-      return adoption.data.updates.length > 0 || platform.data.platforms.length > 0
-        ? "ready"
-        : "empty";
-    },
-  });
+export const ChartUnavailableState = () => (
+  <ChartEmptyState message={ANALYTICS_UNAVAILABLE_MESSAGE} />
+);
 
 const ChartSummary = ({ requests, devices }: { requests: number; devices: number }) => (
   <p className="text-kumo-subtle text-sm">

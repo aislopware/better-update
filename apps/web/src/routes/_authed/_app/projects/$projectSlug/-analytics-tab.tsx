@@ -24,8 +24,9 @@ import {
   PlatformChart,
   UpdateTrafficChart,
   chartSkeleton,
-  useAnalyticsStatus,
 } from "./-analytics-charts";
+import { useAnalyticsStatus } from "./-analytics-status";
+import { DesktopUpdatesChart } from "./-desktop-analytics-chart";
 
 export const analyticsSearchSchema = z.object({
   period: enumParam(PERIODS, "7d"),
@@ -110,12 +111,30 @@ const AnalyticsCharts = ({ orgId, projectId, search, onSearchChange }: Analytics
   const { period, channel, update } = search;
   const status = useAnalyticsStatus(orgId, projectId, period);
 
-  if (status === "unavailable") {
+  if (status.kind === "unavailable") {
     return <AnalyticsUnavailable />;
   }
 
-  if (status === "empty") {
+  if (status.kind === "empty") {
     return <AnalyticsEmpty />;
+  }
+
+  const desktopCard = status.desktop ? (
+    <Card>
+      <CardHeader>
+        <CardTitle>Desktop updates</CardTitle>
+        <CardDescription>Update-feed checks by app version, and downloads</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Suspense fallback={chartSkeleton}>
+          <DesktopUpdatesChart orgId={orgId} projectId={projectId} period={period} />
+        </Suspense>
+      </CardContent>
+    </Card>
+  ) : null;
+
+  if (!status.ota) {
+    return <div className={GRID_CLASS}>{desktopCard}</div>;
   }
 
   return (
@@ -195,6 +214,7 @@ const AnalyticsCharts = ({ orgId, projectId, search, onSearchChange }: Analytics
           </Suspense>
         </CardContent>
       </Card>
+      {desktopCard}
     </div>
   );
 };

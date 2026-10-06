@@ -456,8 +456,8 @@ better-update builds upload --platform windows|linux <file>…   # artifacts bui
   the app's config (`src-tauri/tauri.conf.json` with `tauri.<os>.conf.json` over it — productName,
   version, identifier, updater pubkey; else `package.json` / `electron-builder.json` —
   productName, version, `build.appId`) › the file itself. **Architecture** comes from the file:
-  the AppImage's ELF header, the deb control `Architecture` (gzip/zstd control members; an xz one
-  falls back), the rpm header `ARCH`, else the name's arch token (`x64`, `amd64`, `x86_64`,
+  the AppImage's ELF header, the deb control `Architecture` (any compression dpkg writes), the rpm
+  header `ARCH`, else the name's arch token (`x64`, `amd64`, `x86_64`,
   `arm64`, `aarch64`, `ia32`, `i686`, `armhf`, `armv7l`) — an NSIS installer is a 32-bit stub
   whatever it installs, so Windows uses the name or the profile's `arch` (list both for one
   multi-arch NSIS installer). No architecture means x64. An AppImage's **embedded blockmap**
@@ -506,6 +506,11 @@ better-update windows|linux release list|rollout|halt|resume|delete …
   `stagingPercentage`; WinSparkle and Tauri see a partial release only with an `installId` (query
   or `X-Install-Id`) that hashes into the bucket. First-install links and `releases.json` list
   fully rolled-out releases only.
+- **Analytics**: every feed check and download is counted (the dashboard's _Desktop updates_
+  card: checks per updater and per app version, installs, downloads and bytes per release).
+  Sparkle, WinSparkle and Electron report the app version in their user agent; for Tauri add
+  `&current_version={{current_version}}` to the endpoint. Installs are counted from the
+  `installId` that rollout bucketing uses.
 - Not supported: Squirrel.Windows, MSIX / App Installer, Velopack, zsync AppImage updates.
 
 ## `submit` — upload to the stores

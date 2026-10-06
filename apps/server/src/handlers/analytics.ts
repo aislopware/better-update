@@ -113,6 +113,14 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
         };
       }),
     )
+    .handle("desktop", ({ query: { projectId, period } }) =>
+      Effect.gen(function* () {
+        yield* assertProjectOwnership(projectId);
+        yield* assertAccess("project", "read", { kind: "project", projectId });
+        const repo = yield* AnalyticsRepo;
+        return yield* repo.getDesktopMetrics({ projectId, period });
+      }),
+    )
     .handle("activity", ({ query: { projectId, period } }) =>
       Effect.gen(function* () {
         const ctx = yield* CurrentActor;

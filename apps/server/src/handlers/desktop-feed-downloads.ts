@@ -12,6 +12,7 @@ import { Effect } from "effect";
 import type { DesktopArtifactFormat, DesktopPlatform } from "@better-update/api";
 
 import { BuildRuntime } from "../cloudflare/build-runtime";
+import { DesktopAnalytics } from "../domain/desktop-analytics";
 import { artifactBlockmapKey, blockmapVersionOf, feedFileName } from "../domain/desktop-feed-files";
 import {
   contentRange,
@@ -22,6 +23,7 @@ import {
 import { DesktopReleaseRepo } from "../repositories/desktop-releases";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
+import type { DesktopTransfer } from "../domain/desktop-analytics";
 
 const DOWNLOAD_ROUTE = /^download\/(?<releaseId>[^/]+)\/(?<file>[^/]+)$/u;
 const BLOCKMAP_SUFFIX = ".blockmap";
@@ -31,6 +33,19 @@ const BLOCKMAP_CANDIDATES = 10;
 const notFound = () => Response.json({ code: "NOT_FOUND", message: "Not found" }, { status: 404 });
 
 const OCTET_STREAM = "application/octet-stream";
+
+const recordDownload = (entry: DesktopFeedEntry, transfer: DesktopTransfer, bytes: number) =>
+  Effect.gen(function* () {
+    yield* (yield* DesktopAnalytics).recordDownload({
+      projectId: entry.projectId,
+      platform: entry.platform,
+      releaseId: entry.id,
+      version: entry.appVersion,
+      format: entry.artifactFormat,
+      transfer,
+      bytes,
+    });
+  });
 
 /** One range straight from R2; several as `multipart/byteranges`. */
 const serveRanges = (entry: DesktopFeedEntry, header: string) =>
@@ -48,6 +63,11 @@ const serveRanges = (entry: DesktopFeedEntry, header: string) =>
     }
     const runtime = yield* BuildRuntime;
     const common = { "accept-ranges": "bytes", "cache-control": "no-store" };
+    yield* recordDownload(
+      entry,
+      "range",
+      request.ranges.reduce((total, range) => total + range.length, 0),
+    );
     const [first, ...rest] = request.ranges;
     if (rest.length === 0) {
       const blob = yield* runtime.getObjectRange({ key: entry.r2Key, range: first });
@@ -84,7 +104,7 @@ const serveDownload = (
   projectId: string,
   platform: DesktopPlatform,
   releaseId: string,
-  range: string | null,
+  request: { readonly method: string; readonly range: string | null },
 ) =>
   Effect.gen(function* () {
     const entry = yield* (yield* DesktopReleaseRepo).findFeedEntry({
@@ -95,9 +115,14 @@ const serveDownload = (
     if (entry === null) {
       return notFound();
     }
+    const { range } = request;
     const ranged = range === null ? undefined : yield* serveRanges(entry, range);
     if (ranged !== undefined) {
       return ranged;
+    }
+    // A HEAD probes; only a GET downloads.
+    if (request.method === "GET") {
+      yield* recordDownload(entry, "full", entry.byteSize);
     }
     const runtime = yield* BuildRuntime;
     const location = yield* runtime.createDownloadUrl({
@@ -165,6 +190,9 @@ const serveBlockmap = (
     const blob = yield* (yield* BuildRuntime).getObject({
       key: artifactBlockmapKey(release.r2Key),
     });
+    if (blob?.body && entry !== null) {
+      yield* recordDownload(entry, "blockmap", blob.size);
+    }
     return blob?.body
       ? new Response(blob.body.pipeThrough(new CompressionStream("gzip")), {
           headers: { "content-type": OCTET_STREAM, "cache-control": "public, max-age=300" },
@@ -187,10 +215,8 @@ export const downloadEffect = (
   }
   return file.endsWith(BLOCKMAP_SUFFIX)
     ? serveBlockmap(projectId, platform, releaseId, file.slice(0, -BLOCKMAP_SUFFIX.length))
-    : serveDownload(
-        projectId,
-        platform,
-        releaseId,
-        request.method === "GET" ? request.headers.get("range") : null,
-      );
+    : serveDownload(projectId, platform, releaseId, {
+        method: request.method,
+        range: request.method === "GET" ? request.headers.get("range") : null,
+      });
 };

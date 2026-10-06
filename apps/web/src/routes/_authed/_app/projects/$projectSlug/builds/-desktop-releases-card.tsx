@@ -1,6 +1,9 @@
 import { desktopFeedUrls } from "@better-update/api";
-import { buildDesktopReleasesQueryOptions } from "@better-update/api-client/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  buildDesktopReleasesQueryOptions,
+  desktopAnalyticsQueryOptions,
+} from "@better-update/api-client/react";
+import { useSuspenseQueries } from "@tanstack/react-query";
 
 import type { DesktopPlatform, DesktopRelease } from "@better-update/api";
 
@@ -13,6 +16,7 @@ import {
   ListPanelHeader,
   ListPanelRow,
 } from "../../../../../../lib/data-table";
+import { numberFormatter } from "../../../../../../lib/format-number";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 import { SITE } from "../../../../../../lib/site-config";
 
@@ -50,7 +54,19 @@ const signatureLabel = (release: DesktopRelease): string => {
   return release.platform === "macos" ? " · unsigned for Sparkle" : "";
 };
 
-const ReleaseRow = ({ release }: { release: DesktopRelease }) => (
+/** Whole-file downloads in the last 30 days; undefined when telemetry is down. */
+const downloadsLabel = (downloads: number | undefined): string =>
+  downloads === undefined
+    ? ""
+    : ` · ${numberFormatter.format(downloads)} download${downloads === 1 ? "" : "s"} in 30 days`;
+
+const ReleaseRow = ({
+  release,
+  downloads,
+}: {
+  release: DesktopRelease;
+  downloads: number | undefined;
+}) => (
   <ListPanelRow
     title={
       <>
@@ -64,6 +80,7 @@ const ReleaseRow = ({ release }: { release: DesktopRelease }) => (
         {signatureLabel(release)}
         {release.blockmap ? " · differential updates" : ""}
         {release.critical ? " · critical" : ""}
+        {downloadsLabel(downloads)}
         {release.phasedRolloutHours === null
           ? ""
           : ` · Sparkle phasing every ${String(release.phasedRolloutHours)}h`}
@@ -129,14 +146,23 @@ export const DesktopReleasesCard = ({
   buildId: string;
   platform: DesktopPlatform;
 }) => {
-  const { data } = useSuspenseQuery(buildDesktopReleasesQueryOptions(orgId, projectId, buildId));
+  const [{ data }, { data: analytics }] = useSuspenseQueries({
+    queries: [
+      buildDesktopReleasesQueryOptions(orgId, projectId, buildId),
+      desktopAnalyticsQueryOptions(orgId, projectId, "30d"),
+    ],
+  });
+  const downloadsOf = (releaseId: string) =>
+    analytics.unavailable
+      ? undefined
+      : (analytics.releases.find((entry) => entry.releaseId === releaseId)?.downloads ?? 0);
   return (
     <ListPanel>
       <ListPanelHeader title="Update feeds" />
       {data.items.length > 0 ? (
         <>
           {data.items.map((release) => (
-            <ReleaseRow key={release.id} release={release} />
+            <ReleaseRow key={release.id} release={release} downloads={downloadsOf(release.id)} />
           ))}
           <FeedUrls releases={data.items} />
         </>

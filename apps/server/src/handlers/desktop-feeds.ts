@@ -36,6 +36,8 @@ import type { DesktopArch, DesktopPlatform } from "@better-update/api";
 
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { CryptoService } from "../domain/crypto-service";
+import { DesktopAnalytics } from "../domain/desktop-analytics";
+import { desktopClientVersion } from "../domain/desktop-client-version";
 import { feedDownloadPath } from "../domain/desktop-feed-files";
 import { renderAppcast, renderWinSparkleAppcast } from "../domain/desktop-feeds-appcast";
 import {
@@ -62,6 +64,7 @@ import { DesktopReleaseRepo } from "../repositories/desktop-releases";
 import { downloadEffect } from "./desktop-feed-downloads";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
+import type { DesktopCheckEvent } from "../domain/desktop-analytics";
 import type { DownloadUrl } from "../domain/desktop-feed-files";
 import type { TauriArch } from "../domain/desktop-feeds-tauri";
 import type { ServerInfrastructure } from "../infrastructure-layer";
@@ -109,6 +112,41 @@ const inRollout = (entry: DesktopFeedEntry, installId: string | null) =>
 const installIdOf = (request: Request, url: URL): string | null =>
   url.searchParams.get("installId") ?? request.headers.get("x-install-id");
 
+/** Who is asking a feed: what rollout bucketing and telemetry need from the request. */
+interface FeedClient {
+  readonly installId: string | null;
+  readonly clientVersion: string | undefined;
+  /** Only a GET is a check; a HEAD is a probe. */
+  readonly counted: boolean;
+}
+
+const feedClientOf = (request: Request, url: URL): FeedClient => ({
+  installId: installIdOf(request, url),
+  clientVersion: desktopClientVersion({
+    userAgent: request.headers.get("user-agent"),
+    query: url.searchParams,
+  }),
+  counted: request.method === "GET",
+});
+
+const servedOf = (entry: DesktopFeedEntry | undefined) =>
+  entry === undefined ? undefined : { releaseId: entry.id, version: entry.appVersion };
+
+/** One feed check, best-effort (see `DesktopAnalytics`). */
+const recordCheck = (
+  client: FeedClient,
+  event: Omit<DesktopCheckEvent, "installId" | "clientVersion">,
+) =>
+  client.counted
+    ? Effect.gen(function* () {
+        yield* (yield* DesktopAnalytics).recordCheck({
+          ...event,
+          installId: client.installId,
+          clientVersion: client.clientVersion,
+        });
+      })
+    : Effect.void;
+
 // Per-install answers must not be shared; the bare feed may be.
 const feedCacheControl = (installId: string | null) =>
   installId === null ? "public, max-age=60" : "private, max-age=60";
@@ -153,16 +191,21 @@ const queryChannel = (url: URL): string | undefined => {
 };
 
 /** Sparkle's appcast tags channels per item; WinSparkle has none, so its URL picks one. */
-const serveAppcast = (
-  projectId: string,
-  platform: DesktopPlatform,
-  url: URL,
-  installId: string | null,
-) =>
+const serveAppcast = (projectId: string, platform: DesktopPlatform, url: URL, client: FeedClient) =>
   Effect.gen(function* () {
+    const { installId } = client;
     const downloadUrl = downloadUrlFor(url.origin, projectId);
     if (platform === "macos") {
       const entries = yield* visibleReleases(projectId, platform, undefined, installId);
+      // One appcast carries every channel; the check counts against all of them.
+      yield* recordCheck(client, {
+        projectId,
+        platform,
+        updater: "sparkle",
+        channel: "*",
+        arch: undefined,
+        served: servedOf(entries[0]),
+      });
       return xmlResponse(renderAppcast({ title: "Updates", downloadUrl, entries }), installId);
     }
     const channel = queryChannel(url);
@@ -170,6 +213,14 @@ const serveAppcast = (
       return platform === "windows" ? badRequest("Invalid channel") : notFound();
     }
     const entries = yield* visibleReleases(projectId, platform, channel, installId);
+    yield* recordCheck(client, {
+      projectId,
+      platform,
+      updater: "winsparkle",
+      channel,
+      arch: undefined,
+      served: servedOf(entries[0]),
+    });
     return xmlResponse(
       renderWinSparkleAppcast({ title: "Updates", downloadUrl, entries }),
       installId,
@@ -204,9 +255,10 @@ const serveTauriJson = (
   platforms: readonly DesktopPlatform[],
   channel: string,
   url: URL,
-  installId: string | null,
+  client: FeedClient,
 ) =>
   Effect.gen(function* () {
+    const { installId } = client;
     const parsed = tauriRequest(url);
     if (typeof parsed === "string") {
       return badRequest(parsed);
@@ -228,16 +280,24 @@ const serveTauriJson = (
             { arch: parsed.arch, bundleType: toOptional(url.searchParams.get("bundle_type")) },
             downloadUrl,
           );
+    const served = body === undefined ? undefined : entries.find((entry) => entry.tauriSignature);
+    const [onlyPlatform] = platforms;
+    const platform = platforms.length === 1 ? onlyPlatform : served?.platform;
+    if (platform !== undefined) {
+      yield* recordCheck(client, {
+        projectId,
+        platform,
+        updater: "tauri",
+        channel,
+        arch: toOptional(parsed.arch),
+        served: servedOf(served),
+      });
+    }
     return tauriResponse(body, installId);
   });
 
 /** The cross-platform Tauri feed: `?target={{target}}` narrows it to one OS. */
-const serveTauriChannel = (
-  projectId: string,
-  channel: string,
-  url: URL,
-  installId: string | null,
-) => {
+const serveTauriChannel = (projectId: string, channel: string, url: URL, client: FeedClient) => {
   const target = url.searchParams.get("target");
   const platform = tauriTargetPlatform(target);
   if (target !== null && platform === undefined) {
@@ -248,17 +308,30 @@ const serveTauriChannel = (
     platform === undefined ? DESKTOP_PLATFORMS : [platform],
     channel,
     url,
-    installId,
+    client,
   );
 };
 
-const serveElectronYml = (projectId: string, platform: DesktopPlatform, fileName: string) =>
+const serveElectronYml = (
+  projectId: string,
+  platform: DesktopPlatform,
+  fileName: string,
+  client: FeedClient,
+) =>
   Effect.gen(function* () {
     const file = parseElectronFeedFile(platform, fileName);
     if (file === undefined) {
       return notFound();
     }
     const picked = pickElectronRelease(yield* listFeed(projectId, platform, file.channel), file);
+    yield* recordCheck(client, {
+      projectId,
+      platform,
+      updater: "electron",
+      channel: file.channel,
+      arch: file.arch,
+      served: servedOf(picked?.files[0]),
+    });
     if (picked === undefined) {
       return notFound();
     }
@@ -358,19 +431,19 @@ const platformEffect = (
   platform: DesktopPlatform,
   rest: string,
 ) => {
-  const installId = installIdOf(request, url);
+  const client = feedClientOf(request, url);
   if (rest === "appcast.xml") {
-    return serveAppcast(projectId, platform, url, installId);
+    return serveAppcast(projectId, platform, url, client);
   }
   if (rest === "latest/download") {
     return serveLatestDownload(projectId, platform, url);
   }
   const tauriChannel = TAURI_FEED_FILE.exec(rest)?.groups?.["channel"];
   if (tauriChannel !== undefined) {
-    return serveTauriJson(projectId, [platform], tauriChannel, url, installId);
+    return serveTauriJson(projectId, [platform], tauriChannel, url, client);
   }
   if (rest.endsWith(".yml")) {
-    return serveElectronYml(projectId, platform, rest);
+    return serveElectronYml(projectId, platform, rest, client);
   }
   return downloadEffect(request, projectId, platform, rest);
 };
@@ -409,5 +482,5 @@ export const matchDesktopFeedRoute = async (
   const channel = TAURI_CHANNEL_FILE.exec(rest)?.groups?.["channel"];
   return channel === undefined
     ? notFound()
-    : runFeedEffect(serveTauriChannel(projectId, channel, url, installIdOf(request, url)), env);
+    : runFeedEffect(serveTauriChannel(projectId, channel, url, feedClientOf(request, url)), env);
 };

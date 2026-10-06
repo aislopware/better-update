@@ -80,3 +80,25 @@ export interface DeliveryAnalyticsModel {
   readonly patchEligibleRequests: number;
   readonly unavailable: boolean;
 }
+
+/** Desktop feed telemetry for one project; see `DesktopAnalyticsResult` in the API package. */
+export interface DesktopAnalyticsModel {
+  readonly checks: number;
+  readonly installs: number;
+  readonly updaters: readonly {
+    readonly platform: string;
+    readonly updater: string;
+    readonly checks: number;
+  }[];
+  readonly clientVersions: readonly {
+    readonly platform: string;
+    readonly version: string;
+    readonly checks: number;
+  }[];
+  readonly releases: readonly {
+    readonly releaseId: string;
+    readonly downloads: number;
+    readonly bytes: number;
+  }[];
+  readonly unavailable: boolean;
+}

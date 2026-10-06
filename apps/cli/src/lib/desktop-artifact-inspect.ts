@@ -7,13 +7,15 @@
  * 32-bit stub whatever it installs and an MSI keeps its platform in an OLE
  * property set, so Windows architectures come from the file name alone.
  *
- * Pure: every reader takes the bytes and returns `undefined` for what it
+ * No I/O: every reader takes the bytes and returns `undefined` for what it
  * cannot tell, so the caller falls back to the project config or the profile.
+ * Reading a deb is async only because its xz decoder is a WebAssembly stream.
  */
 import path from "node:path";
 import { gunzipSync, inflateRawSync, zstdDecompressSync } from "node:zlib";
 
 import { compact } from "@better-update/type-guards";
+import { XzReadableStream } from "xz-decompress";
 
 import type { DesktopArch } from "@better-update/api";
 
@@ -142,17 +144,33 @@ const tarFile = (tar: Uint8Array, wanted: string): Uint8Array | undefined => {
   return undefined;
 };
 
-/** `control.tar` in whichever compression we can undo; xz is not among them. */
-const controlTar = (members: ReadonlyMap<string, Uint8Array>): Uint8Array | undefined => {
+const unxz = async (data: Uint8Array): Promise<Uint8Array> =>
+  new Uint8Array(
+    await new Response(
+      new XzReadableStream(new Blob([new Uint8Array(data)]).stream()),
+    ).arrayBuffer(),
+  );
+
+/**
+ * `control.tar` in any compression dpkg writes: xz (dpkg's and
+ * electron-builder's default), gzip (Tauri's), zstd, or none.
+ */
+const controlTar = async (
+  members: ReadonlyMap<string, Uint8Array>,
+): Promise<Uint8Array | undefined> => {
   const plain = members.get("control.tar");
+  const gz = members.get("control.tar.gz");
+  const xz = members.get("control.tar.xz");
+  const zst = members.get("control.tar.zst");
   if (plain !== undefined) {
     return plain;
   }
-  const gz = members.get("control.tar.gz");
   if (gz !== undefined) {
     return gunzipSync(gz);
   }
-  const zst = members.get("control.tar.zst");
+  if (xz !== undefined) {
+    return unxz(xz);
+  }
   return zst === undefined ? undefined : zstdDecompressSync(zst);
 };
 
@@ -197,9 +215,9 @@ const archList = (
 };
 
 /** A `.deb`'s control fields; the epoch is dropped from the version. */
-export const debPackageFields = (bytes: Uint8Array): PackageFields | undefined => {
+export const debPackageFields = async (bytes: Uint8Array): Promise<PackageFields | undefined> => {
   try {
-    const tar = controlTar(arMembers(bytes));
+    const tar = await controlTar(arMembers(bytes));
     const control = tar === undefined ? undefined : tarFile(tar, "control");
     if (control === undefined) {
       return undefined;
@@ -301,13 +319,14 @@ const fromName = (fileName: string): readonly DesktopArch[] | undefined => {
 };
 
 /** Everything a Windows / Linux artifact's bytes and name say about it. */
-export const inspectDesktopArtifact = (
+export const inspectDesktopArtifact = async (
   target: DesktopFileTarget,
   fileName: string,
   bytes: Uint8Array,
-): InspectedDesktopArtifact => {
+): Promise<InspectedDesktopArtifact> => {
   if (target.format === "deb" || target.format === "rpm") {
-    const fields = target.format === "deb" ? debPackageFields(bytes) : rpmPackageFields(bytes);
+    const fields =
+      target.format === "deb" ? await debPackageFields(bytes) : rpmPackageFields(bytes);
     return {
       target,
       architectures: fields?.architectures ?? fromName(fileName),

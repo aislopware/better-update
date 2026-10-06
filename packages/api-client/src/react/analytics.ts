@@ -25,6 +25,9 @@ export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
 export const deliveryAnalyticsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "downloads"] as const;
 
+export const desktopAnalyticsQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "project", projectId, "analytics", "desktop"] as const;
+
 /**
  * Shipping activity. Without a project it covers the whole organization, so the
  * key hangs off the org and carries the scope as its last segment.
@@ -87,6 +90,19 @@ export const deliveryAnalyticsQueryOptions = (
     queryKey: [...deliveryAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: async ({ signal }) =>
       runApi((api) => api.analytics.downloads({ query: { projectId, period } }), signal),
+    staleTime: 60_000,
+  });
+
+/** Desktop update feeds: checks per updater and client version, downloads per release. */
+export const desktopAnalyticsQueryOptions = (
+  orgId: string,
+  projectId: string,
+  period?: AnalyticsPeriod,
+) =>
+  queryOptions({
+    queryKey: [...desktopAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.analytics.desktop({ query: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 

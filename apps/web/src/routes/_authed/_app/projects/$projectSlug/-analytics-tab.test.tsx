@@ -2,10 +2,13 @@ import {
   adoptionQueryOptions,
   channelsQueryOptions,
   deliveryAnalyticsQueryOptions,
+  desktopAnalyticsQueryOptions,
   platformAnalyticsQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
 import { screen } from "@testing-library/react";
+
+import type { DesktopAnalyticsResult } from "@better-update/api";
 
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
 import { ThemeContext } from "../../../../../lib/theme-context-value";
@@ -32,10 +35,24 @@ const SEARCH = { period: PERIOD, channel: undefined, update: undefined } as cons
 
 const DROPDOWN_LIMIT = { limit: 100 };
 
+const NO_DESKTOP: typeof DesktopAnalyticsResult.Type = {
+  checks: 0,
+  installs: 0,
+  updaters: [],
+  clientVersions: [],
+  releases: [],
+  unavailable: false,
+};
+
 const seed = (
   adoption: { readonly updates: readonly unknown[]; readonly unavailable?: boolean },
   platforms: { readonly platforms: readonly unknown[]; readonly unavailable?: boolean },
+  desktop: Partial<typeof NO_DESKTOP> = {},
 ): [readonly unknown[], unknown][] => [
+  [
+    desktopAnalyticsQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey,
+    { ...NO_DESKTOP, ...desktop },
+  ],
   [adoptionQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey, { unavailable: false, ...adoption }],
   [
     platformAnalyticsQueryOptions(ORG_ID, PROJECT_ID, PERIOD).queryKey,
@@ -101,6 +118,28 @@ describe(AnalyticsTab, () => {
 
     await expect(screen.findByText("Platform split")).resolves.toBeInTheDocument();
     expect(screen.getByText("Channel health")).toBeInTheDocument();
+    expect(screen.queryByText("No analytics in this period")).not.toBeInTheDocument();
+    expect(screen.queryByText("Desktop updates")).not.toBeInTheDocument();
+  });
+
+  it("shows only the desktop card for a project whose traffic is all desktop feeds", async () => {
+    renderTab(
+      seed(
+        { updates: [] },
+        { platforms: [] },
+        {
+          checks: 42,
+          installs: 7,
+          updaters: [{ platform: "windows", updater: "electron", checks: 42 }],
+          clientVersions: [{ platform: "windows", version: "1.2.0", checks: 42 }],
+          releases: [{ releaseId: "rel-1", downloads: 3, bytes: 3_000_000 }],
+        },
+      ),
+    );
+
+    await expect(screen.findByText("Desktop updates")).resolves.toBeInTheDocument();
+    expect(screen.getByText(/42 checks · 7 installs · 3 downloads/u)).toBeInTheDocument();
+    expect(screen.queryByText("Update adoption")).not.toBeInTheDocument();
     expect(screen.queryByText("No analytics in this period")).not.toBeInTheDocument();
   });
 });

@@ -6,11 +6,16 @@ import { DataIntegrityError } from "../lib/require-value";
 import type {
   ChannelAnalyticsModel,
   DeliveryAnalyticsModel,
+  DesktopAnalyticsModel,
   PlatformAnalyticsResultModel,
   UpdateAdoptionResultModel,
   UpdateAnalyticsModel,
 } from "../analytics-models";
-import type { AnalyticsUnavailable } from "../cloudflare/analytics-engine";
+import type {
+  AERow,
+  AnalyticsEngineClient,
+  AnalyticsUnavailable,
+} from "../cloudflare/analytics-engine";
 import type { AnalyticsPeriod } from "../models";
 
 type ResponseTypeBreakdown = ChannelAnalyticsModel["responseTypeDistribution"];
@@ -105,7 +110,43 @@ export interface AnalyticsRepository {
     readonly projectId: string;
     readonly period?: AnalyticsPeriod | undefined;
   }) => Effect.Effect<DeliveryAnalyticsModel>;
+
+  readonly getDesktopMetrics: (params: {
+    readonly projectId: string;
+    readonly period?: AnalyticsPeriod | undefined;
+  }) => Effect.Effect<DesktopAnalyticsModel>;
 }
+
+const UNAVAILABLE_DESKTOP: DesktopAnalyticsModel = {
+  checks: 0,
+  installs: 0,
+  updaters: [],
+  clientVersions: [],
+  releases: [],
+  unavailable: true,
+};
+
+/** Versions listed: the long tail of old installs is one row each and says little. */
+const CLIENT_VERSION_LIMIT = 20;
+
+/** Per release: whole-file downloads counted, every transfer's bytes summed. */
+const releaseDownloads = (rows: readonly AERow[]): DesktopAnalyticsModel["releases"] =>
+  [
+    ...rows
+      .reduce((byRelease, row) => {
+        const releaseId = row["release_id"];
+        if (releaseId === undefined || releaseId === "") {
+          return byRelease;
+        }
+        const previous = byRelease.get(releaseId) ?? { releaseId, downloads: 0, bytes: 0 };
+        return byRelease.set(releaseId, {
+          releaseId,
+          downloads: previous.downloads + (row["transfer"] === "full" ? toNumber(row["count"]) : 0),
+          bytes: previous.bytes + toNumber(row["bytes"]),
+        });
+      }, new Map<string, DesktopAnalyticsModel["releases"][number]>())
+      .values(),
+  ].toSorted((left, right) => right.downloads - left.downloads || right.bytes - left.bytes);
 
 const EMPTY_DELIVERY: DeliveryAnalyticsModel = {
   downloads: 0,
@@ -147,6 +188,69 @@ const queryByResponseType = (rows: readonly Record<string, string>[]): ResponseT
 
     return breakdown;
   }, emptyBreakdown());
+
+/** Desktop feed checks per updater and version, and what each release sent. */
+const desktopMetrics =
+  (analytics: AnalyticsEngineClient) =>
+  (params: { readonly projectId: string; readonly period?: AnalyticsPeriod | undefined }) =>
+    Effect.gen(function* () {
+      const { desktop } = yield* analytics.datasets;
+      const projectId = sanitizeUuid(params.projectId);
+      const window = `blob1 = '${projectId}'
+              AND timestamp > NOW() - INTERVAL '${periodToDays(params.period)}' DAY`;
+      const [updaterRows, installRows, versionRows, downloadRows] = yield* Effect.all(
+        [
+          analytics.query(`
+            SELECT blob3 AS platform, blob4 AS updater, SUM(_sample_interval) AS checks
+            FROM ${desktop}
+            WHERE ${window} AND blob2 = 'check'
+            GROUP BY blob3, blob4
+            ORDER BY checks DESC
+          `),
+          // A check without an install id indexes as "<project>:" — one
+          // shared bucket that is not an install.
+          analytics.query(`
+            SELECT COUNT(DISTINCT index1) AS installs
+            FROM ${desktop}
+            WHERE ${window} AND blob2 = 'check' AND index1 != '${projectId}:'
+          `),
+          analytics.query(`
+            SELECT blob3 AS platform, blob9 AS version, SUM(_sample_interval) AS checks
+            FROM ${desktop}
+            WHERE ${window} AND blob2 = 'check' AND blob9 != ''
+            GROUP BY blob3, blob9
+            ORDER BY checks DESC
+            LIMIT ${String(CLIENT_VERSION_LIMIT)}
+          `),
+          analytics.query(`
+            SELECT blob7 AS release_id, blob5 AS transfer,
+                   SUM(_sample_interval) AS count,
+                   SUM(double1 * _sample_interval) AS bytes
+            FROM ${desktop}
+            WHERE ${window} AND blob2 = 'download'
+            GROUP BY blob7, blob5
+          `),
+        ],
+        { concurrency: 4 },
+      );
+      const updaters = updaterRows.map((row) => ({
+        platform: row["platform"] ?? "unknown",
+        updater: row["updater"] ?? "unknown",
+        checks: toNumber(row["checks"]),
+      }));
+      return {
+        checks: updaters.reduce((total, row) => total + row.checks, 0),
+        installs: toNumber(installRows[0]?.["installs"]),
+        updaters,
+        clientVersions: versionRows.map((row) => ({
+          platform: row["platform"] ?? "unknown",
+          version: row["version"] ?? "unknown",
+          checks: toNumber(row["checks"]),
+        })),
+        releases: releaseDownloads(downloadRows),
+        unavailable: false,
+      };
+    }).pipe(orUnavailable(UNAVAILABLE_DESKTOP));
 
 export const AnalyticsRepoLive = Layer.effect(
   AnalyticsRepo,
@@ -386,6 +490,8 @@ export const AnalyticsRepoLive = Layer.effect(
             },
           );
         }).pipe(orUnavailable(UNAVAILABLE_DELIVERY)),
+
+      getDesktopMetrics: desktopMetrics(analytics),
     } satisfies AnalyticsRepository;
   }),
 );

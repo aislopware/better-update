@@ -49,7 +49,8 @@
     "ignore": "^7.0.12",
     "node-forge": "^1.4.0",
     "qrcode-terminal": "^0.12.0",
-    "xcode": "^3.0.1"
+    "xcode": "^3.0.1",
+    "xz-decompress": "^0.2.3"
   },
   "devDependencies": {
     "@better-update/api": "workspace:*",

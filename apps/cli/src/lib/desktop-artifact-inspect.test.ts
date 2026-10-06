@@ -118,45 +118,66 @@ describe(embeddedBlockMapSize, () => {
   });
 });
 
+/** `xz -z` of a tar holding `./control` (Package example-xz, 3.1.0, amd64), as fpm writes it. */
+const XZ_CONTROL_TAR = Buffer.from(
+  "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4Cf/AK1dABcLyOfZ5dHD1ZV9QtvcDlxs1FkS8hVsMee+NNj4jBafMNBKi4YAPPRZqhtJSbS8Fua4xZGrn+LVZzt5g+bL4BUhjs+9vwGfm1hXOABA/ZZNBL5w3FNkk2R7zoi8FZEBQR8uPseqvWAYV07JTCZ2WL534m5agwU17AEEI4aMorM56ZWuo5cNC+7L480oFiBxZOtkkBpujGVBVTvo/zeMUqVPq5NHmMtFQXBb9HEAAAAAAFcoRO3KYo6SAAHJAYBQAACaKjdJscRn+wIAAAAABFla",
+  "base64",
+);
+
 describe(debPackageFields, () => {
-  it("reads a gzip control member, dropping the epoch", () => {
-    expect(
+  it("reads a gzip control member, dropping the epoch", async () => {
+    await expect(
       debPackageFields(deb("control.tar.gz", gzipSync(tar({ "./control": CONTROL })))),
-    ).toStrictEqual({
+    ).resolves.toStrictEqual({
       name: "example-app",
       version: "2.4.0",
       architectures: ["arm64"],
     });
   });
 
-  it("reads zstd and uncompressed control members", () => {
-    expect(
-      debPackageFields(deb("control.tar.zst", zstdCompressSync(tar({ control: CONTROL }))))?.name,
-    ).toBe("example-app");
-    expect(
-      debPackageFields(deb("control.tar", tar({ "./md5sums": "x", "./control": CONTROL })))
-        ?.version,
-    ).toBe("2.4.0");
+  it("reads an xz control member, as dpkg and electron-builder write it", async () => {
+    await expect(debPackageFields(deb("control.tar.xz", XZ_CONTROL_TAR))).resolves.toStrictEqual({
+      name: "example-xz",
+      version: "3.1.0",
+      architectures: ["x64"],
+    });
   });
 
-  it("maps amd64, armhf and all", () => {
-    const withArch = (arch: string) =>
-      debPackageFields(
+  it("reads zstd and uncompressed control members", async () => {
+    const zstd = await debPackageFields(
+      deb("control.tar.zst", zstdCompressSync(tar({ control: CONTROL }))),
+    );
+    expect(zstd?.name).toBe("example-app");
+    const plain = await debPackageFields(
+      deb("control.tar", tar({ "./md5sums": "x", "./control": CONTROL })),
+    );
+    expect(plain?.version).toBe("2.4.0");
+  });
+
+  it("maps amd64, armhf and all", async () => {
+    const withArch = async (arch: string) => {
+      const fields = await debPackageFields(
         deb(
           "control.tar.gz",
           gzipSync(tar({ "./control": `Package: a\nVersion: 1.0.0\nArchitecture: ${arch}\n` })),
         ),
-      )?.architectures;
-    expect(withArch("amd64")).toStrictEqual(["x64"]);
-    expect(withArch("armhf")).toStrictEqual(["armv7l"]);
-    expect(withArch("all")).toStrictEqual([]);
-    expect(withArch("riscv64")).toBeUndefined();
+      );
+      return fields?.architectures;
+    };
+    await expect(withArch("amd64")).resolves.toStrictEqual(["x64"]);
+    await expect(withArch("armhf")).resolves.toStrictEqual(["armv7l"]);
+    await expect(withArch("all")).resolves.toStrictEqual([]);
+    await expect(withArch("riscv64")).resolves.toBeUndefined();
   });
 
-  it("gives up on an xz control member, a non-deb, and a corrupt archive", () => {
-    expect(debPackageFields(deb("control.tar.xz", ascii("ý7zXZ...")))).toBeUndefined();
-    expect(debPackageFields(ascii("not an ar archive"))).toBeUndefined();
-    expect(debPackageFields(deb("control.tar.gz", ascii("not gzip")))).toBeUndefined();
+  it("gives up on a corrupt xz or gzip member and a non-deb", async () => {
+    await expect(
+      debPackageFields(deb("control.tar.xz", ascii("\u00FD7zXZ..."))),
+    ).resolves.toBeUndefined();
+    await expect(debPackageFields(ascii("not an ar archive"))).resolves.toBeUndefined();
+    await expect(
+      debPackageFields(deb("control.tar.gz", ascii("not gzip"))),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -183,8 +204,8 @@ describe(rpmPackageFields, () => {
 });
 
 describe(inspectDesktopArtifact, () => {
-  it("prefers what a package records over its file name", () => {
-    const inspected = inspectDesktopArtifact(
+  it("prefers what a package records over its file name", async () => {
+    const inspected = await inspectDesktopArtifact(
       { platform: "linux", format: "deb" },
       "example-app_2.4.0_amd64.deb",
       deb("control.tar.gz", gzipSync(tar({ "./control": CONTROL }))),
@@ -193,19 +214,19 @@ describe(inspectDesktopArtifact, () => {
     expect(inspected.packageName).toBe("example-app");
   });
 
-  it("falls back to the file name when the package cannot be read", () => {
-    const inspected = inspectDesktopArtifact(
+  it("falls back to the file name when the package cannot be read", async () => {
+    const inspected = await inspectDesktopArtifact(
       { platform: "linux", format: "deb" },
       "example-app_2.4.0_amd64.deb",
-      deb("control.tar.xz", ascii("xz")),
+      deb("control.tar.bz2", ascii("bz")),
     );
     expect(inspected.architectures).toStrictEqual(["x64"]);
     expect(inspected.packageVersion).toBeUndefined();
   });
 
-  it("reads an AppImage's ELF arch and blockmap", () => {
+  it("reads an AppImage's ELF arch and blockmap", async () => {
     const { bytes, size } = withBlockmap(elf(0xb7));
-    const inspected = inspectDesktopArtifact(
+    const inspected = await inspectDesktopArtifact(
       { platform: "linux", format: "appimage" },
       "Example-2.4.0-x64.AppImage",
       bytes,
@@ -214,20 +235,18 @@ describe(inspectDesktopArtifact, () => {
     expect(inspected.blockMapSize).toBe(size);
   });
 
-  it("takes a Windows installer's arch from its name alone", () => {
-    expect(
-      inspectDesktopArtifact(
-        { platform: "windows", format: "exe" },
-        "Example_2.4.0_arm64-setup.exe",
-        elf(0x3e),
-      ).architectures,
-    ).toStrictEqual(["arm64"]);
-    expect(
-      inspectDesktopArtifact(
-        { platform: "windows", format: "exe" },
-        "Example Setup 2.4.0.exe",
-        new Uint8Array(0),
-      ).architectures,
-    ).toBeUndefined();
+  it("takes a Windows installer's arch from its name alone", async () => {
+    const named = await inspectDesktopArtifact(
+      { platform: "windows", format: "exe" },
+      "Example_2.4.0_arm64-setup.exe",
+      elf(0x3e),
+    );
+    expect(named.architectures).toStrictEqual(["arm64"]);
+    const unnamed = await inspectDesktopArtifact(
+      { platform: "windows", format: "exe" },
+      "Example Setup 2.4.0.exe",
+      new Uint8Array(0),
+    );
+    expect(unnamed.architectures).toBeUndefined();
   });
 });

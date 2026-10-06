@@ -14,7 +14,21 @@ export const CHART_HEIGHT = 180;
 // index along, so no two ever collide.
 const PLATFORM_SERIES_INDEX: Record<string, number> = { ios: 0, android: 1 };
 
-export const PLATFORM_LABELS: Record<string, string> = { ios: "iOS", android: "Android" };
+export const PLATFORM_LABELS: Record<string, string> = {
+  ios: "iOS",
+  android: "Android",
+  macos: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+};
+
+/** The desktop updaters, as the feed telemetry names them. */
+export const UPDATER_LABELS: Record<string, string> = {
+  sparkle: "Sparkle",
+  winsparkle: "WinSparkle",
+  electron: "electron-updater",
+  tauri: "Tauri",
+};
 
 export const platformColor = (platform: string, index: number, isDarkMode: boolean): string =>
   ChartPalette.categorical(PLATFORM_SERIES_INDEX[platform] ?? index + 2, isDarkMode);

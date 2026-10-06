@@ -5,6 +5,7 @@ import { AssetStorageLive } from "./cloudflare/asset-storage";
 import { BuildRuntimeLive } from "./cloudflare/build-runtime";
 import { CredentialArtifactsLive } from "./cloudflare/credential-artifacts";
 import { CryptoServiceLive } from "./cloudflare/crypto-service";
+import { DesktopAnalyticsLive } from "./cloudflare/desktop-analytics";
 import { EmailServiceLive } from "./cloudflare/email-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
@@ -130,6 +131,7 @@ export const AdapterLayer = Layer.mergeAll(
   BuildRuntimeLive,
   CredentialArtifactsLive,
   CryptoServiceLive,
+  DesktopAnalyticsLive,
   EmailServiceLive,
   ManifestCacheStorageLive,
   UpdateCoordinatorLive,

@@ -127,6 +127,50 @@ export const DeliveryResult = Schema.Struct({
   unavailable: Unavailable,
 });
 
+// -- Desktop feeds --
+
+export const DesktopAnalyticsParams = Schema.Struct({
+  projectId: Id,
+  period: Period,
+});
+
+const DesktopUpdaterChecks = Schema.Struct({
+  platform: Schema.String,
+  /** sparkle | winsparkle | electron | tauri */
+  updater: Schema.String,
+  checks: Schema.Number,
+});
+
+const DesktopClientVersion = Schema.Struct({
+  platform: Schema.String,
+  /** The asking app's version, as its updater reported it. */
+  version: Schema.String,
+  checks: Schema.Number,
+});
+
+const DesktopReleaseDownloads = Schema.Struct({
+  releaseId: Schema.String,
+  /** Whole-file downloads; byte-range requests (differential, resumed) are not counted. */
+  downloads: Schema.Number,
+  /** Every byte sent for the release: full files, ranges and blockmaps. */
+  bytes: Schema.Number,
+});
+
+/**
+ * The project's desktop update feeds: how often installed apps ask, which
+ * updaters and versions are out there, and what each release has sent.
+ */
+export const DesktopAnalyticsResult = Schema.Struct({
+  checks: Schema.Number,
+  /** Distinct installs among clients that send an install id (Sparkle, WinSparkle, Tauri). */
+  installs: Schema.Number,
+  updaters: Schema.Array(DesktopUpdaterChecks),
+  /** The most-seen versions, most checks first; only updaters that report a version. */
+  clientVersions: Schema.Array(DesktopClientVersion),
+  releases: Schema.Array(DesktopReleaseDownloads),
+  unavailable: Unavailable,
+});
+
 // -- Shipping activity --
 
 /**

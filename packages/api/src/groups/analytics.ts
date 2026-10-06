@@ -11,6 +11,8 @@ import {
   ChannelAnalyticsResult,
   DeliveryParams,
   DeliveryResult,
+  DesktopAnalyticsParams,
+  DesktopAnalyticsResult,
   PlatformParams,
   PlatformResult,
   ProjectActivityParams,
@@ -69,6 +71,17 @@ export const AnalyticsGroup = HttpApiGroup.make("analytics")
       OpenApi.annotations({
         title: "Bundle delivery analytics",
         description: "Bundle downloads: patch vs full, bytes served, patch hit-rate",
+      }),
+    ),
+    HttpApiEndpoint.get("desktop", "/api/analytics/desktop", {
+      query: DesktopAnalyticsParams,
+      success: DesktopAnalyticsResult,
+      error: [NotFound, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Desktop feed analytics",
+        description:
+          "Desktop update-feed checks per updater and client version, and downloads per release",
       }),
     ),
     HttpApiEndpoint.get("activity", "/api/analytics/activity", {

@@ -8,6 +8,7 @@ const mockEnv = {
   CLOUDFLARE_API_TOKEN: "test-token",
   ANALYTICS_DATASET: "update_events",
   DELIVERY_ANALYTICS_DATASET: "delivery_events",
+  DESKTOP_ANALYTICS_DATASET: "desktop_events",
   // `provideCloudflareEnv` opens a D1 read-replication session per call; this
   // WAE-only path never touches it, so a stub binding suffices.
   DB: { withSession: () => ({}) },
@@ -44,7 +45,11 @@ describe("analytics datasets", () => {
   it("reads the dataset names the deployment configured", async () => {
     await expect(
       runDatasets({ ...mockEnv, ANALYTICS_DATASET: "renamed_events" } as unknown as Env),
-    ).resolves.toStrictEqual({ updates: "renamed_events", deliveries: "delivery_events" });
+    ).resolves.toStrictEqual({
+      updates: "renamed_events",
+      deliveries: "delivery_events",
+      desktop: "desktop_events",
+    });
   });
 
   // The name is interpolated into SQL as a table name, so anything that is not
@@ -52,7 +57,11 @@ describe("analytics datasets", () => {
   it("falls back to the built-in name when the configured one is malformed", async () => {
     await expect(
       runDatasets({ ...mockEnv, DELIVERY_ANALYTICS_DATASET: "a; DROP TABLE" } as unknown as Env),
-    ).resolves.toStrictEqual({ updates: "update_events", deliveries: "delivery_events" });
+    ).resolves.toStrictEqual({
+      updates: "update_events",
+      deliveries: "delivery_events",
+      desktop: "desktop_events",
+    });
   });
 });
 

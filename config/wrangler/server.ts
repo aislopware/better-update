@@ -91,15 +91,17 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
       remote: true,
     },
   ],
-  // Two datasets, because the two event shapes have nothing in common and
+  // One dataset per event shape, because the shapes have nothing in common and
   // Analytics Engine cannot JOIN or UNION across a dataset boundary — mixing
   // them would force every existing `update_events` query to grow a
   // discriminator filter. ANALYTICS = manifest checks (did a device ask, what
   // did it get); DELIVERY_ANALYTICS = bundle downloads (what actually went over
-  // the wire, patch or full, how many bytes).
+  // the wire, patch or full, how many bytes); DESKTOP_ANALYTICS = desktop feed
+  // checks and downloads (Sparkle, WinSparkle, electron-updater, Tauri).
   analytics_engine_datasets: [
     { binding: "ANALYTICS", dataset: config.analyticsDataset },
     { binding: "DELIVERY_ANALYTICS", dataset: config.deliveryAnalyticsDataset },
+    { binding: "DESKTOP_ANALYTICS", dataset: config.desktopAnalyticsDataset },
   ],
   send_email: [{ name: "EMAIL", allowed_sender_addresses: [config.emailSender] }],
   durable_objects: {
@@ -120,6 +122,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // querying another.
     ANALYTICS_DATASET: config.analyticsDataset,
     DELIVERY_ANALYTICS_DATASET: config.deliveryAnalyticsDataset,
+    DESKTOP_ANALYTICS_DATASET: config.desktopAnalyticsDataset,
     ASSETS_BUCKET_NAME: config.r2AssetsBucket,
     BUILD_BUCKET_NAME: config.r2BuildsBucket,
     BUILD_RETENTION_PRODUCTION: "90",

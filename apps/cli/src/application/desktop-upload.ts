@@ -73,7 +73,7 @@ const readArtifact = (platform: DesktopUploadPlatform, artifactPath: string) =>
           }),
       ),
     );
-    return inspectDesktopArtifact(target, fileName, bytes);
+    return yield* Effect.promise(async () => inspectDesktopArtifact(target, fileName, bytes));
   });
 
 /** The version and identifier a build needs, the profile's first, then the app's, then the file's. */

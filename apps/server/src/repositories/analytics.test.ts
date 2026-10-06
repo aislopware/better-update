@@ -8,7 +8,11 @@ import type { AnalyticsRepository } from "./analytics";
 
 const PROJECT_ID = "11111111-2222-3333-4444-555555555555";
 
-const datasets = { updates: "update_events", deliveries: "delivery_events" };
+const datasets = {
+  updates: "update_events",
+  deliveries: "delivery_events",
+  desktop: "desktop_events",
+};
 
 /** A stub AE that answers every query from one canned row set. */
 const stubEngine = (rows: readonly AERow[]) =>
@@ -116,5 +120,78 @@ describe("AnalyticsRepo.getDeliveryMetrics", () => {
 
     expect(result.downloads).toBe(0);
     expect(result.bytesServed).toBe(0);
+  });
+});
+
+describe("AnalyticsRepo desktop metrics", () => {
+  /** Answers each of the four queries by what it selects. */
+  const desktopEngine = (queries: string[]) =>
+    Layer.succeed(AnalyticsEngine, {
+      datasets: Effect.succeed(datasets),
+      query: (sql) => {
+        queries.push(sql);
+        if (sql.includes("AS updater")) {
+          return Effect.succeed([
+            { platform: "windows", updater: "electron", checks: "30" },
+            { platform: "macos", updater: "sparkle", checks: "12" },
+          ]);
+        }
+        if (sql.includes("AS installs")) {
+          return Effect.succeed([{ installs: "7" }]);
+        }
+        if (sql.includes("AS version")) {
+          return Effect.succeed([{ platform: "windows", version: "1.2.0", checks: "25" }]);
+        }
+        return Effect.succeed([
+          { release_id: "rel-a", transfer: "full", count: "4", bytes: "4000" },
+          { release_id: "rel-a", transfer: "range", count: "40", bytes: "900" },
+          { release_id: "rel-a", transfer: "blockmap", count: "2", bytes: "50" },
+          { release_id: "rel-b", transfer: "full", count: "9", bytes: "9000" },
+          { release_id: "", transfer: "full", count: "1", bytes: "1" },
+        ]);
+      },
+    });
+
+  it("sums checks, counts whole downloads only and adds every transfer's bytes", async () => {
+    const queries: string[] = [];
+    const result = await runRepo(desktopEngine(queries), (repo) =>
+      repo.getDesktopMetrics({ projectId: PROJECT_ID, period: "30d" }),
+    );
+
+    expect(result).toStrictEqual({
+      checks: 42,
+      installs: 7,
+      updaters: [
+        { platform: "windows", updater: "electron", checks: 30 },
+        { platform: "macos", updater: "sparkle", checks: 12 },
+      ],
+      clientVersions: [{ platform: "windows", version: "1.2.0", checks: 25 }],
+      releases: [
+        { releaseId: "rel-b", downloads: 9, bytes: 9000 },
+        { releaseId: "rel-a", downloads: 4, bytes: 4950 },
+      ],
+      unavailable: false,
+    });
+    // Installs leave out the shared bucket of checks that carried no install id.
+    expect(queries.find((sql) => sql.includes("AS installs"))).toContain(
+      `index1 != '${PROJECT_ID}:'`,
+    );
+    expect(queries.every((sql) => sql.includes("FROM desktop_events"))).toBe(true);
+    expect(queries.every((sql) => sql.includes("INTERVAL '30' DAY"))).toBe(true);
+  });
+
+  it("degrades to an empty result flagged unavailable", async () => {
+    const result = await runRepo(downEngine, (repo) =>
+      repo.getDesktopMetrics({ projectId: PROJECT_ID }),
+    );
+
+    expect(result).toStrictEqual({
+      checks: 0,
+      installs: 0,
+      updaters: [],
+      clientVersions: [],
+      releases: [],
+      unavailable: true,
+    });
   });
 });

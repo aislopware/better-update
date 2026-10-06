@@ -206,6 +206,8 @@ export {
   channelAnalyticsQueryOptions,
   deliveryAnalyticsQueryKey,
   deliveryAnalyticsQueryOptions,
+  desktopAnalyticsQueryKey,
+  desktopAnalyticsQueryOptions,
   platformAnalyticsQueryKey,
   platformAnalyticsQueryOptions,
   projectActivityQueryKey,

@@ -320,6 +320,8 @@ export {
   ChannelAnalyticsResult,
   DeliveryParams,
   DeliveryResult,
+  DesktopAnalyticsParams,
+  DesktopAnalyticsResult,
   PeriodLiteral,
   PlatformParams,
   PlatformResult,

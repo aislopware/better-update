@@ -54,6 +54,7 @@ across datasets — merging them would force a discriminator filter into every q
 | ---------------- | -------------------- | ------------------------------- | ----------------- | -------------- |
 | Analytics Engine | `ANALYTICS`          | `BU_ANALYTICS_DATASET`          | `update_events`   | manifest route |
 | Analytics Engine | `DELIVERY_ANALYTICS` | `BU_DELIVERY_ANALYTICS_DATASET` | `delivery_events` | bundle route   |
+| Analytics Engine | `DESKTOP_ANALYTICS`  | `BU_DESKTOP_ANALYTICS_DATASET`  | `desktop_events`  | `/feeds/*`     |
 
 ```jsonc
 {

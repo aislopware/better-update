@@ -152,8 +152,9 @@ The dashboard shows per release downloads and checks by client version over
   `tauri.<os>.conf.json` over it, else `package.json` / `electron-builder.json`),
   then the file (deb control, rpm header, AppImage ELF header and embedded
   blockmap, the name's arch token). An NSIS installer is a 32-bit stub, so
-  Windows architectures come from the name or the profile. An xz-compressed
-  deb control member is not read (no xz in the runtime); the name decides.
+  Windows architectures come from the name or the profile. A deb's control
+  member is read in any compression dpkg writes (xz through `xz-decompress`,
+  xz-embedded compiled to WebAssembly, so the single binary needs no `xz`).
 - `builds upload --platform windows|linux <file…>`: the same, for artifacts
   built elsewhere (a Windows CI runner); eas.json is optional there.
 - `windows release` / `linux release` (`create|list|rollout|halt|resume|delete`)
