@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.41.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi-client%400.40.0...%40better-update%2Fapi-client%400.41.0) (2026-10-06)
+
+### Features
+
+* count desktop feed checks and downloads ([2907ffd](https://gitlab.jmango360.com/mobile/better-update/-/commit/2907ffdbfbfccf4aa1c68abe9410c519819a3e65))
+
 ## [0.40.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi-client%400.39.5...%40better-update%2Fapi-client%400.40.0) (2026-10-06)
 
 ### Features

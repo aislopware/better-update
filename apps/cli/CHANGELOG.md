@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.83.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.82.1...%40better-update%2Fcli%400.83.0) (2026-10-06)
+
+### Features
+
+* **cli:** build, upload and release Windows and Linux desktop apps ([49b85c0](https://github.com/aislopware/better-update/commit/49b85c09846b0dcdcb2fc89755b3f67ead0923d7))
+* count desktop feed checks and downloads ([2907ffd](https://github.com/aislopware/better-update/commit/2907ffdbfbfccf4aa1c68abe9410c519819a3e65))
+* make Sparkle binary deltas for macOS releases ([369140c](https://github.com/aislopware/better-update/commit/369140ced5327e26c155d4b31585a88c41b4a9f1))
+* serve Windows and Linux desktop builds through the update feeds ([be4fb1e](https://github.com/aislopware/better-update/commit/be4fb1e0e63c2f4f4cd2177c7c4183d759a6ecf5))
+
+### Bug Fixes
+
+* **cli:** give electron-builder the build keychain instead of the .p12 ([fce0225](https://github.com/aislopware/better-update/commit/fce022525dc078842457b9453a4c43f0232b9daf))
+* **cli:** keep symlinks as written when staging a build ([d48395f](https://github.com/aislopware/better-update/commit/d48395f870b855219a4b500e2dd4776711168700))
+
 ## [0.82.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.82.0...%40better-update%2Fcli%400.82.1) (2026-10-06)
 
 **Note:** Version bump only for package @better-update/cli

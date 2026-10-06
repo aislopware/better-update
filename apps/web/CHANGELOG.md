@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.88.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.87.0...%40better-update%2Fweb%400.88.0) (2026-10-06)
+
+### Features
+
+* count desktop feed checks and downloads ([2907ffd](https://github.com/aislopware/better-update/commit/2907ffdbfbfccf4aa1c68abe9410c519819a3e65))
+* make Sparkle binary deltas for macOS releases ([369140c](https://github.com/aislopware/better-update/commit/369140ced5327e26c155d4b31585a88c41b4a9f1))
+* serve Windows and Linux desktop builds through the update feeds ([be4fb1e](https://github.com/aislopware/better-update/commit/be4fb1e0e63c2f4f4cd2177c7c4183d759a6ecf5))
+
 ## [0.87.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.86.0...%40better-update%2Fweb%400.87.0) (2026-10-06)
 
 ### Features
