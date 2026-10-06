@@ -233,6 +233,35 @@ describe.skipIf(!canSign)("macOS Developer ID distribution (real codesign)", () 
     expect(appEntitlements).not.toContain("get-task-allow");
   });
 
+  test("signs a bare CLI binary under the fixed identifier the Keychain recognises it by", () => {
+    const toolPath = path.join(workRoot, "example-tool");
+    const source = path.join(workRoot, "example-tool.c");
+    writeFileSync(source, "int main(void) { return 0; }\n");
+    // A fresh linker output, like `bun build --compile`: identifier `a.out`-style, ad-hoc.
+    run("clang", ["-o", toolPath, source]);
+
+    const result = cli.runCli("macos", "sign", toolPath, "--identifier", "com.example.tool");
+    expectSuccess(result);
+    run("codesign", ["--verify", "--strict", toolPath]);
+    const display = codesignDisplayOf(toolPath);
+    expect(display).toContain("Identifier=com.example.tool");
+    expect(display).toContain("Authority=Developer ID Application:");
+    expect(display).toMatch(/flags=0x\d+\(runtime\)/u);
+    // Identifier + team is the designated requirement every release shares.
+    const requirement = execFileSync("sh", ["-c", `codesign -d -r- "$1" 2>&1`, "sh", toolPath], {
+      encoding: "utf8",
+    });
+    expect(requirement).toMatch(
+      /designated => identifier "com\.example\.tool" and anchor apple generic .*certificate leaf\[subject\.OU\] = [A-Z0-9]{10}/u,
+    );
+    execFileSync(toolPath);
+
+    // A bundle is identified by its CFBundleIdentifier.
+    const onApp = cli.runCli("macos", "sign", appPath, "--identifier", "com.example.other");
+    expect(onApp.exitCode).not.toBe(0);
+    expect(onApp.stderr).toContain("--identifier applies to a bare binary");
+  });
+
   test("packages a signed DMG with an explicit identifier", () => {
     const dmgPath = path.join(workRoot, "Fixture.dmg");
     const result = cli.runCli(

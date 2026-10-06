@@ -215,12 +215,26 @@ const verifyOrFail = (target: string, deep: boolean) =>
  * verify it. `--entitlements` replaces its entitlements; otherwise they are
  * preserved.
  */
-export const signMacosFile = (options: SignMacosAppOptions) =>
+export const signMacosFile = (
+  options: SignMacosAppOptions & {
+    /**
+     * The binary's code-signing identifier. Keep it fixed across releases:
+     * with the team it forms the designated requirement the Keychain and TCC
+     * recognise a program by. Omitted, codesign keeps the current one (the
+     * linker's `a.out` for a freshly built binary).
+     */
+    readonly identifier?: string | undefined;
+  },
+) =>
   Effect.gen(function* () {
     const entitlementsPath =
       options.entitlementsPath ??
       (yield* preservedEntitlementsFile(options.appPath, options.workDir, 0));
-    yield* signItem(options, { target: options.appPath, entitlementsPath, identifier: undefined });
+    yield* signItem(options, {
+      target: options.appPath,
+      entitlementsPath,
+      identifier: options.identifier,
+    });
     yield* verifyOrFail(options.appPath, false);
     return { signedNested: [] } satisfies SignMacosAppResult;
   });

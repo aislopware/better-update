@@ -585,7 +585,7 @@ better-update apple sandbox delete --id <testerId>
 
 ```bash
 better-update macos sign <path-to.app|binary> [--certificate-id <id>] [--entitlements <plist>] \
-  [--notarize] [--notarize-timeout <dur>] [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
+  [--identifier <id>] [--notarize] [--notarize-timeout <dur>] [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
 better-update macos package <path-to.app> [--format <dmg|zip|pkg|tar.gz>=dmg] [--output <path>] [--notarize=true] \
   [--certificate-id <id>] [--installer-certificate-id <id>] [--timeout <dur>] \
   [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
@@ -613,7 +613,13 @@ Signs, packages and notarizes macOS apps distributed **outside** the Mac App Sto
   code gets a real identifier (`<bundleId>.<name>`). `--entitlements` replaces the outer bundle's
   only. Ends with `codesign --verify --deep --strict` and a Developer ID audit. Cert resolution:
   `--certificate-id` › lone stored Developer ID cert (printed) › interactive picker. A bare Mach-O
-  binary (CLI tool) signs directly. `--notarize` chains into the notarize flow below.
+  binary (CLI tool) signs directly; give it `--identifier <id>` and keep that fixed across releases
+  — with the team it is the designated requirement the Keychain and TCC know the program by, so
+  "Always Allow" survives updates (otherwise it keeps the linker's `a.out`). A Bun-compiled binary
+  needs `com.apple.security.cs.allow-jit` (else JIT is off, ~2x slower) and
+  `com.apple.security.cs.disable-library-validation` (else embedded `.node` addons fail to load).
+  Notarize a bare binary as a zip (`ditto -c -k --keepParent bin bin.zip`); it cannot be stapled,
+  Gatekeeper looks the ticket up online. `--notarize` chains into the notarize flow below.
 - **`macos package`** audits the app first (refuses one that is not Developer ID-ready), then
   builds the container: **dmg** (HFS+ UDZO with an Applications link, signed with the Application
   identity as `<bundleId>.dmg`), **zip** (notarizes + staples the `.app`, then `ditto` zips it —

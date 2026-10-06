@@ -54,6 +54,12 @@ export const signCommand = Command.make(
       Flag.withDescription("Entitlements .plist applied to the outer bundle (or the bare binary)"),
       optionalFlag,
     ),
+    identifier: Flag.String("identifier").pipe(
+      Flag.withDescription(
+        "Code-signing identifier for a bare binary (e.g. a CLI); keep it fixed across releases so the Keychain recognises every version as the same program",
+      ),
+      optionalFlag,
+    ),
     notarize: Flag.Boolean("notarize").pipe(
       Flag.withDescription("Submit to the Apple notary service and staple after signing"),
       Flag.withDefault(false),
@@ -88,6 +94,12 @@ export const signCommand = Command.make(
       const cwd = yield* runtime.cwd;
       const targetPath = path.resolve(cwd, args.app);
       const shape = yield* classifySignTarget(targetPath);
+      if (shape === "bundle" && args.identifier !== undefined) {
+        return yield* new CodesignError({
+          message:
+            "--identifier applies to a bare binary; an .app is identified by its CFBundleIdentifier.",
+        });
+      }
       const entitlementsPath =
         args.entitlements === undefined || args.entitlements.length === 0
           ? undefined
@@ -110,7 +122,9 @@ export const signCommand = Command.make(
             workDir,
           };
           const result =
-            shape === "bundle" ? yield* signMacosApp(options) : yield* signMacosFile(options);
+            shape === "bundle"
+              ? yield* signMacosApp(options)
+              : yield* signMacosFile({ ...options, identifier: args.identifier });
           return { identity, ...result };
         }),
       );
