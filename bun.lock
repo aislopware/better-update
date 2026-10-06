@@ -34,7 +34,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.81.0",
+      "version": "0.82.0",
       "dependencies": {
         "@better-update/bsdiff": "workspace:*",
         "@effect/platform-bun": "4.0.0",

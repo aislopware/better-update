@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.82.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.81.0...%40better-update%2Fcli%400.82.0) (2026-10-06)
+
+### Features
+
+* **cli:** give a bare binary a fixed code-signing identifier with macos sign --identifier ([e8e0db1](https://github.com/aislopware/better-update/commit/e8e0db11460df1a1830a418d4e76701d66c7f762))
+
 ## [0.81.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.80.2...%40better-update%2Fcli%400.81.0) (2026-10-06)
 
 ### Features
