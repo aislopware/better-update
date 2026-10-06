@@ -533,14 +533,23 @@ build-cli-apple:
     - |
       if [ -n "${BETTER_UPDATE_ROBOT:-}" ]; then
         bin=dist/better-update-darwin-arm64
+        # Optional flags go through "$@": zsh (the macOS runner's shell) does
+        # not word-split an unquoted ${VAR:+--flag "$VAR"}, so that form would
+        # pass the flag and its value as one argument.
+        set --
+        if [ -n "${BU_CLI_SIGNING_CERTIFICATE_ID:-}" ]; then
+          set -- --certificate-id "$BU_CLI_SIGNING_CERTIFICATE_ID"
+        fi
         cp "$bin" "$bin.signed"
         "./$bin" macos sign "$bin.signed" --identifier better-update \
-          --entitlements scripts/macos-entitlements.plist \
-          ${BU_CLI_SIGNING_CERTIFICATE_ID:+--certificate-id "$BU_CLI_SIGNING_CERTIFICATE_ID"}
+          --entitlements scripts/macos-entitlements.plist "$@"
         mv "$bin.signed" "$bin"
+        set --
+        if [ -n "${BU_CLI_NOTARY_ASC_KEY_ID:-}" ]; then
+          set -- --asc-key-id "$BU_CLI_NOTARY_ASC_KEY_ID"
+        fi
         ditto -c -k --keepParent "$bin" notarize.zip
-        "./$bin" macos notarize notarize.zip --timeout 45m \
-          ${BU_CLI_NOTARY_ASC_KEY_ID:+--asc-key-id "$BU_CLI_NOTARY_ASC_KEY_ID"}
+        "./$bin" macos notarize notarize.zip --timeout 45m "$@"
         rm notarize.zip
         codesign --verify --strict --verbose=2 "$bin"
       else
