@@ -40,6 +40,13 @@
 #         token, scopes write_repository + api; pushes the version commit + tags
 #         AND creates GitLab Releases; pushing tags with a real token is what
 #         triggers the downstream deploy/publish pipelines).
+#     BETTER_UPDATE_ROBOT                          — build-cli-apple: a better-update
+#         robot (`credentials robot create`) on a project its org's Developer ID
+#         Application certificate and ASC API key are bound to. The freshly built
+#         macOS binary signs itself with them from the vault, then notarizes.
+#         Optional: without it the binary ships ad-hoc signed. Pick the stored
+#         credentials with BU_CLI_SIGNING_CERTIFICATE_ID (`credentials list`;
+#         auto-picked when the robot sees one) and BU_CLI_NOTARY_ASC_KEY_ID.
 #
 #   Pipeline knobs — BU_CI_*, documented at `variables:` below. These configure
 #   the RUNNERS, not the deployment; `config:gen` ignores them.
@@ -516,6 +523,29 @@ build-cli-apple:
     # a published binary must never be built on placeholders.
     - bun run config:gen:strict
     - cd apps/cli && bun scripts/build.ts --target darwin-arm64
+    # Developer ID signature with a FIXED identifier: the Keychain recognises a
+    # program by identifier + team, so every release keeps the access the user
+    # granted the first one (an ad-hoc binary is a new program each release and
+    # re-prompts). The binary signs a copy of itself as the robot — the
+    # certificate and ASC key never leave the vault — and is notarized so a
+    # browser download passes Gatekeeper (a bare binary takes no stapled
+    # ticket; Gatekeeper looks it up online).
+    - |
+      if [ -n "${BETTER_UPDATE_ROBOT:-}" ]; then
+        bin=dist/better-update-darwin-arm64
+        cp "$bin" "$bin.signed"
+        "./$bin" macos sign "$bin.signed" --identifier better-update \
+          --entitlements scripts/macos-entitlements.plist \
+          ${BU_CLI_SIGNING_CERTIFICATE_ID:+--certificate-id "$BU_CLI_SIGNING_CERTIFICATE_ID"}
+        mv "$bin.signed" "$bin"
+        ditto -c -k --keepParent "$bin" notarize.zip
+        "./$bin" macos notarize notarize.zip --timeout 45m \
+          ${BU_CLI_NOTARY_ASC_KEY_ID:+--asc-key-id "$BU_CLI_NOTARY_ASC_KEY_ID"}
+        rm notarize.zip
+        codesign --verify --strict --verbose=2 "$bin"
+      else
+        echo "BETTER_UPDATE_ROBOT not set — shipping the ad-hoc signed binary."
+      fi
   artifacts:
     paths:
       - apps/cli/dist/better-update-*

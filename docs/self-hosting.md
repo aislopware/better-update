@@ -139,6 +139,12 @@ export BETTER_UPDATE_ASSET_CDN_URL=https://updates.example.com
   building `ci/Dockerfile` and pointing `BU_CI_IMAGE` at it turns every install
   step into a no-op. Only the two bsdiff jobs need a macOS runner — the rest of
   the pipeline is Linux.
+- **Signed macOS CLI.** Set `BETTER_UPDATE_ROBOT` (masked + protected) to a
+  robot whose project has your Developer ID Application certificate and an ASC
+  API key bound, and `build-cli-apple` signs the binary with itself from the
+  vault and notarizes it (`BU_CLI_SIGNING_CERTIFICATE_ID` /
+  `BU_CLI_NOTARY_ASC_KEY_ID` pick the credentials). Without it the binary ships
+  ad-hoc signed, and macOS asks again for Keychain access after every update.
 - **Legal pages.** `/terms` and `/privacy` are the upstream operator's documents
   (governed by Vietnamese law, naming the upstream operator). If you run a public
   instance, rewrite `apps/web/src/routes/{terms,privacy}.tsx` for your own entity
