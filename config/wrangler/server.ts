@@ -15,7 +15,15 @@ const routes = (config: DeployConfig): readonly Record<string, string>[] => {
   if (config.zoneId.length === 0) {
     return [];
   }
-  const paths = ["/api/*", "/manifest/*", "/register-device/*", "/docs", "/openapi.json"];
+  // /feeds/* are the public macOS update feeds installed apps poll.
+  const paths = [
+    "/api/*",
+    "/manifest/*",
+    "/feeds/*",
+    "/register-device/*",
+    "/docs",
+    "/openapi.json",
+  ];
   const appRoutes = paths.map((suffix) => ({
     pattern: `${config.appHost}${suffix}`,
     zone_id: config.zoneId,
@@ -128,6 +136,10 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // HARD-BLOCKS (exits non-zero) when its version is <= this — so to force an
     // upgrade after a release, set this to the version you want to retire (that
     // version and everything older are blocked). "0.0.0" blocks nothing.
+    // 0.80.2 and older cannot decode the macOS Developer ID builds this server
+    // now stores (platform `macos`, distribution `developer-id`, `dmg` / `zip`
+    // / `pkg` / `tar.gz` artifacts, `DEVELOPER_ID` provisioning profiles): any
+    // build or profile list containing one fails to decode in them.
     // 0.77.3 and older upload an Android App Bundle build bare: no universal
     // APK beside it, so the dashboard's Install link, `builds run` and QA have
     // nothing a device can install — an `.aab` is Play-only. The APK must be
@@ -162,7 +174,7 @@ export const serverWranglerConfig = (config: DeployConfig): Record<string, unkno
     // org, reported as success. 0.71.4 and older never baked
     // `expo-channel-name` or a runtimeVersion into non-Expo builds, so their
     // updates published green and reached nobody. All covered by this bound.)
-    REQUIRE_CLI_VERSION_ABOVE: "0.77.3",
+    REQUIRE_CLI_VERSION_ABOVE: "0.80.2",
     ENVIRONMENT: "production",
     // Comma-separated allowlist of superadmin emails. A user signing in with a
     // matching email is auto-promoted (global role "admin" + approved) on
