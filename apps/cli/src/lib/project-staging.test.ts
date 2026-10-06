@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -10,6 +18,7 @@ import { Effect } from "effect";
 import {
   buildIgnoreInstance,
   commitStagingSnapshot,
+  copyProjectTree,
   detectWorkspaceRoot,
   installArgs,
 } from "./project-staging";
@@ -391,6 +400,29 @@ describe(commitStagingSnapshot, () => {
       } finally {
         dispose(root);
       }
+    }),
+  );
+});
+
+describe(copyProjectTree, () => {
+  it.effect("keeps a vendored framework's relative links as written", () =>
+    Effect.gen(function* () {
+      const source = makeDir("bu-staging-links-");
+      const dest = path.join(makeDir("bu-staging-links-dest-"), "project");
+      const framework = path.join(source, "Vendor.framework");
+      mkdirSync(path.join(framework, "Versions", "A", "Resources"), { recursive: true });
+      symlinkSync("A", path.join(framework, "Versions", "Current"));
+      symlinkSync("Versions/Current/Resources", path.join(framework, "Resources"));
+      const ig = yield* buildIgnoreInstance(source).pipe(Effect.provide(NodeFileSystem.layer));
+      yield* copyProjectTree({ source, dest, ig });
+      // Absolute links back into the source tree would leave the staged
+      // framework pointing outside itself, which codesign refuses.
+      expect(readlinkSync(path.join(dest, "Vendor.framework", "Resources"))).toBe(
+        "Versions/Current/Resources",
+      );
+      expect(readlinkSync(path.join(dest, "Vendor.framework", "Versions", "Current"))).toBe("A");
+      dispose(source);
+      dispose(path.dirname(dest));
     }),
   );
 });

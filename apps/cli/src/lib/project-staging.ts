@@ -289,7 +289,7 @@ export const buildIgnoreInstance = (
     return ig;
   });
 
-const copyProjectTree = (params: {
+export const copyProjectTree = (params: {
   readonly source: string;
   readonly dest: string;
   readonly ig: Ignore;
@@ -299,6 +299,8 @@ const copyProjectTree = (params: {
       await fsp.cp(params.source, params.dest, {
         recursive: true,
         dereference: false,
+        // Else `cp` points relative links (a framework's `Versions/Current`) into the source tree.
+        verbatimSymlinks: true,
         filter: async (src) => {
           const rel = path.relative(params.source, src);
           if (rel === "") {
