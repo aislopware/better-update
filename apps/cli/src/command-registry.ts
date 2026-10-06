@@ -15,6 +15,7 @@ import { envCommand } from "./commands/env";
 import { environmentsCommand } from "./commands/environments";
 import { fingerprintCommand } from "./commands/fingerprint";
 import { initCommand } from "./commands/init";
+import { linuxCommand } from "./commands/linux";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { macosCommand } from "./commands/macos";
@@ -29,6 +30,7 @@ import { testflightCommand } from "./commands/testflight";
 import { updateCommand } from "./commands/update";
 import { webhooksCommand } from "./commands/webhooks";
 import { whoamiCommand } from "./commands/whoami";
+import { windowsCommand } from "./commands/windows";
 
 /**
  * The single source of truth for the CLI's top-level command tree.
@@ -69,6 +71,8 @@ export const commandRegistry = [
   appleCommand,
   appStoreCommand,
   macosCommand,
+  windowsCommand,
+  linuxCommand,
   submitCommand,
   testflightCommand,
   reviewsCommand,

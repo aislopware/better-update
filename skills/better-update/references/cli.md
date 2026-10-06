@@ -251,7 +251,7 @@ better-update channels rollout revert <channelId>
 ## build
 
 ```bash
-better-update build [--platform <ios|android|macos|all>] [flags]
+better-update build [--platform <ios|android|macos|windows|linux|all>] [flags]
 better-update build configure [--force]      # scaffold/top-up eas.json default profiles (--force overwrites)
 ```
 
@@ -259,26 +259,29 @@ better-update build configure [--force]      # scaffold/top-up eas.json default 
 ios and android **in parallel** (output lines are tagged `[ios]` / `[android]`); not combinable with
 `--json` or `--output`. `--platform macos` (never auto-detected, never part of `all`) builds a
 Developer ID app from the profile's `macos` section — see `references/native-builds.md#macos-developer-id-builds-signing--notarization`.
+`--platform windows|linux` (never auto-detected) runs the profile's `custom.<platform>` command and
+uploads every installer / package its `artifactPath` glob matches, one build each — see
+`references/native-builds.md#windows--linux-builds-and-update-feeds`.
 
-| Flag                                    | Default      | Notes                                                                                                                            |
-| --------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `--platform <ios\|android\|macos\|all>` | auto         | Auto-detected when omitted; `all` = ios + android in parallel; `macos` = Developer ID build.                                     |
-| `--profile <name>`                      | `production` | Build profile (matches `eas.json` profile names).                                                                                |
-| `--message <text>`                      | —            | Free-form description on the build record.                                                                                       |
-| `--no-upload`                           | off          | Upload is on by default; `--no-upload` for a dry run.                                                                            |
-| `--output <path>`                       | —            | Copy the built artifact to this path.                                                                                            |
-| `--raw-output`                          | off          | Raw Gradle/Xcode output instead of the formatted spinner.                                                                        |
-| `--clear-cache`                         | off          | Clear project-scoped build caches before building.                                                                               |
-| `--freeze-credentials`                  | off          | Fail fast if credentials are missing instead of prompting (CI). A stale profile still regenerates headless given a team ASC key. |
-| `--allow-dirty`                         | off          | Proceed even with uncommitted git changes.                                                                                       |
-| `--auto-submit`, `-s`                   | off          | After upload, submit using the eas.json submit profile of the same name.                                                         |
-| `--auto-submit-with-profile <name>`     | —            | After upload, submit using a specific submit profile.                                                                            |
-| `--what-to-test <text>`                 | —            | iOS-only TestFlight changelog when auto-submitting.                                                                              |
+| Flag                                                    | Default      | Notes                                                                                                                              |
+| ------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `--platform <ios\|android\|macos\|windows\|linux\|all>` | auto         | Auto-detected when omitted; `all` = ios + android in parallel; `macos` = Developer ID build; `windows` / `linux` = custom command. |
+| `--profile <name>`                                      | `production` | Build profile (matches `eas.json` profile names).                                                                                  |
+| `--message <text>`                                      | —            | Free-form description on the build record.                                                                                         |
+| `--no-upload`                                           | off          | Upload is on by default; `--no-upload` for a dry run.                                                                              |
+| `--output <path>`                                       | —            | Copy the built artifact to this path.                                                                                              |
+| `--raw-output`                                          | off          | Raw Gradle/Xcode output instead of the formatted spinner.                                                                          |
+| `--clear-cache`                                         | off          | Clear project-scoped build caches before building.                                                                                 |
+| `--freeze-credentials`                                  | off          | Fail fast if credentials are missing instead of prompting (CI). A stale profile still regenerates headless given a team ASC key.   |
+| `--allow-dirty`                                         | off          | Proceed even with uncommitted git changes.                                                                                         |
+| `--auto-submit`, `-s`                                   | off          | After upload, submit using the eas.json submit profile of the same name.                                                           |
+| `--auto-submit-with-profile <name>`                     | —            | After upload, submit using a specific submit profile.                                                                              |
+| `--what-to-test <text>`                                 | —            | iOS-only TestFlight changelog when auto-submitting.                                                                                |
 
 ## builds
 
 ```bash
-better-update builds list [--platform <ios|android|macos>] [--profile <name>] [--runtime-version <v>] \
+better-update builds list [--platform <ios|android|macos|windows|linux>] [--profile <name>] [--runtime-version <v>] \
                           [--distribution <app-store|ad-hoc|development|enterprise|simulator|play-store|direct|developer-id>] \
                           [--sort <createdAt|platform|distribution|runtimeVersion|appVersion>] [--limit <n>=10]
 better-update builds get <id>                                 # macOS builds add notarization, min macOS, archs, team
@@ -291,6 +294,7 @@ better-update builds delete <id>
 better-update builds install-link <id>                        # → artifactUrl, installUrl (iOS itms-services / Android APK / null), expires
 better-update builds compatibility-matrix                     # runtime-version coverage per channel; flags gaps
 better-update builds upload <artifact-path> --platform <ios|android> [--profile <name>=production] [--message <text>]
+better-update builds upload <file>… --platform <windows|linux> [--profile <name>]   # .exe/.msi or .AppImage/.deb/.rpm, one build each
 better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]   # re-sign an iOS build with a new profile (iOS only)
 ```
 
@@ -591,7 +595,7 @@ better-update macos package <path-to.app> [--format <dmg|zip|pkg|tar.gz>=dmg] [-
   [--asc-key-id <id>] [--apple-id <email> --team-id <TEAMID>]
 better-update macos notarize <path-to .app|.dmg|.pkg|.zip> [--asc-key-id <id>] \
   [--apple-id <email> --team-id <TEAMID>] [--wait=true] [--staple=true] [--timeout <dur>] [--submission-id <id>]
-better-update macos release create [<buildId>] [--channel <name>=latest] [--notes <text> | --notes-file <path>] \
+better-update macos release create [<buildId>…] [--channel <name>=latest] [--notes <text> | --notes-file <path>] \
   [--critical] [--rollout <1-100>] [--phased-rollout-hours <1-720>] [--sparkle-key-file <path>] \
   [--tauri-key-file <path>] [--environment <env>] [--file <path>]
 better-update macos release list [--channel <name>] [--limit <n>=20]
@@ -636,9 +640,10 @@ Signs, packages and notarizes macOS apps distributed **outside** the Mac App Sto
   waiting and staple. On **Accepted** it staples (`stapler staple` + `validate`; skipped for `.zip`).
   On **Invalid** it prints Apple's issues grouped per file. `--wait=false` returns after upload.
   Exit codes: 2 validation, 5 missing vault credentials, 6 codesign/keychain/notarization failure.
-- **`macos release`** publishes a finished Developer ID build to the project's public update feeds
+- **`macos release`** publishes finished Developer ID builds to the project's public update feeds
   (Sparkle `appcast.xml`, electron-updater `<channel>-mac.yml`, Tauri `<channel>-tauri.json`).
-  `create` downloads the stored
+  `create` takes build ids, or releases every build of the newest version not yet on the channel
+  (`--json` prints the release, or a list when several were released). It downloads each stored
   artifact (or hashes `--file` after checking it is the same bytes), computes the sha512 and the
   Sparkle EdDSA signature (and, for a `tar.gz` build, the Tauri minisign signature; for a `zip`, the
   electron-updater blockmap for differential downloads) locally, and
@@ -647,6 +652,28 @@ Signs, packages and notarizes macOS apps distributed **outside** the Mac App Sto
   (7 client groups, one more every N hours; `0` on `rollout` turns it off). `rollout` / `halt` /
   `resume` / `delete` manage it. Details:
   `references/native-builds.md#auto-update-feeds--sparkle-electron-updater--tauri`.
+
+## windows / linux
+
+```bash
+better-update windows release create [<buildId>…] [--channel <name>=latest] [--notes <text> | --notes-file <path>] \
+  [--critical] [--rollout <1-100>] [--winsparkle-key-file <path>] [--tauri-key-file <path>] \
+  [--environment <env>] [--file <path>]
+better-update linux release create [<buildId>…] [--channel <name>=latest] [--notes <text> | --notes-file <path>] \
+  [--critical] [--rollout <1-100>] [--tauri-key-file <path>] [--environment <env>] [--file <path>]
+better-update windows|linux release list [--channel <name>] [--limit <n>=20]
+better-update windows|linux release rollout <releaseId> [--percentage <1-100>]
+better-update windows|linux release halt|resume|delete <releaseId>
+```
+
+The `macos release` model for Windows installers and Linux packages (built with `build --platform
+windows|linux` or uploaded with `builds upload --platform windows|linux`). `create` without ids
+releases every build of the newest version not yet on the channel — an `.exe` and an `.msi`, or an
+AppImage, a deb and an rpm, together. It signs locally: WinSparkle EdDSA for Windows
+(`--winsparkle-key-file` › `$WINSPARKLE_PRIVATE_KEY` › the `--environment`'s variable; refused when
+the profile's `winSparklePublicKey` does not match), Tauri minisign for any Tauri format; and
+computes an NSIS installer's blockmap for electron-updater differential downloads. It prints the
+feed URLs. Details: `references/native-builds.md#windows--linux-builds-and-update-feeds`.
 
 ## submit
 

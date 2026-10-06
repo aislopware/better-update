@@ -3,6 +3,7 @@ import { Command, Flag } from "effect/cli";
 
 import { runBuildWorkflow } from "../../application/build-workflow";
 import { runBuildWorkflowAll } from "../../application/build-workflow-all";
+import { runDesktopBuildWorkflow } from "../../application/desktop-build-workflow";
 import { runMacosBuildWorkflow } from "../../application/macos-build-workflow";
 import { optionalFlag } from "../../lib/params";
 import { runCommand } from "../../lib/run-command";
@@ -11,9 +12,16 @@ import { configureBuildCommand } from "./configure";
 export const buildCommand = Command.make(
   "build",
   {
-    platform: Flag.Literals("platform", ["ios", "android", "macos", "all"]).pipe(
+    platform: Flag.Literals("platform", [
+      "ios",
+      "android",
+      "macos",
+      "windows",
+      "linux",
+      "all",
+    ]).pipe(
       Flag.withDescription(
-        'Target platform; "all" builds ios and android in parallel; "macos" builds a Developer ID app from the profile\'s macos section (auto-detected from app.json when omitted)',
+        'Target platform; "all" builds ios and android in parallel; "macos" builds a Developer ID app from the profile\'s macos section; "windows" / "linux" run the profile\'s custom command and upload every installer or package it makes (auto-detected from app.json when omitted)',
       ),
       optionalFlag,
     ),
@@ -85,6 +93,9 @@ export const buildCommand = Command.make(
     };
     if (args.platform === "macos") {
       return runMacosBuildWorkflow(options).pipe(runCommand());
+    }
+    if (args.platform === "windows" || args.platform === "linux") {
+      return runDesktopBuildWorkflow({ ...options, platform: args.platform }).pipe(runCommand());
     }
     return args.platform === "all"
       ? runBuildWorkflowAll(options).pipe(runCommand())

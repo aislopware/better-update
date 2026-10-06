@@ -12,6 +12,7 @@ import type {
   EasBuildProfile,
   EasIosProfile,
 } from "./eas-config";
+import type { EasDesktopProfile } from "./eas-desktop-config";
 import type { EasMacosArtifact } from "./eas-macos-config";
 import type { BuildProfileError } from "./exit-codes";
 import type { ExpoConfig } from "./expo-config";
@@ -92,6 +93,13 @@ export interface MacosProfile {
   readonly metaOverride?: MacosMetaOverride;
 }
 
+/**
+ * A resolved `windows` / `linux` profile section: what the artifacts cannot
+ * say about themselves (see `EasDesktopProfile`). Present when the profile has
+ * the section or a `custom.<platform>` command.
+ */
+export type DesktopProfile = EasDesktopProfile;
+
 export type CredentialsSource = "remote" | "local";
 
 export interface BuildProfile {
@@ -102,6 +110,8 @@ export interface BuildProfile {
   readonly ios?: IosProfile;
   readonly android?: AndroidProfile;
   readonly macos?: MacosProfile;
+  readonly windows?: DesktopProfile;
+  readonly linux?: DesktopProfile;
   readonly credentialsSource?: CredentialsSource;
   /** Mirror of EAS `developmentClient` — drives Debug/debug variant + dev-client validation. */
   readonly developmentClient?: boolean;
@@ -327,10 +337,18 @@ const toMacosProfile = (eas: EasBuildProfile): MacosProfile | undefined => {
   });
 };
 
+/** Like macOS, only the section itself or a custom command opts a profile in. */
+const toDesktopProfile = (
+  section: EasDesktopProfile | undefined,
+  custom: CustomCommandProfile["windows"],
+): DesktopProfile | undefined => section ?? (custom === undefined ? undefined : {});
+
 export const fromGenericProfile = (eas: EasBuildProfile, profileName: string): BuildProfile => {
   const ios = toIosProfile(eas);
   const android = toAndroidProfile(eas);
   const macos = toMacosProfile(eas);
+  const windows = toDesktopProfile(eas.windows, eas.custom?.windows);
+  const linux = toDesktopProfile(eas.linux, eas.custom?.linux);
   return compact({
     name: profileName,
     environment: eas.environment ?? "production",
@@ -339,6 +357,8 @@ export const fromGenericProfile = (eas: EasBuildProfile, profileName: string): B
     ios,
     android,
     macos,
+    windows,
+    linux,
     credentialsSource: eas.credentialsSource,
     developmentClient: eas.developmentClient,
     withoutCredentials: eas.withoutCredentials,

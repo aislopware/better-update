@@ -1,3 +1,4 @@
+import { glob } from "node:fs/promises";
 import path from "node:path";
 
 import { FileSystem, Effect, Option } from "effect";
@@ -274,4 +275,52 @@ export const findBundleByGlob = ({
       });
     }
     return picked.path;
+  });
+
+/**
+ * Every file a custom command produced that matches `pattern` (a real glob:
+ * `dist/*.{exe,msi}`, `src-tauri/target/release/bundle/**\/*.deb`) under
+ * `baseDir`, written at or after `minMtimeMs`, sorted by path. A desktop
+ * build may ship several installers at once, each its own build.
+ */
+export const findArtifactsByGlob = ({
+  baseDir,
+  pattern,
+  minMtimeMs,
+}: FindArtifactByGlobOptions): Effect.Effect<
+  readonly string[],
+  ArtifactNotFoundError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const matches = yield* Effect.tryPromise({
+      try: async () => Array.fromAsync(glob(pattern, { cwd: baseDir })),
+      catch: (cause) =>
+        new ArtifactNotFoundError({
+          message: `Invalid artifactPath "${pattern}": ${String(cause)}`,
+        }),
+    });
+    const files = yield* Effect.all(
+      matches.map((match) => {
+        const full = path.isAbsolute(match) ? match : path.join(baseDir, match);
+        return fs.stat(full).pipe(
+          Effect.map((info) =>
+            info.type === "File" &&
+            (minMtimeMs === undefined ||
+              Option.getOrElse(info.mtime, () => new Date(0)).getTime() >= minMtimeMs)
+              ? [full]
+              : [],
+          ),
+          Effect.orElseSucceed((): string[] => []),
+        );
+      }),
+    );
+    const found = files.flat().toSorted();
+    if (found.length === 0) {
+      return yield* new ArtifactNotFoundError({
+        message: `No file matching "${pattern}" was written under "${baseDir}" by this build.`,
+      });
+    }
+    return found;
   });

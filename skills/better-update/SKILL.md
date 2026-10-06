@@ -12,8 +12,9 @@ description: >-
   ship an OTA update, stage a rollout or roll back a release, cut a release candidate, promote an
   update between channels, build an IPA/APK/AAB locally, manage keystores / distribution certs /
   provisioning profiles / APNs push keys, build / sign / package / notarize a macOS app with a
-  Developer ID certificate, publish macOS auto-updates (Sparkle appcast / electron-updater / Tauri
-  updater feed), or
+  Developer ID certificate, publish desktop auto-updates for macOS, Windows or Linux (Sparkle /
+  WinSparkle appcast, electron-updater, Tauri updater feeds), upload Windows installers or Linux
+  packages (exe, msi, AppImage, deb, rpm), or
   configure per-environment secrets — even if they never say the words
   "better-update". Covers every command, every flag, and the
   publish → branch → channel → device routing model.
@@ -27,7 +28,8 @@ Cloudflare. It does OTA JS updates (Expo Updates protocol-compatible), local nat
 Build-compatible), an end-to-end-encrypted credential vault, server-side env vars, store
 submission, and macOS Developer ID builds, signing, packaging + notarization (`build --platform
 macos`, `macos sign` / `macos package` / `macos notarize`) with Sparkle / electron-updater / Tauri
-update feeds (`macos release`) — all
+update feeds (`macos release`), and Windows / Linux installers and packages from any toolchain
+(`build --platform windows|linux`, `windows release`, `linux release`) — all
 driven from one CLI, `better-update`. This skill is how you operate that CLI on a user's behalf.
 
 ## The one mental model that explains everything

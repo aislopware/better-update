@@ -145,18 +145,23 @@ The dashboard shows per release downloads and checks by client version over
 ## CLI
 
 - `build --platform windows|linux`: `custom` strategy only (electron-builder,
-  Tauri, anything). `custom.<platform>.artifactPath` may match several files;
-  each becomes its own build. Format from the extension; arch from the file
-  (deb control, rpm header, AppImage ELF) or electron-builder's name suffix,
-  else the profile's `<platform>.arch`; version from deb/rpm metadata, else
-  `tauri.conf.json` / `package.json`, else the profile.
-- `builds upload --platform windows|linux|macos <file…>`: the same inspection
-  for artifacts built elsewhere (a Windows CI runner building Tauri MSI/NSIS).
-- `windows release` / `linux release` (`create|list|rollout|halt|resume|delete`),
-  sharing `macos release`'s implementation. `create` without a build id
-  releases every unreleased build of the newest version; several ids may be
-  given. Signs Tauri (minisign) and WinSparkle (EdDSA) locally, computes the
-  NSIS blockmap, records the AppImage's embedded blockmap size.
+  Tauri, anything). `custom.<platform>.artifactPath` is a real glob (`**`,
+  `{exe,msi}`); every file the command wrote that it matches becomes its own
+  build. Each field comes from the first source that knows it: the profile's
+  `windows` / `linux` section, then the app's config (`tauri.conf.json` with
+  `tauri.<os>.conf.json` over it, else `package.json` / `electron-builder.json`),
+  then the file (deb control, rpm header, AppImage ELF header and embedded
+  blockmap, the name's arch token). An NSIS installer is a 32-bit stub, so
+  Windows architectures come from the name or the profile. An xz-compressed
+  deb control member is not read (no xz in the runtime); the name decides.
+- `builds upload --platform windows|linux <file…>`: the same, for artifacts
+  built elsewhere (a Windows CI runner); eas.json is optional there.
+- `windows release` / `linux release` (`create|list|rollout|halt|resume|delete`)
+  share `macos release`'s implementation. `create` without build ids releases
+  every build of the newest version not yet on the channel; several ids may be
+  given. `--json` keeps printing one release as an object (a list for several).
+  Signs Tauri (minisign) and WinSparkle (EdDSA, `$WINSPARKLE_PRIVATE_KEY`)
+  locally and computes the NSIS blockmap.
 - `macos release create` generates Sparkle deltas from the channel's previous
   three releases (BinaryDelta from a pinned, SHA-256-checked Sparkle tarball;
   format by the old app's Sparkle version), signs and uploads them.

@@ -26,11 +26,22 @@ export type SparklePrivateKey =
 
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/u;
 
-/** Decode an exported Sparkle private key, or a message saying why it is not one. */
-export const parseSparklePrivateKey = (text: string): SparklePrivateKey | string => {
+/** Which updater's key a message is about; WinSparkle's tool writes the same two formats. */
+export interface EdKeyKind {
+  readonly name: string;
+  readonly exportHint: string;
+}
+
+const SPARKLE_KEY: EdKeyKind = { name: "Sparkle", exportHint: "`generate_keys -x <file>`" };
+
+/** Decode an exported Sparkle (or WinSparkle) private key, or a message saying why it is not one. */
+export const parseSparklePrivateKey = (
+  text: string,
+  kind: EdKeyKind = SPARKLE_KEY,
+): SparklePrivateKey | string => {
   const trimmed = text.trim();
   if (!BASE64.test(trimmed)) {
-    return "The Sparkle private key is not base64 (export it with `generate_keys -x <file>`).";
+    return `The ${kind.name} private key is not base64 (export it with ${kind.exportHint}).`;
   }
   const bytes = Buffer.from(trimmed, "base64");
   if (bytes.byteLength === 32) {
@@ -44,7 +55,7 @@ export const parseSparklePrivateKey = (text: string): SparklePrivateKey | string
       publicKey: bytes.subarray(64, 96),
     };
   }
-  return `The Sparkle private key decodes to ${String(bytes.byteLength)} bytes; generate_keys exports 32 (seed) or 96 (older format).`;
+  return `The ${kind.name} private key decodes to ${String(bytes.byteLength)} bytes; ${kind.exportHint} writes 32 (seed) or 96 (older format).`;
 };
 
 /** The `SUPublicEDKey` value the key's signatures verify against. */

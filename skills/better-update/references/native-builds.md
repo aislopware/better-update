@@ -355,7 +355,7 @@ the feeds from releases; the CLI hashes and EdDSA-signs the stored artifact loca
 private key never leaves the machine.
 
 ```bash
-better-update macos release create [<buildId>]          # default: newest Developer ID build
+better-update macos release create [<buildId>…]         # default: every unreleased build of the newest version
   [--channel latest] [--notes "…" | --notes-file CHANGES.md] [--critical] [--rollout 20] \
   [--phased-rollout-hours 24] [--sparkle-key-file ./sparkle_private_key] \
   [--environment production] [--file ./MyApp.dmg]
@@ -421,6 +421,92 @@ better-update macos release halt|resume|delete <releaseId>
   comes from the app's `LSMinimumSystemVersion`.
 - Releasing needs the `developer` role (same as creating a build); deleting needs `maintainer`.
   Released builds are never garbage-collected.
+
+## Windows & Linux builds and update feeds
+
+Windows installers (NSIS `.exe`, `.msi`) and Linux packages (`.AppImage`, `.deb`, `.rpm`) are built
+by the app's own toolchain (electron-builder, Tauri, anything) — through the profile's custom
+command or elsewhere (a Windows CI runner) — and uploaded as builds, **one build per file**. The
+CLI signs nothing Windows- or Linux-native: Authenticode and package signing stay with the
+toolchain (it reads its own variables, e.g. electron-builder `CSC_LINK` / `WIN_CSC_LINK`). An
+unsigned Windows installer works but SmartScreen warns on first download.
+
+```jsonc
+// eas.json build profile
+"windows": { "arch": ["x64", "arm64"], "minimumSystemVersion": "10.0.17763",
+             "winSparklePublicKey": "<base64>" },        // all optional
+"linux": {},                                             // all optional
+"custom": {
+  "windows": { "command": "bunx electron-builder --win nsis msi", "artifactPath": "dist/*.{exe,msi}" },
+  "linux":   { "command": "bunx tauri build", "cwd": "src-tauri",
+               "artifactPath": "target/release/bundle/**/*.{AppImage,deb,rpm}" }
+}
+```
+
+```bash
+better-update build --platform windows|linux [--profile <name>] [--no-upload] [--output <path|dir>]
+better-update builds upload --platform windows|linux <file>…   # artifacts built elsewhere
+```
+
+- **`build --platform windows|linux`** runs `custom.<platform>.command` in the staged project
+  (`sh -c`; `cmd /c` on Windows) with the profile env, then uploads **every** file `artifactPath`
+  matches (a real glob: `*`, `**`, `{a,b}`) that the command wrote. Lifecycle hooks run as for
+  other builds. `--output` copies one artifact to the path, several into it as a directory.
+- **What a build records**, first source that knows: the profile's `windows` / `linux` section ›
+  the app's config (`src-tauri/tauri.conf.json` with `tauri.<os>.conf.json` over it — productName,
+  version, identifier, updater pubkey; else `package.json` / `electron-builder.json` —
+  productName, version, `build.appId`) › the file itself. **Architecture** comes from the file:
+  the AppImage's ELF header, the deb control `Architecture` (gzip/zstd control members; an xz one
+  falls back), the rpm header `ARCH`, else the name's arch token (`x64`, `amd64`, `x86_64`,
+  `arm64`, `aarch64`, `ia32`, `i686`, `armhf`, `armv7l`) — an NSIS installer is a 32-bit stub
+  whatever it installs, so Windows uses the name or the profile's `arch` (list both for one
+  multi-arch NSIS installer). No architecture means x64. An AppImage's **embedded blockmap**
+  (electron-builder appends one) is recorded as `blockMapSize` for differential updates.
+- Version and app identifier are required (set `version` / `bundleIdentifier` in the section
+  when neither the app config nor the package says). `minimumSystemVersion` (Windows build
+  number, `10.0.x`) is what electron-updater compares `os.release()` with.
+
+Release them exactly like macOS builds — same flags, same rollout model:
+
+```bash
+better-update windows release create [<buildId>…]   # default: every unreleased build of the newest version
+  [--channel latest] [--notes …] [--rollout 20] [--winsparkle-key-file <path>] [--tauri-key-file <path>]   [--environment production] [--file <path>]        # --file only with one build
+better-update linux release create [<buildId>…] [--channel …] [--tauri-key-file <path>] …
+better-update windows|linux release list|rollout|halt|resume|delete …
+```
+
+| Feed (public, no auth)                                                                                        | For                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `<server>/feeds/<projectId>/windows/<channel>.yml`                                                            | electron-updater NSIS (`generic` provider)                              |
+| `<server>/feeds/<projectId>/linux/<channel>-linux[-arm64].yml`                                                | electron-updater AppImage / deb / rpm                                   |
+| `<server>/feeds/<projectId>/windows/appcast.xml?channel=<name>`                                               | WinSparkle (`win_sparkle_set_appcast_url`)                              |
+| `<server>/feeds/<projectId>/<platform>/<channel>-tauri.json`                                                  | Tauri updater, static, per OS                                           |
+| `<server>/feeds/<projectId>/tauri/<channel>.json?target={{target}}&arch={{arch}}&bundle_type={{bundle_type}}` | Tauri updater, one endpoint for every OS (204 = no update)              |
+| `<server>/feeds/<projectId>/<platform>/latest/download?format=&arch=&channel=`                                | 302 to the newest fully rolled-out file — a website's Download button   |
+| `<server>/feeds/<projectId>/releases.json?channel=`                                                           | every platform's newest version + files (CORS `*`), for a download page |
+
+- **electron-updater**: point the `generic` provider at `<server>/feeds/<projectId>/<platform>`
+  (+ `channel`). Windows gets NSIS `.exe` files; `release create` computes the installer's
+  blockmap so updates download differentially (the server finds the running version's blockmap).
+  Linux picks the file by `process.arch` (`-arm64` / `-arm` / `-ia32` channel files) and the
+  package type the app was installed as (AppImage, deb, rpm); an AppImage with an embedded
+  blockmap updates differentially, deb/rpm download in full.
+- **WinSparkle**: EdDSA only (`winsparkle-tool generate-key` writes the same 32-byte seed as
+  Sparkle's `generate_keys`). Key: `--winsparkle-key-file` › `$WINSPARKLE_PRIVATE_KEY` › the
+  `--environment`'s `WINSPARKLE_PRIVATE_KEY`. With `winSparklePublicKey` in the profile, an
+  unsigned or wrongly signed release is refused. One item per version with an enclosure per
+  `sparkle:os` (`windows-x64` / `-arm64` / `-x86`), `.exe` preferred over `.msi`. WinSparkle has no
+  channels: the `channel` query parameter picks one.
+- **Tauri**: every Tauri format (`.exe`, `.msi`, `.AppImage`, `.deb`, `.rpm`) is minisign-signed at
+  release with the Tauri key (same lookup as macOS); without a key it stays out of the Tauri feeds,
+  and with the app's `pubkey` recorded an unsigned release is refused. Static manifests carry
+  `{os}-{arch}-{installer}` keys plus `{os}-{arch}` for the preferred installer; the dynamic
+  endpoint matches the exact installer the app runs as.
+- **Rollout / halt / resume / delete** behave as on macOS: electron-updater stages itself from
+  `stagingPercentage`; WinSparkle and Tauri see a partial release only with an `installId` (query
+  or `X-Install-Id`) that hashes into the bucket. First-install links and `releases.json` list
+  fully rolled-out releases only.
+- Not supported: Squirrel.Windows, MSIX / App Installer, Velopack, zsync AppImage updates.
 
 ## `submit` — upload to the stores
 

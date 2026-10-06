@@ -33,6 +33,16 @@ export type BuildTarget =
       readonly platform: "macos";
       readonly distribution: "developer-id";
       readonly artifactFormat: "dmg" | "zip" | "pkg" | "tar.gz";
+    }
+  | {
+      readonly platform: "windows";
+      readonly distribution: "direct";
+      readonly artifactFormat: "exe" | "msi";
+    }
+  | {
+      readonly platform: "linux";
+      readonly distribution: "direct";
+      readonly artifactFormat: "appimage" | "deb" | "rpm";
     };
 
 export interface ReserveAndUploadInput {
@@ -51,7 +61,7 @@ export interface ReserveAndUploadInput {
   };
   readonly message?: string;
   readonly fingerprintHash?: string;
-  /** Free-form build metadata (a macOS build records `metadata.macos`). */
+  /** Free-form build metadata (`metadata.macos`, `metadata.windows`, `metadata.linux`). */
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly artifactPath: string;
   readonly sha256: string;
@@ -99,6 +109,26 @@ const callReserve = (api: ApiClient, input: ReserveAndUploadInput) => {
             artifactFormat: "ipa",
           },
         });
+  }
+  if (target.platform === "windows") {
+    return api.builds.reserve({
+      payload: {
+        ...common,
+        platform: "windows",
+        distribution: "direct",
+        artifactFormat: target.artifactFormat,
+      },
+    });
+  }
+  if (target.platform === "linux") {
+    return api.builds.reserve({
+      payload: {
+        ...common,
+        platform: "linux",
+        distribution: "direct",
+        artifactFormat: target.artifactFormat,
+      },
+    });
   }
   if (target.platform === "macos") {
     return api.builds.reserve({
