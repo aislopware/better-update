@@ -50,6 +50,14 @@ const phasedRolloutFlag = (description: string) =>
     optionalFlag,
   );
 
+/** generate_appcast's `--maximum-deltas`; `0` makes none. */
+const MaximumDeltasInput = Schema.NumberFromString.check(
+  Schema.isInt({ message: "Expected a whole number" }),
+  Schema.isBetween({ minimum: 0, maximum: 10 }, { message: "Expected 0-10" }),
+);
+
+const DEFAULT_MAXIMUM_DELTAS = 3;
+
 const PHASING_HELP =
   "Sparkle phased rollout: 1 of 7 client groups more every this many hours (critical updates and manual checks skip it; electron-updater ignores it)";
 
@@ -79,6 +87,17 @@ const signers = (release: DesktopRelease): string =>
   ]
     .filter((name) => name !== "")
     .join("+") || "no";
+
+/** How older versions update to it without the whole file: a blockmap, Sparkle deltas. */
+const differential = (release: DesktopRelease): string =>
+  [
+    release.blockmap ? "blockmap" : "",
+    release.sparkleDeltas > 0
+      ? `${String(release.sparkleDeltas)} sparkle delta${release.sparkleDeltas === 1 ? "" : "s"}`
+      : "",
+  ]
+    .filter((part) => part !== "")
+    .join(", ") || "no";
 
 const readNotes = (notes: string | undefined, notesFile: string | undefined) =>
   Effect.gen(function* () {
@@ -161,6 +180,13 @@ const createCommand = (platform: DesktopPlatform) =>
         optionalFlag,
       ),
       "sparkle-key-file": keyFileFlag("sparkle-key-file", SPARKLE_KEY_HELP),
+      "maximum-deltas": Flag.String("maximum-deltas").pipe(
+        Flag.withSchema(MaximumDeltasInput),
+        Flag.withDescription(
+          `macOS: Sparkle binary deltas to make from the newest older Sparkle-signed releases, on macOS with a Sparkle key (0-10, 0 makes none; default: ${String(DEFAULT_MAXIMUM_DELTAS)})`,
+        ),
+        Flag.withDefault(DEFAULT_MAXIMUM_DELTAS),
+      ),
       "winsparkle-key-file": keyFileFlag("winsparkle-key-file", WINSPARKLE_KEY_HELP),
       "tauri-key-file": keyFileFlag("tauri-key-file", TAURI_KEY_HELP),
       environment: Flag.String("environment").pipe(
@@ -205,6 +231,7 @@ const createCommand = (platform: DesktopPlatform) =>
           rolloutPercentage,
           phasedRolloutHours: args["phased-rollout-hours"] || undefined,
           file: args.file,
+          maximumDeltas: platform === "macos" ? args["maximum-deltas"] : 0,
           keys: {
             sparkleKeyFile: args["sparkle-key-file"],
             winSparkleKeyFile: args["winsparkle-key-file"],
@@ -221,7 +248,7 @@ const createCommand = (platform: DesktopPlatform) =>
             release.artifactFormat,
             releaseState(release),
             signers(release),
-            release.blockmap ? "yes" : "no",
+            differential(release),
           ]),
         );
         yield* printHuman("");

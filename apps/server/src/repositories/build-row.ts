@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import type { Kysely } from "kysely";
 
 import { artifactBlockmapKey } from "../domain/desktop-feed-files";
@@ -122,16 +124,44 @@ export const toBuildWithArtifact = (row: BuildWithArtifactRow): BuildWithArtifac
 });
 
 /**
- * Every builds-bucket object a build owns: its artifact, the universal APK
- * next to it, and the electron-updater blockmap a zip release stores beside
- * the artifact (deleting a key that was never written is a no-op).
+ * Every builds-bucket object each build owns: its artifact, the universal APK
+ * next to it, the electron-updater blockmap a `.zip` / `.exe` release stores
+ * beside the artifact (deleting a key that was never written is a no-op), and
+ * its Sparkle deltas — read before a delete cascades their rows away.
  */
-export const ownedKeys = (row: {
-  readonly r2_key: string;
-  readonly format: string;
-  readonly install_r2_key: string | null;
-}): readonly string[] => [
-  row.r2_key,
-  ...(row.format === "zip" ? [artifactBlockmapKey(row.r2_key)] : []),
-  ...(row.install_r2_key ? [row.install_r2_key] : []),
-];
+export const ownedKeysOf = (
+  db: Kysely<DB>,
+  rows: readonly {
+    readonly id: string;
+    readonly r2_key: string;
+    readonly format: string;
+    readonly install_r2_key: string | null;
+  }[],
+) =>
+  Effect.promise(async () =>
+    rows.length === 0
+      ? []
+      : db
+          .selectFrom("desktop_build_deltas")
+          .select(["build_id", "r2_key"])
+          .where(
+            "build_id",
+            "in",
+            rows.map((row) => row.id),
+          )
+          .execute(),
+  ).pipe(
+    Effect.map((deltas) =>
+      rows.map((row) => ({
+        id: row.id,
+        r2Keys: [
+          row.r2_key,
+          ...(row.format === "zip" || row.format === "exe"
+            ? [artifactBlockmapKey(row.r2_key)]
+            : []),
+          ...(row.install_r2_key ? [row.install_r2_key] : []),
+          ...deltas.filter((delta) => delta.build_id === row.id).map((delta) => delta.r2_key),
+        ],
+      })),
+    ),
+  );

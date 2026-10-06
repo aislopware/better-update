@@ -38,7 +38,7 @@ import { provideCloudflareEnv } from "../cloudflare/context";
 import { CryptoService } from "../domain/crypto-service";
 import { DesktopAnalytics } from "../domain/desktop-analytics";
 import { desktopClientVersion } from "../domain/desktop-client-version";
-import { feedDownloadPath } from "../domain/desktop-feed-files";
+import { feedDeltaPath, feedDownloadPath } from "../domain/desktop-feed-files";
 import { renderAppcast, renderWinSparkleAppcast } from "../domain/desktop-feeds-appcast";
 import {
   parseElectronFeedFile,
@@ -60,12 +60,13 @@ import {
 } from "../domain/desktop-release-index";
 import { ServerInfrastructureLayer } from "../infrastructure-layer";
 import { toOptional } from "../lib/nullable";
+import { DesktopBuildDeltaRepo } from "../repositories/desktop-build-deltas";
 import { DesktopReleaseRepo } from "../repositories/desktop-releases";
 import { downloadEffect } from "./desktop-feed-downloads";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
 import type { DesktopCheckEvent } from "../domain/desktop-analytics";
-import type { DownloadUrl } from "../domain/desktop-feed-files";
+import type { DeltaUrl, DownloadUrl } from "../domain/desktop-feed-files";
 import type { TauriArch } from "../domain/desktop-feeds-tauri";
 import type { ServerInfrastructure } from "../infrastructure-layer";
 
@@ -206,7 +207,19 @@ const serveAppcast = (projectId: string, platform: DesktopPlatform, url: URL, cl
         arch: undefined,
         served: servedOf(entries[0]),
       });
-      return xmlResponse(renderAppcast({ title: "Updates", downloadUrl, entries }), installId);
+      const deltas = yield* (yield* DesktopBuildDeltaRepo).listByBuilds({
+        buildIds: entries.map((entry) => entry.buildId),
+      });
+      const byBuild = Map.groupBy(deltas, (delta) => delta.buildId);
+      const deltaUrl: DeltaUrl = (entry, delta) =>
+        `${url.origin}/feeds/${projectId}/macos/${feedDeltaPath(entry, delta)}`;
+      const appcast = renderAppcast({
+        title: "Updates",
+        downloadUrl,
+        entries,
+        deltas: { byBuild, url: deltaUrl },
+      });
+      return xmlResponse(appcast, installId);
     }
     const channel = queryChannel(url);
     if (platform !== "windows" || channel === undefined) {

@@ -12,7 +12,7 @@ import { readDesktopBuildMetadata, readMacosBuildMetadata } from "@better-update
 
 import type { DesktopArch, DesktopArtifactFormat } from "@better-update/api";
 
-import type { DesktopFeedEntry } from "../desktop-release-models";
+import type { DesktopFeedEntry, SparkleDeltaModel } from "../desktop-release-models";
 
 const SAFE_FILE_NAME = /[^A-Za-z0-9._-]+/gu;
 
@@ -190,6 +190,16 @@ export type DownloadUrl = (entry: DesktopFeedEntry) => string;
 /** Relative to the platform's feed directory (`/feeds/<projectId>/<platform>/`). */
 export const feedDownloadPath = (entry: DesktopFeedEntry): string =>
   `download/${entry.id}/${feedFileName(entry)}`;
+
+/** Where a Sparkle client downloads a delta from (an absolute URL). */
+export type DeltaUrl = (entry: DesktopFeedEntry, delta: SparkleDeltaModel) => string;
+
+/**
+ * A delta, relative to the macOS feed directory, under the release whose item
+ * lists it, named the way generate_appcast names one: `<App><new>-<old>.delta`.
+ */
+export const feedDeltaPath = (entry: DesktopFeedEntry, delta: SparkleDeltaModel): string =>
+  `delta/${entry.id}/${delta.id}/${safe(entryAppName(entry) ?? "app")}${safe(entry.buildNumber ?? entry.appVersion ?? "new")}-${safe(delta.deltaFrom)}.delta`;
 
 const VERSION_PARTS = /^(?<major>\d+)(?:\.(?<minor>\d+))?(?:\.(?<patch>\d+))?$/u;
 

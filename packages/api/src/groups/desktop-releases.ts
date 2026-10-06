@@ -5,10 +5,15 @@ import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { idParam, pageResult } from "../domain/common";
 import {
+  CompleteSparkleDeltaBody,
   CreateDesktopReleaseBody,
   DeleteDesktopReleaseResult,
   DesktopRelease,
   ListDesktopReleasesParams,
+  ListSparkleDeltasResult,
+  ReserveSparkleDeltaBody,
+  SparkleDelta,
+  SparkleDeltaUploadReservation,
   UpdateDesktopReleaseBody,
 } from "../domain/desktop-release";
 import { BadRequest, Conflict } from "../domain/errors";
@@ -60,6 +65,41 @@ export const DesktopReleasesGroup = HttpApiGroup.make("desktopReleases")
       success: DeleteDesktopReleaseResult,
       error: [NotFound, Conflict, BadRequest, Forbidden],
     }).annotateMerge(OpenApi.annotations({ title: "Delete desktop release" })),
+    HttpApiEndpoint.get("listSparkleDeltas", "/api/builds/:id/sparkle-deltas", {
+      params: { ...idParam },
+      success: ListSparkleDeltasResult,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "List Sparkle deltas",
+        description:
+          "The binary deltas a macOS build's appcast item offers, by the version each patches from",
+      }),
+    ),
+    HttpApiEndpoint.post("reserveSparkleDelta", "/api/builds/:id/sparkle-deltas", {
+      params: { ...idParam },
+      payload: ReserveSparkleDeltaBody,
+      success: SparkleDeltaUploadReservation.pipe(HttpApiSchema.status(201)),
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Reserve Sparkle delta",
+        description:
+          "Get a presigned upload URL for a Sparkle binary delta from an older version to a macOS Developer ID build",
+      }),
+    ),
+    HttpApiEndpoint.post("completeSparkleDelta", "/api/builds/:id/sparkle-deltas/complete", {
+      params: { ...idParam },
+      payload: CompleteSparkleDeltaBody,
+      success: SparkleDelta,
+      error: [NotFound, Conflict, BadRequest, Forbidden],
+    }).annotateMerge(
+      OpenApi.annotations({
+        title: "Complete Sparkle delta",
+        description:
+          "Finalize an uploaded Sparkle delta; the build's appcast item lists it from then on",
+      }),
+    ),
   )
   .annotateMerge(
     OpenApi.annotations({

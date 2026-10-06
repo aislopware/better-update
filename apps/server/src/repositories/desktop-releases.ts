@@ -149,6 +149,11 @@ const selectReleases = (db: Kysely<DB>) =>
       eb.ref("a.format").$castTo<DesktopArtifactFormat>().as("format"),
       "a.byte_size",
       "a.r2_key",
+      eb
+        .selectFrom("desktop_build_deltas as d")
+        .select((sub) => sub.fn.countAll<number>().as("count"))
+        .whereRef("d.build_id", "=", "r.build_id")
+        .as("sparkle_deltas"),
     ]);
 
 type ReleaseRow = Awaited<ReturnType<ReturnType<typeof selectReleases>["executeTakeFirstOrThrow"]>>;
@@ -173,6 +178,7 @@ const toFeedEntry = (row: ReleaseRow): DesktopFeedEntry => ({
   winSparkleEdSignature: row.winsparkle_ed_signature,
   tauriSignature: row.tauri_signature,
   blockmap: row.blockmap === 1,
+  sparkleDeltas: row.sparkle_deltas ?? 0,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   bundleId: row.bundle_id,

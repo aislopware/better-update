@@ -222,6 +222,7 @@ export {
   DesktopReleaseChannel,
   ElectronBlockmapChunks,
   ListDesktopReleasesParams,
+  SparkleDelta,
   UpdateDesktopReleaseBody,
 } from "./domain/desktop-release";
 export { desktopFeedUrls } from "./domain/desktop-feed-urls";

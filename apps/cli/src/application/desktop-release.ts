@@ -2,8 +2,9 @@
  * Releasing desktop builds to the project's update feeds: the CLI hashes and
  * signs (Sparkle / WinSparkle EdDSA, Tauri minisign) the exact bytes the
  * server stored, so the feeds describe what an installed app will download,
- * and cuts a macOS zip or an NSIS installer into the blockmap
- * electron-updater's differential download needs. The private keys never
+ * cuts a macOS zip or an NSIS installer into the blockmap
+ * electron-updater's differential download needs, and makes the Sparkle
+ * deltas a Mac app's older versions update through. The private keys never
  * leave this machine.
  */
 import { createHash } from "node:crypto";
@@ -24,6 +25,7 @@ import {
   tauriSignature,
   winSparkleSignature,
 } from "./desktop-release-keys";
+import { uploadSparkleDeltas } from "./sparkle-deltas";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -196,6 +198,8 @@ export interface CreateDesktopReleasesOptions {
   readonly phasedRolloutHours: number | undefined;
   /** A local copy of the one build's artifact; refused with several builds. */
   readonly file: string | undefined;
+  /** Sparkle deltas to make per macOS build (`0` for none). */
+  readonly maximumDeltas: number;
   readonly keys: DesktopReleaseKeys;
 }
 
@@ -223,6 +227,16 @@ export const createDesktopReleases = (api: ApiClient, options: CreateDesktopRele
             platform === "windows"
               ? yield* winSparkleSignature(sign(keys.winSparkleKeyFile))
               : undefined;
+          if (sparkleEdSignature !== undefined) {
+            yield* uploadSparkleDeltas(api, {
+              build,
+              bytes,
+              maximum: options.maximumDeltas,
+              readArtifact: (oldBuild) => readArtifactBytes(api, oldBuild, platform, undefined),
+              sign: (deltaBytes) =>
+                sparkleSignature({ ...sign(keys.sparkleKeyFile), bytes: deltaBytes }),
+            });
+          }
           const tauriSigned = yield* tauriSignature(sign(keys.tauriKeyFile));
           const format = build.artifact?.format;
           return yield* api.desktopReleases.create({

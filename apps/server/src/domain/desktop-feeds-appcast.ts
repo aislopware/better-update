@@ -25,8 +25,8 @@ import type { DesktopArch } from "@better-update/api";
 import { escapeXml } from "../lib/xml";
 import { entryArchitectures, soleArchitecture } from "./desktop-feed-files";
 
-import type { DesktopFeedEntry } from "../desktop-release-models";
-import type { DownloadUrl } from "./desktop-feed-files";
+import type { DesktopFeedEntry, SparkleDeltaModel } from "../desktop-release-models";
+import type { DeltaUrl, DownloadUrl } from "./desktop-feed-files";
 
 /** RFC 822 with a numeric zone, the form Sparkle's date parser expects. */
 const rfc822 = (iso: string): string => new Date(iso).toUTCString().replace("GMT", "+0000");
@@ -66,7 +66,57 @@ const minimumSystemVersionElement = (minimum: string | undefined): readonly stri
     ? []
     : [`      <sparkle:minimumSystemVersion>${escapeXml(minimum)}</sparkle:minimumSystemVersion>`];
 
-const sparkleItem = (entry: DesktopFeedEntry, downloadUrl: DownloadUrl): string =>
+/** A build's deltas, keyed by build id, and where each downloads from. */
+export interface AppcastDeltas {
+  readonly byBuild: ReadonlyMap<string, readonly SparkleDeltaModel[]>;
+  readonly url: DeltaUrl;
+}
+
+/**
+ * `<sparkle:deltas>`: one enclosure per older version the build patches from,
+ * signed like the archive. A client takes the one whose `deltaFrom` is its own
+ * `CFBundleVersion` (and whose Sparkle framework matches the size and locales
+ * recorded), and falls back to the archive when applying it fails.
+ */
+const deltaEnclosure = (url: string, delta: SparkleDeltaModel): string =>
+  [
+    `        <enclosure url="${escapeXml(url)}"`,
+    ` sparkle:deltaFrom="${escapeXml(delta.deltaFrom)}"`,
+    ` length="${String(delta.byteSize)}" type="application/octet-stream"`,
+    delta.sparkleExecutableSize === null
+      ? ""
+      : ` sparkle:deltaFromSparkleExecutableSize="${String(delta.sparkleExecutableSize)}"`,
+    delta.sparkleLocales === null
+      ? ""
+      : ` sparkle:deltaFromSparkleLocales="${escapeXml(delta.sparkleLocales)}"`,
+    signatureAttribute(delta.edSignature),
+    "/>",
+  ].join("");
+
+const deltasElement = (
+  entry: DesktopFeedEntry,
+  deltas: AppcastDeltas | undefined,
+): readonly string[] => {
+  if (deltas === undefined) {
+    return [];
+  }
+  const own = (deltas.byBuild.get(entry.buildId) ?? []).filter(
+    (delta) => delta.deltaFrom !== sparkleVersion(entry),
+  );
+  return own.length === 0
+    ? []
+    : [
+        "      <sparkle:deltas>",
+        ...own.map((delta) => deltaEnclosure(deltas.url(entry, delta), delta)),
+        "      </sparkle:deltas>",
+      ];
+};
+
+const sparkleItem = (
+  entry: DesktopFeedEntry,
+  downloadUrl: DownloadUrl,
+  deltas: AppcastDeltas | undefined,
+): string =>
   [
     "    <item>",
     ...versionElements(entry),
@@ -87,6 +137,7 @@ const sparkleItem = (entry: DesktopFeedEntry, downloadUrl: DownloadUrl): string 
         ]),
     ...notesElement(entry),
     `      <enclosure url="${escapeXml(downloadUrl(entry))}" length="${String(entry.byteSize)}" type="application/octet-stream"${signatureAttribute(entry.sparkleEdSignature)}/>`,
+    ...deltasElement(entry, deltas),
     "    </item>",
   ].join("\n");
 
@@ -106,10 +157,11 @@ export const renderAppcast = (params: {
   readonly title: string;
   readonly downloadUrl: DownloadUrl;
   readonly entries: readonly DesktopFeedEntry[];
+  readonly deltas?: AppcastDeltas;
 }): string =>
   rss(
     params.title,
-    params.entries.map((entry) => sparkleItem(entry, params.downloadUrl)),
+    params.entries.map((entry) => sparkleItem(entry, params.downloadUrl, params.deltas)),
   );
 
 /** WinSparkle's `sparkle:os`: the exact architecture, or any Windows for a multi-arch installer. */

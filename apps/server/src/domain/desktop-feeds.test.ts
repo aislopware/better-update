@@ -2,6 +2,7 @@ import {
   artifactBlockmapKey,
   blockmapVersionOf,
   darwinVersionOf,
+  feedDeltaPath,
   feedFileName,
   renderBlockmap,
   windowsReleaseVersionOf,
@@ -15,7 +16,7 @@ import {
 import { renderTauriDynamic, renderTauriStatic, TAURI_FEED_FILE } from "./desktop-feeds-tauri";
 import { pickLatestDownload, renderReleaseIndex } from "./desktop-release-index";
 
-import type { DesktopFeedEntry } from "../desktop-release-models";
+import type { DesktopFeedEntry, SparkleDeltaModel } from "../desktop-release-models";
 
 const SHA512 = `${"A".repeat(86)}==`;
 const SIGNATURE = `${"B".repeat(86)}==`;
@@ -43,6 +44,7 @@ const entry = (overrides: Partial<DesktopFeedEntry> = {}): DesktopFeedEntry => (
   winSparkleEdSignature: null,
   tauriSignature: null,
   blockmap: false,
+  sparkleDeltas: 0,
   createdAt: "2026-10-05T10:00:00.000Z",
   updatedAt: "2026-10-05T10:00:00.000Z",
   bundleId: "com.example.desktop",
@@ -133,6 +135,68 @@ describe(renderAppcast, () => {
     });
     expect(xml).toContain("<sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>");
     expect(xml).toContain("<sparkle:phasedRolloutInterval>86400</sparkle:phasedRolloutInterval>");
+  });
+
+  const delta = (overrides: Partial<SparkleDeltaModel> = {}): SparkleDeltaModel => ({
+    id: "delta-1",
+    buildId: "build-1",
+    deltaFrom: "130",
+    r2Key: "builds/example.delta-1",
+    byteSize: 321,
+    sha256: "c".repeat(64),
+    edSignature: SIGNATURE,
+    sparkleExecutableSize: 2_048_000,
+    sparkleLocales: "de,fr",
+    createdAt: "2026-10-05T10:00:00.000Z",
+    ...overrides,
+  });
+  const deltaUrl = (release: DesktopFeedEntry, patch: SparkleDeltaModel) =>
+    `${base}${feedDeltaPath(release, patch)}`;
+
+  it("lists a build's deltas under its item, signed and named like generate_appcast's", () => {
+    const xml = renderAppcast({
+      title: "Updates",
+      downloadUrl,
+      entries: [entry(), entry({ id: "older", buildId: "build-0", buildNumber: "130" })],
+      deltas: {
+        byBuild: new Map([
+          [
+            "build-1",
+            [
+              delta(),
+              delta({
+                id: "delta-2",
+                deltaFrom: "120",
+                sparkleExecutableSize: null,
+                sparkleLocales: null,
+              }),
+            ],
+          ],
+        ]),
+        url: deltaUrl,
+      },
+    });
+    expect(xml).toContain(
+      [
+        "      <sparkle:deltas>",
+        `        <enclosure url="${base}delta/0190f0aa-0000-7000-8000-000000000001/delta-1/Example-Desktop140-130.delta" sparkle:deltaFrom="130" length="321" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="2048000" sparkle:deltaFromSparkleLocales="de,fr" sparkle:edSignature="${SIGNATURE}"/>`,
+        `        <enclosure url="${base}delta/0190f0aa-0000-7000-8000-000000000001/delta-2/Example-Desktop140-120.delta" sparkle:deltaFrom="120" length="321" type="application/octet-stream" sparkle:edSignature="${SIGNATURE}"/>`,
+        "      </sparkle:deltas>",
+        "    </item>",
+      ].join("\n"),
+    );
+    // Only the build the deltas patch to lists them.
+    expect(xml.match(/<sparkle:deltas>/gu)).toHaveLength(1);
+  });
+
+  it("drops a delta from the item's own version", () => {
+    const xml = renderAppcast({
+      title: "Updates",
+      downloadUrl,
+      entries: [entry()],
+      deltas: { byBuild: new Map([["build-1", [delta({ deltaFrom: "140" })]]]), url: deltaUrl },
+    });
+    expect(xml).not.toContain("sparkle:deltas");
   });
 
   it("leaves universal and Intel builds to every Mac and unphased releases to every client", () => {

@@ -22,6 +22,11 @@ import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { BuildRepo } from "../repositories";
 import { DesktopReleaseRepo } from "../repositories/desktop-releases";
+import {
+  handleCompleteSparkleDelta,
+  handleListSparkleDeltas,
+  handleReserveSparkleDelta,
+} from "./sparkle-deltas";
 
 import type { BuildWithArtifactModel } from "../models";
 
@@ -298,5 +303,8 @@ export const DesktopReleasesGroupLive = HttpApiBuilder.group(
             return { deleted: 1 };
           }),
         ),
-      ),
+      )
+      .handle("listSparkleDeltas", handleListSparkleDeltas)
+      .handle("reserveSparkleDelta", handleReserveSparkleDelta)
+      .handle("completeSparkleDelta", handleCompleteSparkleDelta),
 );

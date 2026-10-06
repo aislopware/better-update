@@ -1,6 +1,7 @@
 /**
  * Downloads behind the public desktop feeds: an artifact (302 to a presigned
- * R2 URL, or ranged bytes) and its electron-updater blockmap.
+ * R2 URL, or ranged bytes), its electron-updater blockmap, and a Sparkle
+ * delta (302).
  *
  * A download with a `Range` header is answered by the Worker itself — 206,
  * `multipart/byteranges` for several ranges — because electron-updater's
@@ -20,12 +21,14 @@ import {
   parseRangeHeader,
   planObjectReads,
 } from "../lib/http-range";
+import { DesktopBuildDeltaRepo } from "../repositories/desktop-build-deltas";
 import { DesktopReleaseRepo } from "../repositories/desktop-releases";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
 import type { DesktopTransfer } from "../domain/desktop-analytics";
 
 const DOWNLOAD_ROUTE = /^download\/(?<releaseId>[^/]+)\/(?<file>[^/]+)$/u;
+const DELTA_ROUTE = /^delta\/(?<releaseId>[^/]+)\/(?<deltaId>[^/]+)\/(?<file>[^/]+\.delta)$/u;
 const BLOCKMAP_SUFFIX = ".blockmap";
 /** Older releases of one version considered for its blockmap. */
 const BLOCKMAP_CANDIDATES = 10;
@@ -200,13 +203,59 @@ const serveBlockmap = (
       : notFound();
   });
 
-/** An artifact, or its blockmap; a `Range` header counts on GET only. */
+/** A Sparkle delta the live release's appcast item lists: a 302 to it in R2. */
+const serveDelta = (
+  projectId: string,
+  route: { readonly releaseId: string; readonly deltaId: string; readonly file: string },
+  request: { readonly method: string },
+) =>
+  Effect.gen(function* () {
+    const entry = yield* (yield* DesktopReleaseRepo).findFeedEntry({
+      projectId,
+      platform: "macos",
+      id: route.releaseId,
+    });
+    const delta = yield* (yield* DesktopBuildDeltaRepo).findById({ id: route.deltaId });
+    if (entry === null || delta === null || delta.buildId !== entry.buildId) {
+      return notFound();
+    }
+    if (request.method === "GET") {
+      yield* recordDownload(entry, "delta", delta.byteSize);
+    }
+    const location = yield* (yield* BuildRuntime).createDownloadUrl({
+      key: delta.r2Key,
+      expiresIn: 900,
+      contentDisposition: `attachment; filename="${route.file}"`,
+    });
+    return new Response(null, {
+      status: 302,
+      headers: { location, "cache-control": "no-store" },
+    });
+  });
+
+/** An artifact, its blockmap, or a delta; a `Range` header counts on GET only. */
 export const downloadEffect = (
   request: Request,
   projectId: string,
   platform: DesktopPlatform,
   rest: string,
 ) => {
+  const delta = DELTA_ROUTE.exec(rest)?.groups;
+  const deltaRelease = delta?.["releaseId"];
+  const deltaId = delta?.["deltaId"];
+  const deltaFile = delta?.["file"];
+  if (
+    platform === "macos" &&
+    deltaRelease !== undefined &&
+    deltaId !== undefined &&
+    deltaFile !== undefined
+  ) {
+    return serveDelta(
+      projectId,
+      { releaseId: deltaRelease, deltaId, file: deltaFile },
+      { method: request.method },
+    );
+  }
   const download = DOWNLOAD_ROUTE.exec(rest)?.groups;
   const releaseId = download?.["releaseId"];
   const file = download?.["file"];

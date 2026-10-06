@@ -6,8 +6,11 @@ import type { Effect } from "effect";
 /** Which updater asked: told apart by the feed file it read. */
 export type DesktopUpdater = "sparkle" | "winsparkle" | "electron" | "tauri";
 
-/** How a download went over the wire: the whole file, byte ranges of it, or its blockmap. */
-export type DesktopTransfer = "full" | "range" | "blockmap";
+/**
+ * How a download went over the wire: the whole file, byte ranges of it, its
+ * blockmap, or a Sparkle delta in its place.
+ */
+export type DesktopTransfer = "full" | "range" | "blockmap" | "delta";
 
 export interface DesktopCheckEvent {
   readonly projectId: string;

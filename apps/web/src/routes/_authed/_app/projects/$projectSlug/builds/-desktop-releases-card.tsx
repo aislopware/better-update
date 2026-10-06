@@ -79,6 +79,9 @@ const ReleaseRow = ({
         Released <RelativeTime value={release.createdAt} />
         {signatureLabel(release)}
         {release.blockmap ? " · differential updates" : ""}
+        {release.sparkleDeltas > 0
+          ? ` · ${String(release.sparkleDeltas)} Sparkle delta${release.sparkleDeltas === 1 ? "" : "s"}`
+          : ""}
         {release.critical ? " · critical" : ""}
         {downloadsLabel(downloads)}
         {release.phasedRolloutHours === null

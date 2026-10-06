@@ -357,7 +357,7 @@ private key never leaves the machine.
 ```bash
 better-update macos release create [<buildId>…]         # default: every unreleased build of the newest version
   [--channel latest] [--notes "…" | --notes-file CHANGES.md] [--critical] [--rollout 20] \
-  [--phased-rollout-hours 24] [--sparkle-key-file ./sparkle_private_key] \
+  [--phased-rollout-hours 24] [--sparkle-key-file ./sparkle_private_key] [--maximum-deltas 3] \
   [--environment production] [--file ./MyApp.dmg]
 better-update macos release list [--channel <name>]     # + the feed URLs
 better-update macos release rollout <releaseId> [--percentage 50] [--phased-rollout-hours 0]
@@ -400,6 +400,16 @@ better-update macos release halt|resume|delete <releaseId>
   the previous update's zip downloads only the changed chunks — nothing to configure. The first
   update after a fresh install is always a full download (electron-updater has no cached zip yet).
   Releases created by an older CLI carry no blockmap and fall back to full downloads.
+- **Sparkle deltas**: releasing a Sparkle-signed zip, tar.gz or dmg on macOS also makes binary
+  deltas from the newest older Sparkle-signed releases (any channel, one per `CFBundleVersion`,
+  `--maximum-deltas` of them, default 3, `0` for none), the way `generate_appcast` does: Sparkle
+  2.10.0's `BinaryDelta` (downloaded once into `~/.better-update/tools`, SHA-256-pinned) in the
+  format the old app's embedded Sparkle applies (4 from Sparkle 2.7, 3 from 2.1, else 2), kept only
+  under ⅞ of the archive, signed with the same key. The appcast lists them in `<sparkle:deltas>`
+  (`deltaFrom`, the old framework's executable size and locales); a client on that version
+  downloads the delta and falls back to the archive if it cannot apply it. A delta belongs to the
+  build, so re-releasing it reuses its deltas. On Linux/Windows hosts the release ships without
+  deltas (warning). Deleting a build deletes its deltas.
 - **Architectures** (from the build's `metadata.macos.architectures`): an arm64-only build gets
   `sparkle:hardwareRequirements arm64` (Sparkle 2.9+ hides it from Intel Macs) and a `-arm64` file
   name; an Intel-only one `-x64`. electron-updater gives Apple silicon the file named `arm64` and
@@ -452,6 +462,10 @@ better-update builds upload --platform windows|linux <file>…   # artifacts bui
   (`sh -c`; `cmd /c` on Windows) with the profile env, then uploads **every** file `artifactPath`
   matches (a real glob: `*`, `**`, `{a,b}`) that the command wrote. Lifecycle hooks run as for
   other builds. `--output` copies one artifact to the path, several into it as a directory.
+- **Where the CLI runs**: its binary ships for macOS and Linux only. Build Windows installers on a
+  Windows runner and hand the files to a Linux/macOS job that runs `builds upload --platform
+windows` (any OS uploads any platform's files), or cross-build on Linux (`electron-builder --win`
+  with Wine, Tauri `cargo xwin`) and use `build --platform windows` there.
 - **What a build records**, first source that knows: the profile's `windows` / `linux` section ›
   the app's config (`src-tauri/tauri.conf.json` with `tauri.<os>.conf.json` over it — productName,
   version, identifier, updater pubkey; else `package.json` / `electron-builder.json` —

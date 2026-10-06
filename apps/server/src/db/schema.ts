@@ -93,6 +93,7 @@ export type Builds = WithNonNullId<
   Narrow<Gen.Builds, { distribution: Distribution; platform: BuildPlatform }>
 >;
 export type Channels = WithNonNullId<Gen.Channels>;
+export type DesktopBuildDeltas = WithNonNullId<Gen.DesktopBuildDeltas>;
 export type DesktopReleases = WithNonNullId<Gen.DesktopReleases>;
 export type DeviceRegistrationRequests = WithNonNullId<
   Narrow<Gen.DeviceRegistrationRequests, { device_class_hint: DeviceClass | null }>
@@ -188,6 +189,7 @@ export interface DB {
   build_install_artifacts: BuildInstallArtifacts;
   builds: Builds;
   channels: Channels;
+  desktop_build_deltas: DesktopBuildDeltas;
   desktop_releases: DesktopReleases;
   device_registration_requests: DeviceRegistrationRequests;
   devices: Devices;

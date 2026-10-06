@@ -29,7 +29,7 @@
       "entry": ["tests/interactive/harness/**/*.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
       "ignoreDependencies": ["expo", "@effect/platform-node-shared"],
-      "ignoreBinaries": ["openssl", "keytool"]
+      "ignoreBinaries": ["openssl", "keytool", "ditto"]
     },
     "packages/api": {
       "project": ["src/**/*.ts"]

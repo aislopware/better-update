@@ -1,6 +1,6 @@
-import type { DesktopRelease } from "@better-update/api";
+import type { DesktopRelease, SparkleDelta } from "@better-update/api";
 
-import type { DesktopReleaseModel } from "../desktop-release-models";
+import type { DesktopReleaseModel, SparkleDeltaModel } from "../desktop-release-models";
 
 export const toApiDesktopRelease = (model: DesktopReleaseModel): DesktopRelease => ({
   id: model.id,
@@ -20,6 +20,18 @@ export const toApiDesktopRelease = (model: DesktopReleaseModel): DesktopRelease 
   tauriSigned: model.tauriSignature !== null,
   winSparkleSigned: model.winSparkleEdSignature !== null,
   blockmap: model.blockmap,
+  sparkleDeltas: model.sparkleDeltas,
   createdAt: model.createdAt,
   updatedAt: model.updatedAt,
+});
+
+export const toApiSparkleDelta = (model: SparkleDeltaModel): SparkleDelta => ({
+  id: model.id,
+  buildId: model.buildId,
+  deltaFrom: model.deltaFrom,
+  byteSize: model.byteSize,
+  sha256: model.sha256,
+  sparkleExecutableSize: model.sparkleExecutableSize,
+  sparkleLocales: model.sparkleLocales,
+  createdAt: model.createdAt,
 });

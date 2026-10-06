@@ -99,9 +99,12 @@ appimage | deb | rpm`), `fileName` (what the tool named the artifact).
 - Migration 0108 rebuilds `builds` and `build_artifacts` to widen the CHECKs,
   stashing every child exactly as 0105 did **plus `desktop_releases`** (a
   CASCADE child since 0106).
-- Migration 0109: `desktop_release_deltas` (Sparkle binary deltas: release,
-  `delta_from` version, R2 key, size, EdDSA signature, Sparkle executable size,
-  locales) and `desktop_releases.winsparkle_ed_signature`.
+- `desktop_releases.winsparkle_ed_signature` (in 0108).
+- Migration 0109: `desktop_build_deltas` (Sparkle binary deltas: build,
+  `delta_from` version, R2 key, size, SHA-256, EdDSA signature, the old
+  framework's executable size and locales; unique per build and `delta_from`).
+  A delta belongs to the build it patches to, not to a release: re-releasing
+  the build (another channel) serves the same deltas.
 
 ## Feeds
 
@@ -118,7 +121,7 @@ directory.
 | linux    | electron-updater | `<channel>-linux[-arm64\|-arm\|-ia32].yml`                                                                     |
 | any      | Tauri            | `<channel>-tauri.json` (static for that platform, or dynamic with `?arch=` / `?bundle_type=`)                  |
 | —        | Tauri, all OSes  | `/feeds/:projectId/tauri/<channel>.json` (static across platforms, dynamic with `?target=&arch=&bundle_type=`) |
-| any      | download         | `download/:releaseId/:file[.blockmap]`, `download/:releaseId/delta/:from.delta`                                |
+| any      | download         | `download/:releaseId/:file[.blockmap]`; macOS deltas `delta/:releaseId/:deltaId/<App><new>-<old>.delta` (302)  |
 | any      | first install    | `latest/download?format=&arch=&channel=` (302), `/feeds/:projectId/releases.json`                              |
 
 - File names follow electron-builder's conventions so electron-updater's arch
@@ -163,9 +166,13 @@ The dashboard shows per release downloads and checks by client version over
   given. `--json` keeps printing one release as an object (a list for several).
   Signs Tauri (minisign) and WinSparkle (EdDSA, `$WINSPARKLE_PRIVATE_KEY`)
   locally and computes the NSIS blockmap.
-- `macos release create` generates Sparkle deltas from the channel's previous
-  three releases (BinaryDelta from a pinned, SHA-256-checked Sparkle tarball;
-  format by the old app's Sparkle version), signs and uploads them.
+- `macos release create` generates Sparkle deltas from the newest older
+  Sparkle-signed releases on any channel (the appcast serves every channel),
+  one per `CFBundleVersion`, `--maximum-deltas` (default 3): BinaryDelta from
+  a pinned, SHA-256-checked Sparkle 2.10.0 tarball, format by the old app's
+  Sparkle version, kept under ⅞ of the archive (generate_appcast's rules),
+  signed with the release key and uploaded (`POST /api/builds/:id/sparkle-deltas`
+  - `/complete`, presigned PUT). Best-effort: a failure warns. macOS hosts only.
 
 ## Testing
 
@@ -173,8 +180,9 @@ The dashboard shows per release downloads and checks by client version over
   releases.json, deltas, analytics writes.
 - CLI e2e: windows/linux upload + release journeys with synthetic installers.
 - Slow, real clients:
-  - Sparkle: a fixture app embedding Sparkle updates itself with
-    `sparkle-cli` (built from source), full and delta.
+  - Sparkle: the macOS fixture embedding Sparkle.framework, built and signed
+    twice, is updated by `sparkle-cli` from Sparkle 2.8.1 (the last release
+    shipping it) through the delta.
   - Electron macOS: a real Electron app updates through Squirrel.Mac.
   - Linux (Docker): an Electron AppImage and deb, and a Tauri AppImage, update
     themselves against the local server.

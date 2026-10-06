@@ -25,6 +25,8 @@ export interface DesktopReleaseModel {
   readonly tauriSignature: string | null;
   /** Whether the artifact's electron-updater blockmap is stored (`.zip`, `.exe`). */
   readonly blockmap: boolean;
+  /** How many Sparkle deltas the build has. */
+  readonly sparkleDeltas: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -35,4 +37,19 @@ export interface DesktopFeedEntry extends DesktopReleaseModel {
   readonly metadataJson: string;
   readonly byteSize: number;
   readonly r2Key: string;
+}
+
+/** A Sparkle binary delta from an older version's bundle to a build's. */
+export interface SparkleDeltaModel {
+  readonly id: string;
+  readonly buildId: string;
+  /** The old bundle's CFBundleVersion. */
+  readonly deltaFrom: string;
+  readonly r2Key: string;
+  readonly byteSize: number;
+  readonly sha256: string;
+  readonly edSignature: string;
+  readonly sparkleExecutableSize: number | null;
+  readonly sparkleLocales: string | null;
+  readonly createdAt: string;
 }

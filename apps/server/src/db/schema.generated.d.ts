@@ -294,6 +294,19 @@ export interface Channels {
   project_id: string;
 }
 
+export interface DesktopBuildDeltas {
+  build_id: string;
+  byte_size: number;
+  created_at: Generated<string>;
+  delta_from: string;
+  ed_signature: string;
+  id: string | null;
+  r2_key: string;
+  sha256: string;
+  sparkle_executable_size: number | null;
+  sparkle_locales: string | null;
+}
+
 export interface DesktopReleases {
   blockmap: Generated<number>;
   build_id: string;
@@ -755,6 +768,7 @@ export interface DB {
   build_install_artifacts: BuildInstallArtifacts;
   builds: Builds;
   channels: Channels;
+  desktop_build_deltas: DesktopBuildDeltas;
   desktop_releases: DesktopReleases;
   device_registration_requests: DeviceRegistrationRequests;
   devices: Devices;

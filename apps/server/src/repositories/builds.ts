@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
-import { ownedKeys, selectBuildsWithArtifact, toBuildWithArtifact } from "./build-row";
+import { ownedKeysOf, selectBuildsWithArtifact, toBuildWithArtifact } from "./build-row";
 
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution } from "../models";
 
@@ -298,10 +298,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .execute(),
       );
 
-      return rows.map((row) => ({
-        id: row.id,
-        r2Keys: ownedKeys(row),
-      }));
+      return yield* ownedKeysOf(db, rows);
     }),
 
   deleteArtifactMetadataBatch: (params) =>
@@ -484,6 +481,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .where("a.build_id", "=", params.id)
           .executeTakeFirst(),
       );
+      const [owned] = keys ? yield* ownedKeysOf(db, [{ ...keys, id: params.id }]) : [];
 
       const deleted = yield* Effect.promise(async () =>
         db.deleteFrom("builds").where("id", "=", params.id).returning("id").executeTakeFirst(),
@@ -494,7 +492,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       }
 
       return {
-        r2Keys: keys ? ownedKeys(keys) : [],
+        r2Keys: owned?.r2Keys ?? [],
       };
     }),
 });

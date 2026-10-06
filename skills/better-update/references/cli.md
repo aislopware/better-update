@@ -597,7 +597,7 @@ better-update macos notarize <path-to .app|.dmg|.pkg|.zip> [--asc-key-id <id>] \
   [--apple-id <email> --team-id <TEAMID>] [--wait=true] [--staple=true] [--timeout <dur>] [--submission-id <id>]
 better-update macos release create [<buildId>…] [--channel <name>=latest] [--notes <text> | --notes-file <path>] \
   [--critical] [--rollout <1-100>] [--phased-rollout-hours <1-720>] [--sparkle-key-file <path>] \
-  [--tauri-key-file <path>] [--environment <env>] [--file <path>]
+  [--maximum-deltas <0-10>=3] [--tauri-key-file <path>] [--environment <env>] [--file <path>]
 better-update macos release list [--channel <name>] [--limit <n>=20]
 better-update macos release rollout <releaseId> [--percentage <1-100>] [--phased-rollout-hours <0-720>]
 better-update macos release halt|resume|delete <releaseId>

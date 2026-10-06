@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { DesktopArtifactFormat, DesktopPlatform } from "./build";
-import { DateTimeString, DeletedResult, Id, PaginationParams } from "./common";
+import { DateTimeString, DeletedResult, Id, PaginationParams, UploadHeaders } from "./common";
 
 /**
  * A desktop release: one macOS, Windows or Linux build published to an
@@ -102,6 +102,11 @@ export const DesktopRelease = Schema.Struct({
    * `.exe` with an uploaded blockmap, or an AppImage with an embedded one.
    */
   blockmap: Schema.Boolean,
+  /**
+   * Sparkle binary deltas the build's appcast item offers (macOS): how many
+   * older versions update to it by patch instead of the whole archive.
+   */
+  sparkleDeltas: Schema.Number,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }).annotate({ identifier: "DesktopRelease" });
@@ -140,3 +145,74 @@ export const ListDesktopReleasesParams = Schema.Struct({
 });
 
 export const DeleteDesktopReleaseResult = DeletedResult;
+
+/** A bundle version as Sparkle compares it (`CFBundleVersion`). */
+const SparkleBundleVersion = Schema.String.check(
+  Schema.isPattern(/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$/u, {
+    message: "deltaFrom must be a bundle version (CFBundleVersion)",
+  }),
+);
+
+const Sha256Hex = Schema.String.check(
+  Schema.isPattern(/^[a-fA-F0-9]{64}$/u, { message: "sha256 must be a hex SHA-256 digest" }),
+);
+
+const DeltaByteSize = Schema.Number.check(
+  Schema.isInt(),
+  Schema.isBetween({ minimum: 1, maximum: 4_294_967_296 }),
+);
+
+/** Non-English `.lproj` names of the old app's Sparkle framework, comma-separated. */
+const SparkleLocales = Schema.String.check(
+  Schema.isPattern(/^[A-Za-z0-9_-]+(?:,[A-Za-z0-9_-]+)*$/u, {
+    message: "sparkleLocales must be comma-separated locale names",
+  }),
+  Schema.isMaxLength(512),
+);
+
+/**
+ * A Sparkle binary delta: the patch Sparkle's BinaryDelta made from an older
+ * version's app bundle to this build's, listed in the build's appcast item
+ * under `<sparkle:deltas>`. A Sparkle client whose `CFBundleVersion` equals
+ * `deltaFrom` downloads it instead of the whole archive (and falls back to the
+ * archive if applying it fails).
+ */
+export const SparkleDelta = Schema.Struct({
+  id: Id,
+  buildId: Id,
+  deltaFrom: Schema.String,
+  byteSize: Schema.Number,
+  sha256: Schema.String,
+  sparkleExecutableSize: Schema.NullOr(Schema.Number),
+  sparkleLocales: Schema.NullOr(Schema.String),
+  createdAt: DateTimeString,
+}).annotate({ identifier: "SparkleDelta" });
+export type SparkleDelta = typeof SparkleDelta.Type;
+
+export const ReserveSparkleDeltaBody = Schema.Struct({
+  deltaFrom: SparkleBundleVersion,
+  sha256: Sha256Hex,
+  byteSize: DeltaByteSize,
+  /** The delta file's EdDSA signature, by the key that signs the build's archive. */
+  edSignature: Ed25519SignatureBase64,
+  sparkleExecutableSize: Schema.optional(
+    Schema.Number.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
+  ),
+  sparkleLocales: Schema.optional(SparkleLocales),
+});
+
+export const SparkleDeltaUploadReservation = Schema.Struct({
+  uploadUrl: Schema.String,
+  uploadExpiresAt: DateTimeString,
+  uploadHeaders: UploadHeaders,
+});
+
+export const CompleteSparkleDeltaBody = Schema.Struct({
+  deltaFrom: SparkleBundleVersion,
+  sha256: Sha256Hex,
+  byteSize: DeltaByteSize,
+});
+
+export const ListSparkleDeltasResult = Schema.Struct({
+  items: Schema.Array(SparkleDelta),
+});
