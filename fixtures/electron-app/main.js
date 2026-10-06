@@ -11,6 +11,12 @@ const log = (line) => appendFileSync(process.env.UPDATE_LOG, `${line}\n`);
 app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
+  // Squirrel.Mac relaunches the app after installing an update, without the
+  // test's environment: such a run has nothing to report.
+  if (!process.env.UPDATE_LOG) {
+    app.quit();
+    return;
+  }
   log(`version ${app.getVersion()}`);
   if (process.env.CHECK_UPDATES !== "1") {
     app.quit();

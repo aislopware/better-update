@@ -1,8 +1,8 @@
 {
-  "name": "example-electron-linux",
+  "name": "example-electron",
   "version": "1.0.0",
   "private": true,
-  "description": "An Electron app that updates itself from a better-update Linux feed (slow e2e fixture).",
+  "description": "An Electron app that updates itself from a better-update feed on macOS and Linux (slow e2e fixture).",
   "homepage": "https://example.com",
   "author": "Example Developer <dev@example.com>",
   "main": "main.js",
@@ -14,7 +14,14 @@
     "electron-builder": "26.15.3"
   },
   "build": {
-    "appId": "com.example.electronlinux",
+    "appId": "com.example.electron",
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "category": "public.app-category.utilities",
+      "notarize": false
+    },
     "linux": {
       "target": [
         "AppImage",

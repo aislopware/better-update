@@ -259,13 +259,13 @@ metadata.macos
   the produced `.app` (preferred) or packaged artifact. Inject both neutral and
   tool-native variables so no mapping is needed:
 
-  | Tool             | Signing                                                                           | Notarization                                                             |
-  | ---------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-  | neutral          | `BETTER_UPDATE_MACOS_P12_PATH`, `_P12_PASSWORD`, `_SIGNING_IDENTITY`, `_KEYCHAIN` | `BETTER_UPDATE_MACOS_ASC_KEY_PATH`, `_ASC_KEY_ID`, `_ASC_ISSUER_ID`      |
-  | Tauri v2         | `APPLE_SIGNING_IDENTITY` (+ keychain on search list)                              | `APPLE_API_KEY` (= key **id**), `APPLE_API_KEY_PATH`, `APPLE_API_ISSUER` |
-  | electron-builder | `CSC_LINK`, `CSC_KEY_PASSWORD`, `CSC_INSTALLER_LINK`                              | `APPLE_API_KEY` (= **path**), `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`     |
-  | Flutter          | `FLUTTER_XCODE_CODE_SIGN_IDENTITY`, `FLUTTER_XCODE_DEVELOPMENT_TEAM`              | —                                                                        |
-  | Compose          | `-Pcompose.desktop.mac.signing.identity`, `…signing.keychain`                     | Apple ID only                                                            |
+  | Tool             | Signing                                                                             | Notarization                                                             |
+  | ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+  | neutral          | `BETTER_UPDATE_MACOS_P12_PATH`, `_P12_PASSWORD`, `_SIGNING_IDENTITY`, `_KEYCHAIN`   | `BETTER_UPDATE_MACOS_ASC_KEY_PATH`, `_ASC_KEY_ID`, `_ASC_ISSUER_ID`      |
+  | Tauri v2         | `APPLE_SIGNING_IDENTITY` (+ keychain on search list)                                | `APPLE_API_KEY` (= key **id**), `APPLE_API_KEY_PATH`, `APPLE_API_ISSUER` |
+  | electron-builder | `CSC_KEYCHAIN`, `CSC_NAME` (the CLI's unlocked keychain; `CSC_LINK` breaks in 26.x) | `APPLE_API_KEY` (= **path**), `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`     |
+  | Flutter          | `FLUTTER_XCODE_CODE_SIGN_IDENTITY`, `FLUTTER_XCODE_DEVELOPMENT_TEAM`                | —                                                                        |
+  | Compose          | `-Pcompose.desktop.mac.signing.identity`, `…signing.keychain`                       | Apple ID only                                                            |
 
   Implemented with the neutral and signing variables only: notary credentials
   are never exposed to the custom command — the CLI notarizes the final

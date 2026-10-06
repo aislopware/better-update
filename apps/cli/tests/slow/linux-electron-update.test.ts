@@ -38,11 +38,11 @@ import { setupCliE2E } from "../helpers/cli-e2e";
  */
 const hasDocker = spawnSync("docker", ["info"], { stdio: "ignore" }).status === 0;
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/electron-linux-app");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/electron-app");
 const CACHE_VOLUME = "better-update-e2e-electron-cache";
 const PAYLOAD_BYTES = 4 * 1024 * 1024;
 const PRODUCT = "Example Electron";
-const PACKAGE = "example-electron-linux";
+const PACKAGE = "example-electron";
 const EVIDENCE_DIR = path.join(os.tmpdir(), "better-update-e2e", "linux-electron-update");
 const OLD = "1.0.0";
 const NEW = "1.1.0";
@@ -159,7 +159,7 @@ ${script}`,
           name: PACKAGE,
           productName: PRODUCT,
           version,
-          build: { appId: "com.example.electronlinux" },
+          build: { appId: "com.example.electron" },
         },
         null,
         2,

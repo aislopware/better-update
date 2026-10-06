@@ -279,7 +279,7 @@ it applies to iOS/Android, and the shared `distribution` shorthand never implies
   `command` + `artifactPath` (a `.app`, or a `.dmg`/`.zip`/`.pkg` the tool packaged). The command
   sees the identity in every toolchain's own variables — `BETTER_UPDATE_MACOS_SIGNING_IDENTITY`
   (SHA-1) / `_SIGNING_IDENTITY_NAME` / `_KEYCHAIN` / `_P12_PATH` / `_P12_PASSWORD` / `_TEAM_ID`,
-  Tauri `APPLE_SIGNING_IDENTITY`, electron-builder `CSC_LINK` + `CSC_KEY_PASSWORD`, Flutter
+  Tauri `APPLE_SIGNING_IDENTITY`, electron-builder `CSC_KEYCHAIN` + `CSC_NAME`, Flutter
   `FLUTTER_XCODE_*`, Compose `ORG_GRADLE_PROJECT_compose.desktop.mac.*`. No notary credentials
   are exposed: the CLI notarizes the final container once.
 - **Tauri**: point `artifactPath` at the `.app` and set `"macos.artifact": "tar.gz"` — the CLI

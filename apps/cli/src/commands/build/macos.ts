@@ -349,6 +349,10 @@ const runMacosXcodeBuild = <ProfileError, ProfileServices>(
 
 const DEVELOPER_ID_PREFIX = "Developer ID Application: ";
 
+/** The identity's name without its certificate-type prefix, as electron-builder and Compose take it. */
+const bareIdentityName = (name: string): string =>
+  name.startsWith(DEVELOPER_ID_PREFIX) ? name.slice(DEVELOPER_ID_PREFIX.length) : name;
+
 /**
  * The identity in the variables each desktop toolchain reads, so a custom
  * command signs with the vault certificate and no mapping of its own:
@@ -356,6 +360,11 @@ const DEVELOPER_ID_PREFIX = "Developer ID Application: ";
  * `FLUTTER_XCODE_*` become xcodebuild settings) and Compose Multiplatform
  * (Gradle project properties via `ORG_GRADLE_PROJECT_*`). No notary
  * credentials: the CLI notarizes the final container itself, once.
+ *
+ * electron-builder gets the CLI's unlocked keychain (`CSC_KEYCHAIN` +
+ * `CSC_NAME`), not the .p12 (`CSC_LINK`): importing a .p12 into a keychain of
+ * its own fails in 26.x whenever the .p12 has a password (it unlocks that
+ * keychain with the .p12's password instead of the keychain's).
  */
 export const macosCustomSigningEnv = (
   identity: DeveloperIdIdentity,
@@ -368,19 +377,15 @@ export const macosCustomSigningEnv = (
   BETTER_UPDATE_MACOS_TEAM_ID: identity.teamId,
   APPLE_SIGNING_IDENTITY: identity.hash,
   APPLE_TEAM_ID: identity.teamId,
-  CSC_LINK: identity.p12Path,
-  CSC_KEY_PASSWORD: identity.p12Password,
+  CSC_KEYCHAIN: identity.keychainPath,
+  CSC_NAME: bareIdentityName(identity.name),
   FLUTTER_XCODE_CODE_SIGN_STYLE: "Manual",
   FLUTTER_XCODE_CODE_SIGN_IDENTITY: identity.name,
   FLUTTER_XCODE_DEVELOPMENT_TEAM: identity.teamId,
   FLUTTER_XCODE_ENABLE_HARDENED_RUNTIME: "YES",
   FLUTTER_XCODE_OTHER_CODE_SIGN_FLAGS: `--keychain ${identity.keychainPath}`,
   "ORG_GRADLE_PROJECT_compose.desktop.mac.sign": "true",
-  "ORG_GRADLE_PROJECT_compose.desktop.mac.signing.identity": identity.name.startsWith(
-    DEVELOPER_ID_PREFIX,
-  )
-    ? identity.name.slice(DEVELOPER_ID_PREFIX.length)
-    : identity.name,
+  "ORG_GRADLE_PROJECT_compose.desktop.mac.signing.identity": bareIdentityName(identity.name),
   "ORG_GRADLE_PROJECT_compose.desktop.mac.signing.keychain": identity.keychainPath,
 });
 
