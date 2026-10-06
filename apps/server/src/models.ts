@@ -1,5 +1,6 @@
 import type {
   AppleCertificateType as ApiAppleCertificateType,
+  ArtifactFormat as ApiArtifactFormat,
   AuditLogResourceType as ApiAuditLogResourceType,
 } from "@better-update/api";
 
@@ -7,8 +8,8 @@ import type { AuditLogSource } from "./authz-models";
 
 export type Platform = "ios" | "android";
 
-/** Build target platforms: the OTA {@link Platform}s plus macOS (never updated over the air). */
-export type BuildPlatform = Platform | "macos";
+/** Build target platforms: the OTA {@link Platform}s plus the desktop ones (never updated over the air). */
+export type BuildPlatform = Platform | "macos" | "windows" | "linux";
 
 /** The build platforms that take OTA updates — the filter for every OTA query over `builds`. */
 export const OTA_PLATFORMS: readonly Platform[] = ["ios", "android"];
@@ -23,7 +24,7 @@ export type Distribution =
   | "direct"
   | "developer-id";
 
-export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz" | "dmg" | "zip" | "pkg";
+export type ArtifactFormat = typeof ApiArtifactFormat.Type;
 
 export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
 /** A stored profile's kind: the iOS kinds plus macOS Developer ID (`MAC_APP_DIRECT`). */

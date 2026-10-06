@@ -1,3 +1,4 @@
+import { isDesktopPlatform } from "@better-update/api";
 import {
   buildCompatibilityMatrixQueryOptions,
   buildDebugArtifactsQueryOptions,
@@ -41,8 +42,9 @@ import { RelativeTime } from "../../../../../../lib/relative-time";
 import { RouterLink } from "../../../../../../lib/resource-link";
 import { RouterLinkButton } from "../../../../../../lib/router-link-button";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
+import { DesktopDistributionCard } from "./-desktop-distribution-card";
+import { DesktopReleasesCard } from "./-desktop-releases-card";
 import { MacosDistributionCard } from "./-macos-distribution-card";
-import { MacosReleasesCard } from "./-macos-releases-card";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "../-compatibility-join";
 
@@ -59,9 +61,9 @@ const hasMetadata = (metadataJson: string): boolean => {
     : metadataJson.trim().length > 0;
 };
 
-/** A macOS app never takes Expo updates, so it has no runtime to be missing. */
+/** A desktop app never takes Expo updates, so it has no runtime to be missing. */
 const MissingRuntime = ({ build }: { build: BuildWithArtifact }) =>
-  build.platform === "macos" ? (
+  isDesktopPlatform(build.platform) ? (
     <span className="text-kumo-subtle">Not applicable</span>
   ) : (
     <Badge variant="warning">Missing</Badge>
@@ -439,12 +441,21 @@ const BuildDetailContent = () => {
           <ArtifactCard build={build} />
           <DebugSymbolsCard buildId={build.id} artifacts={debugArtifacts.items} />
         </div>
-        {build.platform === "macos" ? (
+        {isDesktopPlatform(build.platform) ? (
           // min-w-0: a grid item grows to its longest feed URL otherwise.
           <div className="flex min-w-0 flex-col gap-4">
-            <MacosDistributionCard build={build} />
+            {build.platform === "macos" ? (
+              <MacosDistributionCard build={build} />
+            ) : (
+              <DesktopDistributionCard build={build} platform={build.platform} />
+            )}
             <Suspense fallback={<DetailCardSkeleton rows={1} columns={1} hasDescription={false} />}>
-              <MacosReleasesCard orgId={orgId} projectId={projectId} buildId={build.id} />
+              <DesktopReleasesCard
+                orgId={orgId}
+                projectId={projectId}
+                buildId={build.id}
+                platform={build.platform}
+              />
             </Suspense>
           </div>
         ) : (

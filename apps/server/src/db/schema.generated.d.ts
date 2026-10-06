@@ -295,6 +295,7 @@ export interface Channels {
 }
 
 export interface DesktopReleases {
+  blockmap: Generated<number>;
   build_id: string;
   channel: string;
   created_at: Generated<string>;
@@ -308,8 +309,8 @@ export interface DesktopReleases {
   sha512: string;
   sparkle_ed_signature: string | null;
   tauri_signature: string | null;
-  blockmap: Generated<number>;
   updated_at: Generated<string>;
+  winsparkle_ed_signature: string | null;
 }
 
 export interface DeviceRegistrationRequests {

@@ -1,65 +1,79 @@
 /**
- * Public macOS update feeds — unauthenticated like the Expo manifest, because
- * an installed app polls them anonymously. They expose only what a project
- * explicitly released (`desktop_releases`), never its other builds.
+ * Public desktop update feeds — unauthenticated like the Expo manifest,
+ * because an installed app polls them anonymously. They expose only what a
+ * project explicitly released (`desktop_releases`), never its other builds.
  *
- *   GET /feeds/:projectId/macos/appcast.xml[?installId=…]   Sparkle 2
- *   GET /feeds/:projectId/macos/:channel-mac.yml            electron-updater
- *   GET /feeds/:projectId/macos/:channel-tauri.json[?arch=…] Tauri updater
- *   GET /feeds/:projectId/macos/download/:releaseId/:file   302 → signed R2 URL
- *   GET /feeds/:projectId/macos/download/:releaseId/:file.blockmap   electron-updater blockmap
+ *   GET /feeds/:projectId/macos/appcast.xml[?installId=…]          Sparkle 2
+ *   GET /feeds/:projectId/macos/:channel-mac.yml                   electron-updater
+ *   GET /feeds/:projectId/windows/:channel.yml                     electron-updater (NSIS)
+ *   GET /feeds/:projectId/windows/appcast.xml[?channel=&installId=] WinSparkle
+ *   GET /feeds/:projectId/linux/:channel-linux[-arm64|-arm|-ia32].yml electron-updater
+ *   GET /feeds/:projectId/:platform/:channel-tauri.json[?arch=&bundle_type=] Tauri updater
+ *   GET /feeds/:projectId/tauri/:channel.json[?target=&arch=&bundle_type=]   Tauri, every OS
+ *   GET /feeds/:projectId/:platform/download/:releaseId/:file[.blockmap]
+ *   GET /feeds/:projectId/:platform/latest/download[?format=&arch=&channel=] first install
+ *   GET /feeds/:projectId/releases.json[?channel=]                 download page index
  *
- * A download with a `Range` header is answered by the Worker itself — 206,
- * `multipart/byteranges` for several ranges — because electron-updater's
- * differential download asks for many ranges at once, which a presigned R2
- * URL cannot serve.
+ * Downloads (ranges, blockmaps) are served by `desktop-feed-downloads.ts`.
  *
- * Percentage rollout for Sparkle and Tauri is server-side: a release below
- * 100 % is listed only for an install id (the `installId` query parameter —
- * Sparkle's `feedParameters` — or an `X-Install-Id` header) hashing into its
- * bucket, with the same hash the OTA manifest uses; a request without one sees
- * fully rolled-out releases only. Sparkle's own time-based phasing
- * (`phasedRolloutHours`) needs no id. electron-updater does its own staging
- * from `stagingPercentage`.
+ * Percentage rollout for Sparkle, WinSparkle and Tauri is server-side: a
+ * release below 100 % is listed only for an install id (the `installId` query
+ * parameter — Sparkle's `feedParameters` — or an `X-Install-Id` header)
+ * hashing into its bucket, with the same hash the OTA manifest uses; a request
+ * without one sees fully rolled-out releases only. Sparkle's own time-based
+ * phasing (`phasedRolloutHours`) needs no id. electron-updater does its own
+ * staging from `stagingPercentage`.
  */
+import {
+  DEFAULT_DESKTOP_CHANNEL,
+  DESKTOP_ARTIFACT_FORMATS,
+  isDesktopArtifactFormat,
+  isDesktopPlatform,
+} from "@better-update/api";
 import { Effect } from "effect";
 
-import { BuildRuntime } from "../cloudflare/build-runtime";
+import type { DesktopArch, DesktopPlatform } from "@better-update/api";
+
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { CryptoService } from "../domain/crypto-service";
+import { feedDownloadPath } from "../domain/desktop-feed-files";
+import { renderAppcast, renderWinSparkleAppcast } from "../domain/desktop-feeds-appcast";
 import {
-  artifactBlockmapKey,
-  blockmapVersionOf,
-  ELECTRON_FEED_FILE,
-  feedFileName,
-  isTauriArch,
+  parseElectronFeedFile,
   pickElectronRelease,
-  renderAppcast,
   renderElectronYml,
+} from "../domain/desktop-feeds-electron";
+import {
+  isTauriArch,
   renderTauriDynamic,
   renderTauriStatic,
+  TAURI_CHANNEL_FILE,
   TAURI_FEED_FILE,
-} from "../domain/desktop-feeds";
-import { ServerInfrastructureLayer } from "../infrastructure-layer";
+  tauriTargetPlatform,
+} from "../domain/desktop-feeds-tauri";
 import {
-  contentRange,
-  multipartByteRanges,
-  parseRangeHeader,
-  planObjectReads,
-} from "../lib/http-range";
+  FIRST_INSTALL_FORMATS,
+  pickLatestDownload,
+  renderReleaseIndex,
+} from "../domain/desktop-release-index";
+import { ServerInfrastructureLayer } from "../infrastructure-layer";
+import { toOptional } from "../lib/nullable";
 import { DesktopReleaseRepo } from "../repositories/desktop-releases";
+import { downloadEffect } from "./desktop-feed-downloads";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
+import type { DownloadUrl } from "../domain/desktop-feed-files";
+import type { TauriArch } from "../domain/desktop-feeds-tauri";
 import type { ServerInfrastructure } from "../infrastructure-layer";
 
-const FEED_ROUTE = /^\/feeds\/(?<projectId>[^/]+)\/macos\/(?<rest>.+)$/u;
-const DOWNLOAD_ROUTE = /^download\/(?<releaseId>[^/]+)\/(?<file>[^/]+)$/u;
-const BLOCKMAP_SUFFIX = ".blockmap";
-/** Older releases of one version considered for its blockmap. */
-const BLOCKMAP_CANDIDATES = 10;
+const FEED_ROUTE =
+  /^\/feeds\/(?<projectId>[^/]+)\/(?<scope>macos|windows|linux|tauri)\/(?<rest>.+)$/u;
+const INDEX_ROUTE = /^\/feeds\/(?<projectId>[^/]+)\/releases\.json$/u;
+const CHANNEL = /^[a-z0-9][a-z0-9._-]{0,39}$/u;
+/** Releases a feed considers; older ones are what a held-back client falls back to. */
+const FEED_LIMIT = 25;
 
-/** Releases an appcast lists; older ones are what a held-back client falls back to. */
-const APPCAST_LIMIT = 25;
+const DESKTOP_PLATFORMS: readonly DesktopPlatform[] = ["macos", "windows", "linux"];
 
 const runFeedEffect = async <Success>(
   effect: Effect.Effect<Success, never, ServerInfrastructure>,
@@ -72,6 +86,9 @@ const runFeedEffect = async <Success>(
   );
 
 const notFound = () => Response.json({ code: "NOT_FOUND", message: "Not found" }, { status: 404 });
+
+const badRequest = (message: string) =>
+  Response.json({ code: "BAD_REQUEST", message }, { status: 400 });
 
 const inRollout = (entry: DesktopFeedEntry, installId: string | null) =>
   Effect.gen(function* () {
@@ -96,72 +113,152 @@ const installIdOf = (request: Request, url: URL): string | null =>
 const feedCacheControl = (installId: string | null) =>
   installId === null ? "public, max-age=60" : "private, max-age=60";
 
+/** Absolute download URLs, each under its own platform's feed directory. */
+const downloadUrlFor =
+  (origin: string, projectId: string): DownloadUrl =>
+  (entry) =>
+    `${origin}/feeds/${projectId}/${entry.platform}/${feedDownloadPath(entry)}`;
+
+const listFeed = (projectId: string, platform: DesktopPlatform, channel: string | undefined) =>
+  Effect.gen(function* () {
+    const repo = yield* DesktopReleaseRepo;
+    return yield* repo.listFeed({ projectId, platform, channel, limit: FEED_LIMIT });
+  });
+
 /** The live releases this install may see, newest first. */
 const visibleReleases = (
   projectId: string,
+  platform: DesktopPlatform,
   channel: string | undefined,
   installId: string | null,
 ) =>
   Effect.gen(function* () {
-    const repo = yield* DesktopReleaseRepo;
-    const entries = yield* repo.listFeed({ projectId, channel, limit: APPCAST_LIMIT });
+    const entries = yield* listFeed(projectId, platform, channel);
     // eslint-disable-next-line unicorn/no-array-method-this-argument -- false positive: Effect.filter(array, predicate) is not Array.prototype.filter
     return yield* Effect.filter(entries, (entry) => inRollout(entry, installId));
   });
 
-const serveAppcast = (projectId: string, url: URL, installId: string | null) =>
-  Effect.gen(function* () {
-    const body = renderAppcast({
-      title: "Updates",
-      feedBaseUrl: `${url.origin}/feeds/${projectId}/macos/`,
-      entries: yield* visibleReleases(projectId, undefined, installId),
-    });
-    return new Response(body, {
-      headers: {
-        "content-type": "application/rss+xml; charset=utf-8",
-        "cache-control": feedCacheControl(installId),
-      },
-    });
+const xmlResponse = (body: string, installId: string | null) =>
+  new Response(body, {
+    headers: {
+      "content-type": "application/rss+xml; charset=utf-8",
+      "cache-control": feedCacheControl(installId),
+    },
   });
+
+/** A channel named by a query parameter, the default one when absent. */
+const queryChannel = (url: URL): string | undefined => {
+  const channel = url.searchParams.get("channel") ?? DEFAULT_DESKTOP_CHANNEL;
+  return CHANNEL.test(channel) ? channel : undefined;
+};
+
+/** Sparkle's appcast tags channels per item; WinSparkle has none, so its URL picks one. */
+const serveAppcast = (
+  projectId: string,
+  platform: DesktopPlatform,
+  url: URL,
+  installId: string | null,
+) =>
+  Effect.gen(function* () {
+    const downloadUrl = downloadUrlFor(url.origin, projectId);
+    if (platform === "macos") {
+      const entries = yield* visibleReleases(projectId, platform, undefined, installId);
+      return xmlResponse(renderAppcast({ title: "Updates", downloadUrl, entries }), installId);
+    }
+    const channel = queryChannel(url);
+    if (platform !== "windows" || channel === undefined) {
+      return platform === "windows" ? badRequest("Invalid channel") : notFound();
+    }
+    const entries = yield* visibleReleases(projectId, platform, channel, installId);
+    return xmlResponse(
+      renderWinSparkleAppcast({ title: "Updates", downloadUrl, entries }),
+      installId,
+    );
+  });
+
+const tauriResponse = (body: string | undefined, installId: string | null) =>
+  body === undefined
+    ? new Response(null, { status: 204, headers: { "cache-control": feedCacheControl(installId) } })
+    : new Response(body, {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": feedCacheControl(installId),
+        },
+      });
+
+/** `{{arch}}` and `{{bundle_type}}` from the query, when the endpoint is templated with them. */
+const tauriRequest = (url: URL): { readonly arch: TauriArch | null } | string => {
+  const arch = url.searchParams.get("arch");
+  return arch !== null && !isTauriArch(arch)
+    ? "arch must be x86_64, aarch64, i686 or armv7"
+    : { arch };
+};
 
 /**
- * The static form for a fixed endpoint; the dynamic one when the endpoint
- * passes `arch={{arch}}`. 204 is Tauri's "no update".
+ * One platform's Tauri JSON: the static form for a fixed endpoint, the
+ * dynamic one when the endpoint passes `arch={{arch}}` (and optionally
+ * `bundle_type={{bundle_type}}`). 204 is Tauri's "no update".
  */
-const serveTauriJson = (projectId: string, channel: string, url: URL, installId: string | null) =>
+const serveTauriJson = (
+  projectId: string,
+  platforms: readonly DesktopPlatform[],
+  channel: string,
+  url: URL,
+  installId: string | null,
+) =>
   Effect.gen(function* () {
-    const arch = url.searchParams.get("arch");
-    if (arch !== null && !isTauriArch(arch)) {
-      return Response.json(
-        { code: "BAD_REQUEST", message: "arch must be aarch64 or x86_64" },
-        { status: 400 },
-      );
+    const parsed = tauriRequest(url);
+    if (typeof parsed === "string") {
+      return badRequest(parsed);
     }
-    const entries = yield* visibleReleases(projectId, channel, installId);
-    const feedBaseUrl = `${url.origin}/feeds/${projectId}/macos/`;
+    // eslint-disable-next-line unicorn/no-array-method-this-argument -- false positive: Effect.forEach(array, f) is not Array.prototype.forEach
+    const lists = yield* Effect.forEach(platforms, (platform) =>
+      visibleReleases(projectId, platform, channel, installId),
+    );
+    // Newest first across platforms, as one feed.
+    const entries = lists
+      .flat()
+      .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt));
+    const downloadUrl = downloadUrlFor(url.origin, projectId);
     const body =
-      arch === null
-        ? renderTauriStatic(entries, feedBaseUrl)
-        : renderTauriDynamic(entries, arch, feedBaseUrl);
-    return body === undefined
-      ? new Response(null, {
-          status: 204,
-          headers: { "cache-control": feedCacheControl(installId) },
-        })
-      : new Response(body, {
-          headers: {
-            "content-type": "application/json; charset=utf-8",
-            "cache-control": feedCacheControl(installId),
-          },
-        });
+      parsed.arch === null
+        ? renderTauriStatic(entries, downloadUrl)
+        : renderTauriDynamic(
+            entries,
+            { arch: parsed.arch, bundleType: toOptional(url.searchParams.get("bundle_type")) },
+            downloadUrl,
+          );
+    return tauriResponse(body, installId);
   });
 
-const serveElectronYml = (projectId: string, channel: string) =>
+/** The cross-platform Tauri feed: `?target={{target}}` narrows it to one OS. */
+const serveTauriChannel = (
+  projectId: string,
+  channel: string,
+  url: URL,
+  installId: string | null,
+) => {
+  const target = url.searchParams.get("target");
+  const platform = tauriTargetPlatform(target);
+  if (target !== null && platform === undefined) {
+    return Effect.succeed(badRequest("target must be darwin, windows or linux"));
+  }
+  return serveTauriJson(
+    projectId,
+    platform === undefined ? DESKTOP_PLATFORMS : [platform],
+    channel,
+    url,
+    installId,
+  );
+};
+
+const serveElectronYml = (projectId: string, platform: DesktopPlatform, fileName: string) =>
   Effect.gen(function* () {
-    const repo = yield* DesktopReleaseRepo;
-    const picked = pickElectronRelease(
-      yield* repo.listFeed({ projectId, channel, limit: APPCAST_LIMIT }),
-    );
+    const file = parseElectronFeedFile(platform, fileName);
+    if (file === undefined) {
+      return notFound();
+    }
+    const picked = pickElectronRelease(yield* listFeed(projectId, platform, file.channel), file);
     if (picked === undefined) {
       return notFound();
     }
@@ -173,134 +270,109 @@ const serveElectronYml = (projectId: string, channel: string) =>
     });
   });
 
-const OCTET_STREAM = "application/octet-stream";
-
-/** One range straight from R2; several as `multipart/byteranges`. */
-const serveRanges = (entry: DesktopFeedEntry, header: string) =>
-  Effect.gen(function* () {
-    const size = entry.byteSize;
-    const request = parseRangeHeader(header, size);
-    if (request.kind === "ignore") {
-      return undefined;
-    }
-    if (request.kind === "unsatisfiable") {
-      return new Response(null, {
-        status: 416,
-        headers: { "content-range": `bytes */${String(size)}` },
-      });
-    }
-    const runtime = yield* BuildRuntime;
-    const common = { "accept-ranges": "bytes", "cache-control": "no-store" };
-    const [first, ...rest] = request.ranges;
-    if (rest.length === 0) {
-      const blob = yield* runtime.getObjectRange({ key: entry.r2Key, range: first });
-      return blob?.body
-        ? new Response(blob.body, {
-            status: 206,
-            headers: {
-              ...common,
-              "content-type": OCTET_STREAM,
-              "content-length": String(first.length),
-              "content-range": contentRange(first, size),
-            },
-          })
-        : notFound();
-    }
-    const boundary = crypto.randomUUID();
-    const framed = multipartByteRanges({
-      ranges: request.ranges,
-      size,
-      boundary,
-      contentType: OCTET_STREAM,
-    });
-    const body = yield* runtime.streamObjectReads({
-      key: entry.r2Key,
-      reads: planObjectReads(framed),
-    });
-    return new Response(body, {
-      status: 206,
-      headers: { ...common, "content-type": `multipart/byteranges; boundary=${boundary}` },
-    });
-  });
-
-const serveDownload = (projectId: string, releaseId: string, range: string | null) =>
-  Effect.gen(function* () {
-    const entry = yield* (yield* DesktopReleaseRepo).findFeedEntry({ projectId, id: releaseId });
-    if (entry === null) {
-      return notFound();
-    }
-    const ranged = range === null ? undefined : yield* serveRanges(entry, range);
-    if (ranged !== undefined) {
-      return ranged;
-    }
-    const runtime = yield* BuildRuntime;
-    const location = yield* runtime.createDownloadUrl({
-      key: entry.r2Key,
-      expiresIn: 900,
-      contentDisposition: `attachment; filename="${feedFileName(entry)}"`,
-    });
-    return new Response(null, {
-      status: 302,
-      headers: { location, "accept-ranges": "bytes", "cache-control": "no-store" },
-    });
-  });
+/** Names a first-install link may use for an architecture. */
+const ARCH_ALIASES: Readonly<Record<string, DesktopArch>> = {
+  x64: "x64",
+  x86_64: "x64",
+  amd64: "x64",
+  arm64: "arm64",
+  aarch64: "arm64",
+  ia32: "ia32",
+  x86: "ia32",
+  i686: "ia32",
+  armv7l: "armv7l",
+  armhf: "armv7l",
+};
 
 /**
- * The release whose blockmap `<fileName>.blockmap` under `entry` names: the
- * entry's own, or — the updater's guess for the version it runs — the newest
- * zip of that version with the same file name, preferring `entry`'s channel.
+ * `latest/download`: a 302 to the newest fully rolled-out release's file,
+ * in `format` (default: the platform's first-install preference) for `arch`.
  */
-const blockmapRelease = (entry: DesktopFeedEntry, fileName: string) =>
+const serveLatestDownload = (projectId: string, platform: DesktopPlatform, url: URL) =>
   Effect.gen(function* () {
-    if (feedFileName(entry) === fileName) {
-      return entry;
+    const channel = queryChannel(url);
+    const format = url.searchParams.get("format");
+    const archName = url.searchParams.get("arch");
+    const arch = archName === null ? undefined : ARCH_ALIASES[archName.toLowerCase()];
+    const platformFormats: readonly string[] = DESKTOP_ARTIFACT_FORMATS[platform];
+    if (channel === undefined) {
+      return badRequest("Invalid channel");
     }
-    const appVersion = blockmapVersionOf(entry, fileName);
-    if (appVersion === undefined) {
-      return undefined;
+    if (format !== null && !platformFormats.includes(format)) {
+      return badRequest(`format must be one of ${platformFormats.join(", ")}`);
     }
-    const candidates = (yield* (yield* DesktopReleaseRepo).listBlockmapReleases({
-      projectId: entry.projectId,
-      appVersion,
-      limit: BLOCKMAP_CANDIDATES,
-    })).filter((candidate) => feedFileName(candidate) === fileName);
-    return candidates.find((candidate) => candidate.channel === entry.channel) ?? candidates.at(0);
-  });
-
-/** Gzipped, as electron-updater reads it. */
-const serveBlockmap = (projectId: string, releaseId: string, fileName: string) =>
-  Effect.gen(function* () {
-    const entry = yield* (yield* DesktopReleaseRepo).findFeedEntry({ projectId, id: releaseId });
-    const release =
-      entry?.artifactFormat === "zip" ? yield* blockmapRelease(entry, fileName) : undefined;
-    if (release === undefined || !release.blockmap) {
-      return notFound();
+    if (archName !== null && arch === undefined) {
+      return badRequest("arch must be x64, arm64, ia32 or armv7l");
     }
-    const blob = yield* (yield* BuildRuntime).getObject({
-      key: artifactBlockmapKey(release.r2Key),
+    const formats =
+      format !== null && isDesktopArtifactFormat(format)
+        ? ([format] as const)
+        : FIRST_INSTALL_FORMATS[platform];
+    const entry = pickLatestDownload(yield* listFeed(projectId, platform, channel), {
+      formats,
+      arch,
     });
-    return blob?.body
-      ? new Response(blob.body.pipeThrough(new CompressionStream("gzip")), {
-          headers: { "content-type": OCTET_STREAM, "cache-control": "public, max-age=300" },
-        })
-      : notFound();
+    return entry === undefined
+      ? notFound()
+      : new Response(null, {
+          status: 302,
+          headers: {
+            location: downloadUrlFor(url.origin, projectId)(entry),
+            "cache-control": "public, max-age=60",
+          },
+        });
   });
 
-/** An artifact, or its blockmap; a `Range` header counts on GET only. */
-const downloadEffect = (request: Request, projectId: string, rest: string) => {
-  const download = DOWNLOAD_ROUTE.exec(rest)?.groups;
-  const releaseId = download?.["releaseId"];
-  const file = download?.["file"];
-  if (releaseId === undefined || file === undefined) {
-    return undefined;
+const serveReleaseIndex = (projectId: string, url: URL) =>
+  Effect.gen(function* () {
+    const channel = queryChannel(url);
+    if (channel === undefined) {
+      return badRequest("Invalid channel");
+    }
+    // eslint-disable-next-line unicorn/no-array-method-this-argument -- false positive: Effect.forEach(array, f) is not Array.prototype.forEach
+    const lists = yield* Effect.forEach(DESKTOP_PLATFORMS, (platform) =>
+      listFeed(projectId, platform, channel),
+    );
+    const body = renderReleaseIndex({
+      channel,
+      platforms: Object.fromEntries(
+        DESKTOP_PLATFORMS.map((platform, index) => [platform, lists[index] ?? []]),
+      ),
+      downloadUrl: downloadUrlFor(url.origin, projectId),
+    });
+    return new Response(body, {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=60",
+        // A download page on the project's own site fetches it cross-origin.
+        "access-control-allow-origin": "*",
+      },
+    });
+  });
+
+/** A request under one platform's feed directory. */
+const platformEffect = (
+  request: Request,
+  url: URL,
+  projectId: string,
+  platform: DesktopPlatform,
+  rest: string,
+) => {
+  const installId = installIdOf(request, url);
+  if (rest === "appcast.xml") {
+    return serveAppcast(projectId, platform, url, installId);
   }
-  return file.endsWith(BLOCKMAP_SUFFIX)
-    ? serveBlockmap(projectId, releaseId, file.slice(0, -BLOCKMAP_SUFFIX.length))
-    : serveDownload(
-        projectId,
-        releaseId,
-        request.method === "GET" ? request.headers.get("range") : null,
-      );
+  if (rest === "latest/download") {
+    return serveLatestDownload(projectId, platform, url);
+  }
+  const tauriChannel = TAURI_FEED_FILE.exec(rest)?.groups?.["channel"];
+  if (tauriChannel !== undefined) {
+    return serveTauriJson(projectId, [platform], tauriChannel, url, installId);
+  }
+  if (rest.endsWith(".yml")) {
+    return serveElectronYml(projectId, platform, rest);
+  }
+  return downloadEffect(request, projectId, platform, rest);
 };
 
 /** Route a `/feeds/…` request, or `null` when the path is not a feed. */
@@ -309,10 +381,10 @@ export const matchDesktopFeedRoute = async (
   env: Env,
   url: URL,
 ): Promise<Response | null> => {
-  const match = FEED_ROUTE.exec(url.pathname);
-  const projectId = match?.groups?.["projectId"];
-  const rest = match?.groups?.["rest"];
-  if (projectId === undefined || rest === undefined) {
+  const indexProjectId = INDEX_ROUTE.exec(url.pathname)?.groups?.["projectId"];
+  const match = FEED_ROUTE.exec(url.pathname)?.groups;
+  const projectId = indexProjectId ?? match?.["projectId"];
+  if (projectId === undefined) {
     return null;
   }
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -321,18 +393,21 @@ export const matchDesktopFeedRoute = async (
       { status: 405 },
     );
   }
-  const installId = installIdOf(request, url);
-  if (rest === "appcast.xml") {
-    return runFeedEffect(serveAppcast(projectId, url, installId), env);
+  if (indexProjectId !== undefined) {
+    return runFeedEffect(serveReleaseIndex(projectId, url), env);
   }
-  const channel = ELECTRON_FEED_FILE.exec(rest)?.groups?.["channel"];
-  if (channel !== undefined) {
-    return runFeedEffect(serveElectronYml(projectId, channel), env);
+  const scope = match?.["scope"];
+  const rest = match?.["rest"];
+  if (scope === undefined || rest === undefined) {
+    return notFound();
   }
-  const tauriChannel = TAURI_FEED_FILE.exec(rest)?.groups?.["channel"];
-  if (tauriChannel !== undefined) {
-    return runFeedEffect(serveTauriJson(projectId, tauriChannel, url, installId), env);
+  if (isDesktopPlatform(scope)) {
+    const effect = platformEffect(request, url, projectId, scope, rest);
+    return effect === undefined ? notFound() : runFeedEffect(effect, env);
   }
-  const download = downloadEffect(request, projectId, rest);
-  return download === undefined ? notFound() : runFeedEffect(download, env);
+  // The remaining scope is the cross-platform Tauri feed.
+  const channel = TAURI_CHANNEL_FILE.exec(rest)?.groups?.["channel"];
+  return channel === undefined
+    ? notFound()
+    : runFeedEffect(serveTauriChannel(projectId, channel, url, installIdOf(request, url)), env);
 };

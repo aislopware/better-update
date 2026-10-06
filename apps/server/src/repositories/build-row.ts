@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import { artifactBlockmapKey } from "../domain/desktop-feeds";
+import { artifactBlockmapKey } from "../domain/desktop-feed-files";
 
 import type { DB } from "../db/schema";
 import type {

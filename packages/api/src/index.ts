@@ -224,6 +224,8 @@ export {
   ListDesktopReleasesParams,
   UpdateDesktopReleaseBody,
 } from "./domain/desktop-release";
+export { desktopFeedUrls } from "./domain/desktop-feed-urls";
+export type { DesktopFeedUrl } from "./domain/desktop-feed-urls";
 export {
   AndroidApplicationIdentifier,
   AndroidPackageName,
@@ -264,15 +266,25 @@ export {
   CompleteBuildBody,
   CreateBuildBody,
   DeleteBuildResult,
+  DESKTOP_ARTIFACT_FORMATS,
+  DesktopArch,
+  DesktopArtifactFormat,
+  DesktopBuildMetadata,
+  DesktopPlatform,
   Distribution,
   INTERNAL_DISTRIBUTIONS,
   InstallLinkResult,
+  isDesktopArtifactFormat,
+  isDesktopPlatform,
   isOtaInstallableDistribution,
+  LinuxArtifactFormat,
   MacosArtifactFormat,
   MacosBuildMetadata,
   MacosNotarization,
   OTA_INSTALLABLE_DISTRIBUTIONS,
+  readDesktopBuildMetadata,
   readMacosBuildMetadata,
+  WindowsArtifactFormat,
   ReserveBuildResult,
   STORE_DISTRIBUTIONS,
 } from "./domain/build";

@@ -1,13 +1,14 @@
-/** Server-side shapes for desktop (macOS) update-feed releases. */
-import type { MacosArtifactFormat } from "@better-update/api";
+/** Server-side shapes for desktop (macOS, Windows, Linux) update-feed releases. */
+import type { DesktopArtifactFormat, DesktopPlatform } from "@better-update/api";
 
-export type DesktopArtifactFormat = typeof MacosArtifactFormat.Type;
+export type { DesktopArtifactFormat, DesktopPlatform } from "@better-update/api";
 
 export interface DesktopReleaseModel {
   readonly id: string;
   readonly organizationId: string;
   readonly projectId: string;
   readonly buildId: string;
+  readonly platform: DesktopPlatform;
   readonly channel: string;
   readonly appVersion: string | null;
   readonly buildNumber: string | null;
@@ -20,8 +21,9 @@ export interface DesktopReleaseModel {
   readonly halted: boolean;
   readonly sha512: string;
   readonly sparkleEdSignature: string | null;
+  readonly winSparkleEdSignature: string | null;
   readonly tauriSignature: string | null;
-  /** Whether the artifact's electron-updater blockmap is stored. */
+  /** Whether the artifact's electron-updater blockmap is stored (`.zip`, `.exe`). */
   readonly blockmap: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;

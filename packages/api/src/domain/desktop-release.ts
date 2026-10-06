@@ -1,16 +1,17 @@
 import { Schema } from "effect";
 
-import { MacosArtifactFormat } from "./build";
+import { DesktopArtifactFormat, DesktopPlatform } from "./build";
 import { DateTimeString, DeletedResult, Id, PaginationParams } from "./common";
 
 /**
- * A desktop release: one macOS build published to an update-feed channel.
- * The feeds the server renders (Sparkle appcast, electron-updater
- * `<channel>-mac.yml`) list only releases — uploading a build ships nothing.
+ * A desktop release: one macOS, Windows or Linux build published to an
+ * update-feed channel. The feeds the server renders (Sparkle / WinSparkle
+ * appcasts, electron-updater channel files, Tauri JSON) list only releases —
+ * uploading a build ships nothing.
  *
  * `latest` is the default channel: untagged in the appcast (every Sparkle
- * client sees it) and `latest-mac.yml` for electron-updater. Any other name is
- * an opt-in channel (`sparkle:channel`, `<name>-mac.yml`).
+ * client sees it) and `latest[-mac|-linux].yml` for electron-updater. Any
+ * other name is an opt-in channel (`sparkle:channel`, `<name>[-mac].yml`).
  */
 export const DesktopReleaseChannel = Schema.String.check(
   Schema.isPattern(/^[a-z0-9][a-z0-9._-]{0,39}$/u, {
@@ -30,10 +31,10 @@ const Sha512Base64 = Schema.String.check(
   Schema.isPattern(/^[A-Za-z0-9+/]{86}==$/u, { message: "sha512 must be a base64 SHA-512 digest" }),
 );
 
-/** Base64 of a 64-byte Ed25519 signature (Sparkle's `sparkle:edSignature`). */
+/** Base64 of a 64-byte Ed25519 signature (Sparkle's and WinSparkle's `sparkle:edSignature`). */
 const Ed25519SignatureBase64 = Schema.String.check(
   Schema.isPattern(/^[A-Za-z0-9+/]{86}==$/u, {
-    message: "sparkleEdSignature must be a base64 Ed25519 signature",
+    message: "an EdDSA signature must be a base64 Ed25519 signature",
   }),
 );
 
@@ -44,7 +45,7 @@ const TauriSignature = Schema.String.check(
 );
 
 /**
- * electron-updater's blockmap of a `.zip` release: the archive cut into
+ * electron-updater's blockmap of a `.zip` or NSIS `.exe` release: the file cut into
  * content-defined chunks, each named by a checksum, computed by the CLI. The
  * server serves it gzipped as `<file>.blockmap`, so an updater holding the
  * previous zip downloads only the chunks that changed. Up to 4 GiB in chunks
@@ -80,10 +81,11 @@ export const DesktopRelease = Schema.Struct({
   id: Id,
   projectId: Id,
   buildId: Id,
+  platform: DesktopPlatform,
   channel: Schema.String,
   appVersion: Schema.NullOr(Schema.String),
   buildNumber: Schema.NullOr(Schema.String),
-  artifactFormat: MacosArtifactFormat,
+  artifactFormat: DesktopArtifactFormat,
   releaseNotes: Schema.NullOr(Schema.String),
   critical: Schema.Boolean,
   rolloutPercentage: Schema.Number,
@@ -93,7 +95,12 @@ export const DesktopRelease = Schema.Struct({
   sparkleSigned: Schema.Boolean,
   /** Whether the release carries a Tauri updater signature (Tauri feeds list only signed ones). */
   tauriSigned: Schema.Boolean,
-  /** Whether electron-updater can download it differentially (a `.zip` with a blockmap). */
+  /** Whether a Windows release carries a WinSparkle EdDSA signature. */
+  winSparkleSigned: Schema.Boolean,
+  /**
+   * Whether electron-updater can download it differentially: a `.zip` or NSIS
+   * `.exe` with an uploaded blockmap, or an AppImage with an embedded one.
+   */
   blockmap: Schema.Boolean,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
@@ -110,8 +117,10 @@ export const CreateDesktopReleaseBody = Schema.Struct({
   /** Computed by the CLI over the stored artifact — the server never reads the bytes. */
   sha512: Sha512Base64,
   sparkleEdSignature: Schema.optional(Ed25519SignatureBase64),
+  /** Windows only: the installer's WinSparkle EdDSA signature. */
+  winSparkleEdSignature: Schema.optional(Ed25519SignatureBase64),
   tauriSignature: Schema.optional(TauriSignature),
-  /** `.zip` only; its sizes must add up to the artifact's size. */
+  /** `.zip` and `.exe` only; its sizes must add up to the artifact's size. */
   electronBlockmap: Schema.optional(ElectronBlockmapChunks),
 });
 
@@ -125,6 +134,7 @@ export const UpdateDesktopReleaseBody = Schema.Struct({
 
 export const ListDesktopReleasesParams = Schema.Struct({
   ...PaginationParams.fields,
+  platform: Schema.optional(DesktopPlatform),
   channel: Schema.optional(DesktopReleaseChannel),
   buildId: Schema.optional(Id),
 });

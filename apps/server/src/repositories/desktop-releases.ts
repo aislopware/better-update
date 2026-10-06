@@ -9,6 +9,7 @@ import type { DB } from "../db/schema";
 import type {
   DesktopArtifactFormat,
   DesktopFeedEntry,
+  DesktopPlatform,
   DesktopReleaseModel,
 } from "../desktop-release-models";
 
@@ -26,6 +27,7 @@ export interface DesktopReleaseRepository {
     readonly phasedRolloutHours: number | null;
     readonly sha512: string;
     readonly sparkleEdSignature: string | null;
+    readonly winSparkleEdSignature: string | null;
     readonly tauriSignature: string | null;
     readonly blockmap: boolean;
     readonly now: string;
@@ -43,6 +45,7 @@ export interface DesktopReleaseRepository {
 
   readonly listByProject: (params: {
     readonly projectId: string;
+    readonly platform?: DesktopPlatform | undefined;
     readonly channel?: string | undefined;
     readonly buildId?: string | undefined;
     readonly limit: number;
@@ -58,6 +61,7 @@ export interface DesktopReleaseRepository {
     readonly critical?: boolean | undefined;
     readonly sha512?: string | undefined;
     readonly sparkleEdSignature?: string | null | undefined;
+    readonly winSparkleEdSignature?: string | null | undefined;
     readonly tauriSignature?: string | null | undefined;
     readonly blockmap?: boolean | undefined;
     readonly now: string;
@@ -66,29 +70,35 @@ export interface DesktopReleaseRepository {
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 
   /**
-   * The live (non-halted) releases a feed renders, newest first. `channel`
-   * narrows to one channel (electron-updater reads one file per channel);
-   * omitted, every channel (a Sparkle appcast tags items per channel).
+   * The live (non-halted) releases of one platform's builds a feed renders,
+   * newest first. `channel` narrows to one channel (electron-updater reads one
+   * file per channel); omitted, every channel (a Sparkle appcast tags items
+   * per channel).
    */
   readonly listFeed: (params: {
     readonly projectId: string;
+    readonly platform: DesktopPlatform;
     readonly channel?: string | undefined;
     readonly limit: number;
   }) => Effect.Effect<readonly DesktopFeedEntry[]>;
 
-  /** A live release of the project, for the public download redirect. */
+  /** A live release of the project's builds for one platform, for the public download redirect. */
   readonly findFeedEntry: (params: {
     readonly projectId: string;
+    readonly platform: DesktopPlatform;
     readonly id: string;
   }) => Effect.Effect<DesktopFeedEntry | null>;
 
   /**
-   * The project's `.zip` releases of one app version that carry a blockmap,
-   * halted ones included (a Mac may still run one), newest first: where the
-   * blockmap of the version an updater runs comes from.
+   * The project's releases of one app version in one format (`.zip`, `.exe`)
+   * that carry a blockmap, halted ones included (a machine may still run
+   * one), newest first: where the blockmap of the version an updater runs
+   * comes from.
    */
   readonly listBlockmapReleases: (params: {
     readonly projectId: string;
+    readonly platform: DesktopPlatform;
+    readonly format: DesktopArtifactFormat;
     readonly appVersion: string;
     readonly limit: number;
   }) => Effect.Effect<readonly DesktopFeedEntry[]>;
@@ -102,9 +112,10 @@ export class DesktopReleaseRepo extends Context.Service<
 // -- D1 Adapter ------------------------------------------------------------
 
 /**
- * Every read joins the build (version, bundle id, metadata), its artifact
- * (format, size, R2 key) and the project (organization, for ownership checks).
- * Releases exist only for macOS builds, so the artifact format is a macOS one.
+ * Every read joins the build (platform, version, bundle id, metadata), its
+ * artifact (format, size, R2 key) and the project (organization, for
+ * ownership checks). Releases exist only for desktop builds, so the platform
+ * and the artifact format are desktop ones.
  */
 const selectReleases = (db: Kysely<DB>) =>
   db
@@ -117,6 +128,7 @@ const selectReleases = (db: Kysely<DB>) =>
       "p.organization_id",
       "r.project_id",
       "r.build_id",
+      eb.ref("b.platform").$castTo<DesktopPlatform>().as("platform"),
       "r.channel",
       "r.release_notes",
       "r.critical",
@@ -125,6 +137,7 @@ const selectReleases = (db: Kysely<DB>) =>
       "r.halted",
       "r.sha512",
       "r.sparkle_ed_signature",
+      "r.winsparkle_ed_signature",
       "r.tauri_signature",
       "r.blockmap",
       "r.created_at",
@@ -145,6 +158,7 @@ const toFeedEntry = (row: ReleaseRow): DesktopFeedEntry => ({
   organizationId: row.organization_id,
   projectId: row.project_id,
   buildId: row.build_id,
+  platform: row.platform,
   channel: row.channel,
   appVersion: row.app_version,
   buildNumber: row.build_number,
@@ -156,6 +170,7 @@ const toFeedEntry = (row: ReleaseRow): DesktopFeedEntry => ({
   halted: row.halted === 1,
   sha512: row.sha512,
   sparkleEdSignature: row.sparkle_ed_signature,
+  winSparkleEdSignature: row.winsparkle_ed_signature,
   tauriSignature: row.tauri_signature,
   blockmap: row.blockmap === 1,
   createdAt: row.created_at,
@@ -192,6 +207,7 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
             halted: 0,
             sha512: params.sha512,
             sparkle_ed_signature: params.sparkleEdSignature,
+            winsparkle_ed_signature: params.winSparkleEdSignature,
             tauri_signature: params.tauriSignature,
             blockmap: params.blockmap ? 1 : 0,
             created_at: params.now,
@@ -228,14 +244,16 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
   listByProject: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
-      const { channel, buildId } = params;
+      const { platform, channel, buildId } = params;
       const countRow = yield* Effect.promise(async () =>
         db
           .selectFrom("desktop_releases as r")
+          .innerJoin("builds as b", "b.id", "r.build_id")
           .where((eb) =>
             eb.and(
               compactConditions([
                 eb("r.project_id", "=", params.projectId),
+                platform === undefined ? null : eb("b.platform", "=", platform),
                 channel === undefined ? null : eb("r.channel", "=", channel),
                 buildId === undefined ? null : eb("r.build_id", "=", buildId),
               ]),
@@ -250,6 +268,7 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
             eb.and(
               compactConditions([
                 eb("r.project_id", "=", params.projectId),
+                platform === undefined ? null : eb("b.platform", "=", platform),
                 channel === undefined ? null : eb("r.channel", "=", channel),
                 buildId === undefined ? null : eb("r.build_id", "=", buildId),
               ]),
@@ -284,6 +303,9 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
             ...(params.sparkleEdSignature === undefined
               ? {}
               : { sparkle_ed_signature: params.sparkleEdSignature }),
+            ...(params.winSparkleEdSignature === undefined
+              ? {}
+              : { winsparkle_ed_signature: params.winSparkleEdSignature }),
             ...(params.tauriSignature === undefined
               ? {}
               : { tauri_signature: params.tauriSignature }),
@@ -309,6 +331,7 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
         newestFirst(
           selectReleases(db)
             .where("r.project_id", "=", params.projectId)
+            .where("b.platform", "=", params.platform)
             .where("r.halted", "=", 0)
             .where((eb) =>
               params.channel === undefined ? eb.lit(true) : eb("r.channel", "=", params.channel),
@@ -327,6 +350,7 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
         selectReleases(db)
           .where("r.id", "=", params.id)
           .where("r.project_id", "=", params.projectId)
+          .where("b.platform", "=", params.platform)
           .where("r.halted", "=", 0)
           .executeTakeFirst(),
       );
@@ -340,8 +364,9 @@ export const DesktopReleaseRepoLive = Layer.succeed(DesktopReleaseRepo, {
         newestFirst(
           selectReleases(db)
             .where("r.project_id", "=", params.projectId)
+            .where("b.platform", "=", params.platform)
             .where("b.app_version", "=", params.appVersion)
-            .where("a.format", "=", "zip")
+            .where("a.format", "=", params.format)
             .where("r.blockmap", "=", 1),
         )
           .limit(params.limit)

@@ -1,15 +1,20 @@
+import { DESKTOP_ARTIFACT_FORMATS, readDesktopBuildMetadata } from "@better-update/api";
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
-import type { CreateDesktopReleaseBody, UpdateDesktopReleaseBody } from "@better-update/api";
+import type {
+  CreateDesktopReleaseBody,
+  DesktopArtifactFormat,
+  UpdateDesktopReleaseBody,
+} from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
 import { BuildRuntime } from "../cloudflare/build-runtime";
-import { artifactBlockmapKey, renderBlockmap } from "../domain/desktop-feeds";
+import { artifactBlockmapKey, renderBlockmap } from "../domain/desktop-feed-files";
 import { BadRequest } from "../errors";
 import { toApiDesktopRelease } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
@@ -20,12 +25,32 @@ import { DesktopReleaseRepo } from "../repositories/desktop-releases";
 
 import type { BuildWithArtifactModel } from "../models";
 
-const MACOS_FEED_FORMATS = new Set(["dmg", "zip", "pkg", "tar.gz"]);
 const MAX_PAGE = 100;
 
+/** The distribution each desktop platform's releasable builds carry. */
+const RELEASABLE_DISTRIBUTION = {
+  macos: "developer-id",
+  windows: "direct",
+  linux: "direct",
+} as const;
+
+/** Formats the Tauri updater installs, signed with its minisign key. */
+const TAURI_FORMATS: ReadonlySet<string> = new Set<DesktopArtifactFormat>([
+  "tar.gz",
+  "exe",
+  "msi",
+  "appimage",
+  "deb",
+  "rpm",
+]);
+
+/** Formats electron-updater downloads differentially from an uploaded blockmap. */
+const BLOCKMAP_FORMATS: ReadonlySet<string> = new Set<DesktopArtifactFormat>(["zip", "exe"]);
+
 /**
- * Only a finished macOS Developer ID build of this project can be released:
- * the feeds point Macs at its stored artifact.
+ * Only a finished desktop build of this project can be released — a macOS
+ * Developer ID build, or a Windows / Linux one: the feeds point machines at
+ * its stored artifact.
  */
 const requireReleasableBuild = (projectId: string, buildId: string) =>
   Effect.gen(function* () {
@@ -33,20 +58,46 @@ const requireReleasableBuild = (projectId: string, buildId: string) =>
     if (build.projectId !== projectId) {
       return yield* new BadRequest({ message: "The build belongs to another project" });
     }
-    if (build.platform !== "macos" || build.distribution !== "developer-id") {
+    const { platform } = build;
+    if (
+      (platform !== "macos" && platform !== "windows" && platform !== "linux") ||
+      build.distribution !== RELEASABLE_DISTRIBUTION[platform]
+    ) {
       return yield* new BadRequest({
-        message: "Only macOS Developer ID builds can be released to update feeds",
+        message:
+          "Only desktop builds (macOS Developer ID, Windows, Linux) can be released to update feeds",
       });
     }
-    if (build.artifact === null || !MACOS_FEED_FORMATS.has(build.artifact.format)) {
+    const formats: readonly string[] = DESKTOP_ARTIFACT_FORMATS[platform];
+    if (build.artifact === null || !formats.includes(build.artifact.format)) {
       return yield* new BadRequest({ message: "The build has no uploaded artifact yet" });
     }
-    return build;
+    return { ...build, platform, artifact: build.artifact };
   });
 
+/** The signatures a release may carry must suit its platform and format. */
+const checkSignatures = (
+  build: { readonly platform: string; readonly artifact: { readonly format: string } },
+  payload: typeof CreateDesktopReleaseBody.Type,
+) => {
+  const { format } = build.artifact;
+  if (payload.tauriSignature !== undefined && !TAURI_FORMATS.has(format)) {
+    return new BadRequest({
+      message: `A .${format} build cannot carry a Tauri updater signature (Tauri installs .app.tar.gz, .exe, .msi, .AppImage, .deb and .rpm)`,
+    });
+  }
+  if (payload.sparkleEdSignature !== undefined && build.platform !== "macos") {
+    return new BadRequest({ message: "Only a macOS build can carry a Sparkle signature" });
+  }
+  if (payload.winSparkleEdSignature !== undefined && build.platform !== "windows") {
+    return new BadRequest({ message: "Only a Windows build can carry a WinSparkle signature" });
+  }
+  return undefined;
+};
+
 /**
- * Store the zip's electron-updater blockmap next to its artifact, once it
- * describes exactly that many bytes.
+ * Store a `.zip` / `.exe`'s electron-updater blockmap next to its artifact,
+ * once it describes exactly that many bytes.
  */
 const storeBlockmap = (
   build: BuildWithArtifactModel,
@@ -57,8 +108,10 @@ const storeBlockmap = (
       return false;
     }
     const { artifact } = build;
-    if (artifact?.format !== "zip") {
-      return yield* new BadRequest({ message: "Only a .zip build can carry a blockmap" });
+    if (artifact === null || !BLOCKMAP_FORMATS.has(artifact.format)) {
+      return yield* new BadRequest({
+        message: "Only a .zip or .exe build can carry an uploaded blockmap",
+      });
     }
     const covered = blockmap.sizes.reduce((total, size) => total + size, 0);
     if (blockmap.checksums.length !== blockmap.sizes.length || covered !== artifact.byteSize) {
@@ -86,12 +139,16 @@ const handleCreate = ({
       yield* assertProjectOwnership(params.projectId);
       yield* assertAccess("build", "create", { kind: "build", projectId: params.projectId });
       const build = yield* requireReleasableBuild(params.projectId, payload.buildId);
-      if (payload.tauriSignature !== undefined && build.artifact?.format !== "tar.gz") {
-        return yield* new BadRequest({
-          message: "Only a .app.tar.gz build can carry a Tauri updater signature",
-        });
+      const signatureError = checkSignatures(build, payload);
+      if (signatureError !== undefined) {
+        return yield* signatureError;
       }
-      const blockmap = yield* storeBlockmap(build, payload.electronBlockmap);
+      const blockmap =
+        (yield* storeBlockmap(build, payload.electronBlockmap)) ||
+        // An AppImage carries its blockmap inside; the build recorded its size.
+        (build.platform === "linux" &&
+          build.artifact.format === "appimage" &&
+          readDesktopBuildMetadata("linux", build.metadataJson)?.blockMapSize !== undefined);
       const repo = yield* DesktopReleaseRepo;
       const now = new Date().toISOString();
       const existing = yield* repo.findByBuildAndChannel({
@@ -112,6 +169,7 @@ const handleCreate = ({
             phasedRolloutHours: toDbNull(payload.phasedRolloutHours),
             sha512: payload.sha512,
             sparkleEdSignature: toDbNull(payload.sparkleEdSignature),
+            winSparkleEdSignature: toDbNull(payload.winSparkleEdSignature),
             tauriSignature: toDbNull(payload.tauriSignature),
             blockmap,
             now,
@@ -125,6 +183,7 @@ const handleCreate = ({
             phasedRolloutHours: toDbNull(payload.phasedRolloutHours),
             sha512: payload.sha512,
             sparkleEdSignature: toDbNull(payload.sparkleEdSignature),
+            winSparkleEdSignature: toDbNull(payload.winSparkleEdSignature),
             tauriSignature: toDbNull(payload.tauriSignature),
             blockmap,
             now,
@@ -191,6 +250,7 @@ export const DesktopReleasesGroupLive = HttpApiBuilder.group(
             const offset = (page - 1) * limit;
             const { items, total } = yield* repo.listByProject({
               projectId: params.projectId,
+              platform: query.platform,
               channel: query.channel,
               buildId: query.buildId,
               limit,

@@ -13,11 +13,17 @@ import { BuildInstallArtifact } from "./install-artifact";
 
 /**
  * Platforms a build can target. Wider than `Platform`, which is the OTA
- * update platform: a macOS app is built, signed, notarized and distributed
- * here, but never receives Expo updates.
+ * update platform: a desktop app is built, distributed and auto-updated here,
+ * but never receives Expo updates.
  */
-export const BuildPlatform = Schema.Literals(["ios", "android", "macos"]);
+export const BuildPlatform = Schema.Literals(["ios", "android", "macos", "windows", "linux"]);
 export type BuildPlatform = typeof BuildPlatform.Type;
+
+/** The build platforms whose releases are served as desktop update feeds. */
+export const DesktopPlatform = Schema.Literals(["macos", "windows", "linux"]);
+export type DesktopPlatform = typeof DesktopPlatform.Type;
+
+export const isDesktopPlatform = Schema.is(DesktopPlatform);
 
 export const Distribution = Schema.Literals([
   "app-store",
@@ -62,13 +68,99 @@ export const OTA_INSTALLABLE_DISTRIBUTIONS = [
 export const isOtaInstallableDistribution = (distribution: typeof Distribution.Type): boolean =>
   (OTA_INSTALLABLE_DISTRIBUTIONS as readonly string[]).includes(distribution);
 
-export const ArtifactFormat = Schema.Literals(["ipa", "apk", "aab", "tar.gz", "dmg", "zip", "pkg"]);
+export const ArtifactFormat = Schema.Literals([
+  "ipa",
+  "apk",
+  "aab",
+  "tar.gz",
+  "dmg",
+  "zip",
+  "pkg",
+  "exe",
+  "msi",
+  "appimage",
+  "deb",
+  "rpm",
+]);
 
 /**
  * Containers a Developer ID-signed macOS app ships in. `tar.gz` is the
  * `.app.tar.gz` the Tauri updater installs (Sparkle reads it too).
  */
 export const MacosArtifactFormat = Schema.Literals(["dmg", "zip", "pkg", "tar.gz"]);
+
+/** Windows installers: NSIS `.exe` (electron-updater, Tauri, WinSparkle) and `.msi` (Tauri, WinSparkle). */
+export const WindowsArtifactFormat = Schema.Literals(["exe", "msi"]);
+
+/** Linux packages: `.AppImage` (electron-updater, Tauri), `.deb` and `.rpm` (both, installed in full). */
+export const LinuxArtifactFormat = Schema.Literals(["appimage", "deb", "rpm"]);
+
+/** Every format a desktop release can point an updater at. */
+export const DesktopArtifactFormat = Schema.Literals([
+  ...MacosArtifactFormat.literals,
+  ...WindowsArtifactFormat.literals,
+  ...LinuxArtifactFormat.literals,
+]);
+export type DesktopArtifactFormat = typeof DesktopArtifactFormat.Type;
+
+export const isDesktopArtifactFormat = Schema.is(DesktopArtifactFormat);
+
+/** The formats each desktop platform's builds ship in. */
+export const DESKTOP_ARTIFACT_FORMATS = {
+  macos: MacosArtifactFormat.literals,
+  windows: WindowsArtifactFormat.literals,
+  linux: LinuxArtifactFormat.literals,
+} as const satisfies Record<DesktopPlatform, readonly DesktopArtifactFormat[]>;
+
+/**
+ * A Windows or Linux build's CPU architecture, in Node's `process.arch`
+ * names (what electron-updater matches file names against) — except
+ * `armv7l`, electron-builder's name for 32-bit ARM.
+ */
+export const DesktopArch = Schema.Literals(["x64", "arm64", "ia32", "armv7l"]);
+export type DesktopArch = typeof DesktopArch.Type;
+
+/**
+ * What a Windows or Linux build records under `metadata.windows` /
+ * `metadata.linux`: the CLI writes it at upload, the feeds read it.
+ */
+export const DesktopBuildMetadata = Schema.Struct({
+  /** Product name — what update feeds name the download. */
+  appName: Schema.optional(Schema.String),
+  /** The architectures the artifact installs; several for a multi-arch NSIS installer. */
+  architectures: Schema.optional(Schema.Array(DesktopArch)),
+  /** Windows only: the oldest Windows build it runs on, e.g. `10.0.17763`. */
+  minimumSystemVersion: Schema.optional(Schema.String),
+  /** A Tauri app's `plugins.updater.pubkey`: Tauri feed entries must be signed for it. */
+  tauriPublicKey: Schema.optional(Schema.String),
+  /** A WinSparkle app's EdDSA public key: Windows appcast items must be signed for it. */
+  winSparklePublicKey: Schema.optional(Schema.String),
+  /**
+   * An AppImage's embedded electron-builder blockmap: its size in bytes
+   * (stored just before the trailing 4-byte length). electron-updater needs it
+   * to download the next AppImage differentially.
+   */
+  blockMapSize: Schema.optional(Schema.Number),
+  /** The Debian / RPM package name (`<name>_<version>_<arch>.deb`). */
+  packageName: Schema.optional(Schema.String),
+});
+export type DesktopBuildMetadata = typeof DesktopBuildMetadata.Type;
+
+const decodeWindowsMetadataJson = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ windows: DesktopBuildMetadata })),
+);
+const decodeLinuxMetadataJson = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ linux: DesktopBuildMetadata })),
+);
+
+/** A Windows or Linux build's `metadata.<platform>`, or undefined when absent or malformed. */
+export const readDesktopBuildMetadata = (
+  platform: "windows" | "linux",
+  metadataJson: string,
+): DesktopBuildMetadata | undefined =>
+  platform === "windows"
+    ? Option.getOrUndefined(decodeWindowsMetadataJson(metadataJson))?.windows
+    : Option.getOrUndefined(decodeLinuxMetadataJson(metadataJson))?.linux;
 
 /** How far Apple's notary service got with a build's shipped container. */
 export const MacosNotarization = Schema.Struct({
@@ -205,6 +297,18 @@ export const CreateBuildBody = Schema.Union([
     platform: Schema.Literal("macos"),
     distribution: Schema.Literal("developer-id"),
     artifactFormat: MacosArtifactFormat,
+  }),
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("windows"),
+    distribution: Schema.Literal("direct"),
+    artifactFormat: WindowsArtifactFormat,
+  }),
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("linux"),
+    distribution: Schema.Literal("direct"),
+    artifactFormat: LinuxArtifactFormat,
   }),
 ]);
 

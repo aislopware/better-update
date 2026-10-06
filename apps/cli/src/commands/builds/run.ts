@@ -308,6 +308,12 @@ export const runBuildCommand = Command.make(
             message: `Build ${build.id} has no artifact yet.`,
           });
         }
+        const { platform } = build;
+        if (platform === "windows" || platform === "linux") {
+          return yield* new InvalidArgumentError({
+            message: `Build ${build.id} is a ${platform} build; \`builds run\` installs iOS, Android and macOS builds. Download it with \`better-update builds download ${build.id}\`.`,
+          });
+        }
         const link = yield* api.builds.getInstallLink({ params: { id: build.id } });
         // An `.aab` build installs through its universal APK companion when
         // one was attached; the bundle itself is Play-only.
@@ -328,7 +334,7 @@ export const runBuildCommand = Command.make(
         const fs = yield* FileSystem.FileSystem;
         yield* fs.writeFile(artifactPath, bytes);
 
-        yield* runForPlatform(build.platform, {
+        yield* runForPlatform(platform, {
           tempDir,
           artifactPath,
           format: installable.format,

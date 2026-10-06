@@ -14,6 +14,11 @@ export const FORMAT_LABELS: Record<ArtifactFormatValue, string> = {
   dmg: "DMG",
   zip: "ZIP",
   pkg: "PKG",
+  exe: "EXE",
+  msi: "MSI",
+  appimage: "AppImage",
+  deb: "DEB",
+  rpm: "RPM",
 };
 
 export { formatBytes } from "../../../../../lib/format-bytes";

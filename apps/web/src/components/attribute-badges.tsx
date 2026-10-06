@@ -8,6 +8,7 @@ import {
   DownloadSimpleIcon,
   FlaskIcon,
   LaptopIcon,
+  LinuxLogoIcon,
   MonitorIcon,
   PaperPlaneTiltIcon,
   PlayIcon,
@@ -16,6 +17,7 @@ import {
   StorefrontIcon,
   TagIcon,
   WarningIcon,
+  WindowsLogoIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
 
@@ -63,6 +65,8 @@ const PLATFORM_DEFS = {
   ios: { label: "iOS", icon: AppleIcon, variant: "outline" },
   android: { label: "Android", icon: AndroidIcon, variant: "outline" },
   macos: { label: "macOS", icon: LaptopIcon, variant: "outline" },
+  windows: { label: "Windows", icon: WindowsLogoIcon, variant: "outline" },
+  linux: { label: "Linux", icon: LinuxLogoIcon, variant: "outline" },
 } as const satisfies Record<BuildPlatformValue, Definition>;
 
 const DISTRIBUTION_DEFS = {

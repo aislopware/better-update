@@ -1,3 +1,4 @@
+import { isDesktopPlatform } from "@better-update/api";
 import { getApiError } from "@better-update/api-client";
 import { fetchInstallLink } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
@@ -49,12 +50,13 @@ const ExpiryBadge = ({ expires }: { expires: number }) => {
  * an iOS install manifest, an Android APK a device installs on tap, or a bare
  * download of something a device cannot install (an App Store `.ipa`, a
  * simulator tarball, or an App Bundle uploaded without its universal APK). A
- * macOS build's link is its signed, notarized container: a Mac downloads it
- * and opens it, so it is a download — but one meant for installing.
+ * desktop build's link is its installer or package (on a Mac, the signed,
+ * notarized container): downloaded and opened, so a download — but one meant
+ * for installing, with no device to scan a QR code on.
  */
 const linkKind = (build: BuildWithArtifact, installUrl: string | null) => {
-  if (build.platform === "macos") {
-    return "macos-download" as const;
+  if (isDesktopPlatform(build.platform)) {
+    return "desktop-download" as const;
   }
   if (installUrl === null) {
     return "download" as const;
@@ -62,10 +64,18 @@ const linkKind = (build: BuildWithArtifact, installUrl: string | null) => {
   return build.platform === "ios" ? ("ios-install" as const) : ("android-apk" as const);
 };
 
+const DIALOG_DESCRIPTIONS: Record<BuildWithArtifact["platform"], string> = {
+  ios: "Scan the QR code on a device, or copy the link to share.",
+  android: "Scan the QR code on a device, or copy the link to share.",
+  macos: "Copy the link to share. It downloads the signed app, ready to open on a Mac.",
+  windows: "Copy the link to share. It downloads the installer, ready to run on a PC.",
+  linux: "Copy the link to share. It downloads the package, ready to install on Linux.",
+};
+
 const LINK_BADGES = {
   "ios-install": { variant: "secondary", label: "iOS Install" },
   "android-apk": { variant: "secondary", label: "Android APK" },
-  "macos-download": { variant: "secondary", label: "macOS download" },
+  "desktop-download": { variant: "secondary", label: "Desktop download" },
   download: { variant: "outline", label: "Download link" },
 } as const;
 
@@ -135,7 +145,7 @@ const InstallLinkBody = ({ build }: { build: BuildWithArtifact }) => {
           ) : null}
 
           {/* A phone cannot do anything with a DMG. */}
-          {kind === "macos-download" ? null : (
+          {kind === "desktop-download" ? null : (
             <div className="rounded-md border bg-white p-4">
               <QRCodeSVG value={primaryUrl} size={200} level="M" />
             </div>
@@ -233,11 +243,7 @@ export const InstallLinkDialog = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Install link</DialogTitle>
-            <DialogDescription>
-              {build.platform === "macos"
-                ? "Copy the link to share. It downloads the signed app, ready to open on a Mac."
-                : "Scan the QR code on a device, or copy the link to share."}
-            </DialogDescription>
+            <DialogDescription>{DIALOG_DESCRIPTIONS[build.platform]}</DialogDescription>
           </DialogHeader>
           <InstallLinkBody key={resetKey} build={build} />
         </DialogContent>

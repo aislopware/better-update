@@ -55,7 +55,13 @@ const SORT_COLUMNS = [
 
 const DEFAULT_SORT = "-createdAt" as const;
 
-const PLATFORMS = ["ios", "android", "macos"] as const satisfies readonly BuildPlatformValue[];
+const PLATFORMS = [
+  "ios",
+  "android",
+  "macos",
+  "windows",
+  "linux",
+] as const satisfies readonly BuildPlatformValue[];
 const DISTRIBUTIONS = [
   "app-store",
   "ad-hoc",

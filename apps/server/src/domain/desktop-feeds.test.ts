@@ -1,16 +1,19 @@
 import {
   artifactBlockmapKey,
   blockmapVersionOf,
-  ELECTRON_FEED_FILE,
+  darwinVersionOf,
   feedFileName,
-  pickElectronRelease,
-  renderAppcast,
   renderBlockmap,
+  windowsReleaseVersionOf,
+} from "./desktop-feed-files";
+import { renderAppcast, renderWinSparkleAppcast } from "./desktop-feeds-appcast";
+import {
+  parseElectronFeedFile,
+  pickElectronRelease,
   renderElectronYml,
-  renderTauriDynamic,
-  renderTauriStatic,
-  TAURI_FEED_FILE,
-} from "./desktop-feeds";
+} from "./desktop-feeds-electron";
+import { renderTauriDynamic, renderTauriStatic, TAURI_FEED_FILE } from "./desktop-feeds-tauri";
+import { pickLatestDownload, renderReleaseIndex } from "./desktop-release-index";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
 
@@ -25,6 +28,7 @@ const entry = (overrides: Partial<DesktopFeedEntry> = {}): DesktopFeedEntry => (
   organizationId: "org-1",
   projectId: "project-1",
   buildId: "build-1",
+  platform: "macos",
   channel: "latest",
   appVersion: "1.4.0",
   buildNumber: "140",
@@ -36,6 +40,7 @@ const entry = (overrides: Partial<DesktopFeedEntry> = {}): DesktopFeedEntry => (
   halted: false,
   sha512: SHA512,
   sparkleEdSignature: SIGNATURE,
+  winSparkleEdSignature: null,
   tauriSignature: null,
   blockmap: false,
   createdAt: "2026-10-05T10:00:00.000Z",
@@ -77,11 +82,17 @@ describe(feedFileName, () => {
   });
 });
 
+const BASE = "https://updates.example.com/feeds/project-1/";
+
+/** The handler's absolute download URL, under each release's platform directory. */
+const downloadUrl = (release: DesktopFeedEntry) =>
+  `${BASE}${release.platform}/download/${release.id}/${feedFileName(release)}`;
+
 describe(renderAppcast, () => {
-  const base = "https://updates.example.com/feeds/project-1/macos/";
+  const base = `${BASE}macos/`;
 
   it("renders a Sparkle item with versions, minimum OS, signature and download URL", () => {
-    const xml = renderAppcast({ title: "Updates", feedBaseUrl: base, entries: [entry()] });
+    const xml = renderAppcast({ title: "Updates", downloadUrl, entries: [entry()] });
     expect(xml).toContain("<sparkle:version>140</sparkle:version>");
     expect(xml).toContain("<sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>");
     expect(xml).toContain("<sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>");
@@ -96,7 +107,7 @@ describe(renderAppcast, () => {
   it("tags other channels, marks critical updates and escapes release notes", () => {
     const xml = renderAppcast({
       title: "Updates",
-      feedBaseUrl: base,
+      downloadUrl,
       entries: [
         entry({
           channel: "beta",
@@ -117,7 +128,7 @@ describe(renderAppcast, () => {
   it("requires Apple silicon for an arm64-only build and phases by the hour", () => {
     const xml = renderAppcast({
       title: "Updates",
-      feedBaseUrl: base,
+      downloadUrl,
       entries: [entry({ metadataJson: withArchitectures(["arm64"]), phasedRolloutHours: 24 })],
     });
     expect(xml).toContain("<sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>");
@@ -127,7 +138,7 @@ describe(renderAppcast, () => {
   it("leaves universal and Intel builds to every Mac and unphased releases to every client", () => {
     const xml = renderAppcast({
       title: "Updates",
-      feedBaseUrl: base,
+      downloadUrl,
       entries: [
         entry({ metadataJson: withArchitectures(["arm64", "x86_64"]) }),
         entry({ metadataJson: withArchitectures(["x86_64"]) }),
@@ -138,15 +149,16 @@ describe(renderAppcast, () => {
   });
 });
 
+const MAC_ZIP = { formats: ["zip"] } as const;
+
 describe(pickElectronRelease, () => {
   it("takes the newest zip with a version and skips other containers", () => {
     const zip = entry({ id: "zip-release", artifactFormat: "zip" });
     expect(
-      pickElectronRelease([
-        entry({ artifactFormat: "dmg" }),
-        zip,
-        entry({ artifactFormat: "zip" }),
-      ]),
+      pickElectronRelease(
+        [entry({ artifactFormat: "dmg" }), zip, entry({ artifactFormat: "zip" })],
+        MAC_ZIP,
+      ),
     ).toStrictEqual({ version: "1.4.0", files: [zip] });
   });
 
@@ -167,7 +179,7 @@ describe(pickElectronRelease, () => {
       metadataJson: withArchitectures(["x86_64"]),
     });
     const previous = entry({ id: "previous", artifactFormat: "zip", appVersion: "1.3.0" });
-    expect(pickElectronRelease([arm, intel, olderIntel, previous])).toStrictEqual({
+    expect(pickElectronRelease([arm, intel, olderIntel, previous], MAC_ZIP)).toStrictEqual({
       version: "1.4.0",
       files: [arm, intel],
     });
@@ -176,13 +188,13 @@ describe(pickElectronRelease, () => {
   it("skips a newer zip without a version", () => {
     const zip = entry({ id: "versioned", artifactFormat: "zip" });
     expect(
-      pickElectronRelease([entry({ artifactFormat: "zip", appVersion: null }), zip]),
+      pickElectronRelease([entry({ artifactFormat: "zip", appVersion: null }), zip], MAC_ZIP),
     ).toStrictEqual({ version: "1.4.0", files: [zip] });
   });
 
   it("has nothing without a versioned zip", () => {
     expect(
-      pickElectronRelease([entry({ artifactFormat: "zip", appVersion: null })]),
+      pickElectronRelease([entry({ artifactFormat: "zip", appVersion: null })], MAC_ZIP),
     ).toBeUndefined();
   });
 });
@@ -206,6 +218,8 @@ describe(renderElectronYml, () => {
         `sha512: "${SHA512}"`,
         'releaseDate: "2026-10-05T10:00:00.000Z"',
         String.raw`releaseNotes: "a \"b\""`,
+        // macOS 13 is Darwin 22: what os.release() reports there.
+        'minimumSystemVersion: "22.0.0"',
         "stagingPercentage: 25",
         "",
       ].join("\n"),
@@ -234,14 +248,18 @@ describe(renderElectronYml, () => {
     );
   });
 
-  it("matches only channel feed file names", () => {
-    expect(ELECTRON_FEED_FILE.exec("beta-mac.yml")?.groups?.["channel"]).toBe("beta");
-    expect(ELECTRON_FEED_FILE.exec("../x-mac.yml")).toBeNull();
+  it("matches only the platform's channel file names", () => {
+    expect(parseElectronFeedFile("macos", "beta-mac.yml")).toStrictEqual({
+      channel: "beta",
+      formats: ["zip"],
+    });
+    expect(parseElectronFeedFile("macos", "../x-mac.yml")).toBeUndefined();
+    expect(parseElectronFeedFile("macos", "latest.yml")).toBeUndefined();
   });
 });
 
 describe(renderTauriStatic, () => {
-  const base = "https://updates.example.com/feeds/project-1/macos/";
+  const base = `${BASE}macos/`;
   const tarball = (overrides: Partial<DesktopFeedEntry> = {}) =>
     entry({ artifactFormat: "tar.gz", tauriSignature: "VEFVUkk=", ...overrides });
 
@@ -251,7 +269,7 @@ describe(renderTauriStatic, () => {
 
   it("serves a universal build under both Mac architectures", () => {
     const json: unknown = JSON.parse(
-      renderTauriStatic([tarball({ id: "rel-u", releaseNotes: "Notes" })], base) ?? "null",
+      renderTauriStatic([tarball({ id: "rel-u", releaseNotes: "Notes" })], downloadUrl) ?? "null",
     );
     const platform = {
       url: `${base}download/rel-u/Example-Desktop-1.4.0.app.tar.gz`,
@@ -261,7 +279,12 @@ describe(renderTauriStatic, () => {
       version: "1.4.0",
       notes: "Notes",
       pub_date: "2026-10-05T10:00:00.000Z",
-      platforms: { "darwin-aarch64": platform, "darwin-x86_64": platform },
+      platforms: {
+        "darwin-x86_64-app": platform,
+        "darwin-x86_64": platform,
+        "darwin-aarch64-app": platform,
+        "darwin-aarch64": platform,
+      },
     });
   });
 
@@ -278,7 +301,7 @@ describe(renderTauriStatic, () => {
           intel,
           tarball({ id: "older", appVersion: "1.3.0" }),
         ],
-        base,
+        downloadUrl,
       ) ?? "null",
     ) as { readonly version: string; readonly platforms: Record<string, { url: string }> };
     expect(json.version).toBe("1.4.0");
@@ -287,12 +310,14 @@ describe(renderTauriStatic, () => {
   });
 
   it("has nothing to offer without a signed archive", () => {
-    expect(renderTauriStatic([entry(), tarball({ tauriSignature: null })], base)).toBeUndefined();
+    expect(
+      renderTauriStatic([entry(), tarball({ tauriSignature: null })], downloadUrl),
+    ).toBeUndefined();
   });
 });
 
 describe(renderTauriDynamic, () => {
-  const base = "https://updates.example.com/feeds/project-1/macos/";
+  const base = `${BASE}macos/`;
 
   it("answers one architecture with the newest release that runs on it", () => {
     const arm = entry({
@@ -308,13 +333,15 @@ describe(renderTauriDynamic, () => {
       tauriSignature: "SU5URUw=",
       metadataJson: withArchitectures(["x86_64"]),
     });
-    expect(JSON.parse(renderTauriDynamic([arm, intel], "x86_64", base) ?? "null")).toStrictEqual({
+    expect(
+      JSON.parse(renderTauriDynamic([arm, intel], { arch: "x86_64" }, downloadUrl) ?? "null"),
+    ).toStrictEqual({
       version: "1.4.0",
       pub_date: "2026-10-05T10:00:00.000Z",
       url: `${base}download/intel/Example-Desktop-1.4.0-x64.app.tar.gz`,
       signature: "SU5URUw=",
     });
-    expect(renderTauriDynamic([arm], "x86_64", base)).toBeUndefined();
+    expect(renderTauriDynamic([arm], { arch: "x86_64" }, downloadUrl)).toBeUndefined();
   });
 
   it("matches only channel feed file names", () => {
@@ -351,5 +378,263 @@ describe("electron-updater blockmaps", () => {
       version: "2",
       files: [{ name: "file", offset: 0, checksums: ["AAAA", "BBBB"], sizes: [10, 4] }],
     });
+  });
+});
+
+const desktopMetadata = (
+  platform: "windows" | "linux",
+  fields: Record<string, unknown> = {},
+): string => JSON.stringify({ [platform]: { appName: "Example Desktop", ...fields } });
+
+const windowsEntry = (overrides: Partial<DesktopFeedEntry> = {}, fields = {}) =>
+  entry({
+    platform: "windows",
+    artifactFormat: "exe",
+    sparkleEdSignature: null,
+    metadataJson: desktopMetadata("windows", { architectures: ["x64"], ...fields }),
+    ...overrides,
+  });
+
+const linuxEntry = (overrides: Partial<DesktopFeedEntry> = {}, fields = {}) =>
+  entry({
+    platform: "linux",
+    artifactFormat: "appimage",
+    sparkleEdSignature: null,
+    metadataJson: desktopMetadata("linux", { architectures: ["x64"], ...fields }),
+    ...overrides,
+  });
+
+describe("Windows and Linux file names", () => {
+  it("follows electron-builder's naming, with the architecture electron-updater matches", () => {
+    expect(feedFileName(windowsEntry())).toBe("Example-Desktop-Setup-1.4.0-x64.exe");
+    expect(feedFileName(windowsEntry({}, { architectures: ["arm64"] }))).toBe(
+      "Example-Desktop-Setup-1.4.0-arm64.exe",
+    );
+    expect(feedFileName(windowsEntry({}, { architectures: ["x64", "arm64"] }))).toBe(
+      "Example-Desktop-Setup-1.4.0.exe",
+    );
+    expect(feedFileName(windowsEntry({ artifactFormat: "msi" }))).toBe(
+      "Example-Desktop-1.4.0-x64.msi",
+    );
+  });
+
+  it("names Linux packages the way their tools do", () => {
+    expect(feedFileName(linuxEntry())).toBe("Example-Desktop-1.4.0.AppImage");
+    expect(feedFileName(linuxEntry({}, { architectures: ["arm64"] }))).toBe(
+      "Example-Desktop-1.4.0-arm64.AppImage",
+    );
+    expect(
+      feedFileName(linuxEntry({ artifactFormat: "deb" }, { packageName: "example-desktop" })),
+    ).toBe("example-desktop_1.4.0_amd64.deb");
+    expect(
+      feedFileName(
+        linuxEntry(
+          { artifactFormat: "rpm" },
+          { packageName: "example-desktop", architectures: ["arm64"] },
+        ),
+      ),
+    ).toBe("example-desktop-1.4.0.aarch64.rpm");
+  });
+
+  it("finds the old version in an NSIS installer's blockmap URL", () => {
+    expect(blockmapVersionOf(windowsEntry(), "Example-Desktop-Setup-1.3.0-x64.exe")).toBe("1.3.0");
+    expect(
+      blockmapVersionOf(windowsEntry(), "Example-Desktop-Setup-1.3.0-arm64.exe"),
+    ).toBeUndefined();
+  });
+});
+
+describe(darwinVersionOf, () => {
+  it("maps a macOS version to the Darwin release it reports, never above it", () => {
+    expect(darwinVersionOf("10.15")).toBe("19.0.0");
+    expect(darwinVersionOf("11.0")).toBe("20.0.0");
+    expect(darwinVersionOf("13.4")).toBe("22.0.0");
+    expect(darwinVersionOf("15")).toBe("24.0.0");
+    // macOS 26.4 reports Darwin 25.4 and 27.0 reports Darwin 27.0.
+    expect(darwinVersionOf("26.0")).toBe("25.0.0");
+    expect(darwinVersionOf("27.0")).toBe("26.0.0");
+    expect(darwinVersionOf("ten")).toBeUndefined();
+  });
+
+  it("pads a Windows version to the semver os.release() is compared as", () => {
+    expect(windowsReleaseVersionOf("10.0.17763")).toBe("10.0.17763");
+    expect(windowsReleaseVersionOf("10.0")).toBe("10.0.0");
+    expect(windowsReleaseVersionOf("Windows 10")).toBeUndefined();
+  });
+});
+
+describe("electron-updater on Windows and Linux", () => {
+  it("reads each platform's channel file names", () => {
+    expect(parseElectronFeedFile("windows", "latest.yml")).toStrictEqual({
+      channel: "latest",
+      formats: ["exe"],
+    });
+    expect(parseElectronFeedFile("linux", "latest-linux.yml")).toStrictEqual({
+      channel: "latest",
+      formats: ["appimage", "deb", "rpm"],
+      arch: "x64",
+    });
+    expect(parseElectronFeedFile("linux", "beta-linux-arm64.yml")?.arch).toBe("arm64");
+    expect(parseElectronFeedFile("linux", "latest-linux-arm.yml")?.arch).toBe("armv7l");
+    expect(parseElectronFeedFile("linux", "latest.yml")).toBeUndefined();
+  });
+
+  it("lists one NSIS installer per architecture, never an MSI", () => {
+    const x64 = windowsEntry({ id: "x64" });
+    const arm = windowsEntry({ id: "arm" }, { architectures: ["arm64"] });
+    const msi = windowsEntry({ id: "msi", artifactFormat: "msi" });
+    const picked = pickElectronRelease([msi, x64, arm], { formats: ["exe"] });
+    expect(picked?.files.map((file) => file.id)).toStrictEqual(["x64", "arm"]);
+  });
+
+  it("writes the Windows minimum as the release version electron-updater compares", () => {
+    const yml = renderElectronYml({
+      version: "1.4.0",
+      files: [windowsEntry({ id: "w" }, { minimumSystemVersion: "10.0.17763" })],
+    });
+    expect(yml).toContain('  - url: "download/w/Example-Desktop-Setup-1.4.0-x64.exe"');
+    expect(yml).toContain('minimumSystemVersion: "10.0.17763"');
+  });
+
+  it("serves one architecture per Linux file, every package type, and the AppImage's blockmap size", () => {
+    const appImage = linuxEntry({ id: "appimage" }, { blockMapSize: 9876 });
+    const deb = linuxEntry({ id: "deb", artifactFormat: "deb" });
+    const arm = linuxEntry({ id: "arm" }, { architectures: ["arm64"] });
+    const x64 = pickElectronRelease([arm, appImage, deb], {
+      formats: ["appimage", "deb", "rpm"],
+      arch: "x64",
+    });
+    expect(x64?.files.map((file) => file.id)).toStrictEqual(["appimage", "deb"]);
+    const yml = renderElectronYml(x64 ?? { version: "", files: [appImage] });
+    expect(yml).toContain("    blockMapSize: 9876");
+    expect(yml).not.toContain("minimumSystemVersion");
+    const arm64 = pickElectronRelease([arm, appImage, deb], {
+      formats: ["appimage", "deb", "rpm"],
+      arch: "arm64",
+    });
+    expect(arm64?.files.map((file) => file.id)).toStrictEqual(["arm"]);
+  });
+});
+
+describe("Tauri on Windows and Linux", () => {
+  const signed = { tauriSignature: "U0lH" } as const;
+
+  it("keys every installer and points the plain key at the preferred one", () => {
+    const nsis = windowsEntry({ id: "nsis", ...signed });
+    const msi = windowsEntry({ id: "msi", artifactFormat: "msi", ...signed });
+    const deb = linuxEntry(
+      { id: "deb", artifactFormat: "deb", ...signed },
+      { architectures: ["arm64"] },
+    );
+    const json = JSON.parse(renderTauriStatic([msi, nsis, deb], downloadUrl) ?? "null") as {
+      readonly platforms: Record<string, { readonly url: string }>;
+    };
+    expect(Object.keys(json.platforms).toSorted()).toStrictEqual([
+      "linux-aarch64",
+      "linux-aarch64-deb",
+      "windows-x86_64",
+      "windows-x86_64-msi",
+      "windows-x86_64-nsis",
+    ]);
+    expect(json.platforms["windows-x86_64"]?.url).toContain("/windows/download/nsis/");
+    expect(json.platforms["windows-x86_64-msi"]?.url).toContain("/windows/download/msi/");
+  });
+
+  it("answers an app that knows its installer only with that installer", () => {
+    const appImage = linuxEntry({ id: "appimage", appVersion: "2.0.0", ...signed });
+    const deb = linuxEntry({ id: "deb", artifactFormat: "deb", ...signed });
+    const forDeb = JSON.parse(
+      renderTauriDynamic([appImage, deb], { arch: "x86_64", bundleType: "deb" }, downloadUrl) ??
+        "null",
+    ) as { readonly version: string };
+    expect(forDeb.version).toBe("1.4.0");
+    const unknown = JSON.parse(
+      renderTauriDynamic([appImage, deb], { arch: "x86_64", bundleType: "unknown" }, downloadUrl) ??
+        "null",
+    ) as { readonly version: string };
+    expect(unknown.version).toBe("2.0.0");
+    expect(
+      renderTauriDynamic([appImage], { arch: "x86_64", bundleType: "rpm" }, downloadUrl),
+    ).toBeUndefined();
+  });
+});
+
+describe(renderWinSparkleAppcast, () => {
+  it("renders one item per version with an enclosure per architecture", () => {
+    const xml = renderWinSparkleAppcast({
+      title: "Updates",
+      downloadUrl,
+      entries: [
+        windowsEntry(
+          { id: "x64", winSparkleEdSignature: SIGNATURE },
+          { minimumSystemVersion: "10.0.17763" },
+        ),
+        windowsEntry({ id: "arm" }, { architectures: ["arm64"] }),
+        windowsEntry({ id: "x64-msi", artifactFormat: "msi" }),
+        windowsEntry({ id: "old", appVersion: "1.3.0", buildNumber: "130" }),
+      ],
+    });
+    expect(xml.match(/<item>/gu)).toHaveLength(2);
+    expect(xml).toContain('sparkle:os="windows-x64" sparkle:edSignature');
+    expect(xml).toContain('sparkle:os="windows-arm64"/>');
+    expect(xml).toContain(
+      "<sparkle:minimumSystemVersion>10.0.17763</sparkle:minimumSystemVersion>",
+    );
+    // The x64 .exe wins over the x64 .msi.
+    expect(xml).not.toContain("download/x64-msi/");
+  });
+});
+
+describe(pickLatestDownload, () => {
+  it("takes the newest fully rolled-out release in the preferred format for the architecture", () => {
+    const candidate = windowsEntry({ id: "candidate", appVersion: "2.0.0", rolloutPercentage: 10 });
+    const msi = windowsEntry({ id: "msi", artifactFormat: "msi" });
+    const exe = windowsEntry({ id: "exe" });
+    const arm = windowsEntry({ id: "arm" }, { architectures: ["arm64"] });
+    const pick = (arch: "x64" | "arm64" | undefined, formats: readonly ("exe" | "msi")[]) =>
+      pickLatestDownload([candidate, msi, exe, arm], { formats, arch })?.id;
+    expect(pick("x64", ["exe", "msi"])).toBe("exe");
+    expect(pick("x64", ["msi"])).toBe("msi");
+    expect(pick("arm64", ["exe", "msi"])).toBe("arm");
+  });
+
+  it("treats a Mac build with no recorded architecture as universal", () => {
+    expect(pickLatestDownload([entry()], { formats: ["dmg"], arch: "arm64" })?.id).toBe(entry().id);
+  });
+});
+
+describe(renderReleaseIndex, () => {
+  it("lists each platform's newest fully rolled-out version and its files", () => {
+    const json = JSON.parse(
+      renderReleaseIndex({
+        channel: "latest",
+        downloadUrl,
+        platforms: {
+          macos: [entry({ id: "dmg" })],
+          windows: [
+            windowsEntry({ id: "next", appVersion: "2.0.0", rolloutPercentage: 50 }),
+            windowsEntry({ id: "exe" }),
+          ],
+          linux: [],
+        },
+      }),
+    ) as {
+      readonly platforms: Record<
+        string,
+        {
+          readonly version: string;
+          readonly files: readonly {
+            readonly url: string;
+            readonly architectures: readonly string[];
+          }[];
+        }
+      >;
+    };
+    expect(Object.keys(json.platforms)).toStrictEqual(["macos", "windows"]);
+    expect(json.platforms["windows"]?.version).toBe("1.4.0");
+    expect(json.platforms["windows"]?.files[0]?.url).toBe(
+      `${BASE}windows/download/exe/Example-Desktop-Setup-1.4.0-x64.exe`,
+    );
+    expect(json.platforms["windows"]?.files[0]?.architectures).toStrictEqual(["x64"]);
   });
 });

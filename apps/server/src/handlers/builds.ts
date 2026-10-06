@@ -75,12 +75,18 @@ const FORMAT_CONTENT_TYPES: Record<string, string> = {
   dmg: "application/x-apple-diskimage",
   zip: "application/zip",
   pkg: "application/vnd.apple.installer+xml",
+  exe: "application/vnd.microsoft.portable-executable",
+  msi: "application/x-msi",
+  appimage: "application/vnd.appimage",
+  deb: "application/vnd.debian.binary-package",
+  rpm: "application/x-rpm",
 };
 
 const formatForContentType = (format: string) =>
   FORMAT_CONTENT_TYPES[format] ?? "application/octet-stream";
 
-const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
+/** The R2 key's extension; an AppImage keeps the capitalisation its tools expect. */
+const artifactExt = (format: string) => (format === "appimage" ? "AppImage" : format);
 
 const resolveAudience = (
   audience: typeof BuildAudience.Type | undefined,
@@ -372,7 +378,8 @@ const handleDelete = ({ params }: { readonly params: { readonly id: string } }) 
  * the itms-services manifest (and a provisioning profile that allows a direct
  * install); Android installs the universal APK attached to an `aab` build, or
  * the `apk` artifact itself; a Mac opens the Developer ID-signed DMG / pkg /
- * zip directly (Gatekeeper checks its notarization on first launch).
+ * zip directly (Gatekeeper checks its notarization on first launch), and a
+ * Windows or Linux machine its installer or package.
  */
 const resolveInstallUrl = (params: {
   readonly build: BuildWithArtifactModel;
@@ -381,7 +388,7 @@ const resolveInstallUrl = (params: {
   readonly signed: string;
 }): string | null => {
   const { build, origin, artifactUrl, signed } = params;
-  if (build.platform === "macos") {
+  if (build.platform === "macos" || build.platform === "windows" || build.platform === "linux") {
     return build.artifact === null ? null : artifactUrl;
   }
   if (build.platform === "ios") {

@@ -7,6 +7,8 @@ const PLATFORM_OPTIONS = [
   { label: "iOS", value: "ios" },
   { label: "Android", value: "android" },
   { label: "macOS", value: "macos" },
+  { label: "Windows", value: "windows" },
+  { label: "Linux", value: "linux" },
 ] as const;
 
 const AUDIENCE_OPTIONS = [

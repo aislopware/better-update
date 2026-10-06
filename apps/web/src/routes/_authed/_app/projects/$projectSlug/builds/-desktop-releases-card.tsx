@@ -1,7 +1,8 @@
+import { desktopFeedUrls } from "@better-update/api";
 import { buildDesktopReleasesQueryOptions } from "@better-update/api-client/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-import type { DesktopRelease } from "@better-update/api";
+import type { DesktopPlatform, DesktopRelease } from "@better-update/api";
 
 import { CliCommandBlock } from "../../../../../../components/cli-command-block";
 import { StatusDot } from "../../../../../../components/status-dot";
@@ -33,13 +34,20 @@ const ReleaseState = ({ release }: { release: DesktopRelease }) => {
   );
 };
 
-/** Which updaters will accept the archive: Sparkle needs its EdDSA signature, Tauri its minisign one. */
+/**
+ * Which updaters will accept the file: Sparkle and WinSparkle need their
+ * EdDSA signature, Tauri its minisign one; electron-updater checks the SHA-512.
+ */
 const signatureLabel = (release: DesktopRelease): string => {
   const signers = [
     release.sparkleSigned ? "Sparkle" : undefined,
+    release.winSparkleSigned ? "WinSparkle" : undefined,
     release.tauriSigned ? "Tauri" : undefined,
   ].filter((signer) => signer !== undefined);
-  return signers.length === 0 ? " · unsigned for Sparkle" : ` · signed for ${signers.join(" + ")}`;
+  if (signers.length > 0) {
+    return ` · signed for ${signers.join(" + ")}`;
+  }
+  return release.platform === "macos" ? " · unsigned for Sparkle" : "";
 };
 
 const ReleaseRow = ({ release }: { release: DesktopRelease }) => (
@@ -72,60 +80,54 @@ const FeedUrl = ({ label, url }: { label: string; url: string }) => (
 );
 
 /**
- * The URLs an app polls. The appcast is one per project (it tags channels per
- * item); electron-updater reads one file per channel, and only zips; the Tauri
- * updater one JSON per channel, of signed `.app.tar.gz` releases.
+ * The URLs an app polls, per channel the build is released to, limited to the
+ * updaters those releases serve.
  */
 const FeedUrls = ({ releases }: { releases: readonly DesktopRelease[] }) => {
   const [first] = releases;
   if (first === undefined) {
     return null;
   }
-  const feedBase = `${feedOrigin}/feeds/${first.projectId}/macos`;
-  const channelsWhere = (keep: (release: DesktopRelease) => boolean) => [
-    ...new Set(releases.filter(keep).map((release) => release.channel)),
-  ];
-  const electronChannels = channelsWhere((release) => release.artifactFormat === "zip");
-  const tauriChannels = channelsWhere(
-    (release) => release.artifactFormat === "tar.gz" && release.tauriSigned,
-  );
+  const channels = [...new Set(releases.map((release) => release.channel))];
   return (
     <ListPanelFooter>
       <div className="flex w-full min-w-0 flex-col gap-1.5">
-        <FeedUrl label="Sparkle appcast" url={`${feedBase}/appcast.xml`} />
-        {electronChannels.map((channel) => (
-          <FeedUrl
-            key={channel}
-            label={`electron-updater · ${channel}`}
-            url={`${feedBase}/${channel}-mac.yml`}
-          />
-        ))}
-        {tauriChannels.map((channel) => (
-          <FeedUrl
-            key={`tauri-${channel}`}
-            label={`Tauri updater · ${channel}`}
-            url={`${feedBase}/${channel}-tauri.json`}
-          />
-        ))}
+        {channels.flatMap((channel) =>
+          desktopFeedUrls({
+            baseUrl: feedOrigin,
+            projectId: first.projectId,
+            platform: first.platform,
+            channel,
+            releases: releases.filter((release) => release.channel === channel),
+          }).map((feed) => (
+            <FeedUrl
+              key={`${channel}:${feed.label}`}
+              label={channels.length === 1 ? feed.label : `${feed.label} · ${channel}`}
+              url={feed.url}
+            />
+          )),
+        )}
       </div>
     </ListPanelFooter>
   );
 };
 
 /**
- * Where a macOS build stands in the project's update feeds — a build ships to
- * installed apps only once released to a channel, which the CLI does because
- * it signs the archive with the Sparkle / Tauri keys that never leave the
- * developer.
+ * Where a desktop build stands in the project's update feeds — a build ships
+ * to installed apps only once released to a channel, which the CLI does
+ * because it signs the file with the Sparkle / WinSparkle / Tauri keys that
+ * never leave the developer.
  */
-export const MacosReleasesCard = ({
+export const DesktopReleasesCard = ({
   orgId,
   projectId,
   buildId,
+  platform,
 }: {
   orgId: string;
   projectId: string;
   buildId: string;
+  platform: DesktopPlatform;
 }) => {
   const { data } = useSuspenseQuery(buildDesktopReleasesQueryOptions(orgId, projectId, buildId));
   return (
@@ -142,10 +144,9 @@ export const MacosReleasesCard = ({
         <ListPanelFooter>
           <div className="flex w-full flex-col gap-3">
             <span className="text-kumo-subtle text-sm">
-              Not released. Installed apps see this build once it is published to a Sparkle /
-              electron-updater channel:
+              Not released. Installed apps see this build once it is published to an update channel:
             </span>
-            <CliCommandBlock commands={[`better-update macos release create ${buildId}`]} />
+            <CliCommandBlock commands={[`better-update ${platform} release create ${buildId}`]} />
           </div>
         </ListPanelFooter>
       )}
