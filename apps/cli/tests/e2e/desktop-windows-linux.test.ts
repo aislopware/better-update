@@ -85,15 +85,9 @@ const sha512 = (bytes: Uint8Array) => createHash("sha512").update(bytes).digest(
 const INSTALLER = concat(ascii("MZ"), randomBytes(300_000));
 const MSI = concat(ascii("ÐÏ\u0011à"), randomBytes(50_000));
 const APPIMAGE = withBlockmap(concat(elf(0x3e), randomBytes(120_000)));
-const DEB_ARM64 = deb(
-  "control.tar.gz",
-  gzipSync(
-    tar({
-      "./control":
-        "Package: example-desktop\nVersion: 1.2.0\nArchitecture: arm64\nDescription: Example\n",
-    }),
-  ),
-);
+const DEB_CONTROL =
+  "Package: example-desktop\nVersion: 1.2.0\nArchitecture: arm64\nDescription: Example\n";
+const DEB_ARM64 = deb("control.tar.gz", gzipSync(tar({ "./control": DEB_CONTROL })));
 const RPM_X64 = rpm({ 1000: "example-desktop", 1001: "1.2.0", 1002: "1", 1022: "x86_64" });
 
 const write = (relative: string, bytes: Uint8Array) => {
@@ -280,6 +274,8 @@ describe("Windows and Linux desktop distribution", () => {
         appName: "Example Desktop",
         architectures: ["arm64"],
         packageName: "example-desktop",
+        // Kept whole for the APT repository's `Packages` index.
+        debControl: DEB_CONTROL,
       },
     });
   });

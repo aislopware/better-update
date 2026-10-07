@@ -197,6 +197,8 @@ export interface PackageFields {
   readonly version?: string;
   /** `[]` for an architecture-independent package (`all` / `noarch`). */
   readonly architectures?: readonly DesktopArch[];
+  /** A deb's control file as written, which the APT repository's `Packages` index repeats. */
+  readonly control?: string;
 }
 
 const archList = (
@@ -214,29 +216,28 @@ const archList = (
   return arch === undefined ? undefined : [arch];
 };
 
-/** A `.deb`'s control fields; the epoch is dropped from the version. */
+/** A `.deb`'s control fields, the epoch dropped from the version, and the control file itself. */
 export const debPackageFields = async (bytes: Uint8Array): Promise<PackageFields | undefined> => {
   try {
     const tar = await controlTar(arMembers(bytes));
-    const control = tar === undefined ? undefined : tarFile(tar, "control");
-    if (control === undefined) {
+    const controlBytes = tar === undefined ? undefined : tarFile(tar, "control");
+    if (controlBytes === undefined) {
       return undefined;
     }
+    const control = Buffer.from(controlBytes).toString("utf8");
     const fields = new Map(
-      Buffer.from(control)
-        .toString("utf8")
-        .split("\n")
-        .flatMap((line) => {
-          const separator = line.indexOf(":");
-          return separator > 0 && !/^\s/u.test(line)
-            ? [[line.slice(0, separator), line.slice(separator + 1).trim()] as const]
-            : [];
-        }),
+      control.split("\n").flatMap((line) => {
+        const separator = line.indexOf(":");
+        return separator > 0 && !/^\s/u.test(line)
+          ? [[line.slice(0, separator), line.slice(separator + 1).trim()] as const]
+          : [];
+      }),
     );
     return compact({
       name: fields.get("Package"),
       version: fields.get("Version")?.replace(/^\d+:/u, ""),
       architectures: archList(fields.get("Architecture"), DEBIAN_ARCHES, "all"),
+      control: control.trim() === "" ? undefined : control,
     });
   } catch {
     return undefined;
@@ -311,6 +312,8 @@ export interface InspectedDesktopArtifact {
   readonly packageName: string | undefined;
   readonly packageVersion: string | undefined;
   readonly blockMapSize: number | undefined;
+  /** A deb's control file. */
+  readonly debControl: string | undefined;
 }
 
 const fromName = (fileName: string): readonly DesktopArch[] | undefined => {
@@ -333,6 +336,7 @@ export const inspectDesktopArtifact = async (
       packageName: fields?.name,
       packageVersion: fields?.version,
       blockMapSize: undefined,
+      debControl: fields?.control,
     };
   }
   if (target.format === "appimage") {
@@ -343,6 +347,7 @@ export const inspectDesktopArtifact = async (
       packageName: undefined,
       packageVersion: undefined,
       blockMapSize: embeddedBlockMapSize(bytes),
+      debControl: undefined,
     };
   }
   return {
@@ -351,5 +356,6 @@ export const inspectDesktopArtifact = async (
     packageName: undefined,
     packageVersion: undefined,
     blockMapSize: undefined,
+    debControl: undefined,
   };
 };

@@ -125,21 +125,23 @@ const XZ_CONTROL_TAR = Buffer.from(
 );
 
 describe(debPackageFields, () => {
-  it("reads a gzip control member, dropping the epoch", async () => {
+  it("reads a gzip control member, dropping the epoch but keeping the control file as written", async () => {
     await expect(
       debPackageFields(deb("control.tar.gz", gzipSync(tar({ "./control": CONTROL })))),
     ).resolves.toStrictEqual({
       name: "example-app",
       version: "2.4.0",
       architectures: ["arm64"],
+      control: CONTROL,
     });
   });
 
   it("reads an xz control member, as dpkg and electron-builder write it", async () => {
-    await expect(debPackageFields(deb("control.tar.xz", XZ_CONTROL_TAR))).resolves.toStrictEqual({
+    await expect(debPackageFields(deb("control.tar.xz", XZ_CONTROL_TAR))).resolves.toMatchObject({
       name: "example-xz",
       version: "3.1.0",
       architectures: ["x64"],
+      control: expect.stringContaining("Package: example-xz\n"),
     });
   });
 

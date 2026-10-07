@@ -143,6 +143,12 @@ export const DesktopBuildMetadata = Schema.Struct({
   blockMapSize: Schema.optional(Schema.Number),
   /** The Debian / RPM package name (`<name>_<version>_<arch>.deb`). */
   packageName: Schema.optional(Schema.String),
+  /**
+   * A deb's control file as written. The APT repository lists only debs that
+   * carry it: its `Packages` stanza is this file plus where the deb is and
+   * its digests, so apt sees the version and dependencies dpkg will install.
+   */
+  debControl: Schema.optional(Schema.String),
 });
 export type DesktopBuildMetadata = typeof DesktopBuildMetadata.Type;
 

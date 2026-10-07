@@ -175,6 +175,7 @@ export const describeDesktopArtifact = (params: {
         winSparklePublicKey: windows?.winSparklePublicKey,
         blockMapSize: inspected.blockMapSize,
         packageName: inspected.packageName,
+        debControl: inspected.debControl,
       }),
     };
     return described;
