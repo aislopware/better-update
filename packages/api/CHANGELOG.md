@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.57.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi%400.56.0...%40better-update%2Fapi%400.57.0) (2026-10-07)
+
+### Features
+
+* **cli:** record a deb's control file when uploading it ([97a19e5](https://gitlab.jmango360.com/mobile/better-update/-/commit/97a19e55fcdc898d195d5687892f82f2602b1e3e))
+* **server:** serve deb releases as a signed APT repository ([8e9ff22](https://gitlab.jmango360.com/mobile/better-update/-/commit/8e9ff228cdc4a186e86901c09d1bcd669ed0024f))
+
 ## [0.56.0](https://gitlab.jmango360.com/mobile/better-update/-/compare/%40better-update%2Fapi%400.55.0...%40better-update%2Fapi%400.56.0) (2026-10-06)
 
 ### Features

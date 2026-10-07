@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.85.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.84.0...%40better-update%2Fcli%400.85.0) (2026-10-07)
+
+### Features
+
+* **cli:** record a deb's control file when uploading it ([97a19e5](https://github.com/aislopware/better-update/commit/97a19e55fcdc898d195d5687892f82f2602b1e3e))
+* **server:** serve deb releases as a signed APT repository ([8e9ff22](https://github.com/aislopware/better-update/commit/8e9ff228cdc4a186e86901c09d1bcd669ed0024f))
+
+### Bug Fixes
+
+* **cli:** keep the windows source map out of the release ([ae96d58](https://github.com/aislopware/better-update/commit/ae96d580ceb87f690b021c852e5679c9fc24f242))
+
 ## [0.84.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.83.0...%40better-update%2Fcli%400.84.0) (2026-10-06)
 
 ### Features

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.70.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fserver%400.69.0...%40better-update%2Fserver%400.70.0) (2026-10-07)
+
+### Features
+
+* **server:** serve deb releases as a signed APT repository ([8e9ff22](https://github.com/aislopware/better-update/commit/8e9ff228cdc4a186e86901c09d1bcd669ed0024f))
+
 ## [0.69.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fserver%400.68.0...%40better-update%2Fserver%400.69.0) (2026-10-06)
 
 ### Features
