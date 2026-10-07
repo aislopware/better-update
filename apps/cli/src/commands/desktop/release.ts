@@ -65,7 +65,7 @@ const PHASING_HELP =
 const UPDATERS: Record<DesktopPlatform, string> = {
   macos: "Sparkle appcast, electron-updater, Tauri updater",
   windows: "electron-updater (NSIS), WinSparkle appcast, Tauri updater",
-  linux: "electron-updater (AppImage/deb/rpm), Tauri updater",
+  linux: "electron-updater (AppImage/deb/rpm), Tauri updater, APT repository (deb)",
 };
 
 const releaseState = (release: DesktopRelease): string => {

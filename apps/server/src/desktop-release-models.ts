@@ -37,6 +37,8 @@ export interface DesktopFeedEntry extends DesktopReleaseModel {
   readonly metadataJson: string;
   readonly byteSize: number;
   readonly r2Key: string;
+  /** The artifact's SHA-256, hex. */
+  readonly sha256: string;
 }
 
 /** A Sparkle binary delta from an older version's bundle to a build's. */

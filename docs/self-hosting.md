@@ -88,7 +88,16 @@ bunx wrangler secret put R2_SECRET_ACCESS_KEY     # pairs with BU_R2_ACCESS_KEY_
 bunx wrangler secret put GITHUB_CLIENT_SECRET     # only if BU_GITHUB_CLIENT_ID is set
 bunx wrangler secret put GOOGLE_CLIENT_SECRET     # only if BU_GOOGLE_CLIENT_ID is set
 bunx wrangler secret put CLOUDFLARE_API_TOKEN     # only to READ analytics — see below
+bunx wrangler secret put APT_SIGNING_SECRET       # only to serve APT repositories — see below
 ```
+
+`APT_SIGNING_SECRET` (`openssl rand -base64 32`) is what every project's APT
+repository signing key is derived from: an Ed25519 OpenPGP key per project,
+never stored, the same in every Worker. Machines that added a repository
+trust that key, so **never change or lose this secret** — a new one means a
+new key for every project and `apt update` failing until each machine
+re-fetches `key.asc`. Leave it unset and `/feeds/<projectId>/linux/apt/`
+answers 404; the other desktop feeds are unaffected.
 
 `CLOUDFLARE_API_TOKEN` is the one secret nothing else needs. Writing telemetry
 uses the `ANALYTICS` binding and works without it; **reading** it back goes

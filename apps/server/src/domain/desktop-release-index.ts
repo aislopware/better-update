@@ -13,6 +13,24 @@ import { entryArchitectures, feedFileName } from "./desktop-feed-files";
 import type { DesktopFeedEntry } from "../desktop-release-models";
 import type { DownloadUrl } from "./desktop-feed-files";
 
+/** Names a first-install link may use for an architecture. */
+const ARCH_ALIASES: Readonly<Record<string, DesktopArch>> = {
+  x64: "x64",
+  x86_64: "x64",
+  amd64: "x64",
+  arm64: "arm64",
+  aarch64: "arm64",
+  ia32: "ia32",
+  x86: "ia32",
+  i686: "ia32",
+  armv7l: "armv7l",
+  armhf: "armv7l",
+};
+
+/** The architecture a first-install link names, in any of the spellings above. */
+export const archFromAlias = (name: string): DesktopArch | undefined =>
+  ARCH_ALIASES[name.toLowerCase()];
+
 const fullyRolledOut = (entry: DesktopFeedEntry): boolean => entry.rolloutPercentage === 100;
 
 /** A build that names no architecture is universal on a Mac and x64 elsewhere. */

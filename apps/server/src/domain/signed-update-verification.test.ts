@@ -14,6 +14,8 @@ const MANIFEST_BODY = '{"id":"u1","launchAsset":{}}';
 // is exercised; the other members are present to satisfy the port shape but
 // never invoked in these tests.
 const makeCrypto = (overrides: Partial<CryptoServiceImpl>): CryptoServiceImpl => ({
+  digest: () => Effect.succeed(new Uint8Array(0)),
+  deriveEd25519Key: () => Effect.die("deriveEd25519Key should not be called"),
   sha256Hex: () => Effect.succeed(""),
   sha256Base64Url: () => Effect.succeed(""),
   sha256Fraction: () => Effect.succeed(0),

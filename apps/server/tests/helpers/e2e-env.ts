@@ -17,6 +17,7 @@ const FALLBACKS = {
   googleClientId: "e2e-google-id",
   googleClientSecret: "e2e-google-secret",
   installTokenSecret: "e2e-install-token-secret-at-least-32-chars",
+  aptSigningSecret: "e2e-apt-signing-secret-at-least-32-chars",
   publicApiUrl: "http://localhost:6781",
   r2AccessKeyId: "e2e-r2-access-key",
   r2SecretAccessKey: "e2e-r2-secret-key",
@@ -164,6 +165,11 @@ export const createServerE2EEnvironment = (options?: {
       fileSource,
       primary: "INSTALL_TOKEN_SECRET",
       fallback: FALLBACKS.installTokenSecret,
+    }),
+    APT_SIGNING_SECRET: envValue({
+      fileSource,
+      primary: "APT_SIGNING_SECRET",
+      fallback: FALLBACKS.aptSigningSecret,
     }),
     PUBLIC_API_URL:
       options?.publicApiUrl ??

@@ -149,6 +149,7 @@ const selectReleases = (db: Kysely<DB>) =>
       eb.ref("a.format").$castTo<DesktopArtifactFormat>().as("format"),
       "a.byte_size",
       "a.r2_key",
+      eb.ref("a.sha256").as("artifact_sha256"),
       eb
         .selectFrom("desktop_build_deltas as d")
         .select((sub) => sub.fn.countAll<number>().as("count"))
@@ -185,6 +186,7 @@ const toFeedEntry = (row: ReleaseRow): DesktopFeedEntry => ({
   metadataJson: row.metadata_json,
   byteSize: row.byte_size,
   r2Key: row.r2_key,
+  sha256: row.artifact_sha256,
 });
 
 const newestFirst = (query: ReturnType<typeof selectReleases>) =>

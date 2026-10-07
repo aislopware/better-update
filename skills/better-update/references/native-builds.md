@@ -497,6 +497,7 @@ better-update windows|linux release list|rollout|halt|resume|delete …
 | `<server>/feeds/<projectId>/tauri/<channel>.json?target={{target}}&arch={{arch}}&bundle_type={{bundle_type}}` | Tauri updater, one endpoint for every OS (204 = no update)              |
 | `<server>/feeds/<projectId>/<platform>/latest/download?format=&arch=&channel=`                                | 302 to the newest fully rolled-out file — a website's Download button   |
 | `<server>/feeds/<projectId>/releases.json?channel=`                                                           | every platform's newest version + files (CORS `*`), for a download page |
+| `<server>/feeds/<projectId>/linux/apt` (suite = channel, component `main`; key at `…/apt/key.asc`)            | APT repository of the deb releases, for `apt install` / `apt upgrade`   |
 
 - **electron-updater**: point the `generic` provider at `<server>/feeds/<projectId>/<platform>`
   (+ `channel`). Windows gets NSIS `.exe` files; `release create` computes the installer's
@@ -524,7 +525,26 @@ better-update windows|linux release list|rollout|halt|resume|delete …
   Sparkle, WinSparkle and Electron report the app version in their user agent; for Tauri add
   `&current_version={{current_version}}` to the endpoint. Installs are counted from the
   `installId` that rollout bucketing uses.
-- Not supported: Squirrel.Windows, MSIX / App Installer, Velopack, zsync AppImage updates.
+- **APT repository**: every deb release is also served as a signed APT repository, one suite per
+  channel. Users add it once and get updates through `apt upgrade` (no in-app updater needed):
+
+  ```bash
+  sudo curl -fsSLo /etc/apt/keyrings/<projectId>.asc <server>/feeds/<projectId>/linux/apt/key.asc
+  echo "deb [signed-by=/etc/apt/keyrings/<projectId>.asc] <server>/feeds/<projectId>/linux/apt latest main" \
+    | sudo tee /etc/apt/sources.list.d/<package>.list
+  sudo apt update && sudo apt install <package>
+  ```
+
+  `release create` / `release list` print both lines for a channel with debs ("APT signing key",
+  "APT source"). The index repeats the deb's own control file (version, `Depends`, description),
+  which the CLI records at upload — a deb uploaded by an older CLI is not listed until uploaded
+  again. `--rollout N` below 100 becomes apt's `Phased-Update-Percentage` (apt holds other machines
+  on the previous version, "deferred due to phasing"); `halt` drops the release from the index. The
+  server signs the repository (an Ed25519 key per project derived from its `APT_SIGNING_SECRET`);
+  a server without that secret answers 404 there.
+
+- Not supported: Squirrel.Windows, MSIX / App Installer, Velopack, zsync AppImage updates, YUM/DNF
+  repositories for rpm.
 
 ## `submit` — upload to the stores
 

@@ -13,6 +13,7 @@
  *   GET /feeds/:projectId/:platform/download/:releaseId/:file[.blockmap]
  *   GET /feeds/:projectId/:platform/latest/download[?format=&arch=&channel=] first install
  *   GET /feeds/:projectId/releases.json[?channel=]                 download page index
+ *   GET /feeds/:projectId/linux/apt/…                              APT repository (`apt-repository.ts`)
  *
  * Downloads (ranges, blockmaps) are served by `desktop-feed-downloads.ts`.
  *
@@ -32,7 +33,7 @@ import {
 } from "@better-update/api";
 import { Effect } from "effect";
 
-import type { DesktopArch, DesktopPlatform } from "@better-update/api";
+import type { DesktopPlatform } from "@better-update/api";
 
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { CryptoService } from "../domain/crypto-service";
@@ -54,6 +55,7 @@ import {
   tauriTargetPlatform,
 } from "../domain/desktop-feeds-tauri";
 import {
+  archFromAlias,
   FIRST_INSTALL_FORMATS,
   pickLatestDownload,
   renderReleaseIndex,
@@ -62,6 +64,7 @@ import { ServerInfrastructureLayer } from "../infrastructure-layer";
 import { toOptional } from "../lib/nullable";
 import { DesktopBuildDeltaRepo } from "../repositories/desktop-build-deltas";
 import { DesktopReleaseRepo } from "../repositories/desktop-releases";
+import { aptEffect } from "./apt-repository";
 import { downloadEffect } from "./desktop-feed-downloads";
 
 import type { DesktopFeedEntry } from "../desktop-release-models";
@@ -78,6 +81,8 @@ const CHANNEL = /^[a-z0-9][a-z0-9._-]{0,39}$/u;
 const FEED_LIMIT = 25;
 
 const DESKTOP_PLATFORMS: readonly DesktopPlatform[] = ["macos", "windows", "linux"];
+/** The Linux feed directory's APT repository. */
+const APT_PREFIX = "apt/";
 
 const runFeedEffect = async <Success>(
   effect: Effect.Effect<Success, never, ServerInfrastructure>,
@@ -356,20 +361,6 @@ const serveElectronYml = (
     });
   });
 
-/** Names a first-install link may use for an architecture. */
-const ARCH_ALIASES: Readonly<Record<string, DesktopArch>> = {
-  x64: "x64",
-  x86_64: "x64",
-  amd64: "x64",
-  arm64: "arm64",
-  aarch64: "arm64",
-  ia32: "ia32",
-  x86: "ia32",
-  i686: "ia32",
-  armv7l: "armv7l",
-  armhf: "armv7l",
-};
-
 /**
  * `latest/download`: a 302 to the newest fully rolled-out release's file,
  * in `format` (default: the platform's first-install preference) for `arch`.
@@ -379,7 +370,7 @@ const serveLatestDownload = (projectId: string, platform: DesktopPlatform, url: 
     const channel = queryChannel(url);
     const format = url.searchParams.get("format");
     const archName = url.searchParams.get("arch");
-    const arch = archName === null ? undefined : ARCH_ALIASES[archName.toLowerCase()];
+    const arch = archName === null ? undefined : archFromAlias(archName);
     const platformFormats: readonly string[] = DESKTOP_ARTIFACT_FORMATS[platform];
     if (channel === undefined) {
       return badRequest("Invalid channel");
@@ -444,6 +435,9 @@ const platformEffect = (
   platform: DesktopPlatform,
   rest: string,
 ) => {
+  if (platform === "linux" && rest.startsWith(APT_PREFIX)) {
+    return aptEffect(request, projectId, rest.slice(APT_PREFIX.length));
+  }
   const client = feedClientOf(request, url);
   if (rest === "appcast.xml") {
     return serveAppcast(projectId, platform, url, client);

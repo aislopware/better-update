@@ -33,8 +33,8 @@ const channelQuery = (channel: string, separator: "?" | "&") =>
  * The URLs an app on `platform` polls for one channel, limited to the
  * updaters the channel's releases serve: a Sparkle or WinSparkle appcast, an
  * electron-updater channel file (on Linux, `-arm64` and the like before
- * `.yml` for other architectures), the Tauri endpoint, and the first-install
- * download link. Shared by the CLI and the dashboard so both name the same URLs.
+ * `.yml` for other architectures), the Tauri endpoint, for debs the APT
+ * repository's key and `sources.list` line, and the first-install download link. Shared by the CLI and the dashboard so both name the same URLs.
  */
 export const desktopFeedUrls = (params: {
   readonly baseUrl: string;
@@ -71,7 +71,14 @@ export const desktopFeedUrls = (params: {
     label: "First-install download",
     url: `${feedBase}/latest/download${channelQuery(channel, "?")}`,
   };
-  return [appcast, electron, tauri, download].filter(
+  // The channel is the APT suite; the key goes where `signed-by` names it.
+  const apt = platform === "linux" && any((release) => release.artifactFormat === "deb");
+  const aptKey = apt && { label: "APT signing key", url: `${feedBase}/apt/key.asc` };
+  const aptSource = apt && {
+    label: "APT source",
+    url: `deb [signed-by=/etc/apt/keyrings/${projectId}.asc] ${feedBase}/apt ${channel} main`,
+  };
+  return [appcast, electron, tauri, aptKey, aptSource, download].filter(
     (entry): entry is DesktopFeedUrl => entry !== false,
   );
 };

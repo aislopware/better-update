@@ -73,6 +73,8 @@ export interface BuildRuntimeService {
     readonly cursor: string | undefined;
   }>;
   readonly getInstallTokenSecret: Effect.Effect<string | null>;
+  /** What every project's APT repository signing key derives from; null leaves APT off. */
+  readonly getAptSigningSecret: Effect.Effect<string | null>;
 }
 
 export class BuildRuntime extends Context.Service<BuildRuntime, BuildRuntimeService>()(
@@ -239,5 +241,10 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
   getInstallTokenSecret: Effect.gen(function* () {
     const env = yield* cloudflareEnv;
     return env.INSTALL_TOKEN_SECRET || null;
+  }),
+
+  getAptSigningSecret: Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    return env.APT_SIGNING_SECRET || null;
   }),
 });

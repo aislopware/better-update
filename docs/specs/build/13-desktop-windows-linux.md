@@ -112,17 +112,18 @@ All public, under `/feeds/:projectId/<platform>/` (already exempt from the WAF
 lockdown and routed to the API worker). An app's updater base URL is that
 directory.
 
-| Platform | Updater          | File                                                                                                           |
-| -------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |
-| macos    | Sparkle          | `appcast.xml` (+ `<sparkle:deltas>`)                                                                           |
-| macos    | electron-updater | `<channel>-mac.yml` (+ `minimumSystemVersion`)                                                                 |
-| windows  | electron-updater | `<channel>.yml`                                                                                                |
-| windows  | WinSparkle       | `appcast.xml`                                                                                                  |
-| linux    | electron-updater | `<channel>-linux[-arm64\|-arm\|-ia32].yml`                                                                     |
-| any      | Tauri            | `<channel>-tauri.json` (static for that platform, or dynamic with `?arch=` / `?bundle_type=`)                  |
-| —        | Tauri, all OSes  | `/feeds/:projectId/tauri/<channel>.json` (static across platforms, dynamic with `?target=&arch=&bundle_type=`) |
-| any      | download         | `download/:releaseId/:file[.blockmap]`; macOS deltas `delta/:releaseId/:deltaId/<App><new>-<old>.delta` (302)  |
-| any      | first install    | `latest/download?format=&arch=&channel=` (302), `/feeds/:projectId/releases.json`                              |
+| Platform | Updater          | File                                                                                                            |
+| -------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| macos    | Sparkle          | `appcast.xml` (+ `<sparkle:deltas>`)                                                                            |
+| macos    | electron-updater | `<channel>-mac.yml` (+ `minimumSystemVersion`)                                                                  |
+| windows  | electron-updater | `<channel>.yml`                                                                                                 |
+| windows  | WinSparkle       | `appcast.xml`                                                                                                   |
+| linux    | electron-updater | `<channel>-linux[-arm64\|-arm\|-ia32].yml`                                                                      |
+| any      | Tauri            | `<channel>-tauri.json` (static for that platform, or dynamic with `?arch=` / `?bundle_type=`)                   |
+| —        | Tauri, all OSes  | `/feeds/:projectId/tauri/<channel>.json` (static across platforms, dynamic with `?target=&arch=&bundle_type=`)  |
+| any      | download         | `download/:releaseId/:file[.blockmap]`; macOS deltas `delta/:releaseId/:deltaId/<App><new>-<old>.delta` (302)   |
+| any      | first install    | `latest/download?format=&arch=&channel=` (302), `/feeds/:projectId/releases.json`                               |
+| linux    | apt              | `apt/dists/<channel>/InRelease`, `apt/dists/<channel>/main/binary-<arch>/Packages`, `apt/pool/…`, `apt/key.asc` |
 
 - File names follow electron-builder's conventions so electron-updater's arch
   matching and old-blockmap URL substitution work: Windows
@@ -135,6 +136,44 @@ directory.
 - First-install links take the newest **fully rolled out**, non-halted release;
   `releases.json` lists, per platform / channel, the newest version's
   downloads (format, arch, size, sha512, URL) for a website's download page.
+
+## APT repository
+
+`/feeds/:projectId/linux/apt/` is a signed APT repository of the project's
+deb releases, so Debian and Ubuntu machines install and upgrade the app with
+apt instead of (or as well as) electron-updater:
+
+```sh
+sudo curl -fsSLo /etc/apt/keyrings/<projectId>.asc <server>/feeds/<projectId>/linux/apt/key.asc
+echo "deb [signed-by=/etc/apt/keyrings/<projectId>.asc] <server>/feeds/<projectId>/linux/apt latest main" \
+  | sudo tee /etc/apt/sources.list.d/<package>.list
+```
+
+- A channel is a suite with one component, `main`; `Architectures: amd64
+arm64 armhf i386`, each an index of its debs plus `Architecture: all` ones.
+- A `Packages` stanza is the deb's own control file — the CLI stores it as
+  `metadata.linux.debControl` at upload — plus `Filename`, `Size`, `SHA256`,
+  `SHA512`. A deb uploaded without it (before this existed) is not listed.
+  Every live version is listed, up to 100.
+- Rollout: a release below 100 % gets `Phased-Update-Percentage` and apt
+  keeps the other machines on the newest version before it, bucketing
+  machines by their machine id. A halted release leaves the index.
+- Signing: the server signs. Each project's key is an Ed25519 OpenPGP v4 key
+  (legacy EdDSA, which gpgv and sqv both verify) whose seed is
+  HKDF-SHA-256(`APT_SIGNING_SECRET`, salt = project id), created at a fixed
+  instant, so it is never stored and its fingerprint never changes.
+  `InRelease` is cleartext-signed with SHA-512 on every request.
+- Consistency: `InRelease` is `no-store` and rendered from the live releases;
+  it sets `Acquire-By-Hash`, and a `by-hash/SHA256/<digest>` index is served
+  only while it is still what the server renders (then cacheable forever), so
+  apt never pairs a Release with another index.
+- Pool files 302 to the presigned R2 URL like every other download, and
+  count as downloads in the analytics; an `InRelease` fetch counts as an
+  `apt` check.
+
+Verified with real apt in Docker: Ubuntu 24.04 (apt 2.7, gpgv) and Debian 13
+(apt 3.0, sqv) add the repository, install, upgrade, defer a 1 % release
+"due to phasing" until it is rolled out, and drop a halted one.
 
 ## Analytics
 

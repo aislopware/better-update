@@ -57,6 +57,7 @@ const entry = (overrides: Partial<DesktopFeedEntry> = {}): DesktopFeedEntry => (
   }),
   byteSize: 1234,
   r2Key: "builds/example",
+  sha256: "a".repeat(64),
   ...overrides,
 });
 

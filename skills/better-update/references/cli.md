@@ -675,7 +675,9 @@ AppImage, a deb and an rpm, together. It signs locally: WinSparkle EdDSA for Win
 (`--winsparkle-key-file` › `$WINSPARKLE_PRIVATE_KEY` › the `--environment`'s variable; refused when
 the profile's `winSparklePublicKey` does not match), Tauri minisign for any Tauri format; and
 computes an NSIS installer's blockmap for electron-updater differential downloads. It prints the
-feed URLs. Details: `references/native-builds.md#windows--linux-builds-and-update-feeds`.
+feed URLs — for Linux debs also the APT repository's key URL and `sources.list` line (one suite
+per channel; `--rollout` becomes apt phasing, `halt` drops the deb from the index). Details:
+`references/native-builds.md#windows--linux-builds-and-update-feeds`.
 
 ## submit
 

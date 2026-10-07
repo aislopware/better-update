@@ -4,7 +4,7 @@ import type { DesktopPlatform } from "@better-update/api";
 import type { Effect } from "effect";
 
 /** Which updater asked: told apart by the feed file it read. */
-export type DesktopUpdater = "sparkle" | "winsparkle" | "electron" | "tauri";
+export type DesktopUpdater = "sparkle" | "winsparkle" | "electron" | "tauri" | "apt";
 
 /**
  * How a download went over the wire: the whole file, byte ranges of it, its

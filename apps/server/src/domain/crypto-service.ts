@@ -7,7 +7,26 @@ export class CryptoError extends Data.TaggedError("CryptoError")<{
   readonly cause: unknown;
 }> {}
 
+/** An Ed25519 key: its 32-byte public key and a signer. */
+export interface Ed25519Key {
+  readonly publicKey: Uint8Array;
+  readonly sign: (message: Uint8Array) => Effect.Effect<Uint8Array, CryptoError>;
+}
+
 export interface CryptoServiceImpl {
+  readonly digest: (
+    algorithm: "SHA-1" | "SHA-256" | "SHA-512",
+    data: Uint8Array,
+  ) => Effect.Effect<Uint8Array, CryptoError>;
+  /**
+   * The Ed25519 key whose seed is HKDF-SHA-256 of `secret` with `salt` and
+   * `info`: the same inputs always give the same key, so nothing is stored.
+   */
+  readonly deriveEd25519Key: (params: {
+    readonly secret: string;
+    readonly salt: string;
+    readonly info: string;
+  }) => Effect.Effect<Ed25519Key, CryptoError>;
   readonly sha256Hex: (input: string) => Effect.Effect<string, CryptoError>;
   /**
    * SHA-256 of the UTF-8 bytes of `input`, encoded unpadded base64url. Matches
