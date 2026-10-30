@@ -14,7 +14,7 @@
   "dependencies": {
     "@better-update/api": "workspace:*",
     "@better-update/type-guards": "workspace:*",
-    "effect": "4.0.1"
+    "effect": "4.1.0"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",

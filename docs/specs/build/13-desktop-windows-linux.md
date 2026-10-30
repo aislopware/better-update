@@ -62,8 +62,8 @@ Read from the tools' source at the tags named (2026-10-06).
 ### Sparkle 2.10.0 deltas
 
 - `<sparkle:deltas><enclosure sparkle:deltaFrom="<old CFBundleVersion>" url length
-type sparkle:edSignature sparkle:deltaFromSparkleExecutableSize
-sparkle:deltaFromSparkleLocales/></sparkle:deltas>` inside the item; the
+  type sparkle:edSignature sparkle:deltaFromSparkleExecutableSize
+  sparkle:deltaFromSparkleLocales/></sparkle:deltas>` inside the item; the
   client takes the delta whose `deltaFrom` equals its `CFBundleVersion` and
   falls back to the full archive on any failure.
 - `bin/BinaryDelta create --version=<n> old.app new.app out.delta` from the
@@ -95,7 +95,7 @@ installers).
   `architectures` (`x64 | arm64 | ia32 | armv7l`), `minimumSystemVersion`
   (Windows build number form), `tauriPublicKey`, `winSparklePublicKey`,
   `blockMapSize` (AppImage embedded blockmap), `packageType` (`nsis | msi |
-appimage | deb | rpm`), `fileName` (what the tool named the artifact).
+  appimage | deb | rpm`), `fileName` (what the tool named the artifact).
 - Migration 0108 rebuilds `builds` and `build_artifacts` to widen the CHECKs,
   stashing every child exactly as 0105 did **plus `desktop_releases`** (a
   CASCADE child since 0106).
@@ -150,7 +150,7 @@ echo "deb [signed-by=/etc/apt/keyrings/<projectId>.asc] <server>/feeds/<projectI
 ```
 
 - A channel is a suite with one component, `main`; `Architectures: amd64
-arm64 armhf i386`, each an index of its debs plus `Architecture: all` ones.
+  arm64 armhf i386`, each an index of its debs plus `Architecture: all` ones.
 - A `Packages` stanza is the deb's own control file — the CLI stores it as
   `metadata.linux.debControl` at upload — plus `Filename`, `Size`, `SHA256`,
   `SHA512`. A deb uploaded without it (before this existed) is not listed.

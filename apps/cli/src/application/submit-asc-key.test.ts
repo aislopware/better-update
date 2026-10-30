@@ -93,7 +93,6 @@ const run = (interactive: boolean) =>
   );
 
 beforeEach(() => {
-  vi.clearAllMocks();
   mocks.setSubmit.mockReturnValue(Effect.succeed("/proj/eas.json"));
 });
 

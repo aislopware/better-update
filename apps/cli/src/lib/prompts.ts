@@ -36,9 +36,10 @@ const ensureInteractive = (promptName: string) =>
   requireInteractive(`Interactive prompt "${promptName}"`);
 
 /**
- * Run a prompt behind the InteractiveMode gate. Ctrl-C at a prompt (`QuitError`)
- * becomes fiber interruption: it passes through every handler untouched and the
- * runtime exits 130, matching the conventional SIGINT status.
+ * Run a prompt behind the InteractiveMode gate. Ctrl-C, Ctrl-D or Esc at a
+ * prompt (`QuitError`) becomes fiber interruption: it passes through every
+ * handler untouched and the runtime exits 130, matching the conventional
+ * SIGINT status.
  */
 const ask = <T>(
   message: string,

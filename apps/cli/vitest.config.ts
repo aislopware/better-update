@@ -2,12 +2,13 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    // Inline projects inherit the root `test` options (vitest 5 `extends: true`).
+    globals: true,
     projects: [
       // ── Unit tests (Node/Bun runtime) ─────────────────────
       {
         test: {
           name: "unit",
-          globals: true,
           include: ["src/**/*.test.ts"],
         },
       },
@@ -15,7 +16,6 @@ export default defineConfig({
       {
         test: {
           name: "integration",
-          globals: true,
           include: ["tests/integration/**/*.test.ts"],
           testTimeout: 60_000,
         },
@@ -23,7 +23,6 @@ export default defineConfig({
       {
         test: {
           name: "e2e",
-          globals: true,
           include: ["tests/e2e/**/*.test.ts"],
           globalSetup: ["./tests/e2e/global-setup.ts"],
           hookTimeout: 120_000,
@@ -34,7 +33,6 @@ export default defineConfig({
       {
         test: {
           name: "slow",
-          globals: true,
           include: ["tests/slow/**/*.test.ts"],
           globalSetup: ["./tests/e2e/global-setup.ts"],
           hookTimeout: 120_000,
@@ -45,7 +43,6 @@ export default defineConfig({
       {
         test: {
           name: "interactive",
-          globals: true,
           include: ["tests/interactive/**/*.test.ts"],
           hookTimeout: 30_000,
           testTimeout: 30_000,

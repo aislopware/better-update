@@ -105,7 +105,6 @@ const run = (
   );
 
 beforeEach(() => {
-  vi.clearAllMocks();
   mocks.setSubmit.mockReturnValue(Effect.succeed("/proj/eas.json"));
   mocks.ensureLoggedIn.mockReturnValue(
     Effect.succeed({ username: "u@acme.com", teamId: "TEAM1234", teamName: "Acme", providerId: 1 }),

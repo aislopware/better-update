@@ -1,8 +1,8 @@
 /**
  * Provisions the Cloudflare resources a deployment needs (D1 database, two KV
- * namespaces, three R2 buckets) on the account Wrangler is authenticated
- * against, applies the browser CORS rule the assets bucket needs, then writes
- * the resulting ids into `.env.deploy`.
+ * namespaces, three R2 buckets) on the account `cf` is authenticated against,
+ * applies the browser CORS rule the assets bucket needs, then writes the
+ * resulting ids into `.env.deploy`.
  *
  * Safe to re-run: an existing resource is looked up instead of recreated, and
  * only the id keys are rewritten — every other line of `.env.deploy` is kept.
@@ -10,11 +10,13 @@
  *   bun run bootstrap            # create + record
  *   bun run bootstrap --dry-run  # print what would be created
  *
- * Requires an authenticated Wrangler (`bunx wrangler login`) or CLOUDFLARE_API_TOKEN.
+ * Requires an authenticated `cf` (`bunx cf auth login`) or CLOUDFLARE_API_TOKEN.
+ * Runs `cf` from the repository root on purpose: inside `apps/server` it would
+ * take `accountId` from `cloudflare.config.ts`, which is a placeholder until
+ * this script has run.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 import {
@@ -22,23 +24,20 @@ import {
   OVERRIDES_EXAMPLE_FILE,
   OVERRIDES_FILE,
   REPO_ROOT,
-} from "./deploy-config";
+} from "@better-update/deploy-config";
 
 // eslint-disable-next-line node/no-process-env -- provisioning script: the CLI account/token come from the environment
 const processEnv = process.env;
 const dryRun = process.argv.includes("--dry-run");
 
-const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/u;
-const HEX32 = /\b[0-9a-f]{32}\b/u;
-
 const relative = (file: string): string => path.relative(REPO_ROOT, file);
 
-const wrangler = (args: readonly string[], accountId: string): string => {
+const cf = (args: readonly string[], accountId: string): string => {
   if (dryRun) {
-    console.log(`  would run: wrangler ${args.join(" ")}`);
+    console.log(`  would run: cf ${args.join(" ")}`);
     return "";
   }
-  return execFileSync("bunx", ["wrangler", ...args], {
+  return execFileSync("bunx", ["cf", ...args], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -46,28 +45,30 @@ const wrangler = (args: readonly string[], accountId: string): string => {
   });
 };
 
-/** Runs a wrangler command, returning `undefined` instead of throwing. */
-const tryWrangler = (args: readonly string[], accountId: string): string | undefined => {
+/**
+ * Runs a `cf` API command and parses its result, which `cf` prints as JSON on
+ * stdout (progress goes to stderr). `undefined` when the command fails — the
+ * resource already exists, say — or prints nothing parseable.
+ */
+const cfJson = (args: readonly string[], accountId: string): unknown => {
   try {
-    return wrangler(args, accountId);
+    const output = cf(args, accountId);
+    return output.trim().length === 0 ? undefined : (JSON.parse(output) as unknown);
   } catch {
     return undefined;
   }
 };
 
-/** Wrangler prefixes JSON output with progress lines; parse the array tail. */
-const parseJsonArray = (output: string): readonly unknown[] => {
-  const start = output.indexOf("[");
-  if (start < 0) {
-    return [];
-  }
-  try {
-    const parsed: unknown = JSON.parse(output.slice(start));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The string field `key` of a JSON object, if it has one. */
+const stringField = (value: unknown, key: string): string | undefined => {
+  const field = isRecord(value) ? value[key] : undefined;
+  return typeof field === "string" ? field : undefined;
 };
+
+const asArray = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 
 /** Dry runs never resolve an id — report the intent, not a failure. */
 const reportStatus = (label: string, resolved: boolean, existed: boolean): void => {
@@ -78,39 +79,44 @@ const reportStatus = (label: string, resolved: boolean, existed: boolean): void 
 };
 
 const createD1 = (name: string, accountId: string): string | undefined => {
-  const fromCreate = UUID.exec(tryWrangler(["d1", "create", name], accountId) ?? "")?.[0];
+  const fromCreate = stringField(cfJson(["d1", "create", "--name", name], accountId), "uuid");
   if (fromCreate !== undefined) {
     reportStatus(`D1 ${name}`, true, false);
     return fromCreate;
   }
   // Already there (or creation raced): read the id back.
-  const existing = UUID.exec(tryWrangler(["d1", "info", name], accountId) ?? "")?.[0];
+  const existing = asArray(cfJson(["d1", "list", "--name", name], accountId))
+    .filter((entry) => stringField(entry, "name") === name)
+    .map((entry) => stringField(entry, "uuid"))
+    .find((uuid) => uuid !== undefined);
   reportStatus(`D1 ${name}`, existing !== undefined, true);
   return existing;
 };
 
-const isNamespace = (entry: unknown): entry is { id: string; title: string } =>
-  typeof entry === "object" && entry !== null && "id" in entry && "title" in entry;
-
 const createKv = (title: string, accountId: string): string | undefined => {
-  const fromCreate = HEX32.exec(
-    tryWrangler(["kv", "namespace", "create", title], accountId) ?? "",
-  )?.[0];
+  const fromCreate = stringField(
+    cfJson(["kv", "namespaces", "create", "--title", title], accountId),
+    "id",
+  );
   if (fromCreate !== undefined) {
     reportStatus(`KV ${title}`, true, false);
     return fromCreate;
   }
-  const match = parseJsonArray(tryWrangler(["kv", "namespace", "list"], accountId) ?? "")
-    .filter(isNamespace)
-    // Wrangler prefixes namespace titles with the worker name when it creates
+  const match = asArray(cfJson(["kv", "namespaces", "list", "--per-page", "1000"], accountId))
+    // Wrangler prefixed namespace titles with the worker name when it created
     // them from a config file; match either shape.
-    .find((entry) => entry.title === title || entry.title.endsWith(`-${title}`));
+    .filter((entry) => {
+      const entryTitle = stringField(entry, "title") ?? "";
+      return entryTitle === title || entryTitle.endsWith(`-${title}`);
+    })
+    .map((entry) => stringField(entry, "id"))
+    .find((id) => id !== undefined);
   reportStatus(`KV ${title}`, match !== undefined, true);
-  return match?.id;
+  return match;
 };
 
 const createBucket = (name: string, accountId: string): void => {
-  const created = tryWrangler(["r2", "bucket", "create", name], accountId);
+  const created = cfJson(["r2", "buckets", "create", "--name", name], accountId);
   if (!dryRun) {
     console.log(
       `  R2 ${name} — ${created === undefined ? "already exists (or failed)" : "created"}`,
@@ -122,7 +128,7 @@ const createBucket = (name: string, accountId: string): void => {
  * Logos and avatars are uploaded straight from the browser to a presigned R2
  * PUT URL, so the assets bucket needs a CORS rule naming every origin the web
  * app is served from — the dashboard host plus, when configured, the isolated
- * vault host. This lives on the bucket, not in `wrangler.jsonc`: without it the
+ * vault host. This lives on the bucket, not in `cloudflare.config.ts`: without it the
  * preflight fails and every logo upload dies with a CORS error. Re-applied on
  * every bootstrap so adding a hostname later is one `bun run bootstrap` away.
  */
@@ -130,34 +136,19 @@ const setAssetsCors = (bucket: string, origins: readonly string[], accountId: st
   if (origins.length === 0) {
     return;
   }
-  const file = path.join(os.tmpdir(), `better-update-r2-cors-${bucket}.json`);
-  fs.writeFileSync(
-    file,
-    JSON.stringify(
-      {
-        rules: [
-          {
-            allowed: { headers: ["content-type"], methods: ["PUT"], origins },
-            maxAgeSeconds: 3600,
-          },
-        ],
-      },
-      undefined,
-      2,
-    ),
+  const rules = [
+    { allowed: { headers: ["content-type"], methods: ["PUT"], origins }, maxAgeSeconds: 3600 },
+  ];
+  // Replaces the bucket's whole policy, which is what keeps it in step with
+  // the configured hosts.
+  const applied = cfJson(
+    ["r2", "buckets", "cors", "update", bucket, "--rules", JSON.stringify(rules)],
+    accountId,
   );
-  try {
-    const applied = tryWrangler(
-      ["r2", "bucket", "cors", "set", bucket, "--file", file, "--force"],
-      accountId,
+  if (!dryRun) {
+    console.log(
+      `  R2 ${bucket} CORS — ${applied === undefined ? "FAILED" : `allows ${origins.join(", ")}`}`,
     );
-    if (!dryRun) {
-      console.log(
-        `  R2 ${bucket} CORS — ${applied === undefined ? "FAILED" : `allows ${origins.join(", ")}`}`,
-      );
-    }
-  } finally {
-    fs.rmSync(file, { force: true });
   }
 };
 
@@ -212,7 +203,7 @@ const main = (): void => {
     .map((host) => `https://${host}`);
 
   console.log(
-    `Provisioning on account ${accountId.length > 0 ? accountId : "(wrangler default)"}${
+    `Provisioning on account ${accountId.length > 0 ? accountId : "(cf default)"}${
       dryRun ? " — DRY RUN" : ""
     }`,
   );
@@ -243,8 +234,8 @@ const main = (): void => {
   );
   console.log(
     missing.length === 0
-      ? `\nWrote ${Object.keys(updates).length} id(s) to ${relative(OVERRIDES_FILE)}.\nNext: bun run config:gen`
-      : `\nCould NOT resolve ${missing.join(", ")} — check the wrangler output above and fill them in ${relative(OVERRIDES_FILE)} by hand.`,
+      ? `\nWrote ${Object.keys(updates).length} id(s) to ${relative(OVERRIDES_FILE)}.`
+      : `\nCould NOT resolve ${missing.join(", ")} — check the cf output above and fill them in ${relative(OVERRIDES_FILE)} by hand.`,
   );
 };
 

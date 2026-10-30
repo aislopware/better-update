@@ -63,7 +63,7 @@ describe(renderSigningGradle, () => {
 
   it("escapes backslashes in path", () => {
     const script = renderSigningGradle({
-      keystorePath: "C:\\keys\\release.keystore",
+      keystorePath: String.raw`C:\keys\release.keystore`,
       storePassword: "s",
       keyAlias: "a",
       keyPassword: "k",
@@ -74,7 +74,7 @@ describe(renderSigningGradle, () => {
   it("escapes combined backslash and quote", () => {
     const script = renderSigningGradle({
       keystorePath: "/k",
-      storePassword: "a\\'b",
+      storePassword: String.raw`a\'b`,
       keyAlias: "x",
       keyPassword: "y",
     });

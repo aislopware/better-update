@@ -516,7 +516,7 @@ Single Sheet, three sections + advanced:
    explains project roles/capabilities become moot); switching away detaches
    it. Owner transfer stays in Organization settings (unchanged).
 2. **Project access** — list of grant rows: `[scope: All projects | <project
-picker>] [role: Maintainer | Developer | Viewer]` + remove. Each role option
+   picker>] [role: Maintainer | Developer | Viewer]` + remove. Each role option
    shows its one-line description (from §8b summaries) and a "Developer
    cannot write protected environments" hint. Add row → attach parameterized
    id; remove → detach.

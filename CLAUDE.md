@@ -7,13 +7,15 @@ Turborepo + bun workspaces (`apps/*`, `packages/*`). Run tasks from root — `bu
 - Use `bun`/`bunx` only — no `npm`/`npx`/`yarn`.
 - `bun run lint` = lint + typecheck (never run oxlint/tsc/tsgo directly). Format via `bun run format` (oxfmt, not prettier).
 - Deploy per app: `bun run deploy` inside `apps/server` / `apps/web`. Server dev runs behind portless proxy (`bun run dev:proxy` from root).
+- Cloudflare CLI = `cf` (`bunx cf …`), never `wrangler`. Wrangler stays only for `secret put --name <worker>`, `tail` and the e2e test harness.
 - `skills/better-update/` ships as a Claude Code plugin via `.claude-plugin/marketplace.json`. Editing the skill ⇒ bump that entry's `version`; installs are pinned to it and never update otherwise. Validate with `claude plugin validate .claude-plugin/marketplace.json --strict`.
 
 ## Deployment config
 
-- The repo is deployment-neutral: never commit an account id, zone id, hostname, resource id, or contact address. Values live in untracked `.env.deploy` / CI `BU_*` variables; add new keys to the `KEYS` registry in `scripts/deploy-config.ts` + `.env.deploy.example`.
-- `apps/*/wrangler.jsonc` and `*.generated.ts` are GENERATED + git-ignored — never edit them. Change config shape in `config/wrangler/*.ts`, then `bun run config:gen`.
-- Read deployment values from wrangler `vars` (server), `lib/site-config` (web), `service-defaults.generated` (CLI). Never hardcode them in app or CI code.
+- The repo is deployment-neutral: never commit an account id, zone id, hostname, resource id, or contact address. Values live in untracked `.env.deploy` / CI `BU_*` variables; add new keys to the `KEYS` registry in `packages/deploy-config/src/index.ts` + `.env.deploy.example`.
+- Worker config = `apps/{server,web}/cloudflare.config.ts`, read live by `cf`, the Vite plugin and the vitest plugin. Nothing is generated: never add a config generator, a `wrangler.jsonc` or a `*.generated.ts` for deploy values.
+- Read deployment values from `vars` (server), `lib/site-config` (web, defined by `site-defines.ts`), `SERVICE_DEFAULTS` (CLI, a Bun macro). Never hardcode them in app or CI code.
+- `.cloudflare/` (build output, `cf workers types`, local state) is git-ignored; `bun run lint` regenerates the types first.
 - Deploy config holds non-secrets only; secrets go through `wrangler secret put`. See `docs/self-hosting.md`.
 - Neutrality covers fixtures, seed data and comments too: use `example.com` / `com.example.*` hosts, synthetic ids, fictional names. Never a real person, company, customer, bundle id, Apple team id or keystore alias — including in tests. Only `LICENSE.md`'s copyright and `apps/web/src/routes/{terms,privacy}.tsx` name the operator.
 - `.gitlab-ci.yml` is the whole pipeline and must stay instance-free: runner tags, images and registries are `BU_CI_*` variables, never literals.

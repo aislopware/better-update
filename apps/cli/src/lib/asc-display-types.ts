@@ -19,6 +19,11 @@ import { InvalidArgumentError } from "./exit-codes";
 const SCREENSHOT_DISPLAY_TYPES: readonly string[] = Object.values(AppleUtils.ScreenshotDisplayType);
 const PREVIEW_TYPES: readonly string[] = Object.values(AppleUtils.PreviewType);
 
+const isScreenshotDisplayType = (value: string): value is AppleUtils.ScreenshotDisplayType =>
+  SCREENSHOT_DISPLAY_TYPES.includes(value);
+const isPreviewType = (value: string): value is AppleUtils.PreviewType =>
+  PREVIEW_TYPES.includes(value);
+
 /** Normalize a device name to the enum's `UPPER_SNAKE` shape (`iphone-67` → `IPHONE_67`). */
 const normalize = (raw: string): string => raw.trim().toUpperCase().replaceAll("-", "_");
 
@@ -31,12 +36,9 @@ export const resolveScreenshotDisplayType = (
   raw: string,
 ): Effect.Effect<AppleUtils.ScreenshotDisplayType, InvalidArgumentError> => {
   const normalized = normalize(raw);
-  const candidate = SCREENSHOT_DISPLAY_TYPES.includes(normalized)
-    ? normalized
-    : `APP_${normalized}`;
-  if (SCREENSHOT_DISPLAY_TYPES.includes(candidate)) {
-    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- candidate was just checked against the enum's member values
-    return Effect.succeed(candidate as AppleUtils.ScreenshotDisplayType);
+  const candidate = isScreenshotDisplayType(normalized) ? normalized : `APP_${normalized}`;
+  if (isScreenshotDisplayType(candidate)) {
+    return Effect.succeed(candidate);
   }
   return Effect.fail(
     new InvalidArgumentError({
@@ -53,9 +55,8 @@ export const resolvePreviewType = (
   raw: string,
 ): Effect.Effect<AppleUtils.PreviewType, InvalidArgumentError> => {
   const normalized = normalize(raw);
-  if (PREVIEW_TYPES.includes(normalized)) {
-    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- normalized was just checked against the enum's member values
-    return Effect.succeed(normalized as AppleUtils.PreviewType);
+  if (isPreviewType(normalized)) {
+    return Effect.succeed(normalized);
   }
   return Effect.fail(
     new InvalidArgumentError({

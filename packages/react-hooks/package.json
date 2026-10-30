@@ -14,7 +14,7 @@
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
     "@types/react": "^19.3.0",
-    "react": "^19.3.0"
+    "react": "^19.3.1"
   },
   "peerDependencies": {
     "react": ">=19.3.0"

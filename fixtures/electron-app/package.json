@@ -7,11 +7,11 @@
   "author": "Example Developer <dev@example.com>",
   "main": "main.js",
   "dependencies": {
-    "electron-updater": "6.8.10"
+    "electron-updater": "6.8.12"
   },
   "devDependencies": {
-    "electron": "44.5.1",
-    "electron-builder": "26.15.3"
+    "electron": "44.10.0",
+    "electron-builder": "26.18.1"
   },
   "build": {
     "appId": "com.example.electron",

@@ -11,20 +11,25 @@ const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/u;
 const BASE64_URL_PATTERN = /^[A-Za-z0-9_-]*={0,2}$/u;
 const HEX_PATTERN = /^(?:[0-9A-Fa-f]{2})*$/u;
 
+// The decoders throw on malformed input, like `atob`; callers that need an
+// error value wrap them in `Effect.try`.
+const invalid = (encoding: string): never => {
+  // eslint-disable-next-line functional/no-throw-statements -- the one throw site of these atob-style decoders
+  throw new RangeError(`Invalid ${encoding} string`);
+};
+
 const normalizeBase64 = (value: string): string => {
   const compact = value.replaceAll(/\s+/gu, "");
-  if (!BASE64_PATTERN.test(compact) || compact.length % 4 === 1) {
-    throw new RangeError("Invalid base64 string");
-  }
-  return padBase64(compact);
+  return !BASE64_PATTERN.test(compact) || compact.length % 4 === 1
+    ? invalid("base64")
+    : padBase64(compact);
 };
 
 const normalizeBase64Url = (value: string): string => {
   const compact = value.replaceAll(/\s+/gu, "");
-  if (!BASE64_URL_PATTERN.test(compact) || compact.length % 4 === 1) {
-    throw new RangeError("Invalid base64url string");
-  }
-  return compact.replaceAll("-", "+").replaceAll("_", "/");
+  return !BASE64_URL_PATTERN.test(compact) || compact.length % 4 === 1
+    ? invalid("base64url")
+    : compact.replaceAll("-", "+").replaceAll("_", "/");
 };
 
 export const toBase64 = (data: Uint8Array | ArrayBuffer): string => btoa(toBinaryString(data));
@@ -35,7 +40,7 @@ export const fromBase64 = (str: string): Uint8Array<ArrayBuffer> => {
 };
 
 export const toBase64Url = (data: Uint8Array | ArrayBuffer): string =>
-  toBase64(data).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  toBase64(data).replaceAll("+", "-").replaceAll("/", "_").replace(/[=]+$/u, "");
 
 export const fromBase64Url = (str: string): Uint8Array<ArrayBuffer> =>
   fromBase64(padBase64(normalizeBase64Url(str)));
@@ -43,9 +48,7 @@ export const fromBase64Url = (str: string): Uint8Array<ArrayBuffer> =>
 export const toHex = (bytes: Uint8Array | ArrayBuffer): string =>
   Array.from(asUint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 
-export const fromHex = (hex: string): Uint8Array<ArrayBuffer> => {
-  if (!HEX_PATTERN.test(hex)) {
-    throw new RangeError("Invalid hex string");
-  }
-  return Uint8Array.from(hex.match(/.{2}/gu) ?? [], (byte) => Number.parseInt(byte, 16));
-};
+export const fromHex = (hex: string): Uint8Array<ArrayBuffer> =>
+  HEX_PATTERN.test(hex)
+    ? Uint8Array.from(hex.match(/.{2}/gu) ?? [], (byte) => Number.parseInt(byte, 16))
+    : invalid("hex");

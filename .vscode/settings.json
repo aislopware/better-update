@@ -1,15 +1,15 @@
 {
   "files.watcherExclude": {
     "**/routeTree.gen.ts": true,
-    "**/worker-configuration.d.ts": true
+    "**/.cloudflare/types/**": true
   },
   "search.exclude": {
     "**/routeTree.gen.ts": true,
-    "**/worker-configuration.d.ts": true
+    "**/.cloudflare/types/**": true
   },
   "files.readonlyInclude": {
     "**/routeTree.gen.ts": true,
-    "**/worker-configuration.d.ts": true
+    "**/.cloudflare/types/**": true
   },
   "oxc.fmt.configPath": ".oxfmtrc.json",
   "editor.defaultFormatter": "oxc.oxc-vscode",

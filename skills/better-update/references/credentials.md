@@ -450,7 +450,7 @@ edits values. (Vault access also requires a role that can write env vars — see
   `better-update credentials account create` on the CLI).
 - _"Your account key can't open this organization's env vault yet…"_ → ask an admin to **Grant env
   access** on the Vault access page (after a key rotation, run `better-update credentials account
-link`).
+  link`).
 - Wrong-passphrase errors come from your account passphrase. If it was set on the CLI it equals this
   device's identity passphrase; if set in the browser it is the passphrase you chose at enrollment.
   Re-seal with `better-update credentials account reseal` if a CLI passphrase change drifted.

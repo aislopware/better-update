@@ -6,5 +6,5 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
       xvfb xauth libgtk-3-0 libnss3 libgbm1 libasound2 libxss1 libxtst6 libnotify4 \
       libsecret-1-0 libatspi2.0-0 libdrm2 libxkbcommon0 libuuid1 xdg-utils socat \
     && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash -s "bun-v1.4.2"
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash -s "bun-v1.4.4"
 WORKDIR /app

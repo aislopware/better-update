@@ -133,7 +133,7 @@ const sendInviteEmail = (params: {
       acceptUrl,
     });
     yield* emailService.send({
-      // Mirrors auth.ts: the deployment's verified sender (wrangler `vars`).
+      // Mirrors auth.ts: the deployment's verified sender (a config `vars` entry).
       from: env.EMAIL_SENDER_ADDRESS,
       to: params.recipientEmail,
       subject: rendered.subject,

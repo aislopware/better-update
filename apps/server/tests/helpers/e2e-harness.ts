@@ -7,6 +7,7 @@ import type { IncomingMessage } from "node:http";
 import path from "node:path";
 
 import { parseDotenvContent } from "@better-update/dotenv";
+import { convertToWranglerConfig, loadAndParseConfig } from "@cloudflare/config";
 import { createTestHarness, unstable_splitSqlQuery } from "wrangler";
 
 import { createServerE2EEnvironment } from "./e2e-env";
@@ -26,7 +27,7 @@ import { E2E_BASE_URL_ENV, E2E_CONTROL_URL_ENV } from "./e2e-harness-client";
  */
 
 const SERVER_DIR = path.resolve(import.meta.dirname, "../..");
-const WRANGLER_CONFIG = path.join(SERVER_DIR, "wrangler.jsonc");
+const CLOUDFLARE_CONFIG = path.join(SERVER_DIR, "cloudflare.config.ts");
 
 /**
  * The harness auto-loads `.env` / `.env.local` from the config directory and
@@ -76,22 +77,31 @@ export interface StartServerE2EStackOptions {
 }
 
 /**
- * The generated `wrangler.jsonc` is a `//` banner followed by plain
- * `JSON.stringify` output (see `scripts/gen-config.ts`), so slicing from the
- * first brace is a complete parse — no jsonc dependency needed.
+ * `createTestHarness` only understands Wrangler's config shape, so evaluate
+ * `cloudflare.config.ts` the way the vitest plugin does — in `test` mode, which
+ * names the `*-e2e` R2 buckets — and convert the result.
  */
-const readGeneratedWranglerConfig = (): Record<string, unknown> => {
-  const raw = (() => {
-    try {
-      return readFileSync(WRANGLER_CONFIG, "utf8");
-    } catch {
-      throw new Error(
-        `Missing ${WRANGLER_CONFIG}. It is generated and git-ignored — run \`bun run config:gen\` first.`,
-      );
-    }
-  })();
-  return JSON.parse(raw.slice(raw.indexOf("{"))) as Record<string, unknown>;
+const readWorkerConfig = async (): Promise<Record<string, unknown>> => {
+  const { result } = await loadAndParseConfig(CLOUDFLARE_CONFIG, {
+    mode: "test",
+    isPreview: false,
+  });
+  if (!result.success) {
+    throw new Error(`Invalid ${CLOUDFLARE_CONFIG}: ${result.error.message}`);
+  }
+  const config = convertToWranglerConfig(result.data);
+  return { ...config, main: entryFile(config.main) };
 };
+
+/**
+ * The config imports the entry module extensionless (`./src/index`), and the
+ * conversion keeps that specifier as `main`. Vite resolves it; Wrangler wants
+ * the file itself, so pick the source file it names.
+ */
+const entryFile = (main: string | undefined): string | undefined =>
+  main === undefined || existsSync(main)
+    ? main
+    : [".ts", ".tsx", ".js"].map((extension) => `${main}${extension}`).find(existsSync);
 
 interface R2BucketConfig {
   readonly remote?: boolean;
@@ -109,9 +119,9 @@ const toWorkerConfig = (
   vars: Record<string, string>,
   remoteR2: boolean,
 ): Record<string, unknown> => {
-  // `$schema`, `routes` and `route` are dropped: the harness serves on its own
-  // listener, so deploy-time routing keys would make workerd reject the config.
-  const { $schema: _schema, routes: _routes, route: _route, ...rest } = raw;
+  // `routes` and `route` are dropped: the harness serves on its own listener,
+  // so deploy-time routing keys would make workerd reject the config.
+  const { routes: _routes, route: _route, ...rest } = raw;
   const buckets = (raw["r2_buckets"] ?? []) as readonly R2BucketConfig[];
   return {
     ...rest,
@@ -141,7 +151,7 @@ const hydrateRemoteR2Credentials = (): boolean => {
   }
 
   process.env["CLOUDFLARE_ACCOUNT_ID"] = accountId;
-  process.env.CLOUDFLARE_API_TOKEN = apiToken;
+  process.env["CLOUDFLARE_API_TOKEN"] = apiToken;
   return true;
 };
 
@@ -213,7 +223,7 @@ const startSeedControlPlane = async (database: () => Promise<D1Like>) => {
 export const startServerE2EStack = async (
   options: StartServerE2EStackOptions = {},
 ): Promise<ServerE2EStack> => {
-  const raw = readGeneratedWranglerConfig();
+  const raw = await readWorkerConfig();
   const remoteR2 = (options.remoteR2 ?? false) && hydrateRemoteR2Credentials();
   if (options.remoteR2 && !remoteR2) {
     process.stderr.write(

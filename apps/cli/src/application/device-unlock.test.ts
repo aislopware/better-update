@@ -107,10 +107,6 @@ const layers = (file: IdentityFile) =>
 
 // ── tests ───────────────────────────────────────────────────────
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 describe("unlocking both org vaults in one command", () => {
   it.effect("prompts for the device passphrase once, not once per vault", () =>
     Effect.gen(function* () {

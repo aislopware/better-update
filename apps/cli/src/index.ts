@@ -84,7 +84,7 @@ const root = tree.pipe(
   Command.provideEffectDiscard(preflight),
   Command.provide(CliLive),
   Command.provide(makeCommandNameLayer(tree)),
-  Command.provide(Layer.succeed(CliRoot, { command: tree, version: pkg.version })),
+  Command.provide(Layer.succeed(CliRoot, { command: tree })),
   Command.provide(Layer.succeed(Console.Console, stdoutConsole)),
   Command.withGlobalFlags(GLOBAL_FLAGS),
 );

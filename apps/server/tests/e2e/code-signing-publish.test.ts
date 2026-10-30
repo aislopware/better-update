@@ -13,7 +13,7 @@ import { seedAssetObject, setupE2EWorker } from "../helpers/e2e-worker-pool";
 // vitest-plugin harness used by manifest-serving.test.ts / updates-flow.
 const { get, parseCookies, post, postNoBody } = setupE2EWorker(".wrangler/state/e2e-code-signing");
 
-// PUBLIC_API_URL the worker serves + negotiates from (wrangler.jsonc var).
+// PUBLIC_API_URL the worker serves + negotiates from (a `vars` entry in cloudflare.config.ts).
 const PUBLIC_API_URL = "https://updates.example.com";
 const ASSET_CDN_URL = "https://assets.updates.example.com";
 

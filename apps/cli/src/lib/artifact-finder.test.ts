@@ -1,5 +1,5 @@
 import { it } from "@effect/vitest";
-import { FileSystem, Effect, Exit, Option } from "effect";
+import { ByteSize, FileSystem, Effect, Exit, Option } from "effect";
 
 import { findAndroidArtifact, findIosArtifact, findNewestFileUnder } from "./artifact-finder";
 import { ArtifactNotFoundError } from "./exit-codes";
@@ -16,23 +16,22 @@ interface FakeDir {
 }
 type FakeEntry = FakeFile | FakeDir;
 
-const mkInfo = (entry: FakeEntry) =>
-  ({
-    type: entry.type,
-    mtime: entry.type === "File" ? Option.some(new Date(entry.mtimeMs)) : Option.none<Date>(),
-    atime: Option.none<Date>(),
-    birthtime: Option.none<Date>(),
-    dev: 0,
-    ino: Option.none<number>(),
-    mode: 0o644,
-    nlink: Option.none<number>(),
-    uid: Option.none<number>(),
-    gid: Option.none<number>(),
-    rdev: Option.none<number>(),
-    size: 0n,
-    blksize: Option.none<bigint>(),
-    blocks: Option.none<number>(),
-  }) as unknown as FileSystem.File.Info;
+const mkInfo = (entry: FakeEntry): FileSystem.File.Info => ({
+  type: entry.type,
+  mtime: entry.type === "File" ? Option.some(new Date(entry.mtimeMs)) : Option.none(),
+  atime: Option.none(),
+  birthtime: Option.none(),
+  dev: 0n,
+  ino: Option.none(),
+  mode: 0o644,
+  nlink: Option.none(),
+  uid: Option.none(),
+  gid: Option.none(),
+  rdev: Option.none(),
+  size: ByteSize.zero,
+  blksize: Option.none(),
+  blocks: Option.none(),
+});
 
 const makeFakeFs = (entries: Record<string, FakeEntry>) => {
   const paths = new Set(Object.keys(entries));

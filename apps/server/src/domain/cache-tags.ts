@@ -1,5 +1,5 @@
 // Cache-Tag values for responses stored by Workers Cache (the HTTP cache in
-// front of the Worker — `cache.enabled` in wrangler.jsonc). Tagging is what
+// front of the Worker — `cache.enabled` in cloudflare.config.ts). Tagging is what
 // makes user-initiated deletion able to actively purge stored copies via
 // `ctx.cache.purge({ tags })` (see cloudflare/workers-cache.ts); without a tag
 // an immutable-cached bundle would survive until TTL/LRU eviction.

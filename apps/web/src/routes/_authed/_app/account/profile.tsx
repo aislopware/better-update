@@ -216,6 +216,10 @@ const ProfileForm = () => {
           // eslint-disable-next-line eslint-js/no-restricted-syntax -- session.user is non-null on /account/* routes; controlled input requires string
           value={session?.user.email ?? ""}
           disabled
+          // Kumo draws disabled input text in `inactive`, a grey too faint to
+          // read against the field. The email is shown for its value, so it
+          // takes `subtle` instead: plainly not editable, still legible.
+          className="disabled:text-kumo-subtle"
         />
       </SettingCard>
     </form>

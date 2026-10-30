@@ -1,24 +1,26 @@
 # Prebuilt CI base image for the GitLab Linux jobs — OPTIONAL.
 #
-# The pipeline runs on a plain `node:24-bookworm` out of the box: `.ci-setup`
+# The pipeline runs on a plain `node:26-trixie` out of the box: `.ci-setup`
 # installs whatever is missing (apt build deps, rustup + cross targets, zig).
 # That costs several minutes per job. Build this image once, push it to a
 # registry your runners can pull, and point the `BU_CI_IMAGE` CI/CD variable at
 # it — every install step then no-ops.
 #
-#   docker build -t <your-registry>/better-update-ci:node24 ci
-#   docker push  <your-registry>/better-update-ci:node24
-#   # then set CI/CD variable BU_CI_IMAGE=<your-registry>/better-update-ci:node24
+#   docker build -t <your-registry>/better-update-ci:node26 ci
+#   docker push  <your-registry>/better-update-ci:node26
+#   # then set CI/CD variable BU_CI_IMAGE=<your-registry>/better-update-ci:node26
 #
-# Bumping BUN_VERSION / RUST / ZIG_VERSION / cargo-xwin → rebuild + push a new tag.
+# Bumping BUN_VERSION / RUST / ZIG_VERSION / cargo-zigbuild / cargo-xwin → rebuild +
+# push a new tag. Keep the versions in sync with `.gitlab-ci.yml` (`variables:` and
+# the `cargo install` pins in `.ci-setup`).
 #
 # IMPORTANT: rust is installed to the DEFAULT ~/.cargo / ~/.rustup (NOT
 # CARGO_HOME/RUSTUP_HOME) because `turbo run build` runs in strict env mode and
 # strips those vars — a redirected home would be invisible to napi's cargo.
-FROM node:24-bookworm
+FROM node:26-trixie
 
-ARG BUN_VERSION=1.4.2
-ARG ZIG_VERSION=0.16.0
+ARG BUN_VERSION=1.4.4
+ARG ZIG_VERSION=0.17.0
 ARG RUST_TARGETS="x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-musl x86_64-pc-windows-msvc"
 
 ENV BUN_VERSION=${BUN_VERSION} \
@@ -27,7 +29,7 @@ ENV BUN_VERSION=${BUN_VERSION} \
 
 # System deps: python3 + node-gyp (node-pty has no linux-x64 prebuild → compiles);
 # libbz2-dev (bsdiff conformance bspatch.c); jq (release job); clang/lld (cross).
-# build-essential (gcc/g++/make), git, curl, xz are already in node:24-bookworm.
+# build-essential (gcc/g++/make), git, curl, xz are already in node:26-trixie.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ libbz2-dev jq clang lld \
     && npm install -g node-gyp \
@@ -49,7 +51,7 @@ RUN ZIG_ARCH="$(uname -m)" \
     && curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz" \
       | tar -xJ -C /usr/local \
     && mv "/usr/local/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}" /usr/local/zig \
-    && cargo install --locked cargo-zigbuild \
+    && cargo install --locked cargo-zigbuild --version 0.24.0 \
     && zig version && cargo-zigbuild --version
 
 # cargo-xwin (Windows MSVC cross via `napi build -x`); it fetches the MSVC CRT +
@@ -60,4 +62,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends llvm \
     && LLVM_BIN="$(ls -d /usr/lib/llvm-*/bin | sort -V | tail -n 1)" \
     && ln -s "$LLVM_BIN/clang" /usr/local/bin/clang-cl \
     && ln -s "$LLVM_BIN/llvm-ar" /usr/local/bin/llvm-lib \
-    && cargo install --locked cargo-xwin && cargo-xwin --version
+    && cargo install --locked cargo-xwin --version 0.23.1 && cargo-xwin --version

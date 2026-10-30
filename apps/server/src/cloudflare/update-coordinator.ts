@@ -1,6 +1,7 @@
+// The coordinators are this Worker's own Durable Object classes, reached
+// through its loopback bindings rather than an `env` binding.
+import { exports as workerExports } from "cloudflare:workers";
 import { Context, Effect, Layer } from "effect";
-
-import { cloudflareEnv } from "./context";
 
 import type {
   CoordinatorResult,
@@ -37,9 +38,8 @@ export class UpdateCoordinator extends Context.Service<
 export const UpdateCoordinatorLive = Layer.succeed(UpdateCoordinator, {
   ensureBranchChannel: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
       const result = yield* Effect.promise(async () =>
-        env.CREATE_BRANCH_COORDINATOR.getByName(
+        workerExports.CreateBranchCoordinator.getByName(
           `${params.projectId}:${params.branchName}`,
         ).ensureBranchChannel({
           projectId: params.projectId,
@@ -59,9 +59,10 @@ export const UpdateCoordinatorLive = Layer.succeed(UpdateCoordinator, {
 
   createUpdate: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
       const result = yield* Effect.promise(async () =>
-        env.PUBLISH_COORDINATOR.getByName(params.coordinatorName).createUpdate(params.payload),
+        workerExports.PublishCoordinator.getByName(params.coordinatorName).createUpdate(
+          params.payload,
+        ),
       );
       return result.ok
         ? { ok: true as const, value: result.value }
@@ -70,9 +71,10 @@ export const UpdateCoordinatorLive = Layer.succeed(UpdateCoordinator, {
 
   republishUpdate: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
       const result = yield* Effect.promise(async () =>
-        env.PUBLISH_COORDINATOR.getByName(params.coordinatorName).republishUpdate(params.payload),
+        workerExports.PublishCoordinator.getByName(params.coordinatorName).republishUpdate(
+          params.payload,
+        ),
       );
       return result.ok
         ? { ok: true as const, value: result.value }

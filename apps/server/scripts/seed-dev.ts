@@ -2,7 +2,7 @@
 /**
  * Seed the LOCAL dev D1 database with diverse fake data for UI testing.
  *
- * Writes directly to the wrangler-managed SQLite file (same discovery as
+ * Writes directly to the local D1 SQLite file under `.cloudflare/state` (same discovery as
  * `db-codegen.ts`, picking the most recently modified database when several
  * exist). Every organization in the database gets the full dataset, so it
  * works no matter which account you are logged in with.
@@ -19,7 +19,7 @@ import { resolve } from "node:path";
 import { Glob } from "bun";
 
 const serverRoot = resolve(import.meta.dir, "..");
-const d1StateDir = resolve(serverRoot, ".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
+const d1StateDir = resolve(serverRoot, ".cloudflare/state/v3/d1/miniflare-D1DatabaseObject");
 
 const dataFiles = [...new Glob("*.sqlite").scanSync(d1StateDir)].filter(
   (file) => file !== "metadata.sqlite",

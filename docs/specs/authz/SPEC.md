@@ -562,8 +562,8 @@ our resource/action strings). Returns `null` when no row.
 import { Effect } from "effect";
 
 import { Forbidden } from "../errors";
-import { CurrentActor } from "./current-actor";
 import { EnvironmentGrantRepo } from "../repositories/environment-grant-repo";
+import { CurrentActor } from "./current-actor";
 
 import type { Action, Resource, ScopeKind } from "../models";
 
@@ -811,6 +811,7 @@ API-key branch: unchanged except `memberId: null` and
 
 ```ts
 import { Schema } from "effect";
+
 import { DateTimeString, Id } from "./common";
 
 // One resource→actions grant inside a role's permission set.
@@ -867,6 +868,7 @@ from `../domain/errors` — same as channels group). List returns a plain array 
 
 ```ts
 import { Schema } from "effect";
+
 import { DateTimeString, Id } from "./common";
 
 export const GrantEffectSchema = Schema.Literal("allow", "deny");
@@ -958,15 +960,15 @@ Each handler:
    developer/viewer do not. **Use `assertPermission("member", "update")`** so only
    owner/admin manage grants. This is the dedicated grant permission gate.)
 4. `list` → `EnvironmentGrantRepo.findByScope({ scopeKind: "channel", scopeId:
-path.id })` → map to `ChannelGrant[]`.
+   path.id })` → map to `ChannelGrant[]`.
 5. `upsert` → validate `path.memberId` is a member of `ctx.organizationId` (query
    member row; `NotFound` if not). Then `EnvironmentGrantRepo.upsert({
-organizationId: ctx.organizationId, memberId: path.memberId, scopeKind:
-"channel", scopeId: path.id, effect: payload.effect, actions: payload.actions })`.
+   organizationId: ctx.organizationId, memberId: path.memberId, scopeKind:
+   "channel", scopeId: path.id, effect: payload.effect, actions: payload.actions })`.
    Validate each action token matches `^[a-zA-Z]+:[a-zA-Z]+$` and its `resource`
    ∈ statement resources (reject `BadRequest` otherwise).
 6. `delete` → `EnvironmentGrantRepo.deleteForMemberOnScope({ memberId:
-path.memberId, scopeKind: "channel", scopeId: path.id })` → `{ deleted: 1 }`.
+   path.memberId, scopeKind: "channel", scopeId: path.id })` → `{ deleted: 1 }`.
 7. `logAudit` on upsert/delete (`resourceType: "channel"`, action
    `channel.grant.set` / `channel.grant.revoke`).
 
@@ -990,14 +992,14 @@ the gate currently precedes the fetch — reorder so the channel row is loaded, 
 gate on its id; ownership assert stays):
 
 - `update` (L101): `assertPermissionOn("channel", "update", { scopeKind:
-"channel", scopeId: path.id })`.
+  "channel", scopeId: path.id })`.
 - `pause` (L135) / `resume` (L147): same with `"channel","update"`.
 - `createBranchRollout` (L159): `assertPermissionOn("rollout", "create", {…path.id})`.
 - `updateBranchRollout` (L194) / `completeBranchRollout` (L215) /
   `revertBranchRollout` (L236): `assertPermissionOn("rollout", "update", {…path.id})`.
 - `delete` (L253): `assertPermissionOn("channel", "delete", {…path.id})`; then ALSO
   `yield* EnvironmentGrantRepo.deleteByScope({ scopeKind: "channel", scopeId:
-path.id })` after the channel delete (orphan sweep).
+  path.id })` after the channel delete (orphan sweep).
 - `create` (L44): STAYS `assertPermission("channel", "create")` (no channel yet —
   org/project-level; recon P-note).
 - `list` (L80): STAYS `assertPermission("channel", "read")` (project-scoped list).
@@ -1015,7 +1017,7 @@ path.id })` after the channel delete (orphan sweep).
   AFTER `coordinator.ensureBranchChannel`. So: REMOVE the line-114
   `assertPermission`; after `const branchValue = branchResult.value;` (channelId
   known) and BEFORE any write to the update, insert `yield* assertPermissionOn(
-"update", "create", { scopeKind: "channel", scopeId: branchValue.channelId })`.
+  "update", "create", { scopeKind: "channel", scopeId: branchValue.channelId })`.
   All validation before that point (id gate, signature verify, asset existence) is
   read-only/no-write, so gating after channel resolution but before the publish
   write preserves the trust boundary. Confirm no DB write occurs between L114 and
@@ -1023,8 +1025,8 @@ path.id })` after the channel delete (orphan sweep).
   channel-ensure itself; that is acceptable — it creates the channel the caller is
   publishing to, and ownership is already enforced via `assertProjectOwnership`).
 - rollout% editRollout (L238): after fetching the update row (L241), do `const ch
-= yield* ChannelRepo.findByBranchId(update.branchId)` then `assertPermissionOn(
-"rollout","update",{ scopeKind:"channel", scopeId: ch.id })`. **CORE adds
+  = yield* ChannelRepo.findByBranchId(update.branchId)` then `assertPermissionOn(
+  "rollout","update",{ scopeKind:"channel", scopeId: ch.id })`. **CORE adds
   `findByBranchId` to `ChannelRepo`?** `ChannelRepo` is not in CORE's ownership
   table. Resolution: HANDLERS may add a read method to `ChannelRepo` ONLY if no
   slice conflict — but `channels.ts` repo is shared. To avoid two slices editing
@@ -1037,7 +1039,7 @@ path.id })` after the channel delete (orphan sweep).
     consumes it.
 - republish (L416): `resolveRepublishDestination` (in `update-republish.ts`,
   HANDLERS) returns `channelId`; gate `assertPermissionOn("update","create",{
-scopeKind:"channel", scopeId: destination.channelId })`.
+  scopeKind:"channel", scopeId: destination.channelId })`.
 
 `handlers/update-republish.ts` (EDIT, HANDLERS): add `channelId` to the object
 `resolveRepublishDestination` returns (it already fetches `destinationChannel`).
@@ -1097,7 +1099,7 @@ NOT the better-auth client methods — those exist as a fallback/parity, our
   derived from a resource/action catalog mirroring the server statement.
 - `channels/$channelId/grants.tsx` + `-grants-table.tsx` + `-grant-form-dialog.tsx`
   (NEW): mirror the SettingCard layout. `useSuspenseQuery(channelGrantsQueryOptions
-(channelId))`. Columns Member, Effect (allow/deny badge), Actions (resource:action
+  (channelId))`. Columns Member, Effect (allow/deny badge), Actions (resource:action
   chips), row actions (edit upsert, destructive revoke). Add-grant dialog upserts
   `{ effect, actions[] }` for a chosen member.
 - `queries/org.ts` (EDIT): add `rolesQueryOptions(orgId)` →
@@ -1120,7 +1122,7 @@ tables use `lib/data-table` primitives (`feedback_data_table_primitives`).
   `commands/channels/` structure exactly — `defineCommand` + `runEffect` +
   `apiClient` + `printList`/`printKeyValue`. `create` args `{ name, permission }`
   where `permission` accepts repeated `resource:action` tokens; `update` args `{ id,
-name?, permission? }`; `delete` confirm prompt. All leaves expose global
+  name?, permission? }`; `delete` confirm prompt. All leaves expose global
   `--json`/`--non-interactive` (coverage test walks the registry).
 - `command-registry.ts` (EDIT): add `roles: rolesCommand`.
 - `commands/channels/grants/{index,list,set,revoke}.ts` (NEW): `list` resolves the
@@ -1128,7 +1130,7 @@ name?, permission? }`; `delete` confirm prompt. All leaves expose global
   `api.channelGrants.list`; `set` args `{ channel, member, effect?, actions }` →
   `api.channelGrants.upsert`; `revoke` args `{ channel, member }` →
   `api.channelGrants.delete`. `index` = `defineCommand({ subCommands: { list, set,
-revoke } })`.
+  revoke } })`.
 - `commands/channels/index.ts` (EDIT): add `grants: grantsCommand` to the
   `subCommands` map.
 
@@ -1154,7 +1156,7 @@ Use vitest globals + `@effect/vitest` where Effect is involved. Pure assertions:
 3. **`ac` gating**: `owner`/`admin` have `ac` in statements; `developer`/`viewer`
    do NOT.
 4. **`authorize` smoke**: `acRoles.viewer.authorize({ channel: ["read"] }).success
-=== true`; `acRoles.viewer.authorize({ channel: ["delete"] }).success === false`.
+   === true`; `acRoles.viewer.authorize({ channel: ["delete"] }).success === false`.
 
 ### 11b. Unit — `apps/server/src/auth/scope.test.ts` (NEW)
 
@@ -1197,15 +1199,15 @@ Migrations auto-apply via `tests/setup-d1.ts`.
    now. Owner invites Bob with `role: "developer"` via
    `POST /api/auth/organization/invite-member` (now accepted — L1). Bob accepts.
 2. Assert Bob (developer) can `POST /api/channels` (201) but `DELETE
-/api/projects/:id` → 403 (developer lacks `project:delete`).
+   /api/projects/:id` → 403 (developer lacks `project:delete`).
 3. Owner invites Carol as `viewer`; Carol `GET /api/channels` → 200, `POST
-/api/channels` → 403.
+   /api/channels` → 403.
 4. Owner creates a custom role via `POST /api/roles { name: "releaser",
-permissions: [{ resource: "channel", actions: ["read","update"] }, { resource:
-"rollout", actions: ["read","create","update"] }] }` → 201.
+   permissions: [{ resource: "channel", actions: ["read","update"] }, { resource:
+   "rollout", actions: ["read","create","update"] }] }` → 201.
 5. Owner assigns "releaser" to Dave (`update-member-role { role: "releaser" }` or
    the better-auth role assignment). Dave can update a channel (200) but `DELETE
-/api/channels/:id` → 403.
+   /api/channels/:id` → 403.
 6. `GET /api/roles` lists "releaser"; non-owner (`viewer` Carol) `GET /api/roles`
    → 403 (`ac:read` denied).
 
@@ -1214,13 +1216,13 @@ permissions: [{ resource: "channel", actions: ["read","update"] }, { resource:
 1. Bootstrap owner + project + two channels `staging`, `production`.
 2. **Allow grant lets a viewer publish to staging**: invite Eve as `viewer`. Owner
    `PUT /api/channels/{stagingId}/grants/{eveMemberId} { effect: "allow", actions:
-["update:create","rollout:update"] }`. Eve publishes an update to `staging`
+   ["update:create","rollout:update"] }`. Eve publishes an update to `staging`
    (200) but to `production` → 403 (no grant + viewer baseline lacks
    `update:create`).
 3. **Deny grant blocks a developer on production**: invite Frank as `developer`
    (baseline allows `update:create`). Owner `PUT
-/api/channels/{productionId}/grants/{frankMemberId} { effect: "deny", actions:
-["update:create"] }`. Frank publishes to `staging` → 200 (baseline), to
+   /api/channels/{productionId}/grants/{frankMemberId} { effect: "deny", actions:
+   ["update:create"] }`. Frank publishes to `staging` → 200 (baseline), to
    `production` → 403 (deny wins).
 4. **Revoke**: `DELETE /api/channels/{productionId}/grants/{frankMemberId}` →
    Frank can publish to `production` again (200).
@@ -1250,7 +1252,7 @@ API-key e2e files cap at 120 authed reqs/file (`project_cli_e2e_apikey_ratelimit
    `environment_grant` table is already generic: extend `scope_kind` CHECK to
    include `'env_var_environment'` (and/or `'branch'`), add a
    `assertPermissionOn("envVar", action, { scopeKind: "env_var_environment",
-scopeId })` call in `handlers/env-vars.ts`. Env-vars stay on plain
+   scopeId })` call in `handlers/env-vars.ts`. Env-vars stay on plain
    `assertPermission` until then.
 2. **API-key scoped grants.** v1 api-key principals (`memberId === null`) bypass
    allow/deny grants (baseline only). To scope api keys per channel, give api keys a

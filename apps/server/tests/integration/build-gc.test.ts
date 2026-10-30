@@ -7,7 +7,7 @@ import { handleBuildGc } from "../../src/handlers/build-gc";
 // local D1 + R2 bindings (@cloudflare/vitest-plugin — no wrangler, no
 // startWorker). Mirrors ota-gc.test.ts but for the SEPARATE build-gc handler.
 //
-// handleBuildGc reads retention purely from env.BUILD_RETENTION_* (wrangler.jsonc
+// handleBuildGc reads retention purely from env.BUILD_RETENTION_* (cloudflare.config.ts
 // vars: production=90, preview=30, development=7 days). There is no
 // cutoff-parameterized program to drive directly — the test controls reaping
 // entirely via builds.created_at + builds.profile, then runs `handleBuildGc(env)`

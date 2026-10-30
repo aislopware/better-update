@@ -11,6 +11,7 @@ Source: `apps/server/node_modules/better-auth@1.6.13`. Every snippet below is qu
 ```ts
 // barrel re-export
 import { createAccessControl, role } from "better-auth/plugins/access";
+
 // types
 import type {
   AccessControl,
@@ -73,7 +74,8 @@ type RoleInput<
 
 type RoleAuthorizeRequest<TStatements extends Statements> = {
   [P in keyof TStatements]?:
-    SubArray<TStatements[P]> | { actions: SubArray<TStatements[P]>; connector: "OR" | "AND" };
+    | SubArray<TStatements[P]>
+    | { actions: SubArray<TStatements[P]>; connector: "OR" | "AND" };
 };
 type AuthorizeResponse = { success: false; error: string } | { success: true; error?: never };
 ```

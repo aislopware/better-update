@@ -12,14 +12,12 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "config:gen": "bun ../../scripts/gen-config.ts",
-    "config:gen:strict": "bun ../../scripts/gen-config.ts --strict",
     "d1:codegen": "bun scripts/db-codegen.ts",
-    "d1:migrate": "bun run config:gen && wrangler d1 migrations apply DB --local",
-    "d1:migrate:remote": "bun run config:gen:strict && wrangler d1 migrations apply DB --remote",
-    "deploy": "bun run config:gen:strict && vite build && wrangler deploy",
-    "dev": "bun run config:gen && PORTLESS=1 portless server.better-update vite dev",
-    "dev:local": "bun run config:gen && vite dev",
+    "d1:migrate": "bun scripts/d1-migrate.ts",
+    "d1:migrate:remote": "bun scripts/d1-migrate.ts --remote",
+    "deploy": "BU_DEPLOY_STRICT=1 vite build && cf deploy --prebuilt --mode production",
+    "dev": "PORTLESS=1 portless server.better-update vite dev",
+    "dev:local": "vite dev",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "preview": "vite preview",
@@ -31,10 +29,10 @@
     "test:e2e-r2": "bash scripts/e2e-r2.sh",
     "test:integrations": "vitest run --project integration --maxWorkers 1 --fileParallelism false",
     "test:watch": "vitest --project unit",
-    "typegen:cf": "bun run config:gen && wrangler types"
+    "typegen:cf": "cf workers types"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.7.7",
+    "@better-auth/passkey": "^1.7.14",
     "@better-update/api": "workspace:*",
     "@better-update/dotenv": "workspace:*",
     "@better-update/encoding": "workspace:*",
@@ -44,22 +42,25 @@
     "@better-update/type-guards": "workspace:*",
     "@noble/hashes": "^2.4.0",
     "@xmldom/xmldom": "^0.9.12",
-    "better-auth": "^1.7.7",
-    "effect": "4.0.1",
-    "es-toolkit": "^1.52.0",
-    "kysely": "^0.29.6",
-    "s3mini": "^1.0.2",
-    "structured-headers": "^2.1.0"
+    "better-auth": "^1.7.14",
+    "effect": "4.1.0",
+    "es-toolkit": "^1.53.0",
+    "kysely": "^0.29.7",
+    "s3mini": "^1.0.3",
+    "structured-headers": "^2.1.1"
   },
   "devDependencies": {
+    "@better-update/deploy-config": "workspace:*",
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.62.5",
-    "@cloudflare/vitest-plugin": "^1.3.6",
-    "@vitest/coverage-istanbul": "^4.1.11",
+    "@cloudflare/config": "0.29.0",
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.8",
+    "@cloudflare/vitest-plugin": "^1.4.11",
+    "@vitest/coverage-istanbul": "^5.0.5",
+    "cf": "1.0.0-beta.26",
     "kysely-bun-sqlite": "^0.4.0",
     "kysely-codegen": "^0.20.0",
-    "vite": "^8.3.2",
-    "wrangler": "^4.147.0"
+    "vite": "^8.3.5",
+    "wrangler": "4.156.0"
   }
 }

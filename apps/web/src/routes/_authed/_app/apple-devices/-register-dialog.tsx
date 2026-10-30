@@ -252,8 +252,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon weight="bold" />
+      <DialogTrigger render={<Button variant="primary" icon={<PlusIcon weight="bold" />} />}>
         Add device
       </DialogTrigger>
       <DialogContent size="lg">

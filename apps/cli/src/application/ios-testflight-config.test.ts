@@ -64,7 +64,6 @@ const withOutput = <Result, Err>(program: Effect.Effect<Result, Err, OutputMode>
   program.pipe(Effect.provide(makeOutputModeLayer(false)));
 
 beforeEach(() => {
-  mocks.tokenCtor.mockClear();
   mocks.appFindAsync.mockReset();
   mocks.buildGetAsync.mockReset();
   mocks.betaGroupGetAsync.mockReset();

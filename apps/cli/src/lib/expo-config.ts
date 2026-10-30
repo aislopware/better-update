@@ -154,7 +154,8 @@ const restoreEnv = (previous: Record<string, string | undefined>): void => {
 /**
  * Resolve the Expo config via `@expo/config`, supporting `app.json`,
  * `app.config.json`, `app.config.js`, and `app.config.ts` (`.ts` is transpiled
- * by Bun via `./strip-typescript-types-shim`).
+ * by the project's own TypeScript when it has one ≤ 6, else by Bun via
+ * `./strip-typescript-types-shim`).
  *
  * `envVars` are applied as a scoped overlay on `process.env` for the duration
  * of the call so dynamic configs (`app.config.js`/`.ts`) can read them without

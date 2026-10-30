@@ -239,7 +239,6 @@ const vaultLayer = (privateKey: string) =>
 const context: RequestContext = { teamId: "TEAM1234", providerId: 100 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
   recordedWrites.length = 0;
   recordedDeviceSyncs.length = 0;
   recordedProfileUploads.length = 0;

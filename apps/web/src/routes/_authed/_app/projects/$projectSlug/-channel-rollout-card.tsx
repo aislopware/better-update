@@ -337,12 +337,12 @@ const StartRolloutSection = (
         >
           <Button
             variant="secondary"
+            icon={<RocketIcon weight="bold" />}
             disabled={noTargetsReason !== undefined}
             onClick={() => {
               setIsStartingRollout(true);
             }}
           >
-            <RocketIcon weight="bold" />
             Start rollout
           </Button>
         </Tooltip>

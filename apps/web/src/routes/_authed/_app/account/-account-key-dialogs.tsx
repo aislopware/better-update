@@ -196,8 +196,7 @@ export const EnrollAccountKeyDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button variant="secondary" />}>
-        <KeyIcon weight="bold" />
+      <DialogTrigger render={<Button variant="secondary" icon={<KeyIcon weight="bold" />} />}>
         Set up vault access
       </DialogTrigger>
       <DialogContent size="lg">

@@ -160,8 +160,7 @@ export const DataTableFacetedFilter = ({
       {/* A toolbar item, not a standalone button: every faceted filter is
           rendered inside DataTableToolbar's card, and Toolbar.Button is what
           drops the control's own ring so the card reads as one surface. */}
-      <Popover.Trigger render={<Toolbar.Button />}>
-        <PlusCircleIcon weight="bold" />
+      <Popover.Trigger render={<Toolbar.Button icon={<PlusCircleIcon weight="bold" />} />}>
         {title}
         {selected.length > 0 ? <SelectedSummary options={options} selected={selected} /> : null}
       </Popover.Trigger>

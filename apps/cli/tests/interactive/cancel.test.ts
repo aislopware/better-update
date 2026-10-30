@@ -7,6 +7,7 @@ import { spawnPty } from "../helpers/pty-driver";
 const CLI_BINARY = path.resolve(import.meta.dirname, "../../dist/better-update");
 
 const CTRL_C = "\u0003";
+const ESC = "\u001B";
 
 describe("prompt cancellation + interactive override (PTY)", () => {
   let homeDir: string;
@@ -27,10 +28,13 @@ describe("prompt cancellation + interactive override (PTY)", () => {
     BETTER_UPDATE_URL: "http://127.0.0.1:9",
   });
 
-  it("Ctrl-C at a prompt prints the cancellation and exits 130", async () => {
+  it.each([
+    ["Ctrl-C", CTRL_C],
+    ["Esc", ESC],
+  ])("%s at a prompt prints the cancellation and exits 130", async (_key, input) => {
     const driver = spawnPty(CLI_BINARY, ["login", "--api-key"], { env: env() });
     await driver.expect(/Paste your session token/, { timeoutMs: 15_000 });
-    driver.send(CTRL_C);
+    driver.send(input);
     await driver.expect("Operation cancelled.", { timeoutMs: 10_000 });
     const code = await driver.waitExit({ timeoutMs: 5000 });
     expect(code).toBe(130);

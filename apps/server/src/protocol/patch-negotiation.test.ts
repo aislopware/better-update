@@ -110,7 +110,7 @@ describe(isValidPatchKey, () => {
   });
 
   it("rejects a tuple segment containing a backslash", () => {
-    const evil = { ...params, platform: "i\\os" };
+    const evil = { ...params, platform: String.raw`i\os` };
     expect(isValidPatchKey(patchR2Key(evil), evil)).toBe(false);
   });
 

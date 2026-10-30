@@ -22,7 +22,8 @@
 #
 #   Deploy identity — the repository tracks NO deployment identity, so both
 #   deploy jobs need the BU_* keys that describe the target instance. The full
-#   list, with which are required, is `.env.deploy.example`; `config:gen:strict`
+#   list, with which are required, is `.env.deploy.example`. Deploys, remote
+#   migrations and CLI release builds resolve them with BU_DEPLOY_STRICT=1, which
 #   fails the job if a required one is missing, so a misconfigured pipeline can
 #   never deploy a placeholder.
 #     required  BU_CF_ACCOUNT_ID BU_APP_HOST BU_ASSET_CDN_HOST BU_EMAIL_SENDER
@@ -49,7 +50,7 @@
 #         auto-picked when the robot sees one) and BU_CLI_NOTARY_ASC_KEY_ID.
 #
 #   Pipeline knobs — BU_CI_*, documented at `variables:` below. These configure
-#   the RUNNERS, not the deployment; `config:gen` ignores them.
+#   the RUNNERS, not the deployment; `@better-update/deploy-config` ignores them.
 #     required  BU_CI_LINUX_TAG BU_CI_MACOS_TAG  (the tracked values are
 #               placeholders — a job whose tag matches no runner never starts)
 #     optional  BU_CI_IMAGE BU_CI_MACOS_IMAGE
@@ -68,7 +69,7 @@ variables:
   # zig) at the cost of a few minutes per job. Build `ci/Dockerfile` once, push
   # it to a registry your runners can pull, and point this at it: every install
   # step becomes a no-op.
-  BU_CI_IMAGE: "node:24-bookworm"
+  BU_CI_IMAGE: "node:26-trixie"
   # Runner selection — SET THESE FIRST. The values below are placeholders; a job
   # whose tag matches no runner sits pending forever, so override both with your
   # own runners' tags. They cannot default to "no tag": a mixed Linux/macOS fleet
@@ -81,10 +82,10 @@ variables:
   BU_CI_MACOS_IMAGE: "ghcr.io/cirruslabs/macos-tahoe-xcode:26.5"
   # bun is baked into a prebuilt BU_CI_IMAGE; this pins the version installed
   # in-job when it is missing (plain node image, macOS runners).
-  BUN_VERSION: "1.4.2"
+  BUN_VERSION: "1.4.4"
   # Zig, for the musl cross-builds (`napi build -x`). Also only installed in-job
   # when missing; keep in sync with ci/Dockerfile.
-  ZIG_VERSION: "0.16.0"
+  ZIG_VERSION: "0.17.0"
   # Cap bun's parallel downloads/extractions so concurrent jobs on the same
   # runner don't contend and fail tarball extraction (default is 256).
   BUN_CONFIG_MAX_HTTP_REQUESTS: "32"
@@ -110,7 +111,7 @@ workflow:
 # Every ensure_* function is idempotent and exits immediately when the tool is
 # already present, so they cost nothing on a prebuilt $BU_CI_IMAGE (ci/Dockerfile
 # bakes in bun + rust + cross targets + zig/cargo-zigbuild + node-gyp + libbz2 +
-# jq) and bootstrap a plain `node:24-bookworm` — or a macOS runner — on demand.
+# jq) and bootstrap a plain `node:26-trixie` — or a macOS runner — on demand.
 #
 #  - bun_ci_install(): resilient `bun install`. The real fix for the recurring
 #    "Fail extracting tarball" flake (rspack/rolldown/tsgo native bindings, etc.)
@@ -173,7 +174,7 @@ workflow:
           mv "/usr/local/zig-${zig_arch}-linux-${ZIG_VERSION}" /usr/local/zig
           export PATH="/usr/local/zig:$PATH"
         fi
-        cargo install --locked cargo-zigbuild
+        cargo install --locked cargo-zigbuild --version 0.24.0
       }
 
       # Windows MSVC cross-compilation only (`napi build -x` on a *-windows-msvc
@@ -190,7 +191,7 @@ workflow:
         export PATH="$llvm_bin:$PATH"
         command -v clang-cl >/dev/null 2>&1 || ln -s "$llvm_bin/clang" /usr/local/bin/clang-cl
         command -v llvm-lib >/dev/null 2>&1 || ln -s "$llvm_bin/llvm-ar" /usr/local/bin/llvm-lib
-        command -v cargo-xwin >/dev/null 2>&1 || cargo install --locked cargo-xwin
+        command -v cargo-xwin >/dev/null 2>&1 || cargo install --locked cargo-xwin --version 0.23.1
       }
     - |
       bun_ci_install() {
@@ -300,7 +301,6 @@ lint-test-build:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - bun_ci_install
-    - bun run typegen:cf
     - bun run check
     - bun run test
     - bun run build
@@ -321,7 +321,6 @@ e2e-server:
       allow_failure: true
   script:
     - bun_ci_install
-    - bun run typegen:cf
     - bun --filter @better-update/server test:e2e-pool
 
 # Integration suite. Compiles bsdiff via turbo, hence Rust.
@@ -332,7 +331,6 @@ integrations:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - bun_ci_install
-    - bun run typegen:cf
     - bun run test:integrations
 
 # bsdiff conformance gate (the @better-update/bsdiff SHIP GATE) — Linux + macOS.
@@ -389,7 +387,6 @@ release:
     FORCE_PUBLISH: ""
   script:
     - bun_ci_install
-    - bun run typegen:cf
     - bun run build
 
     - git config user.name "gitlab-ci"
@@ -473,7 +470,7 @@ release:
       done
 
 # ---------------------------------------------------------------------------
-# deploy (tag-triggered) — apply D1 migrations + wrangler deploy to Cloudflare.
+# deploy (tag-triggered) — apply D1 migrations + `cf deploy` to Cloudflare.
 #
 # The repository tracks NO deployment identity, so both deploy jobs need the
 # BU_* CI variables that describe the target instance (see .env.deploy.example):
@@ -481,8 +478,9 @@ release:
 #             BU_D1_DATABASE_ID BU_KV_SESSION_ID BU_KV_BUILD_RESERVATIONS_ID
 #   as needed BU_CF_ZONE_ID BU_VAULT_HOST BU_ASSET_CDN_HOST BU_*_WORKER_NAME
 #             BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_*_CLIENT_ID
-# `config:gen:strict` (run by both scripts below) fails the job if any required
-# one is missing, so a misconfigured pipeline cannot deploy a placeholder.
+# Both scripts below resolve them strictly (BU_DEPLOY_STRICT=1) and fail the job
+# if a required one is missing, so a misconfigured pipeline cannot deploy a
+# placeholder.
 # ---------------------------------------------------------------------------
 deploy-server:
   extends: .base-bun
@@ -494,8 +492,8 @@ deploy-server:
   script:
     - bun_ci_install
     - cd apps/server
-    # Binding name, not database name — the D1 identity is rendered into
-    # wrangler.jsonc from the BU_* variables above.
+    # Migrates the database named by BU_D1_DATABASE_ID before the code that
+    # needs the new schema goes live.
     - bun run d1:migrate:remote
     - bun run deploy
 
@@ -532,13 +530,13 @@ build-cli-apple:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
   variables:
     TARGET: aarch64-apple-darwin
+    # The CLI bakes its default server URL + release repo in at build time, so
+    # a published binary must never be built on placeholders.
+    BU_DEPLOY_STRICT: "1"
   script:
     - bun_ci_install
     - rustup target add "$TARGET"
     - cd packages/bsdiff && bun run build --target "$TARGET" && cd -
-    # The CLI bakes its default server URL + release repo in at build time, so
-    # a published binary must never be built on placeholders.
-    - bun run config:gen:strict
     - cd apps/cli && bun scripts/build.ts --target darwin-arm64
     # Developer ID signature with a FIXED identifier: the Keychain recognises a
     # program by identifier + team, so every release keeps the access the user
@@ -630,10 +628,12 @@ build-cli-linux:
   needs:
     - job: build-bsdiff-linux
       artifacts: true
+  variables:
+    # Same as build-cli-apple: never bake placeholders into a release binary.
+    BU_DEPLOY_STRICT: "1"
   script:
     - bun_ci_install
     - ls -l packages/bsdiff/*.node
-    - bun run config:gen:strict
     - cd apps/cli
     - for t in linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl windows-x64; do bun scripts/build.ts --target "$t"; done
   artifacts:

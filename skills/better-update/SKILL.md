@@ -216,8 +216,8 @@ better-update build --platform android --auto-submit          # or build + submi
   `--prune`). `apple users` needs an Admin-role key. See `references/cli.md`.
 - **A few App Store Connect ops are cookie-only (Apple ID login + 2FA, NOT CI-safe).** `app-review …`
   (Resolution Center: read App Review threads / rejection guideline codes / reply — text only), `apple asc-key
-list` + `credentials revoke asc-key` (the upstream ASC-key lifecycle), `app-store apps create`, `credentials
-bundle-id create --app-clip`, and `apple sandbox create/delete` (IAP testers) all hit Apple's Iris API, which a
+  list` + `credentials revoke asc-key` (the upstream ASC-key lifecycle), `app-store apps create`, `credentials
+  bundle-id create --app-clip`, and `apple sandbox create/delete` (IAP testers) all hit Apple's Iris API, which a
   JWT key can't reach — they log in via `apple login` and fail with a clear error under `--non-interactive` /
   CI. (`apple sandbox list` is token-first: it prefers the public ASC API when an ASC key is configured via
   `--asc-api-key-id` or the submit profile, falling back to Apple ID login.) A

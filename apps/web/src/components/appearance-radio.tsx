@@ -31,22 +31,28 @@ export const AppearanceRadioGroup = <T extends string>({
   className,
 }: AppearanceRadioGroupProps<T>) => (
   <Radio.Group
-    appearance="card"
     orientation="horizontal"
     name={name}
     value={value}
     onValueChange={(next: T) => {
       onValueChange(next);
     }}
-    // Kumo lays horizontal choice cards out two-up. These previews are equal
-    // siblings that read as one row, so the item grid widens to the option
-    // count once there is room; the selector reaches past the fieldset to the
-    // row Kumo renders inside it.
-    className={cn("sm:[&>div]:grid-cols-3", className)}
+    // The card look is set per item, not on the group: a card group joins its
+    // items into one panel split by dividers that assume two columns, and its
+    // selected item is only tinted. Separate cards keep their own border and
+    // the stronger selected edge. The group then lays them out itself — two-up,
+    // widening to the option count once there is room, since these previews are
+    // equal siblings that read as one row. The selector reaches past the
+    // fieldset to the row Kumo renders inside it.
+    className={cn(
+      "[&>div]:grid [&>div]:grid-cols-2 [&>div]:gap-3 sm:[&>div]:grid-cols-3",
+      className,
+    )}
   >
     {options.map((option) => (
       <Radio.Item
         key={option.value}
+        appearance="card"
         value={option.value}
         label={
           <>

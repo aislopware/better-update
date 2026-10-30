@@ -116,8 +116,10 @@ export const globalFlagAt = (
  * Whether `--json` is in effect for a raw argument list, decided BEFORE the
  * parser runs so the entrypoint can keep stdout machine-clean even when the
  * parse itself fails (usage error) and no handler — hence no `OutputMode` — ever
- * exists. Mirrors the parser: the FIRST `--json` / `--no-json` occurrence
- * decides, operands after `--` never count.
+ * exists. The FIRST `--json` / `--no-json` occurrence decides; operands after
+ * `--` never count. Repeating the flag (`--json` and `--no-json` count as one)
+ * is itself a usage error the parser rejects, so on a repeat this only picks
+ * the channel that error is rendered on.
  */
 export const detectJsonMode = (args: readonly string[]): boolean => {
   let index = 0;

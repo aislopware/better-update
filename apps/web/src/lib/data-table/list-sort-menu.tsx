@@ -26,8 +26,9 @@ export const ListSortMenu = ({ options, value, onChange }: ListSortMenuProps) =>
   const active = options.find((option) => option.value === value);
   return (
     <DropdownMenu>
-      <DropdownMenu.Trigger render={<Button variant="secondary" />}>
-        <ArrowsDownUpIcon weight="bold" />
+      <DropdownMenu.Trigger
+        render={<Button variant="secondary" icon={<ArrowsDownUpIcon weight="bold" />} />}
+      >
         <span className="text-kumo-subtle">Sort</span>
         {active?.label}
       </DropdownMenu.Trigger>

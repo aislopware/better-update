@@ -4,7 +4,6 @@ import {
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/button";
 import { Link } from "@better-update/ui/components/link";
-import { Loader } from "@better-update/ui/components/loader";
 import { useQuery } from "@tanstack/react-query";
 
 import { meQueryOptions } from "../../../../queries/org";
@@ -40,8 +39,7 @@ export const VaultSetupActions = ({
 
   if (meQuery.isPending || accountKeysQuery.isPending) {
     return (
-      <Button variant="secondary" disabled>
-        <Loader size="sm" />
+      <Button variant="secondary" loading>
         Checking access…
       </Button>
     );

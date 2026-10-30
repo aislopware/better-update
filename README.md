@@ -67,7 +67,6 @@ tied to any deployment. Point a clone at your own Cloudflare account with:
 ```sh
 cp .env.deploy.example .env.deploy   # your account id + hostnames
 bun run bootstrap                    # create D1 + KV + R2 on your account
-bun run config:gen                   # render wrangler.jsonc + app config
 ```
 
 Without that file the repo still installs, tests and runs locally on

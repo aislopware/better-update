@@ -1,4 +1,3 @@
-import { apiKeyClient } from "@better-auth/api-key/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { createAuthClient } from "better-auth/client";
 import {
@@ -13,7 +12,6 @@ export const createBetterUpdateAuthClient = (baseURL: string) =>
     baseURL,
     plugins: [
       organizationClient(),
-      apiKeyClient(),
       oneTimeTokenClient(),
       // WebAuthn / passkey: enrollment + the step-up assertion the browser sends
       // to /api/web-vault/step-up before env-vault access (P4). The server only

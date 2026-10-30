@@ -71,13 +71,13 @@ const ChannelHeaderActions = ({
     <>
       <Button
         variant="secondary"
+        // While pending, `loading` swaps the glyph for Kumo's spinner.
+        icon={channel.isPaused ? <PlayIcon weight="bold" /> : <PauseIcon weight="bold" />}
         onClick={() => {
           togglePauseMutation.mutate();
         }}
         loading={togglePauseMutation.isPending}
       >
-        {!togglePauseMutation.isPending &&
-          (channel.isPaused ? <PlayIcon weight="bold" /> : <PauseIcon weight="bold" />)}
         {channel.isPaused ? "Resume" : "Pause"}
       </Button>
       {channel.isBuiltin ? null : (

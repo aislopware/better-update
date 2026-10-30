@@ -125,7 +125,6 @@ const stubLayer = (interactive: boolean) =>
   );
 
 beforeEach(() => {
-  vi.clearAllMocks();
   mocks.generateAndUpload.mockReturnValue({ id: "profile-new-1" });
   mocks.ascKeyContext.mockReturnValue({ teamId: "TEAM1234" });
 });

@@ -83,15 +83,16 @@ They boot the server Worker through `startServerE2EStack()`
 - **No on-disk storage.** The harness hardcodes `persist: false`, so D1 lives in
   the globalSetup process's memory. Seeding therefore cannot shell out to
   `wrangler d1 execute --persist-to` any more (that used to spawn one `bunx
-wrangler` per seed). `startServerE2EStack` exposes a loopback **seed control
+  wrangler` per seed). `startServerE2EStack` exposes a loopback **seed control
   plane** instead; `seedSql()` in both suites POSTs SQL to it and it runs
   in-process against the live binding. `seedSql` is consequently **async** —
   `await` it.
 - **No `remote: true`.** Any remote binding makes the harness open a proxy
   session against the real Cloudflare account, and `listen()` hard-fails without
-  credentials. The helper feeds wrangler an inline config with the flag stripped,
-  so the suites stay hermetic. (`apps/*/wrangler.jsonc` itself is generated —
-  never edit it.)
+  credentials. The helper evaluates `apps/server/cloudflare.config.ts` in `test`
+  mode (`@cloudflare/config`), converts it to Wrangler's shape and feeds the
+  harness that inline config with the flag stripped, so the suites stay
+  hermetic.
 - **No `envFiles` opt-out.** The harness auto-loads `.env` / `.env.local` and
   those values _beat_ config `vars`, so a developer's `BETTER_AUTH_URL` used to
   leak in and make better-auth reject every Origin as `INVALID_ORIGIN`. The

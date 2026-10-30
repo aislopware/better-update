@@ -11,7 +11,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/ais
 Conventions below: `<x>` = required positional, `[x]` = optional, `--flag` defaults noted inline.
 Every boolean flag is negatable — `--no-foo` turns `foo` off (useful for the ones that default on); `--yes` has the alias `-y`. Numeric flags (`--limit`, `--page`, …) are validated by the parser (a bad value is a usage error, exit 2; negatives need `--limit=-1`). `--completions <shell>` / `--log-level` are built-in global flags on every command (there is no `--wizard`: it would prompt before the CI / `--json` gates).
 
-Global `--json` keeps stdout machine-clean end to end: help and usage rendering go to stderr and a usage error (unknown flag, missing required flag/arg, bad value) is itself an error envelope `{ ok: false, error: { code: 2, tag: "UsageError" } }` on stdout. The first `--json` / `--no-json` on the line decides.
+Global `--json` keeps stdout machine-clean end to end: help and usage rendering go to stderr and a usage error (unknown flag, missing required flag/arg, bad value) is itself an error envelope `{ ok: false, error: { code: 2, tag: "UsageError" } }` on stdout. Repeating a single-valued flag is a usage error (exit 2), and `--json` / `--no-json` count as the same flag, so pass at most one of them; on such a repeat the first one only picks whether the error comes as an envelope or as text.
 
 ## Table of contents
 

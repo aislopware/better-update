@@ -12,6 +12,8 @@ import { defineConfig, loadEnv } from "vite";
 
 import type { Plugin } from "vite";
 
+import { siteDefines } from "./site-defines";
+
 // Cloudflare Vite plugin registers a catch-all dev middleware that handles
 // `/api/*` with the SSR worker before Vite's `server.proxy` can run. Register
 // Our own proxy earlier in the plugin array so it runs first.
@@ -64,13 +66,14 @@ export default defineConfig(({ mode }) => {
   const devtoolsEnabled = env["REACT_DEVTOOLS"] === "1";
 
   return {
+    define: siteDefines(),
     plugins: [
       ...(devtoolsEnabled ? [reactDevtools()] : []),
       ...(apiProxyTarget !== undefined && apiProxyTarget !== ""
         ? [apiProxyPlugin(apiProxyTarget)]
         : []),
       tailwindcss(),
-      cloudflare({ viteEnvironment: { name: "ssr" }, inspectorPort: 9230 }),
+      cloudflare({ inspectorPort: 9230 }),
       tanstackStart(),
       // React Compiler (the Rust `oxc-transform-react` port) auto-memoizes
       // components and hooks, so hand-written useMemo/useCallback/memo wrappers

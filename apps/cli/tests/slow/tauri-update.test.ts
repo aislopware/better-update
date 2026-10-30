@@ -35,7 +35,7 @@ const canRun =
   process.platform === "darwin" && P12_PATH !== undefined && P12_PASSWORD !== undefined && hasCargo;
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/tauri-app");
-const TAURI_CLI = "@tauri-apps/cli@2.12.1";
+const TAURI_CLI = "@tauri-apps/cli@2.12.4";
 const KEY_PASSWORD = "test-pass";
 const home = os.homedir();
 // The CLI runs with an isolated HOME; the toolchains keep their real caches.

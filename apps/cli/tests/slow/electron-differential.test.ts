@@ -28,7 +28,7 @@ const canRun =
   process.platform === "darwin" && P12_PATH !== undefined && P12_PASSWORD !== undefined;
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/macos-app");
-const ELECTRON_UPDATER = "electron-updater@6.8.9";
+const ELECTRON_UPDATER = "electron-updater@6.8.12";
 /** The fixture's SUPublicEDKey belongs to this synthetic seed (see build-macos.test.ts). */
 const SPARKLE_SEED = Buffer.alloc(32, 0x2a).toString("base64");
 const PAYLOAD_BYTES = 4 * 1024 * 1024;

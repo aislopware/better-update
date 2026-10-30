@@ -1,0 +1,22 @@
+{
+  "name": "@better-update/deploy-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Resolves one deployment's identity (account, hosts, resource ids) from BU_* environment variables and .env.deploy.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint"
+  },
+  "dependencies": {
+    "@better-update/dotenv": "workspace:*"
+  },
+  "devDependencies": {
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*",
+    "@types/node": "^26.6.6"
+  }
+}

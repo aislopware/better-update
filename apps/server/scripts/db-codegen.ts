@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Generate the Kysely `Database` interface (`src/db/schema.d.ts`) by introspecting
- * the local D1 SQLite file that wrangler writes under `.wrangler/state`.
+ * the local D1 SQLite file under `.cloudflare/state` (shared by `vite dev` and
+ * `bun run d1:migrate`).
  *
  * The DB schema is the single source of truth: this regenerates the typed table
  * map from the applied migrations. Run `bun run d1:migrate` first so the local
@@ -16,7 +17,7 @@ import { resolve } from "node:path";
 import { Glob } from "bun";
 
 const serverRoot = resolve(import.meta.dir, "..");
-const d1StateDir = resolve(serverRoot, ".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
+const d1StateDir = resolve(serverRoot, ".cloudflare/state/v3/d1/miniflare-D1DatabaseObject");
 
 const dataFiles = [...new Glob("*.sqlite").scanSync(d1StateDir)].filter(
   (file) => file !== "metadata.sqlite",

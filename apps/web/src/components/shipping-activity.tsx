@@ -1,16 +1,13 @@
 import { activityQueryOptions } from "@better-update/api-client/react";
-import { useMountEffect } from "@better-update/react-hooks";
 import { ChartPalette, TimeseriesChart } from "@better-update/ui/components/chart";
 import { Skeleton } from "@better-update/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { useRef } from "react";
 
-import type { ECharts } from "echarts/core";
 import type { ReactNode } from "react";
 
 import { ListPanel, ListPanelFooter, ListPanelHeader } from "../lib/data-table";
 import { echarts } from "../lib/echarts";
-import { formatChartDate } from "../lib/format-date";
+import { formatChartDate, formatChartUtcDate } from "../lib/format-date";
 import { compactNumber, numberFormatter } from "../lib/format-number";
 import { useTheme } from "../lib/use-theme";
 
@@ -170,19 +167,8 @@ const ActivityChart = ({
 }) => {
   const isDarkMode = useTheme().resolvedTheme === "dark";
   const colors = useSeriesColors();
-  const chart = useRef<ECharts | null>(null);
-  // A time axis labels the first of a month on top of the ticks it was asked
-  // for, so a window crossing one printed "Aug 1" across "Aug 2". Dropping a
-  // label that collides is the axis's own answer; Kumo does not expose it, so
-  // it is merged into the instance the chart hands back — once, after Kumo's
-  // own setOption, since a child's effects run before its parent's. Kumo merges
-  // its later updates rather than replacing, so the axis keeps it.
-  useMountEffect(() => {
-    chart.current?.setOption({ xAxis: { axisLabel: { hideOverlap: true } } });
-  });
   return (
     <TimeseriesChart
-      ref={chart}
       echarts={echarts}
       type="bar"
       height={height}
@@ -193,7 +179,12 @@ const ActivityChart = ({
       ]}
       xAxisTickCount={6}
       yAxisTickCount={yAxisTickCount}
+      // The ticks are the axis's own, laid at local midnight, so they read in
+      // local time. The tooltip names a bar, and a bar is a UTC-day bucket:
+      // Kumo's default there is a local date and time of day, which shows a
+      // meaningless hour and, west of UTC, the day before.
       xAxisTickFormat={(value) => formatChartDate(new Date(value))}
+      tooltipTimestampFormat={(timestamp) => formatChartUtcDate(new Date(timestamp))}
       yAxisTickFormat={compactNumber}
       tooltipValueFormat={(value) => numberFormatter.format(value)}
       ariaDescription="Updates and builds published per day over the last 30 days."

@@ -152,7 +152,6 @@ const failureTag = (exit: Exit.Exit<unknown, { readonly _tag: string }>): string
   failureError(exit)?._tag;
 
 beforeEach(() => {
-  vi.clearAllMocks();
   recordedWrites.length = 0;
 });
 

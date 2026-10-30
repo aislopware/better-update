@@ -6,11 +6,10 @@ const portless = process.env["PORTLESS"] === "1";
 
 export default defineConfig({
   plugins: [
-    // Local dev bypasses `remote: true` on R2 bindings — the edge-preview
-    // proxy script cannot host our Durable Objects, so any remote binding
-    // makes `vite dev` fail with CF API code 10375. Production deploys
-    // (`wrangler deploy`) honor the wrangler.jsonc `remote: true` flags
-    // because they don't go through the vite-plugin edge-preview path.
+    // Local dev ignores the R2 bindings' `dev: { remote: true }` — the
+    // edge-preview proxy script cannot host our Durable Objects, so any remote
+    // binding makes `vite dev` fail with CF API code 10375. The flag only
+    // matters to the `e2e-pool-r2` vitest project, which opts back in.
     cloudflare({ inspectorPort: 9229, remoteBindings: false }),
   ],
   server: {

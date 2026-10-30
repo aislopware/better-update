@@ -51,7 +51,8 @@ export default defineConfig(async () => {
   // projects: same local D1 (migrations applied via setup-d1.ts) + miniflare
   // bindings, so both run the real worker against local bindings.
   const workersTestOptions = {
-    wrangler: { configPath: "./wrangler.jsonc" },
+    // `cloudflare.config.ts`, evaluated with `mode: "test"` (the Vite mode).
+    experimental: { newConfig: true },
     // Match the vite plugin in vite.config.ts — the Workers vitest plugin also
     // chokes on remote bindings when Durable Object bindings are present
     // (CF API 10375 on edge-preview).
@@ -78,16 +79,17 @@ export default defineConfig(async () => {
   };
 
   // Pool options for the R2-upload e2e files: same local D1/KV/DO, but the R2
-  // buckets connect to the real `*-e2e` preview buckets via per-binding
-  // `remote: true` (wrangler.jsonc). `remoteBindings: true` is the global gate;
-  // DO bindings are excluded from remote proxying so they keep running locally
-  // (avoids the 10375 edge-preview error). `preview_bucket_name` wins over
-  // `bucket_name` in the dev/test path, keeping these off the production buckets.
+  // buckets connect to the real `*-e2e` buckets via per-binding
+  // `dev: { remote: true }` (cloudflare.config.ts). `remoteBindings: true` is
+  // the global gate; DO bindings are excluded from remote proxying so they keep
+  // running locally (avoids the 10375 edge-preview error). The config names the
+  // `*-e2e` buckets for every mode but `production`, which keeps these off the
+  // production buckets.
   // Real Cloudflare creds come from `.env.local` (E2E_*); the remote proxy auth
   // (CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN) is hydrated above.
   const envLocal = parseEnvFile(path.join(import.meta.dirname, ".env.local"));
   const realR2TestOptions = {
-    wrangler: { configPath: "./wrangler.jsonc" },
+    experimental: { newConfig: true },
     remoteBindings: true,
     miniflare: {
       bindings: {
@@ -101,8 +103,18 @@ export default defineConfig(async () => {
     },
   };
 
+  // Vitest 5 caches transformed modules on disk by default and hands a reused
+  // worker the whole cached import graph in one snapshot. The Workers plugin
+  // inlines that snapshot into ONE WebSocket message to workerd (~60 MB for
+  // this server), which workerd closes with 1009 "Message is too large" — so
+  // every test file after a worker's first died as "Worker exited
+  // unexpectedly". Without the disk cache the snapshot carries no module code.
+  const workersRuntime = { fsModuleCache: false, setupFiles: ["./tests/setup-d1.ts"] };
+
   return {
     test: {
+      // Inline projects inherit the root `test` options (Vitest 5).
+      globals: true,
       coverage: {
         provider: "istanbul" as const,
         include: ["src/auth/**/*.ts", "src/cloudflare/**/*.ts", "src/domain/**/*.ts"],
@@ -132,7 +144,6 @@ export default defineConfig(async () => {
         {
           test: {
             name: "unit",
-            globals: true,
             include: ["src/**/*.test.ts"],
           },
         },
@@ -141,9 +152,8 @@ export default defineConfig(async () => {
           plugins: [cloudflareTest(workersTestOptions)],
           test: {
             name: "integration",
-            globals: true,
             include: ["tests/integration/**/*.test.ts"],
-            setupFiles: ["./tests/setup-d1.ts"],
+            ...workersRuntime,
             // Seeding hooks here drive real D1 one statement at a time — the OTA
             // reaper's parameter-ceiling suite writes ~725 rows before its first
             // assertion — so the 10s default is a CI-speed lottery, not a
@@ -157,10 +167,9 @@ export default defineConfig(async () => {
           plugins: [cloudflareTest(workersTestOptions)],
           test: {
             name: "e2e-pool",
-            globals: true,
             include: ["tests/e2e/**/*.test.ts"],
             exclude: R2_E2E,
-            setupFiles: ["./tests/setup-d1.ts"],
+            ...workersRuntime,
           },
         },
         // ── R2-upload E2E (pool runtime + REAL R2 via remote binding) ──
@@ -172,9 +181,8 @@ export default defineConfig(async () => {
           plugins: [cloudflareTest(realR2TestOptions)],
           test: {
             name: "e2e-pool-r2",
-            globals: true,
             include: R2_E2E,
-            setupFiles: ["./tests/setup-d1.ts"],
+            ...workersRuntime,
           },
         },
       ],

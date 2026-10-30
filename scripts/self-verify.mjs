@@ -10,7 +10,7 @@
 // `.self-verify/summary.json` when the process exits.
 //
 // Why this exists: every e2e suite here is actually autonomous. The server
-// `e2e-pool`, CLI, and web suites boot a local worker (`unstable_startWorker` /
+// `e2e-pool`, CLI, and web suites boot a local worker (wrangler's `createTestHarness` /
 // vitest-pool-workers) against local D1/R2 — no Cloudflare auth. The lone
 // remote suite (`e2e-pool-r2`, the direct-upload checksum contract) reaches
 // real R2 via an API token read from `apps/server/.env.local` (E2E_*), never an

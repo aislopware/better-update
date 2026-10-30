@@ -4,7 +4,7 @@ import { cloudflareCtx } from "./context";
 
 /**
  * Port for purging Workers Cache — the HTTP cache Cloudflare places in FRONT of
- * the Worker (`cache.enabled` in wrangler.jsonc). This is a different layer
+ * the Worker (`cache.enabled` in cloudflare.config.ts). This is a different layer
  * than the internal Cache API used by ManifestCacheStorage: Workers Cache
  * stores whole responses keyed by URL before the Worker even runs, so key-side
  * versioning (cache_version) cannot invalidate it — only an explicit tag purge

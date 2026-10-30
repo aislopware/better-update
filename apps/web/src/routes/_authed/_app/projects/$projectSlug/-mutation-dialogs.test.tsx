@@ -157,7 +157,6 @@ const confirmDeletion = async (user: ReturnType<typeof userEvent.setup>, name: s
 
 describe("mutation dialogs", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     apiReactMocks.createUpdate.mockResolvedValue(undefined);
     apiReactMocks.createChannel.mockResolvedValue(undefined);
     apiReactMocks.deleteBranch.mockResolvedValue(undefined);

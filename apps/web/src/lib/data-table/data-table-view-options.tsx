@@ -22,8 +22,9 @@ export const DataTableViewOptions = <TData extends RowData>({
   }
   return (
     <DropdownMenu>
-      <DropdownMenu.Trigger render={<Button variant="secondary" />}>
-        <SlidersHorizontalIcon weight="bold" />
+      <DropdownMenu.Trigger
+        render={<Button variant="secondary" icon={<SlidersHorizontalIcon weight="bold" />} />}
+      >
         View
       </DropdownMenu.Trigger>
       <DropdownMenu.Content align="end" className="w-44">

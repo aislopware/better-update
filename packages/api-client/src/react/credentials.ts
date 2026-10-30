@@ -320,10 +320,7 @@ export const setAppleTeamProtection = async (id: string, isProtected: boolean) =
     ? runApi((api) => api.appleTeams.protect({ params: { id } }))
     : runApi((api) => api.appleTeams.unprotect({ params: { id } }));
 
-export const setAppleDistributionCertificateProtection = async (
-  id: string,
-  isProtected: boolean,
-) =>
+export const setAppleDistributionCertificateProtection = async (id: string, isProtected: boolean) =>
   isProtected
     ? runApi((api) => api.appleDistributionCertificates.protect({ params: { id } }))
     : runApi((api) => api.appleDistributionCertificates.unprotect({ params: { id } }));

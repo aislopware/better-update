@@ -56,7 +56,7 @@ passphrase ──Argon2id(t=3, m=64 MiB, p=1, 16B salt)──► KEK
   `better-update/credential`). `envVarValue` is a 9th `credentialType` reusing the identical
   machinery (`apps/cli/src/application/credential-cipher.ts`).
 - **Recipients** (`user_encryption_keys`, UNIQUE `public_key`), `kind ∈ {device, recovery,
-machine}`; CHECK ties nullability (`device` → user-owned/org-null; `recovery`+`machine` →
+  machine}`; CHECK ties nullability (`device` → user-owned/org-null; `recovery`+`machine` →
   org-owned/user-null) — `apps/server/migrations/0046_credential_vault.sql`.
 - **Shared `vault_version`** (`org_vaults.vault_version`, PK `organization_id`) is denormalized
   onto wrap rows **and** the `vault_version` column of all 8 credential tables **and**
@@ -201,7 +201,7 @@ Migration head is **0070**; new files start **0071**.
    - The existing `vault_version` / `rotation_pending*` columns are now **CV's**.
 2. **`account_keys`** — NEW table (one active row per user, cross-org like device keys):
    `id, user_id (FK user ON DELETE CASCADE), age_public_key, ed25519_public_key, escrow_ct,
-salt, kdf_params (TEXT json), fingerprint, created_at, last_used_at, revoked_at`.
+   salt, kdf_params (TEXT json), fingerprint, created_at, last_used_at, revoked_at`.
    UNIQUE on `age_public_key`; partial UNIQUE `(user_id) WHERE revoked_at IS NULL` (one live
    account key per user). Holds the escrow blob — distinct from `user_encryption_keys` (which
    stores only public recipient keys).
@@ -209,7 +209,7 @@ salt, kdf_params (TEXT json), fingerprint, created_at, last_used_at, revoked_at`
    **polymorphic recipient** so it can point at either a `user_encryption_keys.id`
    (device/recovery/machine) or an `account_keys.id`:
    `organization_id, env_vault_version, recipient_kind TEXT CHECK IN ('device','recovery',
-'machine','account'), recipient_id TEXT, wrapped_key TEXT, created_at`,
+   'machine','account'), recipient_id TEXT, wrapped_key TEXT, created_at`,
    PK `(organization_id, env_vault_version, recipient_kind, recipient_id)`. No hard FK on
    `recipient_id` (polymorphic) — integrity enforced in the app layer + the CASCADE handled by
    the reconcile pass. Indexes mirror the CV wrap table.
@@ -247,7 +247,7 @@ throw, errors as Effect values via `http/to-api-effect.ts`).
 ### 5.2 Account-key endpoints
 
 - `POST /api/account-keys` — register `{agePublicKey, ed25519PublicKey, escrowCt, salt,
-kdfParams, fingerprint}` (CLI-only, bearer). Server stores escrow opaquely.
+  kdfParams, fingerprint}` (CLI-only, bearer). Server stores escrow opaquely.
 - `GET /api/account-keys/me` — return the caller's escrow envelope. **Gated by the 2FA
   session-state middleware (§5.4)** — serving the escrow blob is the step-up trigger.
 - The account key becomes an EV recipient via the normal grant path (CLI wraps EV to it).

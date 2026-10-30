@@ -146,11 +146,11 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
     return (
       <Button
         variant="secondary"
+        icon={<FingerprintIcon weight="bold" />}
         onClick={() => {
           globalThis.location.assign(`https://${VAULT_HOST}/account/passkeys`);
         }}
       >
-        <FingerprintIcon weight="bold" />
         Add passkey
       </Button>
     );
@@ -166,8 +166,9 @@ export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<voi
         }
       }}
     >
-      <DialogTrigger render={<Button variant="secondary" />}>
-        <FingerprintIcon weight="bold" />
+      <DialogTrigger
+        render={<Button variant="secondary" icon={<FingerprintIcon weight="bold" />} />}
+      >
         Add passkey
       </DialogTrigger>
       <DialogContent>

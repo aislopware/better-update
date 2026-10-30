@@ -1,9 +1,10 @@
 {
   "$schema": "./node_modules/turbo/schema.json",
   "agentGuidance": false,
+  "globalDependencies": [".env.deploy"],
+  "globalEnv": ["BU_*"],
   "globalPassThroughEnv": [
     "ACCOUNT_ID",
-    "BU_*",
     "ANDROID_HOME",
     "ANDROID_SDK_ROOT",
     "ASSETS_BUCKET_NAME",
@@ -21,7 +22,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".cloudflare/output/**", ".cloudflare/types/**"]
     },
     "d1:migrate": {
       "cache": false
@@ -31,11 +32,11 @@
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^lint"],
+      "dependsOn": ["^lint", "typegen:cf"],
       "cache": false
     },
     "lint:check": {
-      "dependsOn": ["^lint:check"],
+      "dependsOn": ["^lint:check", "typegen:cf"],
       "cache": false
     },
     "//#format": {

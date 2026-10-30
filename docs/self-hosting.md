@@ -11,23 +11,26 @@ process.env                   CI variables — highest precedence (BU_* keys onl
 ```
 
 A clone with nothing configured still installs, typechecks, tests and runs
-`vite dev`: `config:gen` substitutes obvious placeholders (`localhost`,
-all-zero ids) and prints a warning. Deploying refuses them — `deploy` and
-`d1:migrate:remote` resolve the config in strict mode and fail on a placeholder.
+`vite dev`: the resolver substitutes obvious placeholders (`localhost`,
+all-zero ids). Deploying refuses them — `deploy`, `d1:migrate:remote` and the
+CLI release builds resolve the config in strict mode (`BU_DEPLOY_STRICT=1`) and
+fail on a placeholder.
 
-`bun run config:gen` renders those values into git-ignored artifacts. Never edit
-these by hand — they are overwritten on every install, dev run and deploy:
+Nothing is generated. `@better-update/deploy-config` resolves the values at the
+moment each consumer needs them:
 
-| Generated file                                        | Rendered from               |
-| ----------------------------------------------------- | --------------------------- |
-| `apps/server/wrangler.jsonc`                          | `config/wrangler/server.ts` |
-| `apps/web/wrangler.jsonc`                             | `config/wrangler/web.ts`    |
-| `apps/web/src/lib/site-config.generated.ts`           | deploy config               |
-| `apps/cli/src/services/service-defaults.generated.ts` | deploy config               |
+| Consumer         | Reads the values in                                           |
+| ---------------- | ------------------------------------------------------------- |
+| server Worker    | `apps/server/cloudflare.config.ts` (bindings, routes, `vars`) |
+| web Worker + SPA | `apps/web/cloudflare.config.ts`, `apps/web/site-defines.ts`   |
+| CLI binary       | `apps/cli/src/services/service-defaults.ts` (a Bun macro)     |
 
-To change the **shape** of a Worker config (add a binding, a route, a cron), edit
-the template under `config/wrangler/`. To change the **values**, edit `.env.deploy`.
-The full key list, with which ones are required, is `.env.deploy.example`.
+`cf`, the Cloudflare Vite plugin and the Workers vitest plugin all evaluate the
+`cloudflare.config.ts` files directly, and the CLI macro bakes its defaults in
+when `bun build` bundles it. To change the **shape** of a Worker config (add a
+binding, a route, a cron), edit its `cloudflare.config.ts`. To change the
+**values**, edit `.env.deploy`. The full key list, with which ones are required,
+is `.env.deploy.example`.
 
 ## Deploying your own instance
 
@@ -43,7 +46,7 @@ else has a generic fallback or is off when empty.
 
 A **custom domain is required for the dashboard**: the server and web workers are
 separate deployments that share one origin, split by route (`/api/*` → server,
-everything else → web). Leave `BU_CF_ZONE_ID` empty and the generator drops every
+everything else → web). Leave `BU_CF_ZONE_ID` empty and the config drops every
 route and enables `workers.dev` — the two workers then land on different origins,
 so the dashboard's same-origin API calls will not resolve. That mode is only
 useful for an API-only instance driven by the CLI, with `BU_APP_HOST` set to the
@@ -52,7 +55,7 @@ server worker's `*.workers.dev` host.
 ### 2. Create the Cloudflare resources
 
 ```sh
-bunx wrangler login          # or export CLOUDFLARE_API_TOKEN
+bunx cf auth login           # or export CLOUDFLARE_API_TOKEN
 bun run bootstrap            # add --dry-run to see the commands first
 ```
 
@@ -63,33 +66,30 @@ up rather than recreated.
 
 It also sets the CORS rule on the assets bucket that lets the browser PUT logos
 and avatars to a presigned URL, allowing `BU_APP_HOST` and — when set —
-`BU_VAULT_HOST`. That rule lives on the bucket rather than in `wrangler.jsonc`,
+`BU_VAULT_HOST`. That rule lives on the bucket rather than in `cloudflare.config.ts`,
 so re-run `bun run bootstrap` after changing either hostname or after recreating
 the bucket; otherwise logo uploads fail the preflight with a CORS error.
 
-### 3. Render the config
+### 3. Set the secrets
 
-```sh
-bun run config:gen
-```
-
-Also runs automatically on `bun install` and before every `dev`, `deploy`,
-`typegen:cf` and the CLI `build`.
-
-### 4. Set the secrets
-
-Secrets never live in the deploy config. Set them per worker:
+Secrets never live in the deploy config. Set them on the server worker with
+Wrangler, which prompts for each value so it never lands in shell history
+(`--name` is your `BU_SERVER_WORKER_NAME`, `better-update-server` by default;
+on a fresh account Wrangler offers to create the worker):
 
 ```sh
 cd apps/server
-bunx wrangler secret put BETTER_AUTH_SECRET       # openssl rand -base64 32
-bunx wrangler secret put INSTALL_TOKEN_SECRET
-bunx wrangler secret put R2_SECRET_ACCESS_KEY     # pairs with BU_R2_ACCESS_KEY_ID
-bunx wrangler secret put GITHUB_CLIENT_SECRET     # only if BU_GITHUB_CLIENT_ID is set
-bunx wrangler secret put GOOGLE_CLIENT_SECRET     # only if BU_GOOGLE_CLIENT_ID is set
-bunx wrangler secret put CLOUDFLARE_API_TOKEN     # only to READ analytics — see below
-bunx wrangler secret put APT_SIGNING_SECRET       # only to serve APT repositories — see below
+bunx wrangler secret put BETTER_AUTH_SECRET --name better-update-server    # openssl rand -base64 32
+bunx wrangler secret put INSTALL_TOKEN_SECRET --name better-update-server
+bunx wrangler secret put R2_SECRET_ACCESS_KEY --name better-update-server  # pairs with BU_R2_ACCESS_KEY_ID
+bunx wrangler secret put GITHUB_CLIENT_SECRET --name better-update-server  # only if BU_GITHUB_CLIENT_ID is set
+bunx wrangler secret put GOOGLE_CLIENT_SECRET --name better-update-server  # only if BU_GOOGLE_CLIENT_ID is set
+bunx wrangler secret put CLOUDFLARE_API_TOKEN --name better-update-server  # only to READ analytics — see below
+bunx wrangler secret put APT_SIGNING_SECRET --name better-update-server    # only to serve APT repositories — see below
 ```
+
+`cf deploy` keeps the secrets already set on a worker, so they survive every
+later deploy.
 
 `APT_SIGNING_SECRET` (`openssl rand -base64 32`) is what every project's APT
 repository signing key is derived from: an Ed25519 OpenPGP key per project,
@@ -112,7 +112,7 @@ account id, a zone id, a database uuid or an R2 access key **id** is useless
 without a matching API token. They stay out of git because they describe _one
 operator's_ infrastructure, not because leaking them grants access.
 
-### 5. Migrate and deploy
+### 4. Migrate and deploy
 
 ```sh
 cd apps/server && bun run d1:migrate:remote && bun run deploy
@@ -122,10 +122,10 @@ cd ../web && bun run deploy
 Sign in with an address listed in `BU_SUPERADMIN_EMAILS` — that account is
 auto-promoted to superadmin on first login and can approve everyone else.
 
-### 6. Point the CLI at your server
+### 5. Point the CLI at your server
 
-`bun run config:gen` bakes your `BU_APP_HOST` into the CLI defaults, so a CLI
-built from your fork already targets your instance. Users of a CLI built
+The CLI build bakes your `BU_APP_HOST` into its defaults, so a CLI built from
+your fork already targets your instance. Users of a CLI built
 elsewhere can override it per machine:
 
 ```sh
@@ -139,12 +139,12 @@ export BETTER_UPDATE_ASSET_CDN_URL=https://updates.example.com
   publish) and names no particular GitLab instance, registry or runner, so a
   fork runs it unmodified. A pipeline that deploys supplies the same keys as
   CI/CD variables; the environment wins over `.env.deploy`, and `turbo.json`
-  passes `BU_*` through. Test and lint jobs need none of them — they run on
-  placeholders. Four `BU_CI_*` variables describe the runners, not the deployment
-  (`config:gen` ignores them). `BU_CI_LINUX_TAG` / `BU_CI_MACOS_TAG` are
+  hashes `BU_*` into every task so a changed value rebuilds. Test and lint jobs
+  need none of them — they run on placeholders. Four `BU_CI_*` variables
+  describe the runners, not the deployment (the resolver ignores them). `BU_CI_LINUX_TAG` / `BU_CI_MACOS_TAG` are
   **required** — their tracked values are placeholders, and a job whose tag
   matches no runner sits pending forever. `BU_CI_IMAGE` (Linux image) and
-  `BU_CI_MACOS_IMAGE` (macOS VM) are optional. The Linux jobs bootstrap their own toolchain on a plain `node:24-bookworm`;
+  `BU_CI_MACOS_IMAGE` (macOS VM) are optional. The Linux jobs bootstrap their own toolchain on a plain `node:26-trixie`;
   building `ci/Dockerfile` and pointing `BU_CI_IMAGE` at it turns every install
   step into a no-op. Only the two bsdiff jobs need a macOS runner — the rest of
   the pipeline is Linux.
@@ -168,7 +168,7 @@ export BETTER_UPDATE_ASSET_CDN_URL=https://updates.example.com
   bucket — attach a custom domain to it on your zone. It cannot fall back to
   `BU_APP_HOST`: the Worker has no `/assets/*` route, so that host serves the
   dashboard SPA and every OTA asset would 404.
-- **Stale config.** `@cloudflare/vite-plugin` writes `.wrangler/deploy/config.json`,
-  a redirect that makes `wrangler` read the config from the last build. `config:gen`
-  deletes that redirect whenever it rewrites a `wrangler.jsonc`, so a changed id
-  can never be silently ignored by a later deploy.
+- **Build output.** `vite build` writes the deployable Worker to
+  `.cloudflare/output/` and its binding types to `.cloudflare/types/` (both
+  git-ignored). `bun run deploy` always runs `vite build` before
+  `cf deploy --prebuilt`, so a changed id can never ship from a stale build.

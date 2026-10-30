@@ -88,7 +88,18 @@ const compile = async (target: TargetName, outfile: string): Promise<boolean> =>
     target: "bun",
     format: "esm",
     sourcemap: "inline",
+    // Embed pre-compiled JSC bytecode next to the source: startup skips
+    // parsing the bundle (3-4x faster on every command) for ~20 MB more binary.
+    // Stack traces still resolve to src/ through the inline source map.
+    bytecode: true,
     plugins: [unwrapUmd],
+    // `@expo/require-utils` (behind `@expo/config`) transpiles `app.config.ts`
+    // with the USER's TypeScript, required at run time from their project, so
+    // the workspace's must never be embedded. Its static
+    // `require("typescript/unstable/proto")` (the TS 7.1+ branch) would
+    // otherwise be resolved at build time, and fail once the workspace
+    // TypeScript drops `./unstable/*`.
+    external: ["typescript"],
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
     compile: {
       target: TARGETS[target],

@@ -212,7 +212,7 @@ CREATE UNIQUE INDEX "idx_environment_grant_unique"
   the given `scope_kind`.
 - The `idx_environment_grant_scope` index supports efficient revocation sweeps when
   a channel or project is deleted (application must `DELETE FROM environment_grant
-WHERE scope_kind = ? AND scope_id = ?` in the same transaction as the parent delete).
+  WHERE scope_kind = ? AND scope_id = ?` in the same transaction as the parent delete).
 - Alternatively, a per-`scope_kind` partial index can be added later if query plans
   show hot paths.
 

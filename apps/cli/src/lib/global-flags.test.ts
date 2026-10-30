@@ -90,10 +90,10 @@ describe("detectJsonMode (pre-parse --json detection for the entrypoint)", () =>
     expect(detectJsonMode(["devices", "--json", "list"])).toBe(true);
   });
 
-  it("the first --json / --no-json occurrence wins, like the parser", () => {
+  it("the first --json / --no-json occurrence picks the channel for the repeat's usage error", () => {
     expect(detectJsonMode(["--json", "devices", "--no-json"])).toBe(true);
     expect(detectJsonMode(["--no-json", "devices", "--json"])).toBe(false);
-    expect(detectJsonMode(["--json=false", "devices"])).toBe(false);
+    expect(detectJsonMode(["--json", "false", "devices", "--json"])).toBe(false);
   });
 
   it("ignores everything after `--` (operands of `env exec`)", () => {
@@ -102,9 +102,9 @@ describe("detectJsonMode (pre-parse --json detection for the entrypoint)", () =>
 
   it("honours an explicit boolean value, inline or as the next token", () => {
     expect(detectJsonMode(["--json=true", "devices"])).toBe(true);
+    expect(detectJsonMode(["--json=false", "devices"])).toBe(false);
     expect(detectJsonMode(["--json", "true", "devices"])).toBe(true);
     expect(detectJsonMode(["--json", "false", "devices"])).toBe(false);
-    expect(detectJsonMode(["--json", "false", "devices", "--json"])).toBe(false);
   });
 });
 

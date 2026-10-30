@@ -1,13 +1,12 @@
-# 14. Wrangler Configuration
+# 14. Worker Configuration
 
-## apps/server/wrangler.jsonc
+## apps/server/cloudflare.config.ts
 
-| Setting               | Value                  |
-| --------------------- | ---------------------- |
-| `name`                | `better-update-server` |
-| `main`                | `src/index.ts`         |
-| `compatibility_date`  | `2026-03-30`           |
-| `compatibility_flags` | `nodejs_compat`        |
+| Setting             | Value                                            |
+| ------------------- | ------------------------------------------------ |
+| `name`              | `better-update-server`                           |
+| `entrypoint`        | `src/index.ts`                                   |
+| `compatibilityDate` | `2026-10-23` (Node.js compatibility is built in) |
 
 **Bindings:**
 
@@ -21,11 +20,11 @@
 | Durable Object   | `CREATE_BRANCH_COORDINATOR` | class `CreateBranchCoordinator`   |
 | Analytics Engine | `ANALYTICS`                 | `better-update-analytics` dataset |
 
-**DO Migration:** tag `v1`, `new_sqlite_classes: ["PublishCoordinator", "CreateBranchCoordinator"]`
+**DO exports:** `PublishCoordinator` and `CreateBranchCoordinator`, both `exports.durableObject({ storage: "sqlite" })` (created by the Wrangler-era migration tag `v1`, `new_sqlite_classes`)
 
 ## Environment Variables
 
-**Vars (non-secret, in wrangler.jsonc):**
+**Vars (non-secret, `bindings.text` in cloudflare.config.ts):**
 
 | Variable          | Purpose                                                            |
 | ----------------- | ------------------------------------------------------------------ |

@@ -132,7 +132,7 @@ never set `content-encoding`.
 > HTTP stack hands back, after transparent decompression. iOS `URLSession` decodes
 > only `gzip`/`deflate`/`br` and **never advertises or decodes `zstd`**; Android
 > decodes `zstd`/`br`/`gzip` but only because it adds `Accept-Encoding: zstd, br,
-gzip` itself. So the Compression Rule (and the public R2 asset host,
+> gzip` itself. So the Compression Rule (and the public R2 asset host,
 > `ASSET_CDN_URL`, which serves non-launch assets **outside** the Worker route)
 > MUST strictly negotiate on the request `Accept-Encoding` and MUST NOT emit
 > `content-encoding: zstd` to a client that did not advertise it. A rule that

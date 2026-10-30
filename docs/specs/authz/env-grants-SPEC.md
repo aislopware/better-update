@@ -634,9 +634,9 @@ Mirror the `channel-grants` group. Templates confirmed:
 ```ts
 import { Schema } from "effect";
 
+import { GrantEffectSchema } from "./channel-grant";
 import { DateTimeString, Id } from "./common";
 import { EnvVarEnvironment } from "./env-var";
-import { GrantEffectSchema } from "./channel-grant";
 
 /**
  * One member's allow/deny set on a (project × environment) env-var scope.
@@ -696,7 +696,7 @@ export const DeleteEnvGrantResult = Schema.Struct({ deleted: Schema.Number });
 > `GrantEffectSchema` and `EnvVarEnvironment` are reused from the existing domain
 > files (`channel-grant.ts`, `env-var.ts`) — do NOT redefine. The list returns
 > `EnvGrantRow[]` per the locked design ("rows of `{ memberId, environment, effect,
-actions }`"). `EnvGrant` (the full grant) is the upsert success type.
+> actions }`"). `EnvGrant` (the full grant) is the upsert success type.
 
 ### 8.2 NEW group file — `packages/api/src/groups/env-grants.ts`
 

@@ -51,7 +51,7 @@ better-update channels insights <name> [--period <1d|7d|30d|90d>]   # adoption/t
 
 > There is **no `channels point` command.** Use `channels update <id> --branch <name>` to relink.
 > `channels insights <name>` is the quick per-channel adoption view; `analytics channels --channel
-<name>` is the equivalent under the analytics group.
+> <name>` is the equivalent under the analytics group.
 
 ## How a device picks a channel
 

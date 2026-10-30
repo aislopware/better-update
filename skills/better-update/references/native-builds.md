@@ -324,7 +324,7 @@ iCloud, push, associated domains, keychain sharing, App Groups with a team prefi
   `com.apple.developer.team-identifier` to the signature.
 - If even a fresh profile lacks an entitlement, the App ID lacks the capability — the build stops
   and names it: `better-update credentials capability enable --identifier <bundleId> --capability
-ASSOCIATED_DOMAINS` (or the portal), then build again.
+  ASSOCIATED_DOMAINS` (or the portal), then build again.
 - Custom-command and re-signed apps get the same treatment from the post-build audit.
 - Profiles show up in `credentials list --type provisioning-profile` as `DEVELOPER_ID`. Sign in
   with Apple, Game Center and In-App Purchase are not available to Developer ID apps.

@@ -12,18 +12,18 @@
       ]
     },
     "apps/server": {
-      "entry": ["src/app-layer.ts", "src/infrastructure-layer.ts"],
-      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "entry": [
+        "cloudflare.config.ts",
+        "src/index.ts",
+        "src/app-layer.ts",
+        "src/infrastructure-layer.ts"
+      ],
+      "project": ["*.ts", "src/**/*.ts", "tests/**/*.ts"],
       "ignoreDependencies": ["cloudflare"]
     },
     "apps/web": {
-      "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
-      "ignoreDependencies": [
-        "@fontsource-variable/geist",
-        "@fontsource-variable/geist-mono",
-        "tailwindcss",
-        "tw-animate-css"
-      ]
+      "entry": ["cloudflare.config.ts"],
+      "project": ["*.ts", "src/**/*.{ts,tsx,css}", "tests/**/*.ts"]
     },
     "apps/cli": {
       "entry": ["tests/interactive/harness/**/*.ts"],

@@ -107,7 +107,7 @@ const exitCodeFor = (proc: Bun.Subprocess, exitCode: number): number => {
   if (signal === null) {
     return exitCode;
   }
-  return 128 + os.constants.signals[signal];
+  return 128 + (typeof signal === "number" ? signal : os.constants.signals[signal]);
 };
 
 // After the child exits the pty can still hold unread output (Bun delivers it

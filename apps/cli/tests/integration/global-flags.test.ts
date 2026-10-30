@@ -1,4 +1,10 @@
-import { expectIs, expectNotContains, makeCliSandbox, parseErrorEnvelope } from "./helpers/cli";
+import {
+  expectIs,
+  expectMatches,
+  expectNotContains,
+  makeCliSandbox,
+  parseErrorEnvelope,
+} from "./helpers/cli";
 
 import type { CliSandbox } from "./helpers/cli";
 
@@ -29,15 +35,27 @@ describe("global flags: --json / --non-interactive / --interactive / CI", () => 
     }
   });
 
-  it("the first --json / --no-json occurrence decides (parser semantics)", async () => {
+  it("repeating --json / --no-json is a usage error; the first occurrence picks its channel", async () => {
+    // `--json` and `--no-json` are one single-valued flag, so mixing them is a
+    // repeat too. The parser rejects it before any handler runs (exit 2), and
+    // the first occurrence only decides where that usage error is rendered.
     const humanFirst = await cli.run(["--no-json", "devices", "list", "--json"]);
-    expect(humanFirst.exitCode).toBe(3);
-    expect(humanFirst.stdout).toBe("");
-    expect(humanFirst.stderr).toContain("Not logged in");
+    expect(humanFirst.exitCode).toBe(2);
+    expect(humanFirst.stdout).toContain("USAGE");
+    expect(humanFirst.stdout).not.toContain('"UsageError"');
+    expect(humanFirst.stderr).toContain("--json");
 
-    const jsonFirst = await cli.run(["--json", "devices", "list", "--no-json"]);
-    expect(jsonFirst.exitCode).toBe(3);
-    expect(parseErrorEnvelope(jsonFirst.stdout).command).toBe("devices.list");
+    for (const args of [
+      ["--json", "devices", "list", "--no-json"],
+      ["devices", "list", "--json", "--json"],
+    ]) {
+      const result = await cli.run(args);
+      expectIs(args.join(" "), result.exitCode, 2);
+      expectMatches(args.join(" "), parseErrorEnvelope(result.stdout), {
+        command: "devices.list",
+        error: { code: 2, tag: "UsageError" },
+      });
+    }
   });
 
   it("explicit boolean values are honoured: `--json true` / `--json=true` / `--json false`", async () => {
@@ -136,17 +154,11 @@ describe("global flags: --json / --non-interactive / --interactive / CI", () => 
     expect(result.stderr).toContain("BETTER_UPDATE_ROBOT");
   });
 
-  it("global flags are rejected per-command as duplicates: no leaf redeclares them", async () => {
-    // `--json --json` is fine (same global flag twice); what must NOT exist is
-    // a leaf-level `--json` that shadows the global one — the parser would then
-    // report it as unrecognized in the leaf scope. Spot-check a leaf + a group.
-    for (const args of [
-      ["devices", "list", "--json", "--json"],
-      ["credentials", "list", "--non-interactive", "--json"],
-    ]) {
-      const result = await cli.run(args);
-      expectIs(args.join(" "), result.exitCode, 3);
-      expectIs(args.join(" "), parseErrorEnvelope(result.stdout).error.tag, "AuthRequiredError");
-    }
+  it("global flags after a leaf reach the global parser: no leaf redeclares them", async () => {
+    // A leaf-level `--json` / `--non-interactive` would shadow the global one,
+    // so the run would never reach the auth gate in JSON mode.
+    const result = await cli.run(["credentials", "list", "--non-interactive", "--json"]);
+    expect(result.exitCode).toBe(3);
+    expect(parseErrorEnvelope(result.stdout).error.tag).toBe("AuthRequiredError");
   });
 });

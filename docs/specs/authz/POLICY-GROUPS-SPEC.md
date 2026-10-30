@@ -57,7 +57,7 @@ directly or via groups — to the principal, with **object-scoped** selectors an
 
 - **Policy** — a named, reusable document owned by an org. A document is a list of
   **statements**; each statement = `{ effect: allow|deny, actions: string[],
-resources: string[] }`. Stored one-row-per-policy with the document as JSON.
+  resources: string[] }`. Stored one-row-per-policy with the document as JSON.
 - **Group** — a named collection of members. Policies attach to a group; members of
   the group inherit them.
 - **Attachment** — links a policy to a principal: a `member`, a `group`, or an

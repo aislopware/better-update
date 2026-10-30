@@ -20,5 +20,15 @@ export const formatDateTime = (value: DateInput): string =>
 /** Axis ticks over a multi-day window, where the day is what separates them. */
 export const formatChartDate = (value: DateInput): string => format(asDate(value), "MMM d");
 
+/**
+ * A day the server buckets by its UTC date, named by that date in every time
+ * zone. `format` reads a `Date` in local time, which puts a UTC-midnight bucket
+ * on the previous day west of UTC.
+ */
+export const formatChartUtcDate = (value: DateInput): string => {
+  const date = asDate(value);
+  return formatChartDate(new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+};
+
 /** Axis ticks within a day — 24-hour, so every tick is the same width. */
 export const formatChartTime = (value: DateInput): string => format(asDate(value), "HH:mm");

@@ -70,10 +70,11 @@ export const BranchNameForm = ({
             <Button
               variant="primary"
               type="submit"
+              // While submitting, `loading` swaps the glyph for Kumo's spinner.
+              icon={SubmitIcon ? <SubmitIcon weight="bold" /> : null}
               disabled={!canSubmit || Boolean(isSubmitting)}
               loading={Boolean(isSubmitting)}
             >
-              {!isSubmitting && SubmitIcon ? <SubmitIcon weight="bold" /> : null}
               {submitLabel}
             </Button>
           )}

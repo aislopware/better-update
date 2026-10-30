@@ -394,11 +394,11 @@ export const CompareUpdatesDialog = ({ orgId, projectId }: CompareUpdatesDialogP
       <Button
         variant="secondary"
         size="sm"
+        icon={<GitDiffIcon weight="bold" />}
         onClick={() => {
           setOpen(true);
         }}
       >
-        <GitDiffIcon weight="bold" />
         Compare
       </Button>
       <Dialog

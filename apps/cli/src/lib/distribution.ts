@@ -2,7 +2,7 @@ import process from "node:process";
 
 import { isRecord } from "@better-update/type-guards";
 
-import { DEFAULT_RELEASE_REPO } from "../services/service-defaults.generated";
+import { SERVICE_DEFAULTS } from "../services/service-defaults";
 import { isNewerVersion } from "./semver-compare";
 
 /**
@@ -14,12 +14,12 @@ import { isNewerVersion } from "./semver-compare";
  */
 export const RELEASE_TAG_PREFIX = "@better-update/cli@";
 
-export const releasesApiUrl = (repo: string = DEFAULT_RELEASE_REPO): string =>
+export const releasesApiUrl = (repo: string = SERVICE_DEFAULTS.releaseRepo): string =>
   `https://api.github.com/repos/${repo}/releases?per_page=30`;
 
 /** `install.sh` for macOS / Linux, `install.ps1` for Windows. */
 export const installScriptUrl = (
-  repo: string = DEFAULT_RELEASE_REPO,
+  repo: string = SERVICE_DEFAULTS.releaseRepo,
   script: "install.sh" | "install.ps1" = "install.sh",
 ): string => `https://raw.githubusercontent.com/${repo}/main/${script}`;
 
@@ -62,7 +62,7 @@ const PACKAGE_MANAGER_UNINSTALL: Readonly<Record<Exclude<Installer, "standalone"
  */
 export const installCommand = (
   installer: Installer = detectInstaller(process.execPath),
-  repo: string = DEFAULT_RELEASE_REPO,
+  repo: string = SERVICE_DEFAULTS.releaseRepo,
   platform: NodeJS.Platform = process.platform,
 ): string => {
   if (platform === "win32") {

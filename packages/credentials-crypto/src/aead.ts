@@ -47,4 +47,4 @@ export const encodeAad = (domain: string, parts: readonly (string | number)[]): 
 
 /** SSH-style fingerprint of an age recipient string: `SHA256:<base64, no padding>`. */
 export const fingerprint = (recipient: string): string =>
-  `SHA256:${toBase64(sha256(textEncoder.encode(recipient))).replace(/=+$/u, "")}`;
+  `SHA256:${toBase64(sha256(textEncoder.encode(recipient))).replace(/[=]+$/u, "")}`;

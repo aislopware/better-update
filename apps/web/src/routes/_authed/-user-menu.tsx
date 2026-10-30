@@ -13,9 +13,11 @@ import { useApiMutation } from "../../lib/use-api-mutation";
 import { useTheme } from "../../lib/use-theme";
 
 // Top-right, the way the Cloudflare dashboard carries the account menu: the
-// avatar is the constant, the name appears once there is room for it.
+// avatar is the constant, the name appears once there is room for it. Being
+// the constant, the avatar is what gets centred: `pb-0` cancels the pixel Kumo
+// lifts a button's label by, which would leave the circle a pixel high.
 const renderUserTrigger = (name: string | undefined, image: string | null | undefined) => (
-  <Button variant="ghost" aria-label="Account" className="h-8 gap-2 px-1.5">
+  <Button variant="ghost" aria-label="Account" className="h-8 gap-2 px-1.5 pb-0">
     <EntityAvatar name={name ?? "U"} image={image} size="sm" />
     <span className="hidden max-w-32 truncate font-normal lg:inline">{name}</span>
     <CaretUpDownIcon weight="bold" className="text-kumo-subtle size-3 shrink-0" />
@@ -50,9 +52,6 @@ const ThemeMenuGroup = () => {
           <DropdownMenu.RadioItem
             key={choice.value}
             value={choice.value}
-            // The component, not an element of it: Kumo sizes and spaces an
-            // icon it instantiates itself, and passes an element straight
-            // through — which is how the label ends up against the glyph.
             icon={choice.icon}
             // The menu stays open: a theme is judged by looking at the page
             // behind it, and one that shut on the first pick would make
@@ -89,8 +88,12 @@ export const UserMenu = ({ user }: { readonly user: UserMenuUser }) => {
       <DropdownMenu.Trigger render={renderUserTrigger(user.name, user.image)} />
       <DropdownMenu.Content align="end" side="bottom" sideOffset={4} className="min-w-56">
         <DropdownMenu.Group>
-          {/* Canonical nav-user label block: avatar + name + email. */}
-          <DropdownMenu.Label className="p-0 font-normal">
+          {/* Canonical nav-user label block: avatar + name + email. Kumo insets
+              every row without an icon slot once any row has one, to line its
+              text up with theirs; the avatar is this row's leading glyph, so
+              the block stays flush. Same modifiers as Kumo's, so the merge
+              drops its `pl-8` instead of having to outrank it. */}
+          <DropdownMenu.Label className="p-0 font-normal group-has-[[data-kumo-part=icon]]/menu:not-has-[[data-kumo-part=icon]]:pl-0">
             <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
               <EntityAvatar name={user.name || "U"} image={user.image} className="size-8" />
               <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
@@ -101,13 +104,13 @@ export const UserMenu = ({ user }: { readonly user: UserMenuUser }) => {
           </DropdownMenu.Label>
           <DropdownMenu.Separator />
           <DropdownMenu.Item
+            icon={<UserIcon weight="bold" />}
             onClick={async () => {
               await router.navigate({ to: "/account/profile" });
             }}
             disabled={logoutMutation.isPending}
           >
-            <UserIcon weight="bold" className="size-4" />
-            <span>Account</span>
+            Account
           </DropdownMenu.Item>
         </DropdownMenu.Group>
         <DropdownMenu.Separator />
@@ -116,18 +119,14 @@ export const UserMenu = ({ user }: { readonly user: UserMenuUser }) => {
         <DropdownMenu.Group>
           <DropdownMenu.Item
             variant="danger"
+            icon={logoutMutation.isPending ? <Loader size={16} /> : <SignOutIcon weight="bold" />}
             onClick={() => {
               logoutMutation.mutate();
             }}
             disabled={logoutMutation.isPending}
             closeOnClick={false}
           >
-            {logoutMutation.isPending ? (
-              <Loader size={16} />
-            ) : (
-              <SignOutIcon weight="bold" className="size-4" />
-            )}
-            <span>{logoutMutation.isPending ? "Logging out…" : "Log out"}</span>
+            {logoutMutation.isPending ? "Logging out…" : "Log out"}
           </DropdownMenu.Item>
         </DropdownMenu.Group>
       </DropdownMenu.Content>

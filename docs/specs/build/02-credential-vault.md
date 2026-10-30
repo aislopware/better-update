@@ -443,7 +443,7 @@ Operations that need a _decrypted_ store key run entirely in the CLI:
 
 - Apple App Store Connect (device sync, profile regeneration, managed credentials): the CLI decrypts
   the ASC `.p8` locally and calls Apple directly. The previous server-side `asc-api-keys/:id/sync-
-devices` endpoint (which decrypted server-side) is **removed**.
+  devices` endpoint (which decrypted server-side) is **removed**.
 - Google Play (service-account-driven uploads): the CLI decrypts the service-account JSON locally and
   calls Google directly.
 
@@ -551,7 +551,7 @@ Production has no real users yet, so no backward compatibility is required.
   (the server stores opaque ciphertext and never hashes it); the upload handler enforces a size cap and
   writes R2 + D1 atomically, and the CLI self-decrypts after upload as the real consistency check.
 - **Local key hygiene** — the OS-keychain cache entry is namespaced by `orgId + recipientKeyId +
-vaultVersion` (a rotation invalidates it) with a short TTL; `credentials lock` clears it on demand.
+  vaultVersion` (a rotation invalidates it) with a short TTL; `credentials lock` clears it on demand.
   Decrypted keys live in `Uint8Array`s and are zeroed best-effort after use.
 - **Upload-garbage is DoS, not a breach** — a token-only attacker (no vault key) can store an
   undecryptable blob but cannot read anything. The CLI self-decrypts right after upload to prove the

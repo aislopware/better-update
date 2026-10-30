@@ -162,8 +162,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button variant="primary" />}>
-        <PlusIcon weight="bold" />
+      <DialogTrigger render={<Button variant="primary" icon={<PlusIcon weight="bold" />} />}>
         Create project
       </DialogTrigger>
       <DialogContent size="lg">

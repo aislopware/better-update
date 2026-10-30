@@ -16,7 +16,7 @@ import AppleUtils from "@expo/apple-utils";
 
 import type { AppleCertificateType } from "./apple-certificate-type";
 
-// eslint-disable-next-line typescript/no-unsafe-type-assertion -- a real App Store Connect value missing from the @expo/apple-utils enum
+// eslint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unsafe-enum-assignment -- a real App Store Connect value missing from the @expo/apple-utils enum
 const DEVELOPER_ID_APPLICATION_G2 = "DEVELOPER_ID_APPLICATION_G2" as AppleUtils.CertificateType;
 
 const ASC_TYPES: Record<AppleCertificateType, readonly AppleUtils.CertificateType[]> = {

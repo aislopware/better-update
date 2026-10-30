@@ -253,7 +253,7 @@ describe("Manifest serving protocol", () => {
     expect(manifest.launchAsset.contentType).toBe("application/javascript");
     expect(manifest.launchAsset.url).toBe(
       // eslint-disable-next-line node/no-process-env -- asserts the URL the worker built from the same var
-      `${process.env.PUBLIC_API_URL}/manifest/proj-1/bundle/update-ios/abc123hash`,
+      `${process.env["PUBLIC_API_URL"]}/manifest/proj-1/bundle/update-ios/abc123hash`,
     );
 
     // Regular assets (non-launch)
@@ -262,7 +262,7 @@ describe("Manifest serving protocol", () => {
     expect(manifest.assets[0].key).toBe("logo.png");
     expect(manifest.assets[0].fileExtension).toBe(".png");
     // eslint-disable-next-line node/no-process-env -- asserts the URL the worker built from the same var
-    expect(manifest.assets[0].url).toBe(`${process.env.ASSET_CDN_URL}/assets/img456hash`);
+    expect(manifest.assets[0].url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/img456hash`);
 
     // Server serves extra verbatim and NEVER injects scopeKey itself — extra.scopeKey
     // is added by the CLI at publish time. This test publishes via the API with a

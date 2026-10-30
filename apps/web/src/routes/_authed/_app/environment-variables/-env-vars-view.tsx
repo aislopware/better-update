@@ -180,11 +180,11 @@ const VaultToolbarActions = ({
       </Button>
       <Button
         variant="secondary"
+        icon={<LockKeyIcon weight="bold" />}
         onClick={() => {
           vault.lock();
         }}
       >
-        <LockKeyIcon weight="bold" />
         Lock
       </Button>
     </>

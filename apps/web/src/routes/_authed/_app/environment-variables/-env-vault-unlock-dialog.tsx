@@ -200,8 +200,9 @@ export const EnvVaultUnlockDialog = ({
         }
       }}
     >
-      <DialogTrigger render={<Button variant="secondary" />}>
-        <LockKeyOpenIcon weight="bold" />
+      <DialogTrigger
+        render={<Button variant="secondary" icon={<LockKeyOpenIcon weight="bold" />} />}
+      >
         Unlock env vault
       </DialogTrigger>
       <DialogContent>

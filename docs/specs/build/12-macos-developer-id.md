@@ -43,7 +43,7 @@ partial signing story.
    but only `CFBundleExecutable` is. Any other executable there (Tauri
    `externalBin` sidecars land exactly there) stays unsigned and the outer
    `codesign` fails with `code object is not signed at all — In subcomponent:
-…/Contents/MacOS/<sidecar>`. With an ad-hoc linker signature (what `cargo`
+   …/Contents/MacOS/<sidecar>`. With an ad-hoc linker signature (what `cargo`
    emits) the outer sign succeeds but notarization rejects the sidecar. Fix:
    skip only the main executable named by `Info.plist`.
 2. **[verified] Bug — re-signing drops entitlements.** `codesign --force`
@@ -57,7 +57,7 @@ partial signing story.
    not enough on its own: it keeps `get-task-allow`, and it is ignored for
    linker-signed binaries.
 3. **[verified]** Signing identifiers: non-bundled code gets an `-i
-<bundleId>.<name>` identifier, otherwise codesign derives one from the file
+   <bundleId>.<name>` identifier, otherwise codesign derives one from the file
    name (a DMG named `X-1.2.dmg` gets `Identifier=X-1`).
 4. The DTS recipe still holds: inside-out, never `--deep`, `--timestamp`,
    `-o runtime` on executables, entitlements only on executables.
@@ -80,7 +80,7 @@ partial signing story.
    framework/pod) turns the archive into a "Generic Xcode Archive": the archive
    `Info.plist` has no `ApplicationProperties`, and export fails with the opaque
    `exportOptionsPlist error for key "method" expected one {} but found
-developer-id`. Detect the missing `ApplicationProperties` and either explain
+   developer-id`. Detect the missing `ApplicationProperties` and either explain
    it or fall back to taking `Products/Applications/*.app` and signing it with
    the CLI signer.
 8. **[verified]** `-destination 'generic/platform=macOS'` builds `x86_64 arm64`
@@ -90,7 +90,7 @@ developer-id`. Detect the missing `ApplicationProperties` and either explain
    `X.xcarchive/dSYMs/` (one per target) — the iOS debug-artifact capture
    applies unchanged.
 9. The ephemeral keychain must be on the user search list for `xcodebuild
--exportArchive` (it has no keychain flag); `acquireKeychain` already does
+   -exportArchive` (it has no keychain flag); `acquireKeychain` already does
    this. Apple only requires the `apple:` partition; the existing
    `apple-tool:,apple:,codesign:` is a harmless superset and also covers
    `productbuild`.
@@ -104,14 +104,14 @@ developer-id`. Detect the missing `ApplicationProperties` and either explain
     replaces it) but still works and prints a warning line — never parse its
     stdout.
 11. **[verified]** Sign the DMG with the _Application_ identity: `codesign
---timestamp -i <bundleId>.dmg`. Before notarization Gatekeeper reports
+    --timestamp -i <bundleId>.dmg`. Before notarization Gatekeeper reports
     `source=Unnotarized Developer ID`.
 12. Notarize only the outermost container (DMG/pkg); the service tickets nested
     code too. Staple the DMG. A zip cannot be stapled: notarize the app zip,
     staple the `.app`, then re-zip with `ditto -c -k --keepParent`.
 13. `.pkg` needs a separate **Developer ID Installer** certificate, which the ASC
     API cannot create (no such `certificateType`) — upload-only. `productbuild
---sign … --timestamp`; macOS 27 `pkgbuild` defaults `BundleIsRelocatable`
+    --sign … --timestamp`; macOS 27 `pkgbuild` defaults `BundleIsRelocatable`
     to false and `hostArchitecture` to arm64.
 
 ### Notarization
@@ -126,8 +126,8 @@ developer-id`. Detect the missing `ApplicationProperties` and either explain
     in-depth analysis can take much longer). The build pipeline must not block
     forever: upload first, notarize with `--timeout`, persist the submission id,
     resume with `notarytool wait <id>`. **[verified]** `submit --wait
---timeout` exits **124** with JSON `{"id", "message": "Timeout of N
-second(s) was reached before processing completed."}` and the submission
+    --timeout` exits **124** with JSON `{"id", "message": "Timeout of N
+    second(s) was reached before processing completed."}` and the submission
     keeps processing — distinguishable from a rejection (non-zero exit with
     `status: Invalid`). **[verified] That timeout JSON goes to stderr; stdout
     is empty.** `runNotarization` only parses stdout today, so a timed-out
@@ -163,8 +163,8 @@ second(s) was reached before processing completed."}` and the submission
 
 - **[verified]** Forcing signing from the `xcodebuild archive` command line —
   `CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=<team> CODE_SIGN_IDENTITY=<CN>
-PROVISIONING_PROFILE_SPECIFIER= ENABLE_HARDENED_RUNTIME=YES
-OTHER_CODE_SIGN_FLAGS="$(inherited) --keychain <kc>"` — signs every target
+  PROVISIONING_PROFILE_SPECIFIER= ENABLE_HARDENED_RUNTIME=YES
+  OTHER_CODE_SIGN_FLAGS="$(inherited) --keychain <kc>"` — signs every target
   of a project committed with Automatic signing and no team, frameworks and XPC
   services included; no pbxproj edit is needed while no profile is involved.
   `-exportArchive` then takes `signingCertificate=<SHA-1>`.
@@ -249,8 +249,8 @@ metadata.macos
 - **`xcode` strategy** (native AppKit/SwiftUI, react-native-macos
   `macos/<App>.xcworkspace` + `<App>-macOS`, Flutter `macos/Runner.xcworkspace`
   - `Runner`, Mac Catalyst via `variant=Mac Catalyst`): `xcodebuild archive
--destination generic/platform=macOS ENABLE_HARDENED_RUNTIME=YES
-[ARCHS=…]` with manual signing applied to the pbxproj (reuse
+    -destination generic/platform=macOS ENABLE_HARDENED_RUNTIME=YES
+    [ARCHS=…]` with manual signing applied to the pbxproj (reuse
     `applyTargetSigning`, filtered to macOS targets by `SDKROOT`/
     `SUPPORTED_PLATFORMS`), then `-exportArchive developer-id`; generic archive →
     fallback to the CLI signer.
@@ -280,7 +280,7 @@ metadata.macos
   timestamp, no `get-task-allow`, restricted entitlements ⇒ embedded profile
   present and unexpired, `codesign --verify --deep --strict`.
 - **Post-flight**: `stapler validate`, `spctl -a -t open --context
-context:primary-signature` (DMG) / `spctl -a -t install` (pkg),
+  context:primary-signature` (DMG) / `spctl -a -t install` (pkg),
   `syspolicy_check distribution` (app).
 - Upload metadata for later feeds: `CFBundleIdentifier`, `CFBundleVersion`,
   `CFBundleShortVersionString`, `LSMinimumSystemVersion`, archs (`lipo -archs`),
@@ -290,7 +290,7 @@ context:primary-signature` (DMG) / `spctl -a -t install` (pkg),
 
 - `credentials generate developer-id --request`: create key + CSR locally, write
   an Account Holder hand-off guide; `credentials import developer-id --cer
-file.cer` pairs it into a vault `.p12`. (The ASC path stays for Account
+  file.cer` pairs it into a vault `.p12`. (The ASC path stays for Account
   Holder keys.)
 - Developer ID Installer: upload-only (`--type macos-certificate` already
   classifies it).
@@ -404,7 +404,7 @@ signature with the fixture's `SUPublicEDKey`.
    Developer ID card.
 3. ✅ **`build --platform macos`**: `xcode` + `custom` strategies, audit +
    repair, DMG/zip/pkg packaging, bounded notarization, upload, `builds
-run`/`builds get` support, skill docs.
+   run`/`builds get` support, skill docs.
 4. ✅ **Credentials UX**: CSR hand-off flow, G1/G2 tracking, Installer cert +
    `.pkg`, `MAC_APP_DIRECT` profiles.
 5. ✅ **Feeds**: Sparkle appcast, electron-updater yml, channel routing,

@@ -5,12 +5,8 @@ import { FileSystem, Context, Data, Effect, Layer } from "effect";
 
 import { CliRuntime } from "./cli-runtime";
 // Baked in at build time from the deployment config so a fork ships a CLI that
-// points at its own instance — `bun run config:gen` renders this file.
-import {
-  DEFAULT_ASSET_CDN_URL,
-  DEFAULT_BASE_URL,
-  DEFAULT_WEB_URL,
-} from "./service-defaults.generated";
+// points at its own instance.
+import { SERVICE_DEFAULTS } from "./service-defaults";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly message: string;
@@ -73,7 +69,7 @@ export const ConfigStoreLive = Layer.effect(
         return normalizeUrl(baseUrl);
       }
 
-      return DEFAULT_BASE_URL;
+      return SERVICE_DEFAULTS.baseUrl;
     });
 
     return {
@@ -91,7 +87,7 @@ export const ConfigStoreLive = Layer.effect(
           return normalizeUrl(webUrl);
         }
 
-        return DEFAULT_WEB_URL;
+        return SERVICE_DEFAULTS.webUrl;
       }),
 
       getAssetCdnUrl: Effect.gen(function* () {
@@ -106,7 +102,7 @@ export const ConfigStoreLive = Layer.effect(
           return normalizeUrl(assetCdnUrl);
         }
 
-        return DEFAULT_ASSET_CDN_URL;
+        return SERVICE_DEFAULTS.assetCdnUrl;
       }),
     };
   }),

@@ -37,7 +37,12 @@ export interface D1DialectConfig {
  * multi-statement atomicity instead.
  */
 export const makeD1Dialect = (config: D1DialectConfig): Dialect => ({
-  createAdapter: () => new SqliteAdapter(),
+  // SQLite's adapter reports a single connection, so Kysely would put every
+  // query behind one mutex and run an `Effect.all` fan-out one query at a time.
+  // A D1 "connection" is the stateless binding, so queries may run at once —
+  // what better-auth's own D1 adapter also declares.
+  createAdapter: () =>
+    Object.defineProperty(new SqliteAdapter(), "supportsMultipleConnections", { value: true }),
   createDriver: () => makeD1Driver(config),
   createQueryCompiler: () => new SqliteQueryCompiler(),
   createIntrospector: (db: Kysely<unknown>) => new SqliteIntrospector(db),

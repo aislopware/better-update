@@ -122,7 +122,7 @@ export const createServerE2EEnvironment = (options?: {
       fallback: FALLBACKS.buildBucketName,
       secondary: "BUILD_BUCKET_NAME",
     }),
-    // The generated wrangler.jsonc sets COOKIE_DOMAIN to the deployment's
+    // cloudflare.config.ts sets COOKIE_DOMAIN to the deployment's
     // parent domain for prod. In e2e the worker serves over plain HTTP on
     // 127.0.0.1, so Set-Cookie with a parent Domain= + Secure gets dropped by
     // browsers and fetch clients — breaking every subsequent authed request.
@@ -192,7 +192,7 @@ export const createServerE2EEnvironment = (options?: {
     }),
     TEST_MODE: "true",
     // Never let the CLI version-killswitch fire against the test server: the CLI
-    // under test carries the workspace version, which `wrangler.jsonc` may pin
+    // under test carries the workspace version, which `cloudflare.config.ts` may pin
     // `REQUIRE_CLI_VERSION_ABOVE` to (retiring exactly that version). "0.0.0"
     // blocks nothing so functional e2e runs regardless of the prod threshold.
     REQUIRE_CLI_VERSION_ABOVE: "0.0.0",

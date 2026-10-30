@@ -203,11 +203,11 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     >
       <Button
         variant="primary"
+        icon={<PlusIcon weight="bold" />}
         onClick={() => {
           setOpen(true);
         }}
       >
-        <PlusIcon weight="bold" />
         Create channel
       </Button>
       <DialogContent size="lg">

@@ -44,7 +44,7 @@ const runDatasets = async (env: Env) =>
 describe("analytics datasets", () => {
   it("reads the dataset names the deployment configured", async () => {
     await expect(
-      runDatasets({ ...mockEnv, ANALYTICS_DATASET: "renamed_events" } as unknown as Env),
+      runDatasets({ ...mockEnv, ANALYTICS_DATASET: "renamed_events" }),
     ).resolves.toStrictEqual({
       updates: "renamed_events",
       deliveries: "delivery_events",
@@ -56,7 +56,7 @@ describe("analytics datasets", () => {
   // a plain identifier falls back rather than reaching the SQL API.
   it("falls back to the built-in name when the configured one is malformed", async () => {
     await expect(
-      runDatasets({ ...mockEnv, DELIVERY_ANALYTICS_DATASET: "a; DROP TABLE" } as unknown as Env),
+      runDatasets({ ...mockEnv, DELIVERY_ANALYTICS_DATASET: "a; DROP TABLE" }),
     ).resolves.toStrictEqual({
       updates: "update_events",
       deliveries: "delivery_events",

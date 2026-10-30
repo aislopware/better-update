@@ -1,3 +1,6 @@
+import { chmodSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { spawn } from "node-pty";
@@ -30,13 +33,35 @@ const ANSI_REGEX =
   // eslint-disable-next-line no-control-regex -- stripping ANSI escapes
   /[\u001B\u009B][[()#;?]*(?:\d{1,4}(?:;\d{0,4})*)?[\dA-ORZcf-ntqry=><]/g;
 
-export const stripAnsi = (input: string) => input.replace(ANSI_REGEX, "");
+export const stripAnsi = (input: string) => input.replaceAll(ANSI_REGEX, "");
+
+const NODE_PTY_DIR = path.dirname(createRequire(import.meta.url).resolve("node-pty/package.json"));
+
+/**
+ * node-pty publishes its macOS `spawn-helper` without the execute bit and bun
+ * runs no install fix-up for it, so on a fresh install every spawn dies with
+ * "posix_spawnp failed". Restore the bit wherever node-pty may load its native
+ * module from (a local build first, then the prebuild).
+ */
+const ensureSpawnHelperExecutable = (): void => {
+  for (const dir of [
+    "build/Release",
+    "build/Debug",
+    `prebuilds/${process.platform}-${process.arch}`,
+  ]) {
+    const helper = path.join(NODE_PTY_DIR, dir, "spawn-helper");
+    if (existsSync(helper)) {
+      chmodSync(helper, 0o755);
+    }
+  }
+};
 
 export const spawnPty = (
   command: string,
   args: readonly string[],
   options?: PtySpawnOptions,
 ): PtyDriver => {
+  ensureSpawnHelperExecutable();
   const ptyProcess: IPty = spawn(command, [...args], {
     cols: options?.cols ?? 120,
     rows: options?.rows ?? 40,

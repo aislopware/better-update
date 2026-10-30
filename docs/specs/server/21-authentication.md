@@ -183,9 +183,9 @@ Like EAS, roles are organization-wide. A Developer in an org has Developer acces
 Better Auth handles the full auth flow. The Worker mounts Better Auth at `/api/auth/*`.
 
 ```typescript
+import { apiKey } from "@better-auth/api-key";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
-import { apiKey } from "@better-auth/api-key";
 
 type Env = {
   DB: D1Database;

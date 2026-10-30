@@ -161,8 +161,7 @@ const CreateEnvironmentDialog = ({ orgId }: { orgId: string }) => {
     >
       {/* Secondary inside a panel header: primary belongs to the page's own
           action, and two competing primaries on one screen read as a choice. */}
-      <DialogTrigger render={<Button variant="secondary" />}>
-        <PlusIcon weight="bold" />
+      <DialogTrigger render={<Button variant="secondary" icon={<PlusIcon weight="bold" />} />}>
         Add environment
       </DialogTrigger>
       <DialogContent>

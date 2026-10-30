@@ -4,13 +4,15 @@ import nodeModule from "node:module";
  * Lets `@expo/config` evaluate `app.config.ts` under Bun.
  *
  * `@expo/require-utils` (the loader behind `@expo/config`) transpiles `.ts`
- * with `typescript.transpileModule` and otherwise falls back to Node's
- * `module.stripTypeScriptTypes`. Neither exists here: the bundle resolves the
- * workspace's TypeScript 7 (a native compiler whose npm shim has no
- * `transpileModule`), and Bun does not implement `stripTypeScriptTypes` — so
- * the raw source reaches `Module._compile` and dies on the first type
- * annotation. Bun ships a TypeScript transpiler of its own; expose it under
- * the Node API name so the fallback lands.
+ * with the PROJECT's `typescript`, required at run time from the user's
+ * `node_modules` (the build keeps it external), and otherwise falls back to
+ * Node's `module.stripTypeScriptTypes`. A project with TypeScript ≤ 6 takes
+ * the first path, as under Expo CLI. One without TypeScript, or on TypeScript
+ * 7.0 (a native compiler whose npm package has no `transpileModule`), takes
+ * the fallback, which Bun does not implement — so the raw source would reach
+ * `Module._compile` and die on the first type annotation. Bun ships a
+ * TypeScript transpiler of its own; expose it under the Node API name so the
+ * fallback lands.
  *
  * `require-utils` reads `typeof stripTypeScriptTypes` ONCE at module init, and
  * `@expo/config-plugins` (imported statically elsewhere) pulls it in during
