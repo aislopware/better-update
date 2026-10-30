@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.85.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.85.0...%40better-update%2Fcli%400.85.1) (2026-10-30)
+
+**Note:** Version bump only for package @better-update/cli
+
 ## [0.85.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.84.0...%40better-update%2Fcli%400.85.0) (2026-10-07)
 
 ### Features

@@ -36,7 +36,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.85.0",
+      "version": "0.85.1",
       "dependencies": {
         "@better-update/bsdiff": "workspace:*",
         "@effect/platform-bun": "4.1.0",
@@ -80,7 +80,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.70.0",
+      "version": "0.70.1",
       "dependencies": {
         "@better-auth/passkey": "^1.7.14",
         "@better-update/api": "workspace:*",
@@ -116,7 +116,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.88.1",
+      "version": "0.88.2",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",
@@ -178,7 +178,7 @@
     },
     "packages/api": {
       "name": "@better-update/api",
-      "version": "0.57.0",
+      "version": "0.57.1",
       "dependencies": {
         "effect": "4.1.0",
       },
@@ -189,7 +189,7 @@
     },
     "packages/api-client": {
       "name": "@better-update/api-client",
-      "version": "0.41.1",
+      "version": "0.41.2",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/type-guards": "workspace:*",
@@ -206,7 +206,7 @@
     },
     "packages/auth-client": {
       "name": "@better-update/auth-client",
-      "version": "0.8.5",
+      "version": "0.8.6",
       "dependencies": {
         "@better-auth/passkey": "^1.7.14",
         "better-auth": "^1.7.14",
@@ -218,7 +218,7 @@
     },
     "packages/bsdiff": {
       "name": "@better-update/bsdiff",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -227,7 +227,7 @@
     },
     "packages/credentials-crypto": {
       "name": "@better-update/credentials-crypto",
-      "version": "0.2.14",
+      "version": "0.2.15",
       "dependencies": {
         "@better-update/encoding": "workspace:*",
         "@noble/ciphers": "^2.4.0",
@@ -242,7 +242,7 @@
     },
     "packages/deploy-config": {
       "name": "@better-update/deploy-config",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@better-update/dotenv": "workspace:*",
       },
@@ -254,7 +254,7 @@
     },
     "packages/dotenv": {
       "name": "@better-update/dotenv",
-      "version": "0.2.21",
+      "version": "0.2.22",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -262,7 +262,7 @@
     },
     "packages/encoding": {
       "name": "@better-update/encoding",
-      "version": "0.0.27",
+      "version": "0.0.28",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -270,7 +270,7 @@
     },
     "packages/expo-codesign": {
       "name": "@better-update/expo-codesign",
-      "version": "0.1.18",
+      "version": "0.1.19",
       "dependencies": {
         "structured-headers": "^2.1.1",
       },
@@ -281,7 +281,7 @@
     },
     "packages/expo-protocol": {
       "name": "@better-update/expo-protocol",
-      "version": "0.1.18",
+      "version": "0.1.19",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -289,14 +289,14 @@
     },
     "packages/oxlint-config": {
       "name": "@better-update/oxlint-config",
-      "version": "0.6.4",
+      "version": "0.6.5",
       "peerDependencies": {
         "oxlint": "^1.90.0",
       },
     },
     "packages/react-hooks": {
       "name": "@better-update/react-hooks",
-      "version": "0.2.26",
+      "version": "0.2.27",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -309,7 +309,7 @@
     },
     "packages/safe-json": {
       "name": "@better-update/safe-json",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -317,7 +317,7 @@
     },
     "packages/type-guards": {
       "name": "@better-update/type-guards",
-      "version": "0.0.27",
+      "version": "0.0.28",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
@@ -329,7 +329,7 @@
     },
     "packages/ui": {
       "name": "@better-update/ui",
-      "version": "0.11.1",
+      "version": "0.11.2",
       "dependencies": {
         "@cloudflare/kumo": "^2.16.0",
         "@phosphor-icons/react": "^2.1.10",

@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.88.2](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.88.1...%40better-update%2Fweb%400.88.2) (2026-10-30)
+
+**Note:** Version bump only for package @better-update/web
+
 ## [0.88.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fweb%400.88.0...%40better-update%2Fweb%400.88.1) (2026-10-07)
 
 **Note:** Version bump only for package @better-update/web
