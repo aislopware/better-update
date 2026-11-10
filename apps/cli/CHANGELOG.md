@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.87.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.86.0...%40better-update%2Fcli%400.87.0) (2026-11-10)
+
+### Features
+
+* **cli:** skip Xcode's index store in CLI builds ([6b5a2aa](https://github.com/aislopware/better-update/commit/6b5a2aa399463514ac886888a33753c3c4a28c3b))
+
 ## [0.86.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.85.1...%40better-update%2Fcli%400.86.0) (2026-11-10)
 
 ### Features
