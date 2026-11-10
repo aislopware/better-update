@@ -1,21 +1,19 @@
 import { promises as fsp } from "node:fs";
 import path from "node:path";
 
-import { isRecord } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
 import ignore from "ignore";
 
 import type { Semaphore } from "effect";
 import type { Ignore } from "ignore";
 
-import { runStep } from "../commands/build/run-step";
 import { CliRuntime } from "../services/cli-runtime";
 import { runBuildHook } from "./build-hooks";
 import { withOptionalPermit } from "./optional-mutex";
 import { printHuman } from "./output";
 import { copyProjectTree } from "./staging-copy";
+import { runStagedInstall } from "./staging-install";
 import { commitStagingSnapshot, initGitRepo } from "./staging-snapshot";
-import { printWarn } from "./warning-style";
 
 import type { ProjectType } from "./detect-project-type";
 import type { BuildFailedError, StagingError } from "./exit-codes";
@@ -278,83 +276,6 @@ export const buildIgnoreInstance = (
     return ig;
   });
 
-/**
- * Install args per package manager, frozen-lockfile variants matching EAS
- * (`bun install --frozen-lockfile` / `npm ci --include=dev` / etc.) so the
- * staged install resolves exactly what the user's lockfile pins.
- */
-export const installArgs = (
-  packageManager: PackageManager,
-  frozen: boolean,
-  /** pnpm only: install just this package and its dependencies (`--filter <name>...`). */
-  appPackage?: string,
-): readonly string[] => {
-  if (packageManager === "npm") {
-    return frozen ? ["ci", "--include=dev"] : ["install", "--include=dev"];
-  }
-  const install = frozen ? ["install", "--frozen-lockfile"] : ["install"];
-  return packageManager === "pnpm" && appPackage !== undefined
-    ? [...install, "--filter", `${appPackage}...`]
-    : install;
-};
-
-/**
- * `BETTER_UPDATE_INSTALL_SCOPE=app`: in a pnpm monorepo, install only the app's
- * workspace closure instead of every workspace project, so a mobile build stops
- * downloading desktop or server dependencies it never loads. Opt-in, because a
- * root `postinstall` or a root-only devDependency the build relies on is then
- * skipped. Returns the app's package name, or `undefined` for a full install.
- */
-const resolveAppInstallFilter = (params: {
-  readonly env: Readonly<Record<string, string>>;
-  readonly packageManager: PackageManager;
-  readonly relAppPath: string;
-  readonly projectRoot: string;
-}) =>
-  Effect.gen(function* () {
-    if (params.env["BETTER_UPDATE_INSTALL_SCOPE"] !== "app" || params.relAppPath === "") {
-      return undefined;
-    }
-    if (params.packageManager !== "pnpm") {
-      yield* printWarn(
-        `BETTER_UPDATE_INSTALL_SCOPE=app only applies to pnpm workspaces; installing the whole ${params.packageManager} workspace.`,
-      );
-      return undefined;
-    }
-    const fs = yield* FileSystem.FileSystem;
-    const manifest = yield* fs
-      .readFileString(path.join(params.projectRoot, "package.json"))
-      .pipe(Effect.orElseSucceed(() => "{}"));
-    const parsed: unknown = yield* Effect.try(() => JSON.parse(manifest) as unknown).pipe(
-      Effect.orElseSucceed(() => undefined),
-    );
-    const name = isRecord(parsed) ? parsed["name"] : undefined;
-    if (typeof name !== "string" || name === "") {
-      yield* printWarn(
-        `BETTER_UPDATE_INSTALL_SCOPE=app needs a "name" in ${params.relAppPath}/package.json; installing the whole workspace.`,
-      );
-      return undefined;
-    }
-    return name;
-  });
-
-const runInstall = (params: {
-  readonly stagingRoot: string;
-  readonly packageManager: PackageManager;
-  readonly frozen: boolean;
-  readonly appPackage: string | undefined;
-  readonly env: Readonly<Record<string, string>>;
-}): Effect.Effect<void, BuildFailedError, OutputMode> =>
-  runStep(
-    {
-      command: params.packageManager,
-      args: [...installArgs(params.packageManager, params.frozen, params.appPackage)],
-      cwd: params.stagingRoot,
-      env: params.env,
-    },
-    `${params.packageManager} install`,
-  );
-
 export interface PrepareStagingProjectInput {
   readonly userCwd: string;
   readonly tempDir: string;
@@ -429,13 +350,14 @@ export const prepareStagingProject = (
       // Frozen install (EAS parity) keeps staging on the exact lockfile pins;
       // BETTER_UPDATE_NO_FROZEN_LOCKFILE=1 opts out (mirrors EAS_NO_FROZEN_LOCKFILE).
       const frozen = lockfileFound && commandEnv["BETTER_UPDATE_NO_FROZEN_LOCKFILE"] !== "1";
-      const appPackage = yield* resolveAppInstallFilter({
-        env: commandEnv,
-        packageManager,
-        relAppPath,
+      yield* runStagedInstall({
+        stagingRoot,
         projectRoot,
+        relAppPath,
+        packageManager,
+        frozen,
+        env: commandEnv,
       });
-      yield* runInstall({ stagingRoot, packageManager, frozen, appPackage, env: commandEnv });
     } else {
       yield* printHuman("No package.json at the staging root — skipping dependency install.");
     }

@@ -6,7 +6,7 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { buildIgnoreInstance, detectWorkspaceRoot, installArgs } from "./project-staging";
+import { buildIgnoreInstance, detectWorkspaceRoot } from "./project-staging";
 
 const makeDir = (prefix: string): string => realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
@@ -124,36 +124,6 @@ describe(detectWorkspaceRoot, () => {
       }
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
-});
-
-describe(installArgs, () => {
-  it("uses frozen-lockfile variants matching EAS when a lockfile was found", () => {
-    expect(installArgs("bun", true)).toStrictEqual(["install", "--frozen-lockfile"]);
-    expect(installArgs("pnpm", true)).toStrictEqual(["install", "--frozen-lockfile"]);
-    expect(installArgs("yarn", true)).toStrictEqual(["install", "--frozen-lockfile"]);
-    expect(installArgs("npm", true)).toStrictEqual(["ci", "--include=dev"]);
-  });
-
-  it("installs only the app's workspace closure when pnpm is given an app package", () => {
-    expect(installArgs("pnpm", true, "@example/mobile")).toStrictEqual([
-      "install",
-      "--frozen-lockfile",
-      "--filter",
-      "@example/mobile...",
-    ]);
-    // Other package managers have no equivalent wired up: a full install.
-    expect(installArgs("bun", true, "@example/mobile")).toStrictEqual([
-      "install",
-      "--frozen-lockfile",
-    ]);
-  });
-
-  it("falls back to a plain install without a lockfile", () => {
-    expect(installArgs("bun", false)).toStrictEqual(["install"]);
-    expect(installArgs("pnpm", false)).toStrictEqual(["install"]);
-    expect(installArgs("yarn", false)).toStrictEqual(["install"]);
-    expect(installArgs("npm", false)).toStrictEqual(["install", "--include=dev"]);
-  });
 });
 
 describe(buildIgnoreInstance, () => {
