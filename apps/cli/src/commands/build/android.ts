@@ -18,10 +18,10 @@ import { BuildFailedError } from "../../lib/exit-codes";
 import { formatCause } from "../../lib/format-error";
 import { loadLocalAndroidCredentials } from "../../lib/local-credentials";
 import { sha256File } from "../../lib/sha256";
-import { capitalize } from "../../lib/string-utils";
 import { setAndroidUpdateChannel } from "../../lib/update-channel-native";
 import { printWarn } from "../../lib/warning-style";
 import { CliRuntime } from "../../services/cli-runtime";
+import { gradleTaskArgs, wantsUniversalApk } from "./gradle-task";
 import { runStep, shellInvocation } from "./run-step";
 
 import type { AndroidProfile, CredentialsSource } from "../../lib/build-profile";
@@ -64,6 +64,8 @@ export interface RunAndroidBuildInput {
   readonly nativeVersion?:
     | { readonly versionName?: string; readonly versionCode?: string }
     | undefined;
+  /** `--clear-cache`: skip Gradle's build cache (`--no-build-cache`) for this run. */
+  readonly noBuildCache?: boolean;
 }
 
 interface AndroidSigningCredentials {
@@ -84,9 +86,6 @@ export interface AndroidInstallArtifact {
   readonly sha256: string;
   readonly byteSize: number;
 }
-
-const wantsUniversalApk = (profile: AndroidProfile): boolean =>
-  profile.format === "aab" && profile.universalApk !== false;
 
 /**
  * bundletool fallback for builds where Gradle could not assemble the APK
@@ -119,26 +118,6 @@ const deriveUniversalApkWithBundletool = (params: {
       ),
     ),
   );
-
-/**
- * Compose the Gradle task name from flavor, format, and buildType.
- *
- * Gradle naming convention: `<verb><Flavor><Variant>`, e.g.
- *   - no flavor + apk + release       → `assembleRelease`
- *   - no flavor + aab + release       → `bundleRelease`
- *   - flavor=prod + aab + release     → `bundleProdRelease`
- *   - flavor=prod + apk + debug       → `assembleProdDebug`
- */
-const gradleTaskName = (
-  format: "apk" | "aab",
-  flavor: string | undefined,
-  buildType: "debug" | "release",
-): string => {
-  const verb = format === "aab" ? "bundle" : "assemble";
-  return flavor
-    ? `${verb}${capitalize(flavor)}${capitalize(buildType)}`
-    : `${verb}${capitalize(buildType)}`;
-};
 
 /** Resolve the signing keystore (remote or local), or `undefined` when skipped. */
 const resolveAndroidCredentials = (
@@ -225,24 +204,16 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
             return ["--init-script", signingGradlePath];
           });
 
-    const explicitTask = input.androidProfile.gradleTask;
-    const taskName = explicitTask ?? gradleTaskName(format, flavor, buildType);
-    const toTaskArg = (task: string) => (task.startsWith(":") ? task : `:${moduleName}:${task}`);
-    // An `.aab` build assembles the universal APK in the SAME Gradle
-    // invocation: `bundleRelease assembleRelease` share every compile/dex/
-    // resource task, so the APK costs one packaging step, not a second build.
-    // An explicit `gradleTask` has no derivable assemble twin — that case
-    // falls back to bundletool after the build.
-    const universalApkViaGradle =
-      wantsUniversalApk(input.androidProfile) && explicitTask === undefined;
-    const taskArgs = [
-      toTaskArg(taskName),
-      ...(universalApkViaGradle ? [toTaskArg(gradleTaskName("apk", flavor, buildType))] : []),
-    ];
+    const { args: taskArgs, universalApkViaGradle } = gradleTaskArgs(input.androidProfile);
     yield* runStep(
       {
         command: "./gradlew",
-        args: [...gradleArgs, ...taskArgs, "--profile"],
+        args: [
+          ...gradleArgs,
+          ...taskArgs,
+          ...(input.noBuildCache === true ? ["--no-build-cache"] : []),
+          "--profile",
+        ],
         cwd: androidDir,
         // Gradle needs a UTF-8 locale for tool output — same value EAS sets.
         env: { ...commandEnv, LC_ALL: "C.UTF-8" },

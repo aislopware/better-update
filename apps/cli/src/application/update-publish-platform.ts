@@ -40,6 +40,7 @@ import type {
 import type { ExpoConfig } from "../lib/expo-config";
 import type { GitContext } from "../lib/git-context";
 import type { OutputMode } from "../lib/output-mode";
+import type { FingerprintRun } from "../lib/runtime-version";
 import type { SignedPayload } from "../lib/signed-payloads";
 import type { ApiClientService } from "../services/api-client";
 import type { BsdiffService } from "../services/bsdiff";
@@ -121,20 +122,46 @@ export const gitCreateFields = (
  * Record the per-platform fingerprint (matching EAS) so `fingerprint:compare`
  * lines up with the per-platform `fingerprint`-policy RTV. Best-effort: the hash
  * is informational, so a fingerprint failure resolves to `undefined` rather than
- * failing the publish.
+ * failing the publish. `fingerprint` is the run the RTV resolves from too.
  */
-const resolvePlatformFingerprintHash = (
-  projectRoot: string,
-  platform: Platform,
-): Effect.Effect<
-  string | undefined,
-  never,
-  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
-> =>
-  runFingerprintForPlatform(projectRoot, platform).pipe(
+const resolvePlatformFingerprintHash = (fingerprint: FingerprintRun) =>
+  fingerprint.pipe(
     Effect.map((result) => result.hash),
     Effect.orElseSucceed(() => undefined),
   );
+
+/**
+ * The RTV and the (best-effort) per-platform fingerprint hash, resolved
+ * together. One memoized `@expo/fingerprint` run serves both the
+ * `fingerprint`-policy RTV and the recorded hash; the two concurrent callers
+ * share that single run.
+ */
+const resolveRuntimeVersionAndHash = (params: {
+  readonly expoConfig: ExpoConfig;
+  readonly platform: Platform;
+  readonly projectRoot: string;
+}) =>
+  Effect.gen(function* () {
+    const runtimeVersionMeta = readRuntimeVersionMeta(params.expoConfig, params.platform);
+    const fingerprint = yield* Effect.cached(
+      runFingerprintForPlatform(params.projectRoot, params.platform),
+    );
+    return yield* Effect.all(
+      [
+        resolveRuntimeVersion({
+          raw: runtimeVersionMeta.rawRuntimeVersion,
+          appVersion: runtimeVersionMeta.appVersion,
+          projectRoot: params.projectRoot,
+          platform: params.platform,
+          buildNumber: runtimeVersionMeta.buildNumber,
+          sdkVersion: runtimeVersionMeta.sdkVersion,
+          fingerprint,
+        }),
+        resolvePlatformFingerprintHash(fingerprint),
+      ],
+      { concurrency: 2 },
+    );
+  });
 
 /**
  * Code-signing input for the render+sign publish path. Carries the developer's
@@ -209,24 +236,7 @@ export const publishPlatform = (
     const api = yield* apiClient;
     const assetUploader = yield* UpdateAssetUploader;
 
-    const runtimeVersionMeta = readRuntimeVersionMeta(params.expoConfig, params.platform);
-    // Resolve the RTV and the (best-effort) per-platform fingerprint together —
-    // both are platform-scoped and independent, so running them concurrently
-    // keeps `publishPlatform` to a single statement here.
-    const [runtimeVersion, fingerprintHash] = yield* Effect.all(
-      [
-        resolveRuntimeVersion({
-          raw: runtimeVersionMeta.rawRuntimeVersion,
-          appVersion: runtimeVersionMeta.appVersion,
-          projectRoot: params.projectRoot,
-          platform: params.platform,
-          buildNumber: runtimeVersionMeta.buildNumber,
-          sdkVersion: runtimeVersionMeta.sdkVersion,
-        }),
-        resolvePlatformFingerprintHash(params.projectRoot, params.platform),
-      ],
-      { concurrency: 2 },
-    );
+    const [runtimeVersion, fingerprintHash] = yield* resolveRuntimeVersionAndHash(params);
 
     if (!params.skipBundler) {
       yield* runExpoExportWithSourcemapProbe({

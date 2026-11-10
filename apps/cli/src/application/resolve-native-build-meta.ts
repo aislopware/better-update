@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { extractRawRuntimeVersion } from "../lib/expo-config";
@@ -6,6 +7,7 @@ import { resolveAppMeta } from "./resolve-app-meta";
 
 import type { Platform } from "../lib/build-profile";
 import type { ProjectType } from "../lib/detect-project-type";
+import type { FingerprintRun } from "../lib/runtime-version";
 import type { BuildProfile } from "./platform-build";
 
 /**
@@ -42,6 +44,8 @@ export const resolveNativeBuildMeta = (params: {
   readonly profile: BuildProfile;
   readonly projectType: ProjectType;
   readonly envVars: Record<string, string>;
+  /** Memoized fingerprint shared with the build's recorded hash. */
+  readonly fingerprint?: FingerprintRun;
 }) =>
   Effect.gen(function* () {
     const { userCwd, platform, profile, projectType, envVars } = params;
@@ -67,6 +71,7 @@ export const resolveNativeBuildMeta = (params: {
       buildNumber: appMeta.buildNumber,
       sdkVersion: expoConfig.sdkVersion,
       subject: "build",
+      ...compact({ fingerprint: params.fingerprint }),
     });
     return { appMeta, runtimeVersion };
   });

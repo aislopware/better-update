@@ -8,6 +8,14 @@ import { resolveInstalledExpoSdkVersion } from "./expo-config";
 import { runFingerprintForPlatform } from "./fingerprint";
 
 import type { Platform, RawRuntimeVersion } from "./build-profile";
+import type { FingerprintError, FingerprintResult } from "./fingerprint";
+
+/** A per-platform `@expo/fingerprint` run, usually memoized with `Effect.cached`. */
+export type FingerprintRun = Effect.Effect<
+  FingerprintResult,
+  FingerprintError,
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem
+>;
 
 export interface ResolveRuntimeVersionOptions {
   readonly raw: RawRuntimeVersion | undefined;
@@ -18,6 +26,13 @@ export interface ResolveRuntimeVersionOptions {
   readonly buildNumber: string | undefined;
   /** `expo.sdkVersion` from the resolved config; falls back to the installed expo. */
   readonly sdkVersion: string | undefined;
+  /**
+   * The `fingerprint`-policy hash source. Callers that also record the hash
+   * (build, upload, publish) pass one memoized run here so `@expo/fingerprint`
+   * runs once per platform instead of twice. Defaults to a fresh run against
+   * `projectRoot`.
+   */
+  readonly fingerprint?: FingerprintRun;
 }
 
 /**
@@ -55,6 +70,7 @@ export const resolveRuntimeVersion = ({
   platform,
   buildNumber,
   sdkVersion,
+  fingerprint = runFingerprintForPlatform(projectRoot, platform),
 }: ResolveRuntimeVersionOptions): Effect.Effect<
   string,
   RuntimeVersionError,
@@ -97,8 +113,8 @@ export const resolveRuntimeVersion = ({
       // Per-platform fingerprint (matching EAS) — the hash IS the runtimeVersion
       // the device matches against, so a combined-platform hash would never be
       // delivered. `runFingerprintForPlatform` threads `--platform` + the managed
-      // `--ignore-path` filters.
-      return yield* runFingerprintForPlatform(projectRoot, platform).pipe(
+      // `--ignore-path` filters (the default `fingerprint` run).
+      return yield* fingerprint.pipe(
         Effect.map((result) => result.hash),
         Effect.mapError((cause) => new RuntimeVersionError({ message: cause.message })),
       );

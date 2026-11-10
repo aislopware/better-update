@@ -177,7 +177,7 @@ export const runMacosBuildWorkflow = (options: RunMacosBuildWorkflowOptions) =>
       };
 
       if (options.clearCache) {
-        yield* clearBuildCaches(userCwd);
+        yield* clearBuildCaches(yield* runtime.commandEnvironment(buildEnvVars));
       }
       const tempDir = yield* acquireBuildTempDir;
       const staging = yield* prepareStagingProject({

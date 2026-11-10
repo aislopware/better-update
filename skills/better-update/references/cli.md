@@ -273,7 +273,8 @@ uploads every installer / package its `artifactPath` glob matches, one build eac
 | `--no-upload`                                           | off          | Upload is on by default; `--no-upload` for a dry run.                                                                              |
 | `--output <path>`                                       | —            | Copy the built artifact to this path.                                                                                              |
 | `--raw-output`                                          | off          | Raw Gradle/Xcode output instead of the formatted spinner.                                                                          |
-| `--clear-cache`                                         | off          | Clear project-scoped build caches before building.                                                                                 |
+| `--clear-cache`                                         | off          | Build without cached state: clears Metro's cache and skips Gradle's build cache for this run.                                      |
+| `--no-doctor`                                           | off          | Skip the warning-only `expo-doctor` check (Expo builds). Same as `BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP=1`.                 |
 | `--freeze-credentials`                                  | off          | Fail fast if credentials are missing instead of prompting (CI). A stale profile still regenerates headless given a team ASC key.   |
 | `--allow-dirty`                                         | off          | Proceed even with uncommitted git changes.                                                                                         |
 | `--auto-submit`, `-s`                                   | off          | After upload, submit using the eas.json submit profile of the same name.                                                           |

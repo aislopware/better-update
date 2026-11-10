@@ -250,6 +250,44 @@ describe(resolveRuntimeVersion, () => {
     }),
   );
 
+  it.effect("resolves the fingerprint policy from a supplied run instead of spawning", () =>
+    Effect.gen(function* () {
+      const result = yield* resolveRuntimeVersion({
+        raw: { policy: "fingerprint" },
+        appVersion: undefined,
+        projectRoot: "/project",
+        platform: "ios",
+        buildNumber: undefined,
+        sdkVersion: undefined,
+        fingerprint: Effect.succeed({ hash: "memoized", sources: [] }),
+      }).pipe(provideStubs('{"hash":"spawned","sources":[]}'));
+      expect(result).toBe("memoized");
+    }),
+  );
+
+  it.effect("runs a shared memoized fingerprint once for the RTV and the recorded hash", () =>
+    Effect.gen(function* () {
+      let runs = 0;
+      const fingerprint = yield* Effect.cached(
+        Effect.sync(() => {
+          runs += 1;
+          return { hash: "h1", sources: [] };
+        }),
+      );
+      const runtimeVersion = yield* resolveRuntimeVersion({
+        raw: { policy: "fingerprint" },
+        appVersion: undefined,
+        projectRoot: "/project",
+        platform: "android",
+        buildNumber: undefined,
+        sdkVersion: undefined,
+        fingerprint,
+      }).pipe(provideStubs(""));
+      const recorded = yield* fingerprint;
+      expect([runtimeVersion, recorded.hash, runs]).toStrictEqual(["h1", "h1", 1]);
+    }),
+  );
+
   // ── misc ─────────────────────────────────────────────────────────
 
   it.effect("fails on an unknown policy and lists the valid policies", () =>

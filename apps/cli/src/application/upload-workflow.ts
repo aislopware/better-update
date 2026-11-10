@@ -22,6 +22,7 @@ import { resolveAppMeta } from "./resolve-app-meta";
 
 import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { AppMeta, BuildProfile, Platform, RawRuntimeVersion } from "../lib/build-profile";
+import type { FingerprintRun } from "../lib/runtime-version";
 
 export interface RunUploadWorkflowOptions {
   readonly platform: Platform;
@@ -107,6 +108,7 @@ const resolveUploadMeta = (params: {
   readonly projectRoot: string;
   readonly profile: BuildProfile;
   readonly envVars: Record<string, string>;
+  readonly fingerprint: FingerprintRun;
 }) =>
   Effect.gen(function* () {
     const { projectType, platform, projectRoot, profile, envVars } = params;
@@ -149,6 +151,7 @@ const resolveUploadMeta = (params: {
       platform,
       buildNumber: appMeta.buildNumber,
       sdkVersion: expoConfig?.sdkVersion,
+      fingerprint: params.fingerprint,
     });
     const runtimeVersion = isExpoProject
       ? yield* resolveRuntimeVersion(runtimeVersionOptions(appMeta.rawRuntimeVersion))
@@ -195,12 +198,18 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
     });
     const envVars = { ...remoteEnvVars, ...profile.env };
 
+    // One `@expo/fingerprint` run shared by the `fingerprint` runtime-version
+    // policy and the recorded hash below.
+    const fingerprint = yield* Effect.cached(
+      runFingerprintForPlatform(projectRoot, options.platform),
+    );
     const { appMeta, runtimeVersion, hasExpoConfig } = yield* resolveUploadMeta({
       projectType,
       platform: options.platform,
       projectRoot,
       profile,
       envVars,
+      fingerprint,
     });
 
     const { target, bundleId } =
@@ -223,7 +232,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
     // readable — a project doing OTA from a bare tree needs this hash just as
     // much as a managed one, and a project without OTA has nothing to fingerprint.
     const fingerprintHash = hasExpoConfig
-      ? yield* runFingerprintForPlatform(projectRoot, options.platform).pipe(
+      ? yield* fingerprint.pipe(
           Effect.map((entry) => entry.hash),
           Effect.orElseSucceed(() => undefined),
         )

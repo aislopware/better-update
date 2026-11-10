@@ -1,6 +1,5 @@
 import { Effect, Result, Semaphore } from "effect";
 
-import { clearBuildCaches } from "../lib/clear-cache";
 import { InvalidArgumentError } from "../lib/exit-codes";
 import { platformLogPrefix, withLogPrefix } from "../lib/log-prefix";
 import { printHuman } from "../lib/output";
@@ -18,7 +17,7 @@ export type RunBuildWorkflowAllOptions = Omit<RunBuildWorkflowOptions, "platform
 /**
  * `build --platform all`: run the iOS and Android builds IN PARALLEL, each as
  * a full {@link runBuildWorkflow} fiber tagged with a `[ios]` / `[android]`
- * output prefix. Shared preflight (dirty-tree gate, profile pick, cache clear)
+ * output prefix. Shared preflight (dirty-tree gate, profile pick)
  * runs once up front; a mutex serializes the sections the two fibers must not
  * enter together (app.json autoIncrement, interactive credential setup,
  * auto-submit). Both builds always run to completion — a failure on one
@@ -55,11 +54,6 @@ export const runBuildWorkflowAll = (options: RunBuildWorkflowAllOptions) =>
     // Resolve the profile once so an interactive picker prompts once, not twice.
     const profileName = yield* resolveProfileName(userCwd, options.profileName);
 
-    // Clear caches once — the per-platform runs skip their own pass.
-    if (options.clearCache) {
-      yield* clearBuildCaches(userCwd);
-    }
-
     const mutex = yield* Semaphore.make(1);
     const runPlatform = (platform: Platform) =>
       runBuildWorkflow({
@@ -67,7 +61,8 @@ export const runBuildWorkflowAll = (options: RunBuildWorkflowAllOptions) =>
         platform,
         profileName,
         allowDirty: true,
-        clearCache: false,
+        // Each platform clears Metro's cache before staging (idempotent, and
+        // minutes before either Metro starts) and bypasses Gradle's cache.
         mutex,
       }).pipe(withLogPrefix(platformLogPrefix(platform)), Effect.result);
 

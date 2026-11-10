@@ -162,7 +162,8 @@ APK; **Download** still hands out the `.aab` for Play.
 | `--no-upload`                       | off          | Upload is on by default; `--no-upload` for a dry run.                                                                                                           |
 | `--output <path>`                   | —            | Copy the built artifact to this local path.                                                                                                                     |
 | `--raw-output`                      | off          | Stream raw Gradle/Xcode output instead of the formatted spinner.                                                                                                |
-| `--clear-cache`                     | off          | Clear project-scoped build caches before building.                                                                                                              |
+| `--clear-cache`                     | off          | Build without cached state: clears Metro's cache and skips Gradle's build cache for this run.                                                                   |
+| `--no-doctor`                       | off          | Skip the warning-only `expo-doctor` check (Expo builds). Same as `BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP=1`.                                              |
 | `--freeze-credentials`              | off          | Fail fast if credentials are missing instead of prompting (CI). A stale (roster-changed) profile still regenerates headless when the Apple team has an ASC key. |
 | `--allow-dirty`                     | off          | Proceed even with uncommitted git changes.                                                                                                                      |
 | `--auto-submit`, `-s`               | off          | After upload, submit using the `eas.json` submit profile of the same name.                                                                                      |
@@ -190,6 +191,32 @@ Build subprocesses (including dynamic `app.config.ts`) also see `BETTER_UPDATE_B
 `BETTER_UPDATE_BUILD_GIT_COMMIT_HASH`, `BETTER_UPDATE_BUILD_WORKINGDIR`, and the platform version pair
 (`BETTER_UPDATE_BUILD_IOS_APP_VERSION`/`_IOS_BUILD_NUMBER` or
 `BETTER_UPDATE_BUILD_ANDROID_VERSION_NAME`/`_ANDROID_VERSION_CODE`) — mirroring the `EAS_BUILD*` set.
+
+### Staging, install and build-time switches
+
+Every iOS/Android build runs in a fresh copy of the project (or of its monorepo workspace root) in a
+temp dir, so the checkout is never touched. The copy honours `.easignore`, or else every
+`.gitignore`, and always skips `node_modules`, `.git` and native build outputs. Files are cloned
+copy-on-write where the filesystem supports it (APFS, btrfs, XFS). The CLI then runs a frozen
+install there and commits the staged tree once, so `expo prebuild` sees a clean git tree.
+
+Before the native build, an Expo build runs `expo-doctor`, which only warns (30s timeout). A
+`fingerprint` runtime-version policy runs `@expo/fingerprint` once per platform; the same hash is
+recorded on the build.
+
+Set these in the shell or in the profile's `env` block in `eas.json`:
+
+| Variable                                         | Effect                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP=1` | Skip `expo-doctor` (same as `--no-doctor`). EAS's `EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP` works too.                                                                                                                                                                                 |
+| `BETTER_UPDATE_INSTALL_SCOPE=app`                | pnpm monorepos: install only the app and its workspace dependencies (`pnpm install --filter <app>...`) instead of every workspace project. Opt-in: a root `postinstall` or a root-only devDependency no longer runs or installs. Other package managers ignore it with a warning. |
+| `BETTER_UPDATE_NO_FROZEN_LOCKFILE=1`             | Install without `--frozen-lockfile` / `npm ci` (mirrors `EAS_NO_FROZEN_LOCKFILE`).                                                                                                                                                                                                |
+
+Gradle runs whatever task the profile asks for: `android.gradleTask` (a single task; a bare name
+runs in `android.module`, default `app`) wins. Otherwise `android.gradleCommand`, EAS's field, is
+passed to `./gradlew` as written (for example `":app:bundleRelease"`). Otherwise the task comes
+from `format` / `flavor` / `buildType`. Gradle settings such as `org.gradle.caching` belong in
+`~/.gradle/gradle.properties`, which the build reads as usual.
 
 ## `builds` — server-side build records
 

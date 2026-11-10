@@ -45,6 +45,8 @@ export interface PlatformBuildInput {
   readonly updateChannel: string | undefined;
   readonly freezeCredentials: boolean;
   readonly rawOutput: boolean | undefined;
+  /** `--clear-cache`: run Gradle with `--no-build-cache`. */
+  readonly clearCache?: boolean;
   /**
    * Serializes interactive credential setup across parallel `--platform all`
    * builds so two fibers never prompt on the same terminal at once.
@@ -177,6 +179,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
       strategy,
       packageManager: input.packageManager,
       updateChannel: input.updateChannel,
+      noBuildCache: input.clearCache === true,
       ...compact({ customCommand: profile.customCommand?.android, nativeVersion }),
     });
     const target: BuildTarget =

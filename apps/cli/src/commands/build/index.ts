@@ -48,8 +48,16 @@ export const buildCommand = Command.make(
       Flag.withDefault(false),
     ),
     "clear-cache": Flag.Boolean("clear-cache").pipe(
-      Flag.withDescription("Clear project-scoped build caches before building"),
+      Flag.withDescription(
+        "Build without cached state: clear Metro's cache and skip Gradle's build cache for this run",
+      ),
       Flag.withDefault(false),
+    ),
+    doctor: Flag.Boolean("doctor").pipe(
+      Flag.withDescription(
+        "Run the warning-only expo-doctor check before an Expo build (--no-doctor skips it; so does BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP=1)",
+      ),
+      Flag.withDefault(true),
     ),
     "freeze-credentials": Flag.Boolean("freeze-credentials").pipe(
       Flag.withDescription("Fail fast if credentials missing instead of prompting (for CI)"),
@@ -82,6 +90,7 @@ export const buildCommand = Command.make(
       noUpload: !args.upload,
       rawOutput: args["raw-output"],
       clearCache: args["clear-cache"],
+      doctor: args.doctor,
       freezeCredentials: args["freeze-credentials"],
       allowDirty: args["allow-dirty"],
       ...compact({

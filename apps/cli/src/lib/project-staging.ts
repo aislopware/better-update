@@ -1,8 +1,7 @@
-import { execFile } from "node:child_process";
 import { promises as fsp } from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
 
+import { isRecord } from "@better-update/type-guards";
 import { FileSystem, Effect } from "effect";
 import ignore from "ignore";
 
@@ -12,16 +11,15 @@ import type { Ignore } from "ignore";
 import { runStep } from "../commands/build/run-step";
 import { CliRuntime } from "../services/cli-runtime";
 import { runBuildHook } from "./build-hooks";
-import { StagingError } from "./exit-codes";
-import { formatCause } from "./format-error";
 import { withOptionalPermit } from "./optional-mutex";
 import { printHuman } from "./output";
+import { copyProjectTree } from "./staging-copy";
+import { commitStagingSnapshot, initGitRepo } from "./staging-snapshot";
+import { printWarn } from "./warning-style";
 
 import type { ProjectType } from "./detect-project-type";
-import type { BuildFailedError } from "./exit-codes";
+import type { BuildFailedError, StagingError } from "./exit-codes";
 import type { OutputMode } from "./output-mode";
-
-const execFileAsync = promisify(execFile);
 
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
@@ -190,15 +188,6 @@ const safeReadText = async (file: string): Promise<string> => {
   }
 };
 
-const isDirectory = async (file: string): Promise<boolean> => {
-  try {
-    const stat = await fsp.lstat(file);
-    return stat.isDirectory();
-  } catch {
-    return false;
-  }
-};
-
 /**
  * Fold every NESTED `.gitignore` under `workspaceRoot` into `ig`, each rebased
  * to its own directory (git scopes a `.gitignore` to the dir it lives in, and
@@ -289,123 +278,77 @@ export const buildIgnoreInstance = (
     return ig;
   });
 
-export const copyProjectTree = (params: {
-  readonly source: string;
-  readonly dest: string;
-  readonly ig: Ignore;
-}): Effect.Effect<void, StagingError> =>
-  Effect.tryPromise({
-    try: async () => {
-      await fsp.cp(params.source, params.dest, {
-        recursive: true,
-        dereference: false,
-        // Else `cp` points relative links (a framework's `Versions/Current`) into the source tree.
-        verbatimSymlinks: true,
-        filter: async (src) => {
-          const rel = path.relative(params.source, src);
-          if (rel === "") {
-            return true;
-          }
-          const posixRel = rel.split(path.sep).join("/");
-          // Append a trailing slash for directories so directory-only rules
-          // (`foo/`) prune the whole subtree here instead of crawling into it
-          // (returning `false` for a dir tells `cp` to skip its descendants).
-          const isDir = await isDirectory(src);
-          return !params.ig.ignores(isDir ? `${posixRel}/` : posixRel);
-        },
-      });
-    },
-    catch: (cause) =>
-      new StagingError({
-        message: `Failed to copy project to staging dir: ${formatCause(cause)}`,
-      }),
-  });
-
-/**
- * EAS stages projects via `git clone`, so `.git` is always present and prepare
- * scripts that shell out to git (lefthook install, husky install,
- * simple-git-hooks, etc.) succeed naturally. Our copy strips `.git` for size,
- * so we recreate a bare repo at the staging root before install runs. The
- * hooks installed here never fire because no one commits in the staging dir —
- * they exist only so `git rev-parse` succeeds during postinstall.
- */
-const initGitRepo = (stagingRoot: string): Effect.Effect<void, StagingError> =>
-  Effect.tryPromise({
-    try: async () => execFileAsync("git", ["init", "-q", stagingRoot]),
-    catch: (cause) =>
-      new StagingError({
-        message: `Failed to init git repo in staging dir: ${formatCause(cause)}`,
-      }),
-  }).pipe(Effect.asVoid);
-
-/**
- * Snapshot the staged tree as a single commit so its working tree reads CLEAN.
- *
- * EAS stages via `git clone` + checkout, so the tree it hands to
- * `expo prebuild --clean` is a clean checkout. Our `cp` + `git init` leaves
- * every staged file UNTRACKED, which `expo prebuild`'s git check reads as
- * "dirty" (`git status --porcelain` is non-empty). Because the native build
- * runs inside a PTY, Expo's `isInteractive()` is true even with no real
- * controlling TTY, so it prompts `Continue with uncommitted changes?` and then
- * blocks on stdin we never write — hanging CI / backgrounded / piped builds.
- *
- * Committing once here makes `git status` clean, so Expo's check passes on
- * EVERY Expo version — the `EXPO_NO_GIT_STATUS` env gate the build sets only
- * exists in newer Expo — with no global `CI=1` side effects. The real
- * dirty-tree decision already ran against the user's *actual* working tree in
- * `ensureRepoClean` (honoring `--allow-dirty`). Best-effort: hooks are disabled
- * and a failure is non-fatal — the build proceeds and `EXPO_NO_GIT_STATUS`
- * still covers newer Expo.
- */
-export const commitStagingSnapshot = (stagingRoot: string): Effect.Effect<void> => {
-  const run = async (args: readonly string[]): Promise<unknown> =>
-    execFileAsync("git", [...args], {
-      cwd: stagingRoot,
-      // Don't fire the user's git hooks (lefthook / husky / simple-git-hooks,
-      // installed by the staged postinstall) on this throwaway snapshot.
-      env: { ...process.env, LEFTHOOK: "0", HUSKY: "0" },
-    });
-  return Effect.tryPromise(async () => {
-    await run(["add", "-A"]);
-    await run([
-      "-c",
-      "user.name=better-update",
-      "-c",
-      "user.email=build@better-update.invalid",
-      "-c",
-      "commit.gpgsign=false",
-      "commit",
-      "--no-verify",
-      "--allow-empty",
-      "-q",
-      "-m",
-      "better-update staging snapshot",
-    ]);
-  }).pipe(Effect.ignore);
-};
-
 /**
  * Install args per package manager, frozen-lockfile variants matching EAS
  * (`bun install --frozen-lockfile` / `npm ci --include=dev` / etc.) so the
  * staged install resolves exactly what the user's lockfile pins.
  */
-export const installArgs = (packageManager: PackageManager, frozen: boolean): readonly string[] => {
+export const installArgs = (
+  packageManager: PackageManager,
+  frozen: boolean,
+  /** pnpm only: install just this package and its dependencies (`--filter <name>...`). */
+  appPackage?: string,
+): readonly string[] => {
   if (packageManager === "npm") {
     return frozen ? ["ci", "--include=dev"] : ["install", "--include=dev"];
   }
-  return frozen ? ["install", "--frozen-lockfile"] : ["install"];
+  const install = frozen ? ["install", "--frozen-lockfile"] : ["install"];
+  return packageManager === "pnpm" && appPackage !== undefined
+    ? [...install, "--filter", `${appPackage}...`]
+    : install;
 };
+
+/**
+ * `BETTER_UPDATE_INSTALL_SCOPE=app`: in a pnpm monorepo, install only the app's
+ * workspace closure instead of every workspace project, so a mobile build stops
+ * downloading desktop or server dependencies it never loads. Opt-in, because a
+ * root `postinstall` or a root-only devDependency the build relies on is then
+ * skipped. Returns the app's package name, or `undefined` for a full install.
+ */
+const resolveAppInstallFilter = (params: {
+  readonly env: Readonly<Record<string, string>>;
+  readonly packageManager: PackageManager;
+  readonly relAppPath: string;
+  readonly projectRoot: string;
+}) =>
+  Effect.gen(function* () {
+    if (params.env["BETTER_UPDATE_INSTALL_SCOPE"] !== "app" || params.relAppPath === "") {
+      return undefined;
+    }
+    if (params.packageManager !== "pnpm") {
+      yield* printWarn(
+        `BETTER_UPDATE_INSTALL_SCOPE=app only applies to pnpm workspaces; installing the whole ${params.packageManager} workspace.`,
+      );
+      return undefined;
+    }
+    const fs = yield* FileSystem.FileSystem;
+    const manifest = yield* fs
+      .readFileString(path.join(params.projectRoot, "package.json"))
+      .pipe(Effect.orElseSucceed(() => "{}"));
+    const parsed: unknown = yield* Effect.try(() => JSON.parse(manifest) as unknown).pipe(
+      Effect.orElseSucceed(() => undefined),
+    );
+    const name = isRecord(parsed) ? parsed["name"] : undefined;
+    if (typeof name !== "string" || name === "") {
+      yield* printWarn(
+        `BETTER_UPDATE_INSTALL_SCOPE=app needs a "name" in ${params.relAppPath}/package.json; installing the whole workspace.`,
+      );
+      return undefined;
+    }
+    return name;
+  });
 
 const runInstall = (params: {
   readonly stagingRoot: string;
   readonly packageManager: PackageManager;
   readonly frozen: boolean;
+  readonly appPackage: string | undefined;
   readonly env: Readonly<Record<string, string>>;
 }): Effect.Effect<void, BuildFailedError, OutputMode> =>
   runStep(
     {
       command: params.packageManager,
-      args: [...installArgs(params.packageManager, params.frozen)],
+      args: [...installArgs(params.packageManager, params.frozen, params.appPackage)],
       cwd: params.stagingRoot,
       env: params.env,
     },
@@ -486,7 +429,13 @@ export const prepareStagingProject = (
       // Frozen install (EAS parity) keeps staging on the exact lockfile pins;
       // BETTER_UPDATE_NO_FROZEN_LOCKFILE=1 opts out (mirrors EAS_NO_FROZEN_LOCKFILE).
       const frozen = lockfileFound && commandEnv["BETTER_UPDATE_NO_FROZEN_LOCKFILE"] !== "1";
-      yield* runInstall({ stagingRoot, packageManager, frozen, env: commandEnv });
+      const appPackage = yield* resolveAppInstallFilter({
+        env: commandEnv,
+        packageManager,
+        relAppPath,
+        projectRoot,
+      });
+      yield* runInstall({ stagingRoot, packageManager, frozen, appPackage, env: commandEnv });
     } else {
       yield* printHuman("No package.json at the staging root — skipping dependency install.");
     }

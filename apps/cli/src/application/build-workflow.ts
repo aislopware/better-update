@@ -39,6 +39,7 @@ import { resolveUpdateChannel } from "./resolve-update-channel";
 
 import type { Platform } from "../lib/build-profile";
 import type { PackageManager } from "../lib/project-staging";
+import type { FingerprintRun } from "../lib/runtime-version";
 import type { BuildMeta } from "./resolve-expo-build-meta";
 
 export interface RunBuildWorkflowOptions {
@@ -49,6 +50,8 @@ export interface RunBuildWorkflowOptions {
   readonly output?: string;
   readonly rawOutput?: boolean;
   readonly clearCache?: boolean;
+  /** Run the warning-only `expo-doctor` pass (default true; `--no-doctor`). */
+  readonly doctor?: boolean;
   readonly freezeCredentials?: boolean;
   readonly allowDirty?: boolean;
   readonly autoSubmit?: boolean;
@@ -114,28 +117,56 @@ const printBuildHeader = (params: {
 };
 
 /**
- * Warning-only `expo-doctor` pass before the native build (mirrors EAS's
+ * Env switches that skip the `expo-doctor` pass. The EAS name is honored too,
+ * so a profile `env` block written for EAS keeps working.
+ */
+const DOCTOR_DISABLE_ENV = [
+  "BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP",
+  "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP",
+] as const;
+
+const isEnabledFlag = (value: string | undefined) =>
+  value !== undefined && value !== "" && value !== "0" && value.toLowerCase() !== "false";
+
+/** Whether to run `expo-doctor`: on by default, off via `--no-doctor` or an env switch. */
+export const shouldRunExpoDoctor = (params: {
+  readonly doctor: boolean | undefined;
+  readonly env: Readonly<Record<string, string>>;
+}) =>
+  params.doctor !== false && !DOCTOR_DISABLE_ENV.some((name) => isEnabledFlag(params.env[name]));
+
+/**
+ * Warning-only `expo-doctor` pass before an Expo build (mirrors EAS's
  * RUN_EXPO_DOCTOR phase): findings and timeouts are reported but never fail
- * the build.
+ * the build. Skipped for non-Expo projects, with `--no-doctor`, or with a
+ * `DOCTOR_DISABLE_ENV` switch.
  */
 const runExpoDoctor = (params: {
+  readonly isExpo: boolean;
+  readonly doctor: boolean | undefined;
   readonly projectRoot: string;
   readonly env: Readonly<Record<string, string>>;
 }) =>
-  runStep(
-    { command: "bunx", args: ["expo-doctor"], cwd: params.projectRoot, env: params.env },
-    "expo-doctor",
-  ).pipe(
-    Effect.timeout("30 seconds"),
-    Effect.catch(() =>
-      printWarn("expo-doctor reported issues or timed out — continuing (warning only)."),
-    ),
-  );
+  params.isExpo && shouldRunExpoDoctor(params)
+    ? runStep(
+        { command: "bunx", args: ["expo-doctor"], cwd: params.projectRoot, env: params.env },
+        "expo-doctor",
+      ).pipe(
+        Effect.timeout("30 seconds"),
+        Effect.catch(() =>
+          printWarn("expo-doctor reported issues or timed out — continuing (warning only)."),
+        ),
+      )
+    : Effect.void;
 
 /**
  * Per-platform fingerprint (matching EAS) so the recorded build hash lines up
  * with the per-platform `fingerprint`-policy runtime version and with updates
  * fingerprinted the same way. Best-effort: a failure records no hash.
+ *
+ * `fingerprint` is the same memoized run the runtime version resolved from, so
+ * a `fingerprint`-policy build hashes the tree once and records exactly the
+ * hash it stamped as its runtime version.
  *
  * Gated on the project doing OTA at all, NOT on it being Expo-managed: a bare
  * tree shipping expo-updates can use the `fingerprint` policy too, and
@@ -147,12 +178,12 @@ const runExpoDoctor = (params: {
 const resolveFingerprintHash = (params: {
   readonly isExpo: boolean;
   readonly userCwd: string;
-  readonly platform: Platform;
+  readonly fingerprint: FingerprintRun;
 }) =>
   Effect.gen(function* () {
     const doesOta = params.isExpo || (yield* wantsOtaExpoConfig(params.userCwd));
     return doesOta
-      ? yield* runFingerprintForPlatform(params.userCwd, params.platform).pipe(
+      ? yield* params.fingerprint.pipe(
           Effect.map((entry) => entry.hash),
           Effect.orElseSucceed(() => undefined),
         )
@@ -218,6 +249,15 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
 
       const updateChannel = yield* resolveUpdateChannel({ userCwd, profile });
 
+      // One `@expo/fingerprint` run per build, shared by the `fingerprint`
+      // runtime-version policy and the hash recorded at upload. Lazy: a build
+      // with another policy and no OTA never runs it. The build steps run in the
+      // staged copy, so nothing in this build changes the hashed tree; and
+      // because the result is frozen at first use, the recorded hash still
+      // equals the runtime version when the other `--platform all` fiber's
+      // autoIncrement rewrites app.json in between.
+      const fingerprint = yield* Effect.cached(runFingerprintForPlatform(userCwd, platform));
+
       // Best-effort git context — used for build metadata at upload time and
       // exposed to subprocesses (EAS_BUILD_GIT_COMMIT_HASH parity).
       const rawGitContext = yield* readGitContext(userCwd);
@@ -250,7 +290,13 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       // profile overrides — but still derives a runtimeVersion when an Expo
       // config is present, because a bare project can ship expo-updates too.
       const { appMeta, runtimeVersion }: BuildMeta = isExpo
-        ? yield* resolveExpoBuildMeta({ userCwd, platform, profile, envVars: envWithBuildId }).pipe(
+        ? yield* resolveExpoBuildMeta({
+            userCwd,
+            platform,
+            profile,
+            envVars: envWithBuildId,
+            fingerprint,
+          }).pipe(
             // autoIncrement is a read-modify-write of the user's app.json —
             // parallel platform builds must not interleave it.
             withOptionalPermit(options.mutex),
@@ -261,6 +307,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             profile,
             projectType,
             envVars: envWithBuildId,
+            fingerprint,
           }).pipe(
             // Same permit as the Expo path, for a different hazard: reading the
             // Expo config overlays `process.env` and evicts `require.cache`
@@ -287,7 +334,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       };
 
       if (options.clearCache) {
-        yield* clearBuildCaches(userCwd);
+        yield* clearBuildCaches(yield* runtime.commandEnvironment(buildEnvVars));
       }
 
       const tempDir = yield* acquireBuildTempDir;
@@ -304,12 +351,12 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       });
       const buildEnv = { ...buildEnvVars, BETTER_UPDATE_BUILD_WORKINGDIR: staging.stagingRoot };
 
-      if (isExpo) {
-        yield* runExpoDoctor({
-          projectRoot: staging.projectRoot,
-          env: yield* runtime.commandEnvironment(buildEnv),
-        });
-      }
+      yield* runExpoDoctor({
+        isExpo,
+        doctor: options.doctor,
+        projectRoot: staging.projectRoot,
+        env: yield* runtime.commandEnvironment(buildEnv),
+      });
 
       yield* printBuildHeader({
         platform,
@@ -337,6 +384,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           updateChannel,
           freezeCredentials: options.freezeCredentials ?? false,
           rawOutput: options.rawOutput,
+          clearCache: options.clearCache === true,
           ...compact({ mutex: options.mutex }),
         }),
       );
@@ -383,7 +431,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         dirty: rawGitContext.dirty,
       });
 
-      const fingerprintHash = yield* resolveFingerprintHash({ isExpo, userCwd, platform });
+      const fingerprintHash = yield* resolveFingerprintHash({ isExpo, userCwd, fingerprint });
 
       const result = yield* reserveAndUpload(api, {
         target,

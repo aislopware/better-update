@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { applyAutoIncrement } from "../lib/auto-increment";
@@ -6,6 +7,7 @@ import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveAppMeta } from "./resolve-app-meta";
 
 import type { Platform } from "../lib/build-profile";
+import type { FingerprintRun } from "../lib/runtime-version";
 import type { AppMeta, BuildProfile } from "./platform-build";
 
 /** App metadata plus the OTA runtime version recorded on the build. */
@@ -27,6 +29,8 @@ export const resolveExpoBuildMeta = (params: {
   readonly platform: Platform;
   readonly profile: BuildProfile;
   readonly envVars: Record<string, string>;
+  /** Memoized fingerprint shared with the build's recorded hash. */
+  readonly fingerprint?: FingerprintRun;
 }) =>
   Effect.gen(function* () {
     const { userCwd, platform, profile, envVars } = params;
@@ -58,6 +62,7 @@ export const resolveExpoBuildMeta = (params: {
       platform,
       buildNumber: appMeta.buildNumber,
       sdkVersion: bumpedConfig.sdkVersion,
+      ...compact({ fingerprint: params.fingerprint }),
     });
     return { appMeta, runtimeVersion };
   });
