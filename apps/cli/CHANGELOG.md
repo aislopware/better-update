@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.88.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.87.0...%40better-update%2Fcli%400.88.0) (2026-11-10)
+
+### Features
+
+* **cli:** let a build skip or filter the staged install ([27c2d05](https://github.com/aislopware/better-update/commit/27c2d05f8d5fe0f67c4c8ff40d3065a28ec46cc3))
+
 ## [0.87.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.86.0...%40better-update%2Fcli%400.87.0) (2026-11-10)
 
 ### Features
