@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.86.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.85.1...%40better-update%2Fcli%400.86.0) (2026-11-10)
+
+### Features
+
+* **cli:** cut build overhead before the native build ([ed28052](https://github.com/aislopware/better-update/commit/ed2805274a334f92db3d4fa087fde3c5e5b0b2ea))
+
 ## [0.85.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.85.0...%40better-update%2Fcli%400.85.1) (2026-10-30)
 
 **Note:** Version bump only for package @better-update/cli
