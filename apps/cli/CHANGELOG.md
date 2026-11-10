@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.89.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.88.1...%40better-update%2Fcli%400.89.0) (2026-11-10)
+
+### Features
+
+* **cli:** opt-in stable build dir so ccache can hit ([d463425](https://github.com/aislopware/better-update/commit/d46342564f445ed39154b6ee7a548e0a216b4dc8))
+
 ## [0.88.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.88.0...%40better-update%2Fcli%400.88.1) (2026-11-10)
 
 ### Bug Fixes
