@@ -9,6 +9,7 @@ import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { runStep } from "../commands/build/run-step";
 import { runBuildHook } from "../lib/build-hooks";
 import { readBuildProfile } from "../lib/build-profile";
+import { acquireBuildWorkDir } from "../lib/build-work-dir";
 import { clearBuildCaches } from "../lib/clear-cache";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { warnIfDevClientMissing } from "../lib/dev-client-check";
@@ -26,7 +27,6 @@ import { readProjectId } from "../lib/project-link";
 import { prepareStagingProject } from "../lib/project-staging";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveProfileName } from "../lib/resolve-profile-name";
-import { acquireBuildTempDir } from "../lib/temp-dir";
 import { printWarn } from "../lib/warning-style";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
@@ -337,7 +337,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         yield* clearBuildCaches(yield* runtime.commandEnvironment(buildEnvVars));
       }
 
-      const tempDir = yield* acquireBuildTempDir;
+      const tempDir = yield* acquireBuildWorkDir({
+        platform,
+        env: yield* runtime.commandEnvironment(buildEnvVars),
+        cwd: userCwd,
+      });
 
       // Mirror cwd (or its workspace root for monorepos) into a staging dir
       // and reinstall deps there. From here on, every native build command

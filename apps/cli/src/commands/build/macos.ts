@@ -301,6 +301,11 @@ const runMacosXcodeBuild = <ProfileError, ProfileServices>(
         "generic/platform=macOS",
         "-archivePath",
         archivePath,
+        // Inside the build dir rather than Xcode's default DerivedData, whose
+        // folder name hashes the (per-run) workspace path: with a stable
+        // BETTER_UPDATE_BUILD_DIR every compile path repeats, so ccache hits.
+        "-derivedDataPath",
+        path.join(tempDir, "derived-data"),
         "archive",
         ...macosArchiveSettings({
           identity: input.identity,

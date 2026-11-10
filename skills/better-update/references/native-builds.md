@@ -206,20 +206,36 @@ recorded on the build.
 
 Set these in the shell or in the profile's `env` block in `eas.json`:
 
-| Variable                                         | Effect                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP=1` | Skip `expo-doctor` (same as `--no-doctor`). EAS's `EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP` works too.                                                                                                                                                                                                                                   |
-| `BETTER_UPDATE_INSTALL_SCOPE=app`                | pnpm monorepos: install only the app and its workspace dependencies (`pnpm install --filter <app>...`) instead of every workspace project. Has no effect when the app is the workspace root. Opt-in: a root `postinstall` or a root-only devDependency no longer runs or installs. Other package managers ignore it with a warning. |
-| `BETTER_UPDATE_INSTALL_SCOPE=none`               | Skip the staged dependency install entirely, with any package manager. Use it for a custom command that installs its own dependencies, for example inside a container. Staging, hooks, fingerprint and upload still run.                                                                                                            |
-| `BETTER_UPDATE_INSTALL_FILTER="<selectors>"`     | pnpm monorepos: space-separated `--filter` selectors passed to the staged install as written, e.g. `"!@example/mobile"` to install everything except the mobile app. Combined with `INSTALL_SCOPE=app` when both are set. Other package managers ignore it with a warning.                                                          |
-| `BETTER_UPDATE_NO_FROZEN_LOCKFILE=1`             | Install without `--frozen-lockfile` / `npm ci` (mirrors `EAS_NO_FROZEN_LOCKFILE`).                                                                                                                                                                                                                                                  |
-| `BETTER_UPDATE_XCODE_INDEX_STORE=1`              | Keep Xcode index-while-building on. By default iOS and macOS builds pass `COMPILER_INDEX_STORE_ENABLE=NO`, because nothing reads the index in a CI build and writing it slows compiles, Swift most.                                                                                                                                 |
+| Variable                                         | Effect                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_UPDATE_BUILD_DISABLE_EXPO_DOCTOR_STEP=1` | Skip `expo-doctor` (same as `--no-doctor`). EAS's `EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP` works too.                                                                                                                                                                                                                                           |
+| `BETTER_UPDATE_INSTALL_SCOPE=app`                | pnpm monorepos: install only the app and its workspace dependencies (`pnpm install --filter <app>...`) instead of every workspace project. Has no effect when the app is the workspace root. Opt-in: a root `postinstall` or a root-only devDependency no longer runs or installs. Other package managers ignore it with a warning.         |
+| `BETTER_UPDATE_INSTALL_SCOPE=none`               | Skip the staged dependency install entirely, with any package manager. Use it for a custom command that installs its own dependencies, for example inside a container. Staging, hooks, fingerprint and upload still run.                                                                                                                    |
+| `BETTER_UPDATE_INSTALL_FILTER="<selectors>"`     | pnpm monorepos: space-separated `--filter` selectors passed to the staged install as written, e.g. `"!@example/mobile"` to install everything except the mobile app. Combined with `INSTALL_SCOPE=app` when both are set. Other package managers ignore it with a warning.                                                                  |
+| `BETTER_UPDATE_NO_FROZEN_LOCKFILE=1`             | Install without `--frozen-lockfile` / `npm ci` (mirrors `EAS_NO_FROZEN_LOCKFILE`).                                                                                                                                                                                                                                                          |
+| `BETTER_UPDATE_XCODE_INDEX_STORE=1`              | Keep Xcode index-while-building on. By default iOS and macOS builds pass `COMPILER_INDEX_STORE_ENABLE=NO`, because nothing reads the index in a CI build and writing it slows compiles, Swift most.                                                                                                                                         |
+| `BETTER_UPDATE_BUILD_DIR=<path>`                 | Build in `<path>/better-update-<platform>` instead of a random temp dir, so every path a compile sees is the same each run (see "ccache" below). The dir is locked, emptied before the build and removed after it. It must be outside the project; a dir in use by another live build fails fast. Applies to iOS, Android and macOS builds. |
 
 Gradle runs whatever task the profile asks for: `android.gradleTask` (a single task; a bare name
 runs in `android.module`, default `app`) wins. Otherwise `android.gradleCommand`, EAS's field, is
 passed to `./gradlew` as written (for example `":app:bundleRelease"`). Otherwise the task comes
 from `format` / `flavor` / `buildType`. Gradle settings such as `org.gradle.caching` belong in
 `~/.gradle/gradle.properties`, which the build reads as usual.
+
+#### ccache on iOS
+
+ccache keys each compile on its command line, which holds absolute paths. Two of those change on
+every run by default: the random staging dir, and the DerivedData folder, whose name Xcode hashes
+from the workspace path. iOS and macOS store archives always pass `-derivedDataPath` inside the build
+dir. To make the rest repeat, set `BETTER_UPDATE_BUILD_DIR` to a fixed path outside the checkout,
+for example `$RUNNER_TEMP/bu-build` on a self-hosted runner. Then point `CCACHE_BASEDIR` at a parent
+of that dir, keep `CCACHE_DIR` on persistent storage, and give each concurrent build its own
+`BETTER_UPDATE_BUILD_DIR`.
+
+With `ios.ccacheEnabled` (Expo's `expo-build-properties`), React Native's `ccache-clang.sh` runs
+`$CCACHE_BINARY`. CocoaPods sets that only as an Xcode build setting, which Xcode does not export to
+the compiler's environment. Without `CCACHE_BINARY=ccache` in the build's environment, compiles
+silently run plain clang. Export it in CI or set it in the profile's `env`.
 
 ## `builds` — server-side build records
 

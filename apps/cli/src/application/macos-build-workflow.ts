@@ -20,6 +20,7 @@ import { runMacosBuild } from "../commands/build/macos";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readBuildProfile } from "../lib/build-profile";
 import { resolveMacosStrategy } from "../lib/build-strategy";
+import { acquireBuildWorkDir } from "../lib/build-work-dir";
 import { clearBuildCaches } from "../lib/clear-cache";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { readEasProjectType } from "../lib/eas-json";
@@ -33,7 +34,6 @@ import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveProfileName } from "../lib/resolve-profile-name";
 import { sha256File } from "../lib/sha256";
 import { readTauriUpdaterPubkey } from "../lib/tauri-config";
-import { acquireBuildTempDir } from "../lib/temp-dir";
 import { printWarn } from "../lib/warning-style";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
@@ -179,7 +179,11 @@ export const runMacosBuildWorkflow = (options: RunMacosBuildWorkflowOptions) =>
       if (options.clearCache) {
         yield* clearBuildCaches(yield* runtime.commandEnvironment(buildEnvVars));
       }
-      const tempDir = yield* acquireBuildTempDir;
+      const tempDir = yield* acquireBuildWorkDir({
+        platform: "macos",
+        env: yield* runtime.commandEnvironment(buildEnvVars),
+        cwd: userCwd,
+      });
       const staging = yield* prepareStagingProject({
         userCwd,
         tempDir,
