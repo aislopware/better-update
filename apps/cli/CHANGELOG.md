@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.88.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.88.0...%40better-update%2Fcli%400.88.1) (2026-11-10)
+
+### Bug Fixes
+
+* **cli:** wait out a new ASC app and resolve the submit bundle id ([96bf3b2](https://github.com/aislopware/better-update/commit/96bf3b2928b5446439df5020638991253256c662))
+
 ## [0.88.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fcli%400.87.0...%40better-update%2Fcli%400.88.0) (2026-11-10)
 
 ### Features
