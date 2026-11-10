@@ -26,6 +26,7 @@ import { prepareXcodeProfiles } from "../../lib/macos-xcode-profiles";
 import { printHuman } from "../../lib/output";
 import { parsePlist } from "../../lib/plist";
 import { printWarn } from "../../lib/warning-style";
+import { xcodeCompileSettings } from "../../lib/xcode-build-settings";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
 import { collectIosDebugArtifacts } from "./ios-debug-artifacts";
@@ -306,6 +307,7 @@ const runMacosXcodeBuild = <ProfileError, ProfileServices>(
           universal: profile.universal,
           perTargetProfiles: profiles.size > 0,
         }),
+        ...xcodeCompileSettings(commandEnv),
       ],
       cwd: macosDir,
       env: { ...commandEnv, SOURCEMAP_FILE: embeddedSourcemapPath },

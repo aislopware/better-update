@@ -12,6 +12,7 @@ import { buildSigningEntries } from "../../lib/ios-signing-entries";
 import { validateIosBuild } from "../../lib/post-build-validation";
 import { sha256File } from "../../lib/sha256";
 import { setIosUpdateChannel } from "../../lib/update-channel-native";
+import { xcodeCompileSettings } from "../../lib/xcode-build-settings";
 import { discoverSignedTargets, pickMainTarget } from "../../lib/xcode-targets";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
@@ -70,6 +71,7 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
         "CODE_SIGNING_ALLOWED=NO",
         "CODE_SIGNING_REQUIRED=NO",
         "CODE_SIGN_IDENTITY=",
+        ...xcodeCompileSettings(commandEnv),
       ],
       cwd: iosDir,
       env: commandEnv,
@@ -259,6 +261,7 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
         "-archivePath",
         archivePath,
         "archive",
+        ...xcodeCompileSettings(commandEnv),
       ],
       cwd: iosDir,
       env: { ...commandEnv, SOURCEMAP_FILE: embeddedSourcemapPath },
