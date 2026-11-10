@@ -17,6 +17,10 @@
  * `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` — before any bytes upload, and is
  * surfaced as the benign `alreadyUploaded` outcome (altool's "Redundant Binary
  * Upload" parity).
+ *
+ * A 409 naming the app relationship as invalid means App Store Connect has not
+ * finished propagating a newly created app; it fails with `ASC_APP_NOT_READY`
+ * for the caller to wait out (`asc-app-not-ready.ts`).
  */
 import { open, stat } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
@@ -27,6 +31,7 @@ import { Effect } from "effect";
 import type AppleUtils from "@expo/apple-utils";
 
 import { buildAscToken } from "./apple-asc-connect";
+import { APP_NOT_READY_CODE, APP_NOT_READY_HINT, isAppNotReadyConflict } from "./asc-app-not-ready";
 import { pollBuildUploadState, pollFileDelivery, requestJson } from "./asc-build-upload-http";
 import {
   AscBuildUploadError,
@@ -69,7 +74,8 @@ interface ReserveOutcome {
 }
 
 /**
- * `POST /v1/buildUploads`. 409-duplicate → benign `already-uploaded`; auth,
+ * `POST /v1/buildUploads`. 409-duplicate → benign `already-uploaded`; 409 on the
+ * app relationship → `ASC_APP_NOT_READY`; auth,
  * rate-limit, or availability failures (401/403/404/429/5xx) →
  * {@link AscBuildUploadUnavailableError} so the caller can fall back to altool
  * before any bytes moved.
@@ -115,6 +121,12 @@ const createBuildUpload = (params: {
       return { kind: "already-uploaded", buildUploadId: "" } as const;
     }
     const detail = `POST /v1/buildUploads returned ${String(response.status)}: ${formatAscErrors(errors)}`;
+    if (isAppNotReadyConflict(response.status, errors)) {
+      return yield* new AscBuildUploadError({
+        code: APP_NOT_READY_CODE,
+        message: `${detail}. ${APP_NOT_READY_HINT}`,
+      });
+    }
     if ([401, 403, 404, 429].includes(response.status) || response.status >= 500) {
       return yield* new AscBuildUploadUnavailableError({ message: detail });
     }

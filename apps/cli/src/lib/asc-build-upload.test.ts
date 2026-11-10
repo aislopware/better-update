@@ -302,4 +302,27 @@ describe(uploadIpaViaBuildUploadApi, () => {
       expect(error.message).toMatch(/bad version/);
     });
   });
+
+  it("flags a 409 on the app relationship as ASC_APP_NOT_READY, moving no bytes", async () => {
+    await withTempIpa(async (ipaPath) => {
+      const { calls, fetchFn } = makeScriptedFetch({
+        createStatus: 409,
+        createBody: {
+          errors: [
+            {
+              status: "409",
+              code: "ENTITY_ERROR.RELATIONSHIP.INVALID",
+              detail: "'app-1' is not a valid ID for this relationship.",
+            },
+          ],
+        },
+      });
+
+      const error = await flipUpload(ipaPath, fetchFn);
+
+      expect(error).toMatchObject({ _tag: "AscBuildUploadError", code: "ASC_APP_NOT_READY" });
+      expect(error.message).toMatch(/not finished setting up/);
+      expect(calls).toHaveLength(1);
+    });
+  });
 });

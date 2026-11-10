@@ -693,6 +693,11 @@ CLI. Exactly one archive source is required (`--latest`/`--id`/`--path`/`--url`)
 passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight changelog; `--service-account-key-id` overrides the
 Android service account.
 
+**iOS bundle id.** An iOS submit needs the app's bundle identifier. It uses the submit profile's
+`ios.bundleIdentifier` if set, else the bundle id the submitted build recorded (`--id` / `--latest`),
+else the Expo config's `ios.bundleIdentifier` (`app.json` / `app.config.*`). It errors only when none
+of the three names one, which can happen with `--path` / `--url` in a non-Expo project.
+
 The whole upload runs locally, so a submission record is written to the server **only after the
 upload succeeds** — it is a success-only history, not a live status you can poll or cancel. If the
 upload fails (or is skipped because no auth is configured), no record is created; the failure is
@@ -712,6 +717,12 @@ keys per team and a key's `.p8` downloads only once. The resolved id is written 
 profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with nothing configured skip
 the upload (no record is written) and print how to add a key.
 
+**Unlocking the vault without a prompt.** Decrypting the `.p8` needs the vault. In CI, set
+`BETTER_UPDATE_ROBOT` to a robot credential; it carries its own key and never prompts. On a developer
+machine, a `--non-interactive` run (or one with `CI` set) cannot ask for the identity passphrase. Run
+`better-update credentials unlock` first so the session is cached, or re-run with `--interactive`.
+The error names these options.
+
 **iOS uploader: Build Upload API first, `altool` fallback.** With an ASC API key, the `.ipa` goes up
 through Apple's native **Build Upload API** (REST: reserve the upload → chunked presigned PUTs →
 commit → poll delivery/processing) with a live progress bar (percent + uploaded/total MB) in
@@ -723,6 +734,16 @@ step, before any bytes move — or when the IPA's version strings can't be read,
 `BETTER_UPDATE_IOS_UPLOADER=altool` forces it. Both paths treat Apple's duplicate-build rejection as
 the benign "already uploaded, continue"; the Build Upload API 409s it at the reserve step, so a
 duplicate never re-uploads any bytes. `build --auto-submit` uses the same uploader selection.
+
+**A freshly created ASC app is waited out.** App Store Connect takes a while (25 minutes has been seen)
+to make a new app usable as an upload target, even after `app-store apps list` shows it. Until then, the
+Build Upload API returns 409 "'<id>' is not a valid ID for this relationship" and `altool` reports "a
+relationship with an invalid value". Both uploaders treat this as "app not ready yet". They print a
+progress line and retry with backoff: 15 s at first, doubling up to 2 minutes, for up to 30 minutes in
+total. `BETTER_UPDATE_ASC_APP_WAIT_MINUTES` changes that limit, and `0` turns the wait off. When the
+limit runs out, the error says to re-run later and to check that `ascAppId` names this app. A wrong
+`ascAppId` produces the same 409. The Build Upload API fails at the reserve step, before any bytes
+move, so its retries upload nothing twice. An `altool` retry runs `altool` again from the start.
 
 **What to Test validation.** `--what-to-test` is validated **before** the (slow) upload: it must be non-empty and
 ≤ 4000 UTF-8 bytes, so an avoidable metadata error never costs a full binary upload. Apple also enforces an

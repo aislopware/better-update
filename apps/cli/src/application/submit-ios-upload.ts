@@ -10,6 +10,11 @@ import { toDbNull } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { buildTokenRequestContext } from "../lib/apple-asc-connect";
+import {
+  APP_NOT_READY_CODE,
+  appNotReadyBudgetMillis,
+  retryWhileAppNotReady,
+} from "../lib/asc-app-not-ready";
 import { uploadIpaViaBuildUploadApi } from "../lib/asc-build-upload";
 import { readIpaVersionInfo } from "../lib/ipa-info";
 import { printHuman } from "../lib/output";
@@ -114,7 +119,8 @@ interface IosSubmitInputs {
  * Upload the `.ipa` through the native Build Upload API with progress. A
  * reserve-phase failure (endpoint unavailable / unauthorized, before any bytes
  * moved) transparently falls back to `altool`; a duplicate build is the same
- * benign skip the altool path reports.
+ * benign skip the altool path reports; a just-created app that ASC has not
+ * propagated yet is waited out ({@link retryWhileAppNotReady}).
  */
 const uploadIpaViaAscApi = (params: {
   readonly auth: IosUploadAuth;
@@ -127,14 +133,17 @@ const uploadIpaViaAscApi = (params: {
   Effect.gen(function* () {
     yield* printHuman("Uploading the IPA via the App Store Connect Build Upload API...");
     const reporter = yield* makeUploadProgressReporter("Uploading to App Store Connect");
-    const outcome = yield* uploadIpaViaBuildUploadApi({
-      credentials: params.ascCredentials,
-      appId: params.appId,
-      ipaPath: params.ipaPath,
-      shortVersion: params.shortVersion,
-      buildVersion: params.buildVersion,
-      reporter,
-    }).pipe(
+    const outcome = yield* retryWhileAppNotReady(
+      uploadIpaViaBuildUploadApi({
+        credentials: params.ascCredentials,
+        appId: params.appId,
+        ipaPath: params.ipaPath,
+        shortVersion: params.shortVersion,
+        buildVersion: params.buildVersion,
+        reporter,
+      }),
+      { appId: params.appId, budgetMillis: appNotReadyBudgetMillis(process.env) },
+    ).pipe(
       Effect.catchTag("AscBuildUploadUnavailableError", (error) =>
         printHuman(
           `Build Upload API unavailable (${error.message}) — falling back to xcrun altool.`,
@@ -152,7 +161,10 @@ const uploadIpaViaAscApi = (params: {
       Effect.catchTag("AscBuildUploadError", (error) =>
         Effect.fail(
           new CliSubmitError({
-            code: "SUBMISSION_SERVICE_IOS_UPLOAD_FAILED",
+            code:
+              error.code === APP_NOT_READY_CODE
+                ? APP_NOT_READY_CODE
+                : "SUBMISSION_SERVICE_IOS_UPLOAD_FAILED",
             message: error.message,
           }),
         ),
@@ -383,7 +395,10 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
             ? "Uploading the IPA with xcrun altool (Apple ID app-specific password)..."
             : "Uploading the IPA with xcrun altool (ASC API key)...",
         );
-        yield* uploadIpaViaAltool({ auth: inputs.auth, ascCredentials, ipaPath });
+        yield* retryWhileAppNotReady(
+          uploadIpaViaAltool({ auth: inputs.auth, ascCredentials, ipaPath }),
+          { appId, budgetMillis: appNotReadyBudgetMillis(process.env) },
+        );
       }
     }
 

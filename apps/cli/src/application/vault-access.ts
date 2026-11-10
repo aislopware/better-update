@@ -6,7 +6,7 @@ import type { UserEncryptionKey } from "@better-update/api";
 import type { IdentityFile } from "@better-update/credentials-crypto";
 
 import { IdentityError } from "../lib/exit-codes";
-import { promptPassword } from "../lib/prompts";
+import { promptPassword, requireInteractive } from "../lib/prompts";
 import { DeviceUnlockMemo } from "../services/device-unlock-memo";
 import { VaultCache, VaultCacheLive } from "../services/vault-cache";
 import { activeEnvPrivateKey, activeRecipient, loadIdentityFileOrFail } from "./identity";
@@ -69,6 +69,10 @@ export const unlockActivePrivateKey = (
     return identity.privateKey;
   });
 
+/** How a non-interactive run reaches the vault without a passphrase prompt. */
+export const VAULT_UNLOCK_NON_INTERACTIVE_REMEDY =
+  "In CI, set BETTER_UPDATE_ROBOT to a robot credential (`better-update credentials robot create`). Locally, run `better-update credentials unlock` first, or re-run with --interactive.";
+
 /**
  * Open this device's on-disk identity for an interactive command, prompting for
  * the passphrase at most ONCE per process ({@link DeviceUnlockMemo}). Every
@@ -99,6 +103,12 @@ export const unlockDeviceIdentityInteractive = (
     if (remembered !== undefined) {
       return remembered;
     }
+    // The generic prompt remedy ("provide the value via a flag") has no flag to
+    // point at here; name the ways a headless run can reach the vault instead.
+    yield* requireInteractive(
+      "Unlocking this device's identity (vault passphrase prompt)",
+      VAULT_UNLOCK_NON_INTERACTIVE_REMEDY,
+    );
     const passphrase = yield* promptPassword(message);
     const identity = yield* openIdentityFile(file, passphrase);
     return yield* memo.set(file.publicKey, { privateKey: identity.privateKey, passphrase });

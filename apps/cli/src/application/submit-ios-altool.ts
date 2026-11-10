@@ -12,6 +12,11 @@ import path from "node:path";
 import { Effect } from "effect";
 
 import { altoolFailureDetail, isDuplicateBuildUpload, runAltool } from "../lib/altool";
+import {
+  APP_NOT_READY_CODE,
+  APP_NOT_READY_HINT,
+  isAltoolAppNotReady,
+} from "../lib/asc-app-not-ready";
 import { printHuman } from "../lib/output";
 import { CliSubmitError } from "./submit-flow";
 
@@ -138,8 +143,11 @@ export const uploadIpaViaAltool = (params: {
       );
       return;
     }
-    return yield* new CliSubmitError({
-      code: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
-      message: `xcrun altool exited ${String(result.exitCode)}: ${detail}`,
-    });
+    const failure = `xcrun altool exited ${String(result.exitCode)}: ${detail}`;
+    return yield* isAltoolAppNotReady(detail)
+      ? new CliSubmitError({
+          code: APP_NOT_READY_CODE,
+          message: `${failure}. ${APP_NOT_READY_HINT}`,
+        })
+      : new CliSubmitError({ code: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED", message: failure });
   });

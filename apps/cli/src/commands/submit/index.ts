@@ -18,6 +18,7 @@ import {
 } from "../../application/submit-ios-upload";
 import { readSubmitProfile } from "../../lib/eas-json";
 import { InvalidArgumentError } from "../../lib/exit-codes";
+import { readExpoConfig } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
 import { optionalFlag } from "../../lib/params";
 import { readProjectId } from "../../lib/project-link";
@@ -48,10 +49,20 @@ const resolveArchive = (
 ) =>
   Effect.gen(function* () {
     if (args.path !== undefined) {
-      return { archiveSource: "path" as const, archiveUrl: args.path, buildId: undefined };
+      return {
+        archiveSource: "path" as const,
+        archiveUrl: args.path,
+        buildId: undefined,
+        bundleId: undefined,
+      };
     }
     if (args.url !== undefined) {
-      return { archiveSource: "url" as const, archiveUrl: args.url, buildId: undefined };
+      return {
+        archiveSource: "url" as const,
+        archiveUrl: args.url,
+        buildId: undefined,
+        bundleId: undefined,
+      };
     }
     if (args.id !== undefined) {
       // A build of another platform (a macOS DMG, an Android bundle for an iOS
@@ -67,6 +78,7 @@ const resolveArchive = (
         archiveSource: "build" as const,
         archiveUrl: link.artifactUrl,
         buildId: args.id,
+        bundleId: toOptional(build.bundleId),
       };
     }
     if (args.latest) {
@@ -83,31 +95,64 @@ const resolveArchive = (
         archiveSource: "build" as const,
         archiveUrl: link.artifactUrl,
         buildId: latest.id,
+        bundleId: toOptional(latest.bundleId),
       };
     }
     return null;
   });
 
+/**
+ * The bundle id an iOS submit targets: the submit profile's, else the one the
+ * submitted build recorded (`--id` / `--latest`), else the Expo config's
+ * `ios.bundleIdentifier` — the same sources `build` and `upload` resolve from.
+ */
+export const resolveSubmitBundleIdentifier = (params: {
+  readonly iosProfile: EasIosSubmitProfile | undefined;
+  readonly buildBundleId: string | undefined;
+  readonly projectRoot: string;
+}) =>
+  Effect.gen(function* () {
+    const configured = params.iosProfile?.bundleIdentifier ?? params.buildBundleId;
+    if (configured !== undefined) {
+      return configured;
+    }
+    const expo = yield* readExpoConfig(params.projectRoot).pipe(Effect.option);
+    return expo._tag === "Some" ? expo.value.ios?.bundleIdentifier : undefined;
+  });
+
 const buildIosCreatePayload = (
+  bundleIdentifier: string,
   iosProfile: EasIosSubmitProfile | undefined,
   whatToTest: string | undefined,
-) => {
-  if (iosProfile?.bundleIdentifier === undefined) {
-    return undefined;
-  }
-  return compact({
-    bundleIdentifier: iosProfile.bundleIdentifier,
-    appleId: iosProfile.appleId,
-    ascAppId: iosProfile.ascAppId,
-    appleTeamId: iosProfile.appleTeamId,
-    sku: iosProfile.sku,
-    language: iosProfile.language,
-    companyName: iosProfile.companyName,
-    appName: iosProfile.appName,
-    groups: iosProfile.groups,
+) =>
+  compact({
+    bundleIdentifier,
+    appleId: iosProfile?.appleId,
+    ascAppId: iosProfile?.ascAppId,
+    appleTeamId: iosProfile?.appleTeamId,
+    sku: iosProfile?.sku,
+    language: iosProfile?.language,
+    companyName: iosProfile?.companyName,
+    appName: iosProfile?.appName,
+    groups: iosProfile?.groups,
     whatToTest,
   });
-};
+
+const resolveIosCreatePayload = (args: RunArgs) =>
+  Effect.gen(function* () {
+    const bundleIdentifier = yield* resolveSubmitBundleIdentifier({
+      iosProfile: args.easProfile.ios,
+      buildBundleId: args.archive.bundleId,
+      projectRoot: args.projectRoot,
+    });
+    if (bundleIdentifier === undefined) {
+      return yield* new InvalidArgumentError({
+        message:
+          "iOS submit needs a bundle identifier: set ios.bundleIdentifier in the eas.json submit profile or in your Expo config, or submit a build that recorded one (--id / --latest).",
+      });
+    }
+    return buildIosCreatePayload(bundleIdentifier, args.easProfile.ios, args.whatToTest);
+  });
 
 const buildAndroidCreatePayload = (androidProfile: EasAndroidSubmitProfile | undefined) => {
   if (androidProfile?.applicationId === undefined) {
@@ -132,6 +177,8 @@ interface RunArgs {
     readonly archiveSource: "build" | "path" | "url";
     readonly archiveUrl: string;
     readonly buildId: string | undefined;
+    /** Bundle id the submitted build recorded, when it came from `--id` / `--latest`. */
+    readonly bundleId: string | undefined;
   };
   readonly whatToTest?: string;
   readonly serviceAccountKeyId?: string;
@@ -260,16 +307,12 @@ const submitIosBranch = (params: {
 // config error; the record is keyed on buildVersion so a re-run updates it.
 const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
   Effect.gen(function* () {
-    const iosConfig = buildIosCreatePayload(args.easProfile.ios, args.whatToTest);
     const androidConfig = buildAndroidCreatePayload(args.easProfile.android);
 
+    // Resolved only for an iOS submit, so it doubles as the platform check.
+    const iosConfig = args.platform === "ios" ? yield* resolveIosCreatePayload(args) : undefined;
     let iosOutcome: IosSubmitOutcome | null = null;
-    if (args.platform === "ios") {
-      if (iosConfig === undefined) {
-        return yield* new InvalidArgumentError({
-          message: "iOS submit requires ios.bundleIdentifier in the eas.json submit profile.",
-        });
-      }
+    if (iosConfig !== undefined) {
       iosOutcome = yield* submitIosBranch({
         api,
         projectId,
