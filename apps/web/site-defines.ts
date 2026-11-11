@@ -15,5 +15,6 @@ export const siteDefines = (): Record<string, string> => {
     // then matches local development hosts only.
     "import.meta.env.SITE_VAULT_HOST": JSON.stringify(config.vaultHost),
     "import.meta.env.SITE_LEGAL_EMAIL": JSON.stringify(config.legalEmail),
+    "import.meta.env.SITE_ORG_CREATION": JSON.stringify(config.orgCreation),
   };
 };

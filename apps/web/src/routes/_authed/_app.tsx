@@ -19,7 +19,7 @@ import { Suspense, useState } from "react";
 
 import { DetailCardSkeleton } from "../../components/skeletons";
 import { renderSwitcherIndicator } from "../../components/switcher-indicator";
-import { isSuperadminUser } from "../../lib/access";
+import { canCreateOrganization, isSuperadminUser } from "../../lib/access";
 import { authClient, rejectOnAuthClientError } from "../../lib/auth-client";
 import { DocumentTitle } from "../../lib/document-title";
 import { EntityAvatar } from "../../lib/entity-avatar";
@@ -81,7 +81,8 @@ const OrgSwitcher = () => {
   const { setOpenMobile } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
-  const { activeOrg, orgs } = Route.useRouteContext();
+  const { activeOrg, orgs, user } = Route.useRouteContext();
+  const canCreateOrg = canCreateOrganization(user);
   const activeOrgId = activeOrg.id;
   const displayName = activeOrg.name;
 
@@ -171,20 +172,24 @@ const OrgSwitcher = () => {
               );
             })}
           </DropdownMenu.Group>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item
-            onClick={() => {
-              setOpenMobile(false);
-              setCreateOrgOpen(true);
-            }}
-            disabled={switchOrg.isPending}
-          >
-            <PlusIcon weight="bold" className="size-4" />
-            <span>Create organization</span>
-          </DropdownMenu.Item>
+          {canCreateOrg && (
+            <>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item
+                onClick={() => {
+                  setOpenMobile(false);
+                  setCreateOrgOpen(true);
+                }}
+                disabled={switchOrg.isPending}
+              >
+                <PlusIcon weight="bold" className="size-4" />
+                <span>Create organization</span>
+              </DropdownMenu.Item>
+            </>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu>
-      <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
+      {canCreateOrg && <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />}
     </>
   );
 };

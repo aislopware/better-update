@@ -61,6 +61,9 @@ export default defineConfig(async () => {
       bindings: {
         TEST_MIGRATIONS: migrations,
         TEST_MODE: "true",
+        // Pinned so a developer's `BU_ORG_CREATION=superadmin` cannot stop
+        // ordinary approved test users from creating orgs.
+        ORG_CREATION: "approved",
         ACCOUNT_ID: "integration-account",
         BETTER_AUTH_SECRET: "integration-test-secret-that-is-at-least-32-chars",
         BETTER_AUTH_URL: "http://localhost",

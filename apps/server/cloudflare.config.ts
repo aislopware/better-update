@@ -197,6 +197,9 @@ export default defineConfig(({ mode }) => {
         // first login and can approve other users from the dashboard; everyone
         // else starts unapproved.
         SUPERADMIN_EMAILS: bindings.text(config.superadminEmails),
+        // Who may create an organization: "approved" (any approved user) or
+        // "superadmin" (superadmins only; everyone else joins by invitation).
+        ORG_CREATION: bindings.text(config.orgCreation),
         // Verified `From:` for invitation email — must be allowed by EMAIL above
         // and verified in Cloudflare Email Routing.
         EMAIL_SENDER_ADDRESS: bindings.text(config.emailSender),

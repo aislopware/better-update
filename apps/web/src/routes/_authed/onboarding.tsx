@@ -8,12 +8,15 @@ import {
 import { FieldGroup } from "@better-update/ui/components/field-layout";
 import { Input } from "@better-update/ui/components/input";
 import { Link } from "@better-update/ui/components/link";
+import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useRef } from "react";
 
-import { CenteredCardPage } from "../../components/centered-card-page";
+import { CenteredCardBody, CenteredCardPage } from "../../components/centered-card-page";
+import { StatusMedallion } from "../../components/status-medallion";
+import { canCreateOrganization } from "../../lib/access";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { logout } from "../../lib/logout";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
@@ -50,7 +53,28 @@ const SignedInAs = () => {
   );
 };
 
-const Onboarding = () => {
+// Under the `superadmin` org-creation policy a regular user cannot make an
+// organization; the only way in is an invitation from one that exists.
+const AwaitingInvitation = () => (
+  <CenteredCardPage footer={<SignedInAs />}>
+    <CenteredCardBody>
+      <StatusMedallion>
+        <EnvelopeSimpleIcon />
+      </StatusMedallion>
+      <div className="flex flex-col gap-1.5">
+        <CardTitle className="text-xl font-semibold">
+          You&apos;re not in an organization yet
+        </CardTitle>
+        <CardDescription>
+          Organizations on this instance are created by an administrator. Ask an organization owner
+          to invite you; the invitation arrives by email.
+        </CardDescription>
+      </div>
+    </CenteredCardBody>
+  </CenteredCardPage>
+);
+
+const CreateFirstOrganization = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const slugEdited = useRef(false);
@@ -171,6 +195,11 @@ const Onboarding = () => {
       </CardContent>
     </CenteredCardPage>
   );
+};
+
+const Onboarding = () => {
+  const { user } = Route.useRouteContext();
+  return canCreateOrganization(user) ? <CreateFirstOrganization /> : <AwaitingInvitation />;
 };
 
 export const Route = createFileRoute("/_authed/onboarding")({

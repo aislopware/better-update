@@ -61,6 +61,9 @@ const KEYS = {
   BU_EMAIL_SENDER: { required: true, placeholder: "noreply@localhost" },
   BU_LEGAL_EMAIL: { fallback: "" },
   BU_SUPERADMIN_EMAILS: { fallback: "" },
+  // Who may create an organization: `approved` (any approved user) or
+  // `superadmin` (superadmins only; everyone else joins by invitation).
+  BU_ORG_CREATION: { fallback: "approved" },
   BU_GITHUB_CLIENT_ID: { fallback: "" },
   BU_GOOGLE_CLIENT_ID: { fallback: "" },
   // GitHub `owner/repo` whose Releases carry the CLI binaries (`install.sh`,
@@ -109,6 +112,8 @@ export interface DeployConfig {
   readonly emailSender: string;
   readonly legalEmail: string;
   readonly superadminEmails: string;
+  /** Who may create an organization. */
+  readonly orgCreation: OrgCreationPolicy;
   readonly githubClientId: string;
   readonly googleClientId: string;
   /** GitHub `owner/repo` the CLI binaries are released from. */
@@ -153,6 +158,22 @@ const assertRequired = (values: Record<string, string>): void => {
   throw new Error(
     `This repository ships no deployment identity. Missing ${missing.join(", ")}. ${hint}`,
   );
+};
+
+/** Who may create an organization (`BU_ORG_CREATION`). */
+export type OrgCreationPolicy = "approved" | "superadmin";
+
+const ORG_CREATION_POLICIES: readonly OrgCreationPolicy[] = ["approved", "superadmin"];
+
+const parseOrgCreation = (raw: string): OrgCreationPolicy => {
+  const policy = ORG_CREATION_POLICIES.find((candidate) => candidate === raw.trim());
+  if (policy === undefined) {
+    // eslint-disable-next-line functional/no-throw-statements -- config loader: a throw is how cf, Vite and Bun macros report an unusable config
+    throw new Error(
+      `BU_ORG_CREATION must be one of ${ORG_CREATION_POLICIES.join(", ")}; got "${raw}".`,
+    );
+  }
+  return policy;
 };
 
 const stripTrailingSlash = (value: string): string => value.replace(/\/$/u, "");
@@ -209,6 +230,7 @@ export const loadDeployConfig = (options: LoadOptions = {}): DeployConfig => {
     // address is reachable at the one it already sends mail from.
     legalEmail: legalEmail.length > 0 ? legalEmail : emailSender,
     superadminEmails: read("BU_SUPERADMIN_EMAILS"),
+    orgCreation: parseOrgCreation(read("BU_ORG_CREATION")),
     githubClientId: read("BU_GITHUB_CLIENT_ID"),
     googleClientId: read("BU_GOOGLE_CLIENT_ID"),
     cliReleaseRepo: read("BU_CLI_RELEASE_REPO"),

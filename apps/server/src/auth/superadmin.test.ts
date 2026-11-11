@@ -1,4 +1,9 @@
-import { isSuperadminEmail, parseSuperadminEmails, roleIsSuperadmin } from "./superadmin";
+import {
+  isSuperadminEmail,
+  mayCreateOrganization,
+  parseSuperadminEmails,
+  roleIsSuperadmin,
+} from "./superadmin";
 
 describe(parseSuperadminEmails, () => {
   it("returns empty set for undefined or blank", () => {
@@ -40,5 +45,25 @@ describe(roleIsSuperadmin, () => {
     expect(roleIsSuperadmin("administrator")).toBe(false);
     expect(roleIsSuperadmin(null)).toBe(false);
     expect(roleIsSuperadmin(undefined)).toBe(false);
+  });
+});
+
+describe(mayCreateOrganization, () => {
+  const approved = { approved: true, role: "user" };
+  const unapproved = { approved: false, role: "user" };
+  const superadmin = { approved: false, role: "admin" };
+
+  it("lets any approved user or superadmin create by default", () => {
+    expect(mayCreateOrganization(approved, undefined)).toBe(true);
+    expect(mayCreateOrganization(approved, "approved")).toBe(true);
+    expect(mayCreateOrganization(superadmin, "approved")).toBe(true);
+    expect(mayCreateOrganization(unapproved, "approved")).toBe(false);
+  });
+
+  it("restricts creation to superadmins under the superadmin policy", () => {
+    expect(mayCreateOrganization(approved, "superadmin")).toBe(false);
+    expect(mayCreateOrganization(unapproved, " superadmin ")).toBe(false);
+    expect(mayCreateOrganization(superadmin, "superadmin")).toBe(true);
+    expect(mayCreateOrganization({ approved: true, role: "user,admin" }, "superadmin")).toBe(true);
   });
 });

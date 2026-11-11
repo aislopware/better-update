@@ -11,4 +11,5 @@ interface ImportMetaEnv {
   readonly SITE_APP_URL: string;
   readonly SITE_VAULT_HOST: string;
   readonly SITE_LEGAL_EMAIL: string;
+  readonly SITE_ORG_CREATION: string;
 }

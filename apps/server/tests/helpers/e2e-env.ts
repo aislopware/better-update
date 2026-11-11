@@ -196,6 +196,9 @@ export const createServerE2EEnvironment = (options?: {
     // `REQUIRE_CLI_VERSION_ABOVE` to (retiring exactly that version). "0.0.0"
     // blocks nothing so functional e2e runs regardless of the prod threshold.
     REQUIRE_CLI_VERSION_ABOVE: "0.0.0",
+    // Flows create orgs as ordinary approved users; pin the default policy so a
+    // developer's `BU_ORG_CREATION=superadmin` cannot fail them.
+    ORG_CREATION: "approved",
   } satisfies Record<string, string>;
 
   return { vars };

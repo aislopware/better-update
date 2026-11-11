@@ -4,6 +4,8 @@ import { redirect } from "@tanstack/react-router";
 import type { MeResult } from "@better-update/api-client/react";
 import type { QueryClient } from "@tanstack/react-query";
 
+import { SITE } from "./site-config";
+
 // Client-side mirror of the server's superadmin/approval gate. The Better Auth
 // `admin` plugin stores the global role as a (possibly comma-separated) string;
 // `role = "admin"` marks a superadmin. Unapproved non-superadmins are held at
@@ -23,6 +25,14 @@ export const isSuperadminUser = (user: AccessUser): boolean =>
 
 export const isApprovedUser = (user: AccessUser): boolean =>
   user.approved === true || isSuperadminUser(user);
+
+// Mirror of the server's org-creation gate (`ORG_CREATION`): under the
+// `superadmin` policy only superadmins may create an organization; everyone
+// else joins one by invitation. UX only — Better Auth enforces it server-side.
+export const canCreateOrganization = (
+  user: AccessUser,
+  policy: string = SITE.orgCreation,
+): boolean => isSuperadminUser(user) || (policy !== "superadmin" && isApprovedUser(user));
 
 // Org-management rank check (GITLAB-RBAC-SPEC §1): owner and admin share the
 // org-management surface (protection toggles, project-member management, …).

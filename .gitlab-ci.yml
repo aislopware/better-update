@@ -29,7 +29,7 @@
 #     required  BU_CF_ACCOUNT_ID BU_APP_HOST BU_ASSET_CDN_HOST BU_EMAIL_SENDER
 #               BU_D1_DATABASE_ID BU_KV_SESSION_ID BU_KV_BUILD_RESERVATIONS_ID
 #     as needed BU_CF_ZONE_ID BU_VAULT_HOST BU_*_WORKER_NAME
-#               BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_*_CLIENT_ID
+#               BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_ORG_CREATION BU_*_CLIENT_ID
 #
 #   Credentials (masked + protected)
 #     CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID  — deploy-server / deploy-web
@@ -477,7 +477,7 @@ release:
 #   required  BU_CF_ACCOUNT_ID BU_APP_HOST BU_EMAIL_SENDER
 #             BU_D1_DATABASE_ID BU_KV_SESSION_ID BU_KV_BUILD_RESERVATIONS_ID
 #   as needed BU_CF_ZONE_ID BU_VAULT_HOST BU_ASSET_CDN_HOST BU_*_WORKER_NAME
-#             BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_*_CLIENT_ID
+#             BU_D1_DATABASE_NAME BU_R2_* BU_SUPERADMIN_EMAILS BU_ORG_CREATION BU_*_CLIENT_ID
 # Both scripts below resolve them strictly (BU_DEPLOY_STRICT=1) and fail the job
 # if a required one is missing, so a misconfigured pipeline cannot deploy a
 # placeholder.

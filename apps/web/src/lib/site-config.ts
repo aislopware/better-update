@@ -12,4 +12,6 @@ export const SITE = {
   vaultHost: import.meta.env.SITE_VAULT_HOST,
   /** Contact address shown on the legal pages. */
   legalEmail: import.meta.env.SITE_LEGAL_EMAIL,
+  /** Who may create an organization: `approved` or `superadmin`. */
+  orgCreation: import.meta.env.SITE_ORG_CREATION,
 } as const;

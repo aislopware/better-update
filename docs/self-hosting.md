@@ -122,6 +122,12 @@ cd ../web && bun run deploy
 Sign in with an address listed in `BU_SUPERADMIN_EMAILS` — that account is
 auto-promoted to superadmin on first login and can approve everyone else.
 
+By default any approved user may create organizations. Set
+`BU_ORG_CREATION=superadmin` to reserve that to superadmins: everyone else then
+joins an organization by invitation, and their sign-up lands on a page asking
+them to get invited. The value is read by both Workers, so redeploy both after
+changing it.
+
 ### 5. Point the CLI at your server
 
 The CLI build bakes your `BU_APP_HOST` into its defaults, so a CLI built from

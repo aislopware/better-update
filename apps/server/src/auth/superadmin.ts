@@ -34,3 +34,10 @@ export const roleIsSuperadmin = (role: string | null | undefined): boolean => {
     .map((part) => part.trim())
     .includes("admin");
 };
+
+// Who may create an organization (`ORG_CREATION`). "superadmin" restricts it to
+// superadmins; anything else keeps the default: any approved user (or superadmin).
+export const mayCreateOrganization = (
+  user: { readonly approved: boolean; readonly role: string | null | undefined },
+  policy: string | undefined,
+): boolean => roleIsSuperadmin(user.role) || (policy?.trim() !== "superadmin" && user.approved);

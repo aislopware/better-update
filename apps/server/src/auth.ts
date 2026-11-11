@@ -11,7 +11,7 @@ import {
 } from "./auth/org-lifecycle";
 import { hashPassword, verifyPassword } from "./auth/password";
 import { createKvSecondaryStorage } from "./auth/secondary-storage";
-import { isSuperadminEmail, parseSuperadminEmails, roleIsSuperadmin } from "./auth/superadmin";
+import { isSuperadminEmail, mayCreateOrganization, parseSuperadminEmails } from "./auth/superadmin";
 import { provideCloudflareEnv } from "./cloudflare/context";
 import { EmailServiceLive } from "./cloudflare/email-service";
 import { EmailService } from "./domain/email-service";
@@ -69,6 +69,7 @@ type AuthEnv = Env & {
   readonly GOOGLE_CLIENT_ID?: string;
   readonly GOOGLE_CLIENT_SECRET?: string;
   readonly SUPERADMIN_EMAILS?: string;
+  readonly ORG_CREATION?: string;
   readonly TEST_MODE?: string;
   // WebAuthn / passkey config for the web env-vault step-up (P4). When
   // WEBAUTHN_RP_ID is unset the passkey plugin is NOT registered (prod default).
@@ -95,19 +96,19 @@ type AuthEnv = Env & {
   readonly WEBAUTHN_COOKIE_DOMAIN?: string;
 };
 
-// A user may create/use organizations only once approved (or if they are a
-// superadmin). Org creation runs through Better Auth's own routes, not our
-// HttpApi middleware, so it needs its own gate. Read straight from D1 rather
-// than trusting the session (the compact cookie cache may omit custom fields).
-const isUserApprovedOrAdmin = async (db: D1Database, userId: string): Promise<boolean> => {
-  const row = await db
-    .prepare(`SELECT "approved", "role" FROM "user" WHERE "id" = ?`)
+// A user may create an organization only once approved (or if they are a
+// superadmin); `ORG_CREATION = "superadmin"` narrows that to superadmins alone.
+// Org creation runs through Better Auth's own routes, not our HttpApi
+// middleware, so it needs its own gate. Read straight from D1 rather than
+// trusting the session (the compact cookie cache may omit custom fields).
+const userMayCreateOrganization = async (env: AuthEnv, userId: string): Promise<boolean> => {
+  const row = await env.DB.prepare(`SELECT "approved", "role" FROM "user" WHERE "id" = ?`)
     .bind(userId)
     .first<{ approved: number | null; role: string | null }>();
   if (!row) {
     return false;
   }
-  return row.approved === 1 || roleIsSuperadmin(row.role);
+  return mayCreateOrganization({ approved: row.approved === 1, role: row.role }, env.ORG_CREATION);
 };
 
 const trimOptionalBinding = (value: string | undefined): string =>
@@ -250,7 +251,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
 
     plugins: [
       organization({
-        allowUserToCreateOrganization: async (user) => isUserApprovedOrAdmin(env.DB, user.id),
+        allowUserToCreateOrganization: async (user) => userMayCreateOrganization(env, user.id),
         organizationLimit: 5,
         membershipLimit: 100,
         creatorRole: "owner",
