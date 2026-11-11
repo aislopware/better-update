@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.71.0](https://github.com/aislopware/better-update/compare/%40better-update%2Fserver%400.70.1...%40better-update%2Fserver%400.71.0) (2026-11-11)
+
+### Features
+
+* **server:** let a deployment reserve org creation to superadmins ([13fa376](https://github.com/aislopware/better-update/commit/13fa3764e6ee30fb75f54a6e989caf12a2f9867a))
+
 ## [0.70.1](https://github.com/aislopware/better-update/compare/%40better-update%2Fserver%400.70.0...%40better-update%2Fserver%400.70.1) (2026-10-30)
 
 **Note:** Version bump only for package @better-update/server

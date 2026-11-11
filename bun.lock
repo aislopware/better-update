@@ -36,7 +36,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.89.0",
+      "version": "0.89.1",
       "dependencies": {
         "@better-update/bsdiff": "workspace:*",
         "@effect/platform-bun": "4.1.0",
@@ -80,7 +80,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.70.1",
+      "version": "0.71.0",
       "dependencies": {
         "@better-auth/passkey": "^1.7.14",
         "@better-update/api": "workspace:*",
@@ -116,7 +116,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.88.2",
+      "version": "0.89.0",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",
@@ -242,7 +242,7 @@
     },
     "packages/deploy-config": {
       "name": "@better-update/deploy-config",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "dependencies": {
         "@better-update/dotenv": "workspace:*",
       },

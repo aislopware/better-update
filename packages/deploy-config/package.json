@@ -1,6 +1,6 @@
 {
   "name": "@better-update/deploy-config",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Resolves one deployment's identity (account, hosts, resource ids) from BU_* environment variables and .env.deploy.",
   "type": "module",
